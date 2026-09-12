@@ -199,3 +199,27 @@ more thing to get right per environment, and no test fails if it's wrong); a sec
 database for tests (still a paid managed service in the loop for something that must cost nothing,
 CLAUDE.md §5).
 **Date.** 2026-09-12
+
+## ADR-0015 — Neon cold-start: a 15s connect timeout, one retry, applied at both call sites
+
+**Context.** Neon (free plan) suspends compute after 5 minutes idle. The first connection of the
+day — the daily scrape's first query, or a scheduled Alembic run — pays a wake-up: the proxy holds
+the socket rather than refusing it, but that can take several seconds, and a default psycopg
+connect has no timeout tolerant of that without also risking a hung process on a genuine outage.
+**Decision.** `NEON_CONNECT_TIMEOUT_SECONDS = 15` on every engine (`connect_args={"connect_timeout":
+15}`), plus `connect_with_wakeup_retry()` in `src/pricepilot/db.py`: one retry, 2s later, on the
+first `OperationalError`. Applied at both places a *new* connection is opened against the
+collected-data database — `check_database()` and Alembic's `env.py` — not inside `session_scope`,
+where the pool and `pool_pre_ping` already own connection reuse. Verified 2026-09-12: `alembic
+upgrade head` ran clean against Neon on the day's first connection, and a second, separate
+connection confirmed `products`, `scrape_runs`, `raw_listings`, `llm_calls`, `alembic_version` all
+exist, `vector` extension 0.8.6 is active, and `<=>` answers.
+**Rationale.** One retry is enough: the 15s timeout already absorbs a normal wake-up, so a second
+consecutive failure is a real problem (bad credentials, Neon actually down, a network issue) and
+should surface immediately rather than be retried away and disguised as a timeout.
+**Rejected.** No timeout at all (a genuine outage hangs a scheduled run instead of failing loudly);
+retrying more than once or with backoff (delays surfacing a real failure for no benefit — a cold
+start either resolves within the one retry or the problem is not a cold start); polling Neon's API
+to pre-warm compute before connecting (another moving part, another credential, for a problem one
+retry already solves).
+**Date.** 2026-09-12
