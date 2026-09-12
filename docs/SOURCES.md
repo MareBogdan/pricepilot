@@ -348,9 +348,56 @@ Josera · Calibra · Trixie · Bosch · Petkult · Smølke
 Note the spelling traps this list already contains: **Smølke** (ø), **Hill's** (apostrophe), and
 brands that appear both with and without Romanian diacritics.
 
-## Confirmed cross-shop overlap
+## Confirmed cross-shop overlap — measured, 2026-09-12
 
-One product verified by hand in CLAUDE.md — Orijen Original Dog Adult Mini, 1.8 kg:
+First real measurement, petmax_ro + pentruanimale_ro, one day of data (2026-09-12):
+
+| Source | In-scope listings | Keyable (brand+line+weight parsed) |
+|---|---:|---:|
+| petmax_ro | 4,060 | 2,495 (61%) |
+| pentruanimale_ro | 3,551 | 3,525 (99%) |
+
+**Shared products (current `overlap_key`, unmodified): 13.** Far below the ≥400 gate. All 13 were
+hand-verified (titles, brands, weights, prices compared) — every one is a genuinely identical
+purchasable unit on both shops (Applaws 156g/70g ×2 flavours, Equilibrio Cats 7.5kg, Miau Miau
+100g, Orijen Kitten 1.8kg, and seven Royal Canin dry lines from 1.5kg to 12kg). One nuance: one
+key's group includes a pentruanimale.ro *pouch* variant alongside the matching *can* variant it
+shares with petmax — same flavour and weight, different packaging format, which the key does not
+distinguish. Precision on the 13 is effectively 100% (13/13 same purchasable unit, with that one
+packaging-format caveat noted). **This is well above the 90% bar; the problem is not false
+matches, it is recall.**
+
+**Diagnostic-only finding (not applied to `src/pricepilot/overlap.py` — reported, not tuned):**
+grouping by `(brand, weight)` alone, dropping the line-token component, finds 142 pairs where both
+shops carry the same brand+weight but the current key splits them apart. The overwhelming majority
+of these are genuinely *different* products colliding only on brand+weight (Royal Canin alone sells
+30–40 distinct 85g wet-food formulas; the line tokens are doing real, correct work separating
+them). But ranking those 142 by title similarity surfaces a specific, narrow, real bug: when a
+shop writes weight with no space before the unit (`"85g"`, `"400g"`) the digit+unit token survives
+`line_tokens()` as noise the current regex doesn't strip (only bare `"kg"`/`"g"` are filtered);
+when the other shop writes it with a space (`"85 g"`), the digit is stripped as `isdigit()` and the
+bare `"g"` as `_NOISE`, so the *same* product ends up with different token sets purely from spacing.
+Simulating that one additional strip (`^\d+(kg|g)$` as noise too) raises the shared count from
+**13 to 92** — a 7× difference, entirely from titles that are otherwise identical. Hand-checking
+those 79 additional pairs: the large majority are genuine matches (same brand, same line, same
+price range) — **but this same relaxation also reintroduces the bonus-weight trap CLAUDE.md §7
+names**: "Royal Canin Medium Adult 15kg" collides with "Royal Canin Medium Adult 15 + 3 Kg Gratis"
+(a different purchasable unit, different price), and "Royal Canin Mini Adult 8kg" collides with
+both an "8+" senior-age variant and "8kg + 1kg gratuit" — three genuinely different products merged
+into one bucket. **Conclusion: the true overlap between these two shops is materially higher than
+13, but the fix is not a one-line token strip** — it needs to distinguish a bonus-weight/variant
+listing from a plain one (e.g. detecting a `+` or "gratuit"/"gratis" in the raw title before
+stripping) at the same time it stops the weight-spacing false split. Left as a recommendation for
+the next session that touches `overlap.py`, not implemented here.
+
+**What this means for the Phase 1 gate, honestly:** 13 (or even a carefully-fixed ~92) is nowhere
+near 400 from two sources. A third adapter alone will not close a gap this size — the keying
+itself needs the fix above before more sources can be expected to move this number the way the
+gate assumes. This is a real finding to act on, not a volume problem to wait out.
+
+One product verified by hand in CLAUDE.md, before any real data existed — Orijen Original Dog
+Adult Mini, 1.8 kg, kept here for the historical record of what "confirmed" meant before this
+session's measurement:
 
 | Shop | Title as written |
 |---|---|
@@ -358,13 +405,6 @@ One product verified by hand in CLAUDE.md — Orijen Original Dog Adult Mini, 1.
 | magazindeanimale.ro | `Hrană uscată câini ORIJEN Original Dog Adult Mini 1,8 kg` |
 | zoopoint.ro | `Orijen Original Dog Adult Mini` — no weight in the title at all |
 | petmax.ro | names the line `Orijen Adult Original` — word order reversed |
-
-Decimal comma vs point, diacritics present or absent, brand casing, weight in title vs weight as
-variant, reordered line names. Shop-internal SKUs (`ORJ_D_OD_AMI_2`) are useless across shops.
-
-> **This is one product, not a base rate.** `docs/AUDIT.md` concern 2 recommends measuring actual
-> overlap across sources before committing to the Phase 1 gate, because a low overlap count means
-> Phase 3 has no positive class.
 
 ## Scraping discipline (CLAUDE.md §5)
 

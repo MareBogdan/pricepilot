@@ -18,74 +18,86 @@ Phase 0 — Foundation: **CLOSED**, verified end to end in Docker on 2026-09-12.
 
 Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-12.
 
-[x] `docs/SOURCES.md` row filled in for petmax.ro from a real fetch, not from the plan
-[x] fixtures saved: `robots.txt` verbatim, one trimmed category page, provenance README
-[x] petmax.ro adapter implemented behind the `Scraper` protocol, tested offline
-[x] every run logs to `scrape_runs`; >40% volume drop alerts and ingests nothing — verified
-[x] cross-shop overlap reported by `make status` from day one (ADR-0009)
-[x] category coverage expanded 6 → 13 (litter, grooming/hygiene, accessories, toys) — ADR-0017
-[x] collection moved to a GitHub Actions cron — `.github/workflows/scrape-petmax.yml`, 06:10
-    Europe/Bucharest (03:10 UTC) + `workflow_dispatch`, secrets from GitHub Secrets — ADR-0018
-[x] ingest is idempotent on (source, external_id, collected_date) — verified against a real
-    Postgres, migration 0002 — ADR-0016
-[x] **collection actually running** — first full run 2026-09-12: 4,060 listings ingested, verified
-    from Neon on a separate connection (was blocked on `SCRAPER_USER_AGENT`; unblocked this session)
-[x] ≥3,000 in-scope listings — **4,060**, petmax_ro alone, verified
-[ ] ≥3,000 in-scope listings from **≥3 sources** — 4,060 total but from 1 source only; the volume
-    is there, the source count is not
-[ ] ≥7 consecutive days of history — **1 / 7** (2026-09-12, no gaps so far — too early to tell)
-[ ] **≥400 products on two or more shops** — 0, and 0 by definition until a second adapter lands
-    (2,495 / 4,060 = 61% of today's listings are keyable — see `make status`)
-[ ] adapters for pentruanimale.ro and animax.ro — not started (deliberately out of this session's
-    scope; explicitly next)
-[ ] all adapters tested offline against fixtures — petmax done, two to go
+[x] `docs/SOURCES.md` filled in for petmax.ro and pentruanimale.ro from real fetches
+[x] fixtures saved for both sources, offline tests passing
+[x] both adapters implemented behind the `Scraper` protocol, tested offline
+[x] every run logs to `scrape_runs`; volume-alert logic verified (petmax)
+[x] ingest is idempotent on (source, external_id, collected_date) — **re-verified today**: petmax
+    ran twice (17:16 and 18:25 UTC), 4,060 rows both times, zero duplicate
+    (source, external_id, collected_date) groups across the whole table (query shown, ADR-0016)
+[x] collection running on a GitHub Actions cron for both sources — `.github/workflows/scrape-petmax.yml`
+[x] ≥3,000 in-scope listings — **7,611 total** (4,060 petmax_ro + 3,551 pentruanimale_ro), verified
+    from `scrape_runs` and `raw_listings` on a separate connection
+[ ] ≥3,000 in-scope listings from **≥3 sources** — 2 sources only; volume is not the blocker, source
+    count is
+[ ] ≥7 consecutive days of history — **1 / 7** (2026-09-12 only so far)
+[ ] **≥400 products on two or more shops — MEASURED, NOT MET: 13.** Hand-verified: all 13 are
+    genuine same-purchasable-unit matches (~100% precision on the claimed matches, one packaging-
+    format caveat). The gap to 400 is not a false-positive problem. A diagnostic (not applied)
+    found the true overlap is materially higher — a weight-token-spacing bug in the proxy key
+    hides real matches, ~92 by one narrow fix — but that same fix reintroduces the bonus-weight
+    trap CLAUDE.md §7 names (merges plain packs with "+X kg gratuit"/"gratis" packs). Full detail
+    in `docs/SOURCES.md`'s "Confirmed cross-shop overlap" section. **A third adapter alone will
+    not close this gap — the proxy key needs fixing first.**
+[ ] adapter for animax.ro — not started (deliberately out of this session's scope)
+[ ] all adapters tested offline against fixtures — petmax + pentruanimale done, animax to go
 
 ## Last done
 
-- **Migrated collection to GitHub Actions + Neon** (session 2026-09-12, "infrastructure changed"
-  session). Verified the runner is not blocked by petmax.ro's Cloudflare (byte-identical fetch to
-  local). Split `DATABASE_URL` (Neon, collected data) from `TEST_DATABASE_URL` (local docker,
-  tests) with a mechanical guard (`tests/conftest.py::pytest_configure`, ADR-0014) so a test run
-  cannot reach Neon. Ran Alembic against Neon, verified from a separate connection, added Neon
-  cold-start tolerance (15s timeout + one retry, ADR-0015).
-- **Made ingest idempotent** on `(source, external_id, collected_date)` — migration 0002, upsert
-  in `runner.py` — so a manual run and the scheduled run on the same day cannot duplicate a row
-  or double-count a day of history (ADR-0016). Verified against a real Postgres.
-- **Expanded petmax category coverage 6 → 13** (litter, grooming/hygiene, accessories, toys),
-  chosen from the real `sitemap_categories.xml`, not guessed. Recon estimated ~208 requests,
-  ~4,990 listings, ~15–20 min wall-clock (ADR-0017).
-- **Decommissioned the Windows Task Scheduler job**, replaced with
-  `.github/workflows/scrape-petmax.yml` (cron `10 3 * * *` = 06:10 Europe/Bucharest during EEST,
-  plus `workflow_dispatch`, GitHub Secrets only — ADR-0018). Removed `scripts/schedule_daily.ps1`
-  and the `make.ps1 schedule` target rather than leave them as misleading dead code.
-- **Ran the first real collection**, dispatched through the production workflow: 4,060 listings
-  ingested from petmax_ro across all 13 categories in 814s / 208 pages, 0 errors, 0 volume alerts.
-  `make status` now counts *consecutive* days of history and names gap dates explicitly
-  (`src/pricepilot/history.py`), replacing a naive span count that could hide a gap.
+- **Built and shipped the pentruanimale.ro adapter** (VTEX storefront — a different platform from
+  petmax's Gomag). Prices and every grouped-variant SKU come from a server-rendered `__STATE__`
+  Apollo-cache JSON blob on the category page itself; no product-page fetch needed for variant
+  expansion, unlike the original guess in `docs/SOURCES.md`. 19 offline tests against a real,
+  trimmed fixture (multi-variant expansion, single-variant passthrough, a real bonus-weight trap).
+- **Found and fixed a real bug in `PoliteClient`**: `robots.txt` was being fetched via
+  `RobotFileParser.read()`'s bare `urllib.request.urlopen()`, which sends Python's generic default
+  User-Agent, not the honest one configured everywhere else. pentruanimale.ro 403s that anonymous
+  UA specifically, which `RobotFileParser` reads as "disallow everything" — a false block; our
+  real, identified client got 200 on every request, robots.txt included, throughout. This silently
+  affected petmax.ro too; it just never surfaced there. Fixed and regression-tested offline via
+  `httpx.MockTransport` (ADR-0020).
+- **Added pentruanimale.ro to the daily GitHub Actions workflow** as its own job (own concurrency
+  group, same cron/dispatch/secrets), then ran the real thing: 3,551 listings ingested, 224 pages,
+  1227s, verified from `scrape_runs` on a fresh connection.
+- **Re-verified idempotency operationally, not just in a test**: petmax ran twice today (a manual
+  dispatch last session, another this session) — 4,060 rows both times, zero duplicates anywhere
+  in the table, confirmed by a direct query.
+- **Measured cross-shop overlap for the first time**, with two real sources: 13 shared products,
+  hand-verified for precision, plus a diagnostic (not implemented) showing the true number is
+  likely much higher, blocked on a specific, named bug in the proxy key rather than genuinely thin
+  overlap. See `docs/SOURCES.md`.
 
 ## Open issues
 
-- **Single source.** The 3,000-listing gate is cleared, but the ≥3-sources and ≥400-cross-shop-
-  overlap parts of the Phase 1 gate are not — both need a second adapter, which is deliberately
-  the next session's work (ADR-0010), not this one.
-- **7 consecutive days is 1 so far.** The GitHub Actions cron only fires once so far (this
-  session's manual `workflow_dispatch`); the first *scheduled* run is tomorrow at 03:10 UTC. A
-  missed or late run would show up in `make status` as a named gap date, not a silently inflated
-  span — verify this actually happens over the next week.
-- **DST drift, accepted.** The cron is a fixed UTC time; after Romania's autumn changeover (last
-  Sunday of October) 03:10 UTC becomes 04:10 local until spring. Documented in ADR-0018, not
-  engineered around — not worth two cron entries for an hour of drift twice a year.
+- **Overlap proxy key needs work before it's trustworthy at scale.** Two known, specific problems,
+  both documented in `docs/SOURCES.md`: (1) `line_tokens()` doesn't strip a `\d+(kg|g)` token when
+  a shop omits the space before the unit, silently splitting identical products across a spacing
+  difference; (2) any fix to (1) has to simultaneously guard the bonus-weight trap (`"+ X kg
+  gratuit/gratis"`), or it merges genuinely different purchasable units. Neither is fixed yet —
+  flagged, not tuned, per this session's explicit instruction.
+- **13 is a real number, and it changes what the third adapter is for.** Adding animax.ro will grow
+  volume and source count, but will not by itself close a 400-target gap of this size while the
+  proxy key still under-counts real overlap by roughly 7×. Fix the key before or alongside the next
+  adapter, not after.
+- **7 consecutive days is 1 so far**, and the scheduled (non-manual) cron has not fired yet as of
+  this session — every run to date has been `workflow_dispatch`. Watch for the first real
+  `schedule`-triggered run and whether `make status` shows a gap.
+- **`scrape_runs` does not persist error message text**, only a count. Confirmed on the
+  pentruanimale.ro run (3 errors, cause unknown — could be HTTP-level or parse-level, no way to
+  tell after the fact). Same class of gap as `skipped_out_of_scope` not being persisted for petmax.
+  Worth fixing before relying on this run's history for diagnosis.
+- **pentruanimale.ro fetched 224 pages vs. ~321 estimated at recon** for full coverage of its 6
+  categories — a real, unexplained gap (recon was accurate for petmax; this is the first sign it
+  might not transfer directly to a second source). Not investigated further this session.
 - **LLM transport not implemented.** `src/pricepilot/llm/client.py` ships the budget cap, cache
-  key and call log; `complete()` raises. Per-token prices stay unhardcoded until the first paid
-  call in Phase 2 (CLAUDE.md §0.4 — no invented numbers). ADR-0006.
-- **`make` not installed.** `.\make.ps1 <target>` is the Windows path; the Makefile is kept for
-  CI and the Phase 7 VPS. ADR-0003.
-- **Bonus-weight titles are a trap the plan did not list.** `"8 kg + 1 kg gratuit"` and
-  `"15 + 3 Kg Gratis"` — same line, same base pack, different purchasable unit and price; on the
-  second form the unit sits only on the bonus number. Seeded into the fixture deliberately; needs
-  to reach the Phase 3 annotation set.
+  key and call log; `complete()` raises. ADR-0006.
+- **`make` not installed.** `.\make.ps1 <target>` is the Windows path. ADR-0003.
+- **Bonus-weight titles are a known trap**, now empirically confirmed to actually occur in real
+  scraped data on both shops (not just theorized) — see the overlap diagnostic above and
+  `tests/fixtures/pentruanimale_ro/README.md`. Needs to reach the Phase 3 annotation set.
 
 ## Blocked on Bogdan
 
-Nothing right now. `SCRAPER_USER_AGENT` is set and collection is running; the model switch to
-Sonnet requested last session is done. Watch items above are informational, not blockers.
+Nothing that blocks progress. One real decision for Bogdan when he's ready: the overlap proxy key
+needs a fix (weight-token spacing + bonus-weight guard) before a third adapter can be expected to
+close the 400 gate — worth deciding whether that fix happens before or alongside animax.ro.
