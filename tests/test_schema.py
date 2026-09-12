@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sqlalchemy import UniqueConstraint
+
 from pricepilot.models import Base, LlmCall, RawListing, ScrapeRun
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,13 +18,28 @@ def test_operational_tables_exist_from_day_one() -> None:
 
 
 def test_raw_listings_is_append_only_time_series() -> None:
-    """Price history cannot be backfilled, so listings must not be keyed for upsert."""
+    """Price history cannot be backfilled, so every day's observation is kept — but STEP 4 /
+    ADR-0016 requires ingest to be idempotent *within* a day, on (source, external_id,
+    collected_date), so a manual run and the scheduled run on the same day cannot duplicate
+    a row or double-count a day of history."""
     cols = RawListing.__table__.columns
     assert not cols["scraped_at"].nullable
+    assert not cols["external_id"].nullable
+    assert not cols["collected_date"].nullable
     assert cols["content_hash"].index, "Phase 2 caches extraction on this column"
     assert any(
         set(idx.columns.keys()) == {"source", "scraped_at"} for idx in RawListing.__table__.indexes
     )
+    assert any(
+        isinstance(c, UniqueConstraint)
+        and set(c.columns.keys())
+        == {
+            "source",
+            "external_id",
+            "collected_date",
+        }
+        for c in RawListing.__table__.constraints
+    ), "idempotent-ingest unique constraint is missing"
 
 
 def test_scrape_run_can_record_a_volume_alert() -> None:

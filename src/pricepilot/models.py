@@ -11,13 +11,14 @@ margins and a float rounding error there is a real bug.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -25,6 +26,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -78,10 +80,22 @@ class ScrapeRun(Base):
 
 
 class RawListing(Base):
-    """A competitor listing exactly as scraped. Append-only: one row per (listing, run),
-    because the price time series *is* the data Phase 4 needs and cannot be backfilled."""
+    """A competitor listing exactly as scraped. Append-only **across days**: one row per
+    (listing, day), because the price time series *is* the data Phase 4 needs and cannot be
+    backfilled. **Idempotent within a day**: a manual run and the scheduled run on the same
+    calendar day upsert the same row on (source, external_id, collected_date) rather than
+    duplicating it — STEP 4, ADR-0016, amending ADR-0005's original one-row-per-run design.
+    """
 
     __tablename__ = "raw_listings"
+    __table_args__ = (
+        UniqueConstraint(
+            "source",
+            "external_id",
+            "collected_date",
+            name="uq_raw_listings_source_external_collected_date",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("scrape_runs.id", ondelete="CASCADE"))
@@ -89,6 +103,13 @@ class RawListing(Base):
     # The shop's own internal id. Useless across shops (CLAUDE.md §7 Phase 1) but the
     # only stable handle *within* a shop, so it anchors the time series.
     source_product_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    # `source_product_id` when the shop has one, else the listing URL — the same fallback the
+    # petmax adapter already uses to dedupe within one run (ADR-0016). Half of the idempotency
+    # key: (source, external_id, collected_date) is unique, enforced by the constraint above.
+    external_id: Mapped[str] = mapped_column(String(255), index=True)
+    # The calendar day this observation belongs to (the run's start date, not scraped_at's
+    # exact timestamp) — the other half of the idempotency key.
+    collected_date: Mapped[date] = mapped_column(Date)
     url: Mapped[str] = mapped_column(Text)
     title: Mapped[str] = mapped_column(Text)
     price: Mapped[Decimal] = mapped_column(Numeric(12, 2))

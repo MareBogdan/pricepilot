@@ -223,3 +223,28 @@ start either resolves within the one retry or the problem is not a cold start); 
 to pre-warm compute before connecting (another moving part, another credential, for a problem one
 retry already solves).
 **Date.** 2026-09-12
+
+## ADR-0016 — `raw_listings` ingest is idempotent within a day, amending ADR-0005
+
+**Context.** Collection moves to a GitHub Actions cron (STEP 1–4) alongside `workflow_dispatch`
+for manual runs. ADR-0005 made `raw_listings` append-only with one row per (listing, *run*): fine
+when only a scheduled task ever wrote to it, but a manual `workflow_dispatch` run and the day's
+cron run now both can, and both do, write the same day's observation. One row per run would let
+the same calendar day produce two rows, silently double-counting a day of history in every
+downstream count — listings collected, days of history, overlap — exactly the kind of thing
+`make status` is supposed to catch, not cause.
+**Decision.** Migration 0002 adds `external_id` (`source_product_id`, or the listing URL when a
+shop exposes no id — the same fallback the petmax adapter already uses to dedupe within one page)
+and `collected_date` (the run's start date) to `raw_listings`, with a unique constraint on
+`(source, external_id, collected_date)`. `pricepilot.scrapers.runner.run_source` ingests via
+`INSERT ... ON CONFLICT (source, external_id, collected_date) DO UPDATE`, so a second write on the
+same day updates the existing row — new price, new `run_id`, new `scraped_at` — instead of
+inserting a duplicate. Append-only is preserved **across** days; idempotency is scoped **within**
+one day, which is the actual requirement. Verified against a real Postgres (local docker): a
+manual run at price 10.00 followed by a same-day scheduled run at price 12.50 leaves exactly one
+row, at 12.50, not two.
+**Rejected.** Keeping strict one-row-per-run and deduplicating downstream at query time (pushes
+the same bug into every consumer — `make status`, `overlap.py`, Phase 4 — instead of fixing it
+once at the boundary that owns it); a `scrape_runs`-level lock preventing more than one run per day
+(defeats the purpose of `workflow_dispatch` for a manual re-run after fixing a bug mid-day).
+**Date.** 2026-09-12

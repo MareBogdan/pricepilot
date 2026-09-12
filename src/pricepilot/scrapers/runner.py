@@ -6,7 +6,11 @@ silently ingesting.** That rule is the whole reason this module exists rather th
 writing to the database itself: the decision to ingest or not is an operational one, and it has to
 be made in one place for every source.
 
-`raw_listings` is append-only — one row per (listing, observation). See DECISIONS.md ADR-0005.
+`raw_listings` is append-only across days, one row per (listing, day) — see DECISIONS.md
+ADR-0005. **STEP 4 / ADR-0016 (2026-09-12):** ingest is idempotent *within* a day. A manual run
+and the scheduled run on the same calendar day upsert the same row on
+`(source, external_id, collected_date)` rather than duplicating it or double-counting a day of
+history — this is why the insert below is `INSERT ... ON CONFLICT DO UPDATE`, not a plain insert.
 """
 
 from __future__ import annotations
@@ -16,10 +20,29 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from pricepilot.db import session_scope
 from pricepilot.models import RawListing, ScrapeRun
 from pricepilot.scrapers.base import Scraper, ScrapeResult
+
+# Columns updated on a same-day re-run. `source`, `external_id` and `collected_date` are the
+# conflict key and never change; `run_id` moves to whichever run touched the row last, so
+# scrape_runs.items_ingested for an earlier same-day run stays historically accurate while the
+# listing itself reflects the latest observation.
+_UPSERT_COLUMNS = (
+    "run_id",
+    "source_product_id",
+    "url",
+    "title",
+    "price",
+    "currency",
+    "compare_at_price",
+    "in_stock",
+    "raw_payload",
+    "scraped_at",
+    "content_hash",
+)
 
 # CLAUDE.md §5.6. A drop this large is a markup change or a block, not a quiet sale.
 VOLUME_DROP_THRESHOLD = 0.40
@@ -125,29 +148,33 @@ def run_source(
         session.flush()
 
         ingested = 0
-        if status == "ok":
-            session.add_all(
-                [
-                    RawListing(
-                        run_id=run.id,
-                        source=listing.source,
-                        source_product_id=listing.source_product_id,
-                        url=listing.url,
-                        title=listing.title,
-                        price=listing.price,
-                        currency=listing.currency,
-                        compare_at_price=listing.compare_at_price,
-                        in_stock=listing.in_stock,
-                        raw_payload={
-                            **(listing.raw_payload or {}),
-                            "brand": listing.brand,
-                        },
-                        scraped_at=started_at,
-                        content_hash=listing.content_hash,
-                    )
-                    for listing in result.listings
-                ]
+        if status == "ok" and result.listings:
+            collected_date = started_at.date()
+            rows = [
+                {
+                    "run_id": run.id,
+                    "source": listing.source,
+                    "source_product_id": listing.source_product_id,
+                    "external_id": listing.source_product_id or listing.url,
+                    "collected_date": collected_date,
+                    "url": listing.url,
+                    "title": listing.title,
+                    "price": listing.price,
+                    "currency": listing.currency,
+                    "compare_at_price": listing.compare_at_price,
+                    "in_stock": listing.in_stock,
+                    "raw_payload": {**(listing.raw_payload or {}), "brand": listing.brand},
+                    "scraped_at": started_at,
+                    "content_hash": listing.content_hash,
+                }
+                for listing in result.listings
+            ]
+            stmt = pg_insert(RawListing).values(rows)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["source", "external_id", "collected_date"],
+                set_={col: getattr(stmt.excluded, col) for col in _UPSERT_COLUMNS},
             )
+            session.execute(stmt)
             ingested = found
             run.items_ingested = ingested
         run_id = run.id
