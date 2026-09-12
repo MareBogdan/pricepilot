@@ -100,6 +100,12 @@ def run_source(
     `scrape_runs` row either, because a dry run is not a run of the source.
     """
     started = time.monotonic()
+    # The ACTUAL wall-clock start, not the cron's intended trigger time. STEP 4 (session note
+    # 2026-09-12): GitHub Actions delays scheduled runs under load, often by 10-30 minutes, so
+    # a `schedule` trigger's nominal 06:10 can genuinely execute later. scrape_runs.started_at
+    # and RawListing.collected_date both derive from this real timestamp, never from the cron
+    # expression, which is also why a run that slips past midnight still gets its own honest
+    # collected_date rather than silently inheriting the day it was supposed to run on.
     started_at = datetime.now(UTC)
     previous = None if dry_run else previous_item_count(scraper.name)
 

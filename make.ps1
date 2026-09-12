@@ -37,7 +37,8 @@ switch ($Target) {
     'cost'       { Invoke-Step @('uv', 'run', 'python', 'scripts/cost.py') }
     'scrape'     { Invoke-Step (@('uv', 'run', 'python', 'scripts/scrape.py') + $Rest) }
     'overlap'    { Invoke-Step @('uv', 'run', 'python', 'scripts/overlap_report.py') }
-    'schedule'   { Invoke-Step (@('powershell', '-NoProfile', '-File', 'scripts/schedule_daily.ps1') + $Rest) }
+    # 'schedule' is gone (ADR-0018): collection runs on the GitHub Actions cron in
+    # .github/workflows/scrape-petmax.yml, not a Windows-specific script.
     'up'         { Invoke-Step @('docker', 'compose', 'up', '-d', '--build') }
     'down'       { Invoke-Step @('docker', 'compose', 'down') }
     'logs'       { Invoke-Step @('docker', 'compose', 'logs', '-f') }
@@ -69,7 +70,6 @@ switch ($Target) {
             'cost        LLM spend to date by phase and model'
             'scrape      Run one adapter: make.ps1 scrape --source petmax_ro --limit 5 --dry-run'
             'overlap     Cross-shop overlap count - the Phase 1 gate metric'
-            'schedule    Daily collection task: make.ps1 schedule -Install | -Status | -RunNow | -Remove'
             'up/down     docker compose up -d --build / down'
             'migrate     alembic upgrade head'
             'api         Run the API locally on :8000'

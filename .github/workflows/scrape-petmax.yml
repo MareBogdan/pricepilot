@@ -1,0 +1,47 @@
+name: Scrape petmax.ro (daily)
+
+# STEP 4 (session note 2026-09-12): collection moved here from a Windows Task Scheduler job,
+# which could not guarantee 7 consecutive days when the laptop is not open at 06:10 (ADR-0018).
+#
+# Cron is UTC-only — GitHub Actions has no IANA time zone support. 03:10 UTC is 06:10
+# Europe/Bucharest during EEST (UTC+3, in effect now, late March-late October). After the
+# autumn changeover it becomes 04:10 local until DST resumes in spring; this is a known,
+# accepted drift, not a bug — see DECISIONS.md ADR-0018.
+#
+# GitHub also delays scheduled runs under load, often by 10-30 minutes. scrape_runs.started_at
+# and raw_listings.collected_date both record the run's actual wall-clock start, never the
+# cron's intended trigger time (pricepilot.scrapers.runner) — so a delayed run is still
+# attributed to the correct calendar day, not silently misdated.
+
+on:
+  schedule:
+    - cron: "10 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: scrape-petmax
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    # ~208 requests, ~15-20 min estimated (docs/SOURCES.md, ADR-0017). Generous ceiling so a
+    # genuine hang fails loudly instead of burning the whole day's Actions minutes silently.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --extra dev
+
+      - name: Full daily run — petmax.ro, 13 categories
+        env:
+          # Secrets from GitHub Secrets only (STEP 4). SCRAPER_USER_AGENT missing or still the
+          # .env.example placeholder makes require_honest_user_agent() refuse loudly — see
+          # src/pricepilot/scrapers/base.py — never silently fall back to a default identity.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SCRAPER_USER_AGENT: ${{ secrets.SCRAPER_USER_AGENT }}
+        run: uv run python scripts/scrape.py --source petmax_ro --limit 0

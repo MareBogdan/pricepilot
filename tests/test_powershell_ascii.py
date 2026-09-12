@@ -1,8 +1,8 @@
 """Every `.ps1` in this repo must be pure ASCII.
 
 **Why this is a test and not a note in CLAUDE.md.** Windows PowerShell 5.1 - the version on the
-dev machine, and the one `make.ps1` and `schedule_daily.ps1` run under - reads a `.ps1` file
-without a byte-order mark as **ANSI (cp1252), not UTF-8**. A single non-ASCII byte is therefore
+dev machine, and the one `make.ps1` runs under - reads a `.ps1` file without a byte-order mark
+as **ANSI (cp1252), not UTF-8**. A single non-ASCII byte is therefore
 decoded to the wrong character, which corrupts the string literal it sits in and desynchronises
 the parser. The failure does not look like an encoding problem: it surfaces as
 

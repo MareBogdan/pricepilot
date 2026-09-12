@@ -165,6 +165,33 @@ def overlap_section(total_listings: int) -> None:
     )
 
 
+def history_section() -> None:
+    """CLAUDE.md §7's ≥7-**consecutive**-days gate. STEP 4 (session note 2026-09-12): a span
+    between first and last collected date is not the same number — a missed day in the middle
+    must not be hidden inside a bigger span. `src/pricepilot/history.py` walks backward from the
+    most recent collected date and names every gap date explicitly, so a gap is visible here
+    rather than discovered at the gate.
+    """
+    from pricepilot.history import compute_history
+
+    report = compute_history()
+    if report.last_date is None:
+        _row("consecutive days of history", "0 — Phase 1 has not run", False)
+        return
+    _row("consecutive days of history", f"{report.consecutive_days} / {report.target}", report.met)
+    _row(
+        "  └ span collected",
+        f"{report.first_date:%Y-%m-%d} → {report.last_date:%Y-%m-%d} "
+        f"({report.span_days} calendar days)",
+    )
+    if report.gap_dates:
+        shown = ", ".join(d.isoformat() for d in report.gap_dates[:10])
+        more = f" (+{len(report.gap_dates) - 10} more)" if len(report.gap_dates) > 10 else ""
+        _row("  └ gap dates", f"{len(report.gap_dates)} missing: {shown}{more}", False)
+    else:
+        _row("  └ gap dates", "none", True)
+
+
 def db_section() -> None:
     try:
         from sqlalchemy import func, select
@@ -179,7 +206,7 @@ def db_section() -> None:
         _row("database", "UNREACHABLE — run `docker compose up -d db`", False)
         _row("listings collected", "0 (no database)", False)
         _row("cross-shop overlap", "unknown (no database)", False)
-        _row("days of price history", "0 (no database)", False)
+        _row("consecutive days of history", "0 (no database)", False)
         _row("llm spend to date", "$0.000000 (no database)", True)
         return
 
@@ -189,14 +216,11 @@ def db_section() -> None:
             select(
                 RawListing.source,
                 func.count(),
-                func.count(func.distinct(func.date(RawListing.scraped_at))),
+                func.count(func.distinct(RawListing.collected_date)),
             )
             .group_by(RawListing.source)
             .order_by(func.count().desc())
         ).all()
-        span = s.execute(
-            select(func.min(RawListing.scraped_at), func.max(RawListing.scraped_at))
-        ).one()
         runs = s.execute(select(func.count()).select_from(ScrapeRun)).scalar_one()
         alerts = s.execute(
             select(func.count()).select_from(ScrapeRun).where(ScrapeRun.status == "volume_alert")
@@ -210,13 +234,8 @@ def db_section() -> None:
     _row("database", "reachable", True)
     _row("listings collected", f"{total:,}", total >= 3000)
     for source, count, days in per_source:
-        _row(f"  └ {source}", f"{count:,} listings / {days} days")
-    if span[0] and span[1]:
-        history_days = (span[1] - span[0]).days + 1
-        _row("days of price history", history_days, history_days >= 7)
-        _row("  └ first / last", f"{span[0]:%Y-%m-%d} → {span[1]:%Y-%m-%d}")
-    else:
-        _row("days of price history", "0 — Phase 1 has not run", False)
+        _row(f"  └ {source}", f"{count:,} listings / {days} distinct days")
+    history_section()
     _row("scrape runs", f"{runs} ({alerts} volume alerts)", alerts == 0)
     overlap_section(total)
     _row("llm calls logged", f"{calls} ({hits} cache hits)")

@@ -278,3 +278,36 @@ of reading the sitemap (risks 404s or accidental duplicates); estimating volume 
 page of every candidate category (10–40× the requests, for a number the pagination widget already
 gives away in one).
 **Date.** 2026-09-12
+
+## ADR-0018 — Collection moves from Windows Task Scheduler to a GitHub Actions cron
+
+**Context.** The Phase 1 gate needs ≥7 **consecutive** days of history. The Windows Task
+Scheduler job (ADR from the prior session) only runs while the laptop is open; `-StartWhenAvailable`
+catches up a run missed to sleep, but a day the machine never wakes at all is a day of history
+lost, and a gate that needs 7 *consecutive* days cannot tolerate that.
+**Decision.** `.github/workflows/scrape-petmax.yml`: `schedule` cron at `10 3 * * *` (03:10 UTC =
+06:10 Europe/Bucharest during EEST) plus `workflow_dispatch` for manual runs, secrets read only
+from GitHub Secrets (`DATABASE_URL`, `SCRAPER_USER_AGENT`). The Windows scheduled task
+(`PricePilot-scrape-petmax_ro`) is unregistered; `scripts/schedule_daily.ps1` and the
+`make.ps1 schedule` target are removed rather than left as dead code that could mislead a future
+session into thinking collection still runs locally.
+**GitHub Actions runners are not blocked by petmax.ro.** Verified 2026-09-12 (STEP 1 gate): a
+`workflow_dispatch`-only recon job fetched `hrana-uscata-caini` from the runner and got HTTP 200,
+619,235 bytes, `data-Gomag` and `Lei_final_price` both present — byte-identical to the same fetch
+run locally. No Cloudflare block on GitHub's Azure IP ranges was observed.
+**Known trade-offs, accepted rather than engineered around:**
+- **DST.** GitHub Actions cron has no IANA time zone support; 03:10 UTC drifts to 04:10 local
+  after Romania's autumn changeover (last Sunday of October) until the following spring. Two
+  cron entries gated by date would fix this but add complexity for roughly an hour of drift,
+  twice a year, on a schedule chosen for "after overnight price changes settle" rather than a
+  precise minute.
+- **Scheduling delay.** GitHub delays `schedule`-triggered runs under load, sometimes by 10-30
+  minutes. `scrape_runs.started_at` and `raw_listings.collected_date` both record the actual
+  wall-clock start (`pricepilot.scrapers.runner`), never the cron's intended time, so a delayed
+  run is still attributed to the correct calendar day rather than silently misdated.
+**Rejected.** A self-hosted runner on the same laptop (reintroduces the exact "must be open"
+problem this migration exists to solve); a paid always-on VPS now (Phase 7 money, not Phase 1 -
+CLAUDE.md §5 spend schedule); leaving the Windows task registered as a backup (two sources of
+truth for "is collection running" is worse than one, and an operator checking `make status` has
+no way to know which one actually produced today's row).
+**Date.** 2026-09-12
