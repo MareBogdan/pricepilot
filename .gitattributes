@@ -1,0 +1,20 @@
+# Normalize to LF in the repo. Windows checkouts still get CRLF where it matters,
+# but files that run on Linux (CI, the Phase 7 VPS) must never carry CRLF:
+# a Makefile with CRLF fails with "missing separator", and a CRLF shell script
+# fails with a confusing "bad interpreter" error.
+* text=auto eol=lf
+
+Makefile text eol=lf
+*.sh  text eol=lf
+Dockerfile text eol=lf
+
+# Windows-only
+*.ps1 text eol=crlf
+
+# Saved scraper fixtures: keep byte-for-byte, so a parser test never passes or fails
+# because git rewrote a line ending.
+tests/fixtures/** -text
+
+*.png binary
+*.jpg binary
+*.gif binary
