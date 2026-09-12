@@ -21,83 +21,94 @@ Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-1
 [x] `docs/SOURCES.md` filled in for petmax.ro and pentruanimale.ro from real fetches
 [x] fixtures saved for both sources, offline tests passing
 [x] both adapters implemented behind the `Scraper` protocol, tested offline
-[x] every run logs to `scrape_runs`; volume-alert logic verified (petmax)
-[x] ingest is idempotent on (source, external_id, collected_date) — **re-verified today**: petmax
-    ran twice (17:16 and 18:25 UTC), 4,060 rows both times, zero duplicate
-    (source, external_id, collected_date) groups across the whole table (query shown, ADR-0016)
+[x] every run logs to `scrape_runs`; volume-alert logic verified; error text now persisted
+    (`error_detail`, ADR from this session) after hitting the "count only, no detail" gap twice
+[x] ingest is idempotent on (source, external_id, collected_date) — **re-verified twice**: petmax
+    ran twice today, pentruanimale ran twice today, zero duplicate
+    (source, external_id, collected_date) groups anywhere in the table (query shown, ADR-0016)
 [x] collection running on a GitHub Actions cron for both sources — `.github/workflows/scrape-petmax.yml`
-[x] ≥3,000 in-scope listings — **7,611 total** (4,060 petmax_ro + 3,551 pentruanimale_ro), verified
+[x] ≥3,000 in-scope listings — **8,076 total** (4,064 petmax_ro + 4,012 pentruanimale_ro), verified
     from `scrape_runs` and `raw_listings` on a separate connection
 [ ] ≥3,000 in-scope listings from **≥3 sources** — 2 sources only; volume is not the blocker, source
     count is
-[ ] ≥7 consecutive days of history — **1 / 7** (2026-09-12 only so far)
-[ ] **≥400 products on two or more shops — MEASURED, NOT MET: 13.** Hand-verified: all 13 are
-    genuine same-purchasable-unit matches (~100% precision on the claimed matches, one packaging-
-    format caveat). The gap to 400 is not a false-positive problem. A diagnostic (not applied)
-    found the true overlap is materially higher — a weight-token-spacing bug in the proxy key
-    hides real matches, ~92 by one narrow fix — but that same fix reintroduces the bonus-weight
-    trap CLAUDE.md §7 names (merges plain packs with "+X kg gratuit"/"gratis" packs). Full detail
-    in `docs/SOURCES.md`'s "Confirmed cross-shop overlap" section. **A third adapter alone will
-    not close this gap — the proxy key needs fixing first.**
+[ ] ≥7 consecutive days of history — **1 / 7** (2026-09-12 only so far; the scheduled, non-manual
+    cron has not fired yet — every run to date has been `workflow_dispatch`)
+[ ] **≥400 products on two or more shops — MEASURED, NOT MET: 94** (re-measured after fixing the
+    proxy key — see below). Hand-checked a random 25 of the 94: 22/25 (88%) clean, 3/25 (12%)
+    contain a false pairing mixed with a genuine one (life-stage/senior variant, packaging format)
+    — within CLAUDE.md §7's accepted floor-estimate error and above the 90% stop-and-report bar
+    this session set, so not tuned further. **83 of the 94 (88%) are Royal Canin** — the gap to
+    400 is now partly structural (concentrated in one brand, food/treats categories only), not
+    purely a key-recall problem. Arithmetic projection in `docs/SOURCES.md`: a well-chosen third
+    source plausibly lands overlap around ~150–250, not 400, because of heavy re-use of the same
+    Royal Canin SKUs across every source pair. **A third adapter helps but is not alone plausibly
+    sufficient on this arithmetic** — worth deciding alongside broader category scope or a further
+    key look, not assumed to close the gap by itself.
 [ ] adapter for animax.ro — not started (deliberately out of this session's scope)
 [ ] all adapters tested offline against fixtures — petmax + pentruanimale done, animax to go
 
-## Last done
+## Last done (this session, in order)
 
-- **Built and shipped the pentruanimale.ro adapter** (VTEX storefront — a different platform from
-  petmax's Gomag). Prices and every grouped-variant SKU come from a server-rendered `__STATE__`
-  Apollo-cache JSON blob on the category page itself; no product-page fetch needed for variant
-  expansion, unlike the original guess in `docs/SOURCES.md`. 19 offline tests against a real,
-  trimmed fixture (multi-variant expansion, single-variant passthrough, a real bonus-weight trap).
-- **Found and fixed a real bug in `PoliteClient`**: `robots.txt` was being fetched via
-  `RobotFileParser.read()`'s bare `urllib.request.urlopen()`, which sends Python's generic default
-  User-Agent, not the honest one configured everywhere else. pentruanimale.ro 403s that anonymous
-  UA specifically, which `RobotFileParser` reads as "disallow everything" — a false block; our
-  real, identified client got 200 on every request, robots.txt included, throughout. This silently
-  affected petmax.ro too; it just never surfaced there. Fixed and regression-tested offline via
-  `httpx.MockTransport` (ADR-0020).
-- **Added pentruanimale.ro to the daily GitHub Actions workflow** as its own job (own concurrency
-  group, same cron/dispatch/secrets), then ran the real thing: 3,551 listings ingested, 224 pages,
-  1227s, verified from `scrape_runs` on a fresh connection.
-- **Re-verified idempotency operationally, not just in a test**: petmax ran twice today (a manual
-  dispatch last session, another this session) — 4,060 rows both times, zero duplicates anywhere
-  in the table, confirmed by a direct query.
-- **Measured cross-shop overlap for the first time**, with two real sources: 13 shared products,
-  hand-verified for precision, plus a diagnostic (not implemented) showing the true number is
-  likely much higher, blocked on a specific, named bug in the proxy key rather than genuinely thin
-  overlap. See `docs/SOURCES.md`.
+1. **Built and shipped the pentruanimale.ro adapter** (VTEX — different platform from petmax's
+   Gomag). Prices and every grouped-variant SKU come from a server-rendered `__STATE__` Apollo
+   cache on the category page; no product-page fetch needed for variant expansion. 24 offline
+   tests against a real, trimmed fixture.
+2. **Fixed a `PoliteClient` bug**: `robots.txt` was fetched via `RobotFileParser.read()`'s bare
+   `urllib.request.urlopen()`, sending Python's generic default User-Agent instead of the honest
+   configured one. pentruanimale.ro 403s that anonymous UA specifically, read by `RobotFileParser`
+   as "disallow everything" — a false block; our real, identified client got 200 everywhere,
+   robots.txt included. Silently affected petmax.ro too. Fixed, regression-tested offline via
+   `httpx.MockTransport` (ADR-0020).
+3. **Corrected a wrong date** (STATE.md/DECISIONS.md/docs said 2026-09-13; verified against the
+   system clock — it was still 2026-09-12).
+4. **`scrape_runs.error_detail`** — persists actual error strings now, not just a count. Hit this
+   gap twice (petmax's `skipped_out_of_scope` reasons, pentruanimale's first-run errors) before
+   fixing it.
+5. **Found and fixed the real pagination bug**: a transient `__STATE__` parse failure was treated
+   identically to "category exhausted", silently truncating every page behind it. Fixed with
+   `_should_continue_category` (a consecutive-parse-error cap, not an infinite retry).
+6. **Found a second, separate cause, and it's a platform limit, not a bug**: this store's search
+   pagination stops returning results past page 50 (600 products) per category regardless of the
+   claimed total — confirmed by diffing `?page=50` vs `?page=51`'s raw `__STATE__`. Corrected
+   `docs/SOURCES.md`'s recon estimate accordingly (321→257 realistic pages).
+7. **Classified why petmax's keyable rate (61%→71.7% after the fixes below) lags pentruanimale's**:
+   sampled 40 + queried the full 4,060 by category. 98%+ of unkeyable petmax listings concentrate
+   in the non-food categories (accessories, hygiene, litter) added purely for listing volume —
+   genuinely no weight in the title, not a parsing failure. Nothing fixed here; nothing needed
+   fixing.
+8. **Fixed the overlap key itself** (ADR-0021): weight-token spacing bug (the single biggest
+   recall problem — "85g" vs "85 g" keyed differently), ml/l support, curly-apostrophe folding,
+   and a bonus-weight guard (`OverlapKey.bonus_g`) so a plain pack and its bonus-weight promo never
+   collide while two shops' bonus forms of the same product still do. Normalisation only — no
+   model, no fuzzy matching.
+9. **Re-measured overlap for real**: 13 → **94** shared products. Hand-checked a random 25 (not
+   all 94): 88% clean, 12% with a caveat, consistent with the plan's accepted error margin.
+   Bonus-weight guard verified working on real cross-shop data (kept a bonus pack from merging
+   into a larger plain/senior-variant bucket, while still matching the two shops' bonus listings
+   of the same product to each other).
 
 ## Open issues
 
-- **Overlap proxy key needs work before it's trustworthy at scale.** Two known, specific problems,
-  both documented in `docs/SOURCES.md`: (1) `line_tokens()` doesn't strip a `\d+(kg|g)` token when
-  a shop omits the space before the unit, silently splitting identical products across a spacing
-  difference; (2) any fix to (1) has to simultaneously guard the bonus-weight trap (`"+ X kg
-  gratuit/gratis"`), or it merges genuinely different purchasable units. Neither is fixed yet —
-  flagged, not tuned, per this session's explicit instruction.
-- **13 is a real number, and it changes what the third adapter is for.** Adding animax.ro will grow
-  volume and source count, but will not by itself close a 400-target gap of this size while the
-  proxy key still under-counts real overlap by roughly 7×. Fix the key before or alongside the next
-  adapter, not after.
-- **7 consecutive days is 1 so far**, and the scheduled (non-manual) cron has not fired yet as of
-  this session — every run to date has been `workflow_dispatch`. Watch for the first real
-  `schedule`-triggered run and whether `make status` shows a gap.
-- **`scrape_runs` does not persist error message text**, only a count. Confirmed on the
-  pentruanimale.ro run (3 errors, cause unknown — could be HTTP-level or parse-level, no way to
-  tell after the fact). Same class of gap as `skipped_out_of_scope` not being persisted for petmax.
-  Worth fixing before relying on this run's history for diagnosis.
-- **pentruanimale.ro fetched 224 pages vs. ~321 estimated at recon** for full coverage of its 6
-  categories — a real, unexplained gap (recon was accurate for petmax; this is the first sign it
-  might not transfer directly to a second source). Not investigated further this session.
-- **LLM transport not implemented.** `src/pricepilot/llm/client.py` ships the budget cap, cache
-  key and call log; `complete()` raises. ADR-0006.
+- **The 400 gate now looks partly structural, not just thin data.** 88% of current overlap is one
+  brand (Royal Canin). Whether a third adapter closes the gap depends heavily on whether it also
+  carries that brand's range near-completely — worth confirming before assuming animax.ro alone
+  solves this. See the arithmetic in `docs/SOURCES.md`.
+- **7 consecutive days is 1 so far**, and no scheduled (non-manual) cron run has fired yet.
+- **pentruanimale.ro's ~600-product-per-category ceiling is permanent** with the current
+  `?page=N` retrieval path. Reaching the remainder would need a different mechanism (e.g. the
+  `sitemap/product-N.xml` files) — not attempted, flagged for whoever next touches this adapter.
+- **3/25 hand-checked overlap keys contain a false pairing**: life-stage/senior variants ("Adult"
+  vs "Adult 8+", "Adult" vs "Junior") and a packaging-format nuance (can vs pouch) that the current
+  key doesn't distinguish. Within the plan's accepted error margin; not tuned further this session
+  per explicit instruction.
+- **LLM transport not implemented.** ADR-0006.
 - **`make` not installed.** `.\make.ps1 <target>` is the Windows path. ADR-0003.
-- **Bonus-weight titles are a known trap**, now empirically confirmed to actually occur in real
-  scraped data on both shops (not just theorized) — see the overlap diagnostic above and
-  `tests/fixtures/pentruanimale_ro/README.md`. Needs to reach the Phase 3 annotation set.
+- **Bonus-weight titles are a confirmed real trap**, not just theorized — seen in real scraped data
+  on both shops this session. Needs to reach the Phase 3 annotation set.
 
 ## Blocked on Bogdan
 
-Nothing that blocks progress. One real decision for Bogdan when he's ready: the overlap proxy key
-needs a fix (weight-token spacing + bonus-weight guard) before a third adapter can be expected to
-close the 400 gate — worth deciding whether that fix happens before or alongside animax.ro.
+Nothing that blocks progress right now. One real decision when ready: whether to build animax.ro
+next as originally planned, or first decide whether/how to broaden category scope (the 400 gate's
+gap now looks partly structural — concentrated in one brand and in food/treats categories only —
+so a third adapter alone may not be sufficient on the arithmetic in `docs/SOURCES.md`).

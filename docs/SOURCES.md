@@ -385,52 +385,61 @@ Josera · Calibra · Trixie · Bosch · Petkult · Smølke
 Note the spelling traps this list already contains: **Smølke** (ø), **Hill's** (apostrophe), and
 brands that appear both with and without Romanian diacritics.
 
-## Confirmed cross-shop overlap — measured, 2026-09-12
+## Confirmed cross-shop overlap — measured, 2026-09-12 (superseded same day — see below)
 
-First real measurement, petmax_ro + pentruanimale_ro, one day of data (2026-09-12):
+First real measurement, petmax_ro + pentruanimale_ro, one day of data: the shipped `overlap_key`
+found only **13** shared products (session note: precision-optimised, not recall-optimised — see
+ADR-0021). A same-day investigation found the key itself was the bottleneck, not thin real
+overlap, and fixed it (weight-token spacing, ml/l, apostrophe folding, bonus-weight guard).
 
-| Source | In-scope listings | Keyable (brand+line+weight parsed) |
+### Re-measured after the fix, same day
+
+| Source | In-scope listings | Keyable |
 |---|---:|---:|
-| petmax_ro | 4,060 | 2,495 (61%) |
-| pentruanimale_ro | 3,551 | 3,525 (99%) |
+| petmax_ro | 4,064 | 2,914 (71.7%) |
+| pentruanimale_ro | 4,012 | 3,922 (97.8%) |
 
-**Shared products (current `overlap_key`, unmodified): 13.** Far below the ≥400 gate. All 13 were
-hand-verified (titles, brands, weights, prices compared) — every one is a genuinely identical
-purchasable unit on both shops (Applaws 156g/70g ×2 flavours, Equilibrio Cats 7.5kg, Miau Miau
-100g, Orijen Kitten 1.8kg, and seven Royal Canin dry lines from 1.5kg to 12kg). One nuance: one
-key's group includes a pentruanimale.ro *pouch* variant alongside the matching *can* variant it
-shares with petmax — same flavour and weight, different packaging format, which the key does not
-distinguish. Precision on the 13 is effectively 100% (13/13 same purchasable unit, with that one
-packaging-format caveat noted). **This is well above the 90% bar; the problem is not false
-matches, it is recall.**
+**Shared products: 94** (up from 13 — a 7.2× increase, from the key fix plus a corrected,
+larger pentruanimale.ro dataset after the pagination fixes in STEP 1). **83 of the 94 (88%) are
+Royal Canin** — both shops appear to carry Royal Canin's catalogue near-completely, in
+near-identical structure; the remaining 11 keys span Applaws (4), Matisse (3), Orijen, Miau Miau,
+Equilibrio and Advance (1 each).
 
-**Diagnostic-only finding (not applied to `src/pricepilot/overlap.py` — reported, not tuned):**
-grouping by `(brand, weight)` alone, dropping the line-token component, finds 142 pairs where both
-shops carry the same brand+weight but the current key splits them apart. The overwhelming majority
-of these are genuinely *different* products colliding only on brand+weight (Royal Canin alone sells
-30–40 distinct 85g wet-food formulas; the line tokens are doing real, correct work separating
-them). But ranking those 142 by title similarity surfaces a specific, narrow, real bug: when a
-shop writes weight with no space before the unit (`"85g"`, `"400g"`) the digit+unit token survives
-`line_tokens()` as noise the current regex doesn't strip (only bare `"kg"`/`"g"` are filtered);
-when the other shop writes it with a space (`"85 g"`), the digit is stripped as `isdigit()` and the
-bare `"g"` as `_NOISE`, so the *same* product ends up with different token sets purely from spacing.
-Simulating that one additional strip (`^\d+(kg|g)$` as noise too) raises the shared count from
-**13 to 92** — a 7× difference, entirely from titles that are otherwise identical. Hand-checking
-those 79 additional pairs: the large majority are genuine matches (same brand, same line, same
-price range) — **but this same relaxation also reintroduces the bonus-weight trap CLAUDE.md §7
-names**: "Royal Canin Medium Adult 15kg" collides with "Royal Canin Medium Adult 15 + 3 Kg Gratis"
-(a different purchasable unit, different price), and "Royal Canin Mini Adult 8kg" collides with
-both an "8+" senior-age variant and "8kg + 1kg gratuit" — three genuinely different products merged
-into one bucket. **Conclusion: the true overlap between these two shops is materially higher than
-13, but the fix is not a one-line token strip** — it needs to distinguish a bonus-weight/variant
-listing from a plain one (e.g. detecting a `+` or "gratuit"/"gratis" in the raw title before
-stripping) at the same time it stops the weight-spacing false split. Left as a recommendation for
-the next session that touches `overlap.py`, not implemented here.
+**Precision, hand-checked on a random sample of 25 of the 94 (not all 94 — per instruction, a
+sample when there are more than 25):** 22 of 25 (88%) are clean — every listing inside the key is
+genuinely the same purchasable unit. **3 of 25 (12%) contain at least one false pairing** mixed in
+with a genuine one:
+- a key merged a plain "Adult" formula with an unrelated "Adult 8+" (senior) formula at the same
+  weight — the line tokens don't carry enough signal to separate "8+" from plain when a shop omits
+  extra wording,
+- a key merged "Giant Adult" with "Giant Junior" at the same weight — life-stage variants the
+  tokenizer doesn't distinguish once brand and weight already match,
+- a key merged a can (`conservă`) with a pouch (`plic`) variant — a packaging-format nuance the
+  proxy doesn't encode (also seen in the original 13, one occurrence there too).
 
-**What this means for the Phase 1 gate, honestly:** 13 (or even a carefully-fixed ~92) is nowhere
-near 400 from two sources. A third adapter alone will not close a gap this size — the keying
-itself needs the fix above before more sources can be expected to move this number the way the
-gate assumes. This is a real finding to act on, not a volume problem to wait out.
+This is exactly what CLAUDE.md §7 accepts — "it will join a few products that are not the same" —
+and it is well above the 90% floor this session set as a stop-and-report threshold, so no further
+tuning was done. **The bonus-weight guard verified working on real data**: "Royal Canin Mini Adult
+8kg" (plain/senior variants) and "Royal Canin Mini Adult 8kg + 1kg gratuit" (the bonus form) landed
+as two separate keys — the guard kept the bonus pair from merging into the larger plain/senior
+bucket, while still correctly matching the bonus-form listing on each shop to the other.
+
+**What this means for the Phase 1 gate, honestly:** 94 is real, verified, and still short of 400.
+The concentration in one brand (88%) is the important structural fact for projecting a third
+source: if it also carries Royal Canin's range near-completely (plausible — Royal Canin is
+dominant in Romanian pet retail), a third source plausibly adds a similar-order pairwise overlap
+with each existing source, but with heavy re-use of the *same* Royal Canin products already
+counted, not a clean multiplication. Rough arithmetic: 94 ≈ (2,914 × 0.7717 keyable-rate-weighted
+overlap-rate) is dominated by ~83 Royal Canin pairs out of roughly 2,900 keyable Royal Canin-and-
+other listings — call it a per-pair "true overlap density" of order 90-ish products when both
+shops carry a similar major-brand-heavy catalogue. Adding a third such source gives up to two more
+such pairs (source1↔source3, source2↔source3), but with substantial double-counting of the same
+Royal Canin SKUs across all three pairs (the "≥2 shops" gate counts a product once no matter how
+many pairs it appears in) — a plausible range is **~150–250 distinct products on ≥2 shops with a
+well-chosen third source**, not 400, unless that source also broadens which brands/categories
+carry real cross-shop overlap. **The gap to 400 is now partly structural** (concentrated in one
+brand, in food/treats categories only) rather than purely a key-recall problem — a third adapter
+helps, but is not alone plausibly sufficient on this arithmetic.
 
 One product verified by hand in CLAUDE.md, before any real data existed — Orijen Original Dog
 Adult Mini, 1.8 kg, kept here for the historical record of what "confirmed" meant before this
