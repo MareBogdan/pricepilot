@@ -102,6 +102,10 @@ class ScrapeResult:
     pages_fetched: int = 0
     errors: list[str] = field(default_factory=list)
     skipped_out_of_scope: int = 0
+    # Optional per-category breakdown, populated by adapters that paginate per category (e.g.
+    # pentruanimale.py) — lets a run's actual page count be compared against a recon estimate
+    # category by category, not just as one opaque total. Empty for adapters that don't fill it.
+    pages_fetched_by_category: dict[str, int] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

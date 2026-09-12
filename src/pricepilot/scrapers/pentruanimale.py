@@ -25,7 +25,16 @@ that lists the product.
 
 Pagination is `?page=N`, one-based (bare URL = page 1). There is no `<link rel="next">` equivalent
 — the grid is client-rendered — so the adapter stops when a page's raw product list (from
-`__STATE__`, before regulated-title filtering) comes back empty.
+`__STATE__`, before regulated-title filtering) comes back empty **and parses cleanly**. A page
+that fails to parse is not treated the same as a genuinely empty one — see
+`_should_continue_category` and the session note below.
+
+**Bug found and fixed (2026-09-12), first real run.** The first live run fetched 224 pages against
+a ~321-page recon estimate. Root cause: a transient `__STATE__` parse failure on one page made
+`raw_product_count == 0`, which the original loop treated identically to "category exhausted",
+silently truncating every page behind it. The loop now only stops on a genuinely empty, cleanly
+parsed page; a parse failure moves to the next page instead, and only a run of
+`MAX_CONSECUTIVE_PARSE_ERRORS` consecutive parse failures gives up on that category.
 
 **Not fetched.** `diete-veterinare` (prescription diets) and `antiparazitare` (antiparasitics) are
 separate categories from the six scraped here; the category allowlist is the first line of
@@ -67,6 +76,13 @@ DEFAULT_CATEGORIES: tuple[str, ...] = (
 # `hrana-uscata` (dog dry food) is the largest category at 81 pages (docs/SOURCES.md). Comfortably
 # above that, not just past petmax's 40, so a real run never truncates on page count.
 DEFAULT_MAX_PAGES_PER_CATEGORY = 120
+
+# Session note (2026-09-12): a transient __STATE__ parse failure on ONE page must not be mistaken
+# for "this category is exhausted" — that silently truncates every remaining page behind it,
+# which is exactly what happened to the first real run (224 pages fetched vs. ~321 estimated).
+# A page that fails to parse is retried by simply moving to the next page number; only a *run* of
+# consecutive parse failures this long means the category is genuinely broken, not transient.
+MAX_CONSECUTIVE_PARSE_ERRORS = 3
 
 # Non-greedy: `<script>`/`</script>` were confirmed balanced 1:1 on the real page this session
 # (docs/SOURCES.md), so this is safe in practice. If a future page's escaped-but-truncating
@@ -289,6 +305,30 @@ class PentruAnimaleScraper:
         it (unlike petmax's zero-based `?p=N`)."""
         return f"{BASE_URL}/{category}" if page == 1 else f"{BASE_URL}/{category}?page={page}"
 
+    @staticmethod
+    def _should_continue_category(
+        raw_product_count: int, had_parse_error: bool, consecutive_parse_errors: int
+    ) -> tuple[bool, int, str | None]:
+        """Whether to fetch another page of this category, given the page just parsed.
+
+        Kept as a standalone, pure function — not inlined in `scrape()` — specifically so the
+        bug this fixes can be unit-tested without mocking the network: a page that fails to
+        parse (`raw_product_count == 0` *because* of an error) is not the same thing as a page
+        that genuinely has no products, and conflating them was the original bug — one
+        transient parse failure silently truncated every page behind it in that category
+        (the first real run: 224 pages fetched vs. ~321 estimated, docs/SOURCES.md).
+
+        Returns `(should_continue, new_consecutive_parse_error_streak, note_if_giving_up)`.
+        """
+        if had_parse_error and raw_product_count == 0:
+            streak = consecutive_parse_errors + 1
+            if streak >= MAX_CONSECUTIVE_PARSE_ERRORS:
+                return False, streak, f"stopping after {streak} consecutive parse errors"
+            return True, streak, None
+        if raw_product_count == 0:
+            return False, 0, None
+        return True, 0, None
+
     # -- the only method that touches the network ---------------------------
 
     def scrape(self, limit: int | None = None, dry_run: bool = False) -> ScrapeResult:
@@ -304,6 +344,8 @@ class PentruAnimaleScraper:
 
         with PoliteClient(SOURCE) as client:
             for category in self.categories:
+                pages_this_category = 0
+                consecutive_parse_errors = 0
                 for page in range(1, self.max_pages_per_category + 1):
                     url = self.category_page_url(category, page)
                     try:
@@ -312,6 +354,7 @@ class PentruAnimaleScraper:
                         result.errors.append(f"{url}: {exc.__class__.__name__}: {exc}")
                         break
                     result.pages_fetched += 1
+                    pages_this_category += 1
 
                     listings, errors, skipped, raw_product_count = self.parse_page(html, url)
                     result.errors.extend(errors)
@@ -323,8 +366,17 @@ class PentruAnimaleScraper:
                         seen.add(key)
                         result.listings.append(listing)
                         if cap and len(result.listings) >= cap:
+                            result.pages_fetched_by_category[category] = pages_this_category
                             return result
 
-                    if raw_product_count == 0:
+                    should_continue, consecutive_parse_errors, note = (
+                        self._should_continue_category(
+                            raw_product_count, bool(errors), consecutive_parse_errors
+                        )
+                    )
+                    if note:
+                        result.errors.append(f"{category}: {note}")
+                    if not should_continue:
                         break
+                result.pages_fetched_by_category[category] = pages_this_category
         return result

@@ -276,3 +276,66 @@ def test_default_categories_are_nested_vtex_paths() -> None:
         assert "/" in category
         assert "diete-veterinare" not in category
         assert "antiparazitare" not in category
+
+
+# ---------------------------------------------------------------------------
+# STEP 1 (session note 2026-09-12): a parse failure on one page must not be mistaken for
+# "category exhausted" - that silently truncated every page behind it in the first real run
+# (224 pages fetched vs. ~321 estimated). Tested here as a pure function, with no network mock
+# needed at all.
+# ---------------------------------------------------------------------------
+
+
+def test_a_genuinely_empty_clean_page_stops_the_category() -> None:
+    should_continue, streak, note = PentruAnimaleScraper._should_continue_category(
+        raw_product_count=0, had_parse_error=False, consecutive_parse_errors=0
+    )
+    assert should_continue is False
+    assert streak == 0
+    assert note is None
+
+
+def test_a_page_with_products_always_continues_and_resets_the_streak() -> None:
+    should_continue, streak, note = PentruAnimaleScraper._should_continue_category(
+        raw_product_count=12, had_parse_error=False, consecutive_parse_errors=2
+    )
+    assert should_continue is True
+    assert streak == 0
+    assert note is None
+
+
+def test_a_single_parse_failure_does_not_stop_the_category() -> None:
+    """The exact bug this fixes: one bad page must not truncate everything behind it."""
+    should_continue, streak, note = PentruAnimaleScraper._should_continue_category(
+        raw_product_count=0, had_parse_error=True, consecutive_parse_errors=0
+    )
+    assert should_continue is True
+    assert streak == 1
+    assert note is None
+
+
+def test_consecutive_parse_failures_eventually_give_up() -> None:
+    streak = 0
+    should_continue = True
+    note = None
+    for _ in range(10):
+        should_continue, streak, note = PentruAnimaleScraper._should_continue_category(
+            raw_product_count=0, had_parse_error=True, consecutive_parse_errors=streak
+        )
+        if not should_continue:
+            break
+    assert should_continue is False
+    assert streak == 3  # MAX_CONSECUTIVE_PARSE_ERRORS
+    assert note is not None and "3 consecutive parse errors" in note
+
+
+def test_a_recovering_page_resets_the_streak() -> None:
+    """Two parse failures then a good page - the category must not be considered broken."""
+    _, streak, _ = PentruAnimaleScraper._should_continue_category(0, True, 0)
+    _, streak, _ = PentruAnimaleScraper._should_continue_category(0, True, streak)
+    should_continue, streak, note = PentruAnimaleScraper._should_continue_category(
+        raw_product_count=12, had_parse_error=False, consecutive_parse_errors=streak
+    )
+    assert should_continue is True
+    assert streak == 0
+    assert note is None
