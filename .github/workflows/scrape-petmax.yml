@@ -1,7 +1,9 @@
-name: Scrape petmax.ro (daily)
+name: Scrape daily (petmax, pentruanimale)
 
 # STEP 4 (session note 2026-09-12): collection moved here from a Windows Task Scheduler job,
 # which could not guarantee 7 consecutive days when the laptop is not open at 06:10 (ADR-0018).
+# pentruanimale.ro joined this same workflow the following session, as its own job — same
+# schedule, same secrets, independent per-source budget and idempotency.
 #
 # Cron is UTC-only — GitHub Actions has no IANA time zone support. 03:10 UTC is 06:10
 # Europe/Bucharest during EEST (UTC+3, in effect now, late March-late October). After the
@@ -18,13 +20,12 @@ on:
     - cron: "10 3 * * *"
   workflow_dispatch:
 
-concurrency:
-  group: scrape-petmax
-  cancel-in-progress: false
-
 jobs:
-  scrape:
+  scrape-petmax:
     runs-on: ubuntu-latest
+    concurrency:
+      group: scrape-petmax
+      cancel-in-progress: false
     # ~208 requests, ~15-20 min estimated (docs/SOURCES.md, ADR-0017). Generous ceiling so a
     # genuine hang fails loudly instead of burning the whole day's Actions minutes silently.
     timeout-minutes: 60
@@ -45,3 +46,26 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SCRAPER_USER_AGENT: ${{ secrets.SCRAPER_USER_AGENT }}
         run: uv run python scripts/scrape.py --source petmax_ro --limit 0
+
+  scrape-pentruanimale:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: scrape-pentruanimale
+      cancel-in-progress: false
+    # 321 requests, ~16-30 min estimated (docs/SOURCES.md, tests/fixtures/pentruanimale_ro/README.md).
+    # Independent job from petmax: a slow/failed run on one source never blocks or delays the other.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --extra dev
+
+      - name: Full daily run — pentruanimale.ro, 6 categories
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SCRAPER_USER_AGENT: ${{ secrets.SCRAPER_USER_AGENT }}
+        run: uv run python scripts/scrape.py --source pentruanimale_ro --limit 0
