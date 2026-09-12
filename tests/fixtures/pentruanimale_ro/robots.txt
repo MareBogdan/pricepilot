@@ -1,0 +1,17 @@
+# Disallow all crawlers access to certain pages. 
+ User-agent: * 
+Sitemap: https://www.pentruanimale.ro/sitemap.xml
+Disallow: /*2pau
+Disallow: /*2ptt
+Disallow: /*2ptu
+Disallow: /*2prp
+Disallow: /*2pdlst
+
+ Disallow: /img/* 
+ Disallow: /account/* 
+ Disallow: /login/* 
+ Disallow: /checkout/* 
+ Disallow: /busca/* 
+ Disallow: /quick-view/* 
+ Disallow: /espiar/* 
+ Noindex: /buscapagina/*

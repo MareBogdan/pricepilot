@@ -4,9 +4,9 @@ One entry per competitor shop. **No adapter is written until its row here is fil
 (CLAUDE.md §7 Phase 1): fetch one page with `curl`, confirm titles and prices are present in the
 raw response rather than injected by JS, read `robots.txt`, note the crawl-delay.
 
-> **Status: `petmax.ro` verified 2026-09-12.** Its row below and the detailed section that
-> follows are measurements, not restatements of CLAUDE.md. Every other row is still unverified,
-> and the columns marked *unverified* are not claims.
+> **Status: `petmax.ro` verified 2026-09-12; `pentruanimale.ro` verified 2026-09-13.** Their rows
+> below and the detailed sections that follow are measurements, not restatements of CLAUDE.md.
+> Every other row is still unverified, and the columns marked *unverified* are not claims.
 >
 > Per DECISIONS.md ADR-0010, `petmax.ro` goes on a daily schedule before the next adapter is
 > written, because price history is wall-clock and cannot be backfilled.
@@ -16,7 +16,7 @@ raw response rather than injected by JS, read `robots.txt`, note the crawl-delay
 | Shop | Platform | Server-rendered | robots.txt checked | Crawl-delay | Structural note | Status |
 |---|---|---|---|---|---|---|
 | petmax.ro | Gomag | **yes, verified** | **yes, 2026-09-12** | **none declared for `*`** | Prices in a `data-Gomag` JSON attribute: current *and* pre-discount. One row per size, no variant grouping. Pagination `?p=N`. **Anchor source.** | **implemented, on daily schedule** |
-| pentruanimale.ro | unknown | per CLAUDE.md: yes | unverified | unverified | **Groups variants** under one product with a price range ("38,01 lei - 62,00 lei", "Vezi 5 variante"). Adapter must expand to one row per purchasable variant, likely via the product page. | not started |
+| pentruanimale.ro | **VTEX** | **yes, verified** | **yes, 2026-09-13** | **none declared for `*`** | Prices in a `<template data-varname="__STATE__">` JSON blob (VTEX's server-rendered Apollo cache) — current *and* list price, per SKU. **Groups variants** under one product; expansion needs no extra request, every SKU's price is already in the same blob. Pagination `?page=N`, one-based. | **implemented, on daily schedule** |
 | animax.ro | Magento | per CLAUDE.md: yes | unverified | unverified | Indexed product pages carry full titles including weight. | not started |
 | magazindeanimale.ro | unknown | unverified | unverified | unverified | Same catalogue as zoopoint, different title conventions; diacritics present. | not started |
 | zoopoint.ro | unknown | unverified | unverified | unverified | **No weight in title** — size is a separate variant. | not started |
@@ -193,6 +193,132 @@ Confirms what CLAUDE.md §7 predicts, and adds a trap:
 ### Cost
 
 **$0.** Self-hosted `httpx` + `selectolax`, no proxies, no paid services.
+
+## pentruanimale.ro — verified recon (2026-09-13)
+
+Fetched with `curl -sL --compressed` and the `SCRAPER_USER_AGENT` from `.env`: `robots.txt`,
+`sitemap.xml`, `sitemap/category-0.xml`, one category page, one second-page fetch to confirm
+pagination — six requests total, spaced 3s by hand.
+
+### Server-rendered? Yes — but not the way petmax is
+
+`https://www.pentruanimale.ro/caini/hrana-caini/hrana-uscata` returned HTTP 200, ~3.2 MB
+decompressed. The visible product grid is client-rendered (VTEX IO storefront, React), but the
+raw response also carries `<template data-type="json" data-varname="__STATE__"><script>{...}
+</script></template>` — VTEX's server-rendered Apollo GraphQL cache. It is present with **zero JS
+execution**: `curl` alone returns it, confirmed by grepping the raw response for `sellingPrice`,
+`Price`, `ListPrice` (all present) before writing any parsing code. No Playwright (CLAUDE.md §5.5).
+
+### Canonical host
+
+`https://www.pentruanimale.ro` responds directly (no apex redirect observed, unlike petmax).
+
+### robots.txt
+
+Verbatim copy at `tests/fixtures/pentruanimale_ro/robots.txt`.
+
+- **`User-agent: *` declares no `Crawl-delay`.** We use 2–4s anyway (CLAUDE.md §5.4).
+- Disallows: `/img/*`, `/account/*`, `/login/*`, `/checkout/*`, `/busca/*` (search), `/quick-view/*`,
+  `/espiar/*`, plus tracking-parameter globs (`/*2pau`, `/*2ptt`, …). None touch category pages or
+  the `?page=N` pagination we use.
+- `Noindex: /buscapagina/*` — not a `Disallow`, and not a path we touch regardless.
+
+### Sitemaps
+
+`sitemap.xml` is an index: `brand-0.xml`, `category-0.xml`, `custom-user-routes-1.xml`,
+`product-0.xml` through `product-6.xml`. `category-0.xml` lists real category paths as nested URLs
+(e.g. `/caini/hrana-caini/hrana-uscata`) — this is where the six category paths below come from,
+fetched rather than guessed (the same discipline as ADR-0017's petmax category expansion).
+
+### What the `__STATE__` blob gives us
+
+The blob is a normalized Apollo cache: a flat map of `"TypeName:id"` keys, cross-referenced by
+`{"type":"id","id": "..."}` pointers instead of nesting. Per product, the fields that matter:
+
+| Field | Where | Note |
+|---|---|---|
+| product id | `Product:sp-<id>-none` node's `productId` | Stable within the shop, useless across shops (same as petmax's `data-product-id`) |
+| title | `productName` (product-level) and `items[].name` (**per-SKU**, includes the weight) | The per-SKU `name` is what becomes `Listing.title` — it is the purchasable unit |
+| brand | `brand` | A real brand field, not inferred from the title |
+| url | `link` (relative, e.g. `/royal-canin-mini-adult-hrana-uscata-caini/p`) | One URL per **product**; all its variant rows share it, same as the site's own PDP-with-a-size-selector UX |
+| **variants** | `items({"filter":"ALL_AVAILABLE"})`, a list of SKU refs | Each SKU is one purchasable unit — the expansion target |
+| SKU id | `items[].itemId` | **Per-variant**, unlike petmax's per-product id — this is the natural `source_product_id` |
+| EAN | `items[].ean` | A real barcode, present on every SKU seen so far. Not used for anything yet (no other verified source exposes one), but worth keeping in `raw_payload` for later |
+| **current price** | SKU → `sellers[0]` → `commertialOffer` → `Price` | Decimal, machine-readable, no comma parsing needed at all |
+| **list price** | same path → `ListPrice` | Drives `compare_at_price`; only meaningful when it exceeds `Price` |
+| stock | same path → `AvailableQuantity` | `> 0` treated as in-stock |
+
+**Why variant expansion needs no extra request.** Every SKU under a grouped product — and each
+one's own price — is already in the *category page's* `__STATE__`. `docs/SOURCES.md` originally
+guessed this would need a product-page fetch per grouped item; recon shows it does not. This
+matters directly for the request-count budget below.
+
+### Pagination
+
+`?page=N`, **one-based** — the bare category URL is page 1. Confirmed by fetching `?page=2`: the
+embedded query's `from`/`to` range moved from `0–11` to `12–23`, 12 products returned, the same
+`recordsFiltered` total (966) as page 1. The adapter stops when a page's product list is empty,
+mirroring how the petmax adapter trusts `<link rel="next">` over guessing a page count.
+
+### In-scope categories on the daily schedule
+
+```
+caini/hrana-caini/hrana-uscata           pisici/hrana-pisici/hrana-uscata
+caini/hrana-caini/hrana-umeda            pisici/hrana-pisici/hrana-umeda
+caini/hrana-caini/recompense---snacks    pisici/hrana-pisici/recompense---snacks
+```
+
+The same six-category shape as petmax's *original* set (dry/wet food and treats, dogs and cats) —
+not petmax's later-expanded thirteen. This session's goal is cross-shop overlap, which lives in
+food and treats; petmax alone already cleared the 3,000-listing volume gate, so there is no
+pressure to widen pentruanimale's scope for volume. Litter/accessories/toys can be added later if
+the overlap number needs it.
+
+**Excluded, and why:** `caini/hrana-caini/diete-veterinare` and `pisici/hrana-pisici/diete-veterinare`
+(prescription diets) and `caini/antiparazitare/*` (antiparasitics, both `deparazitare-interna` and
+`-externa`) are separate categories from the six scraped — the allowlist is the first line of
+defence. A per-SKU regulated-token check on the name is the second, for a mis-filed item.
+
+### Category volume and request-count recon (2026-09-13)
+
+One request per category (page 1), reading `recordsFiltered` and each product's variant count
+directly from `__STATE__` — no extra crawling needed to estimate volume:
+
+| Category | Products | Pages (12/page) | Avg variants/product | Est. listings |
+|---|---:|---:|---:|---:|
+| `caini/hrana-caini/hrana-uscata` | 966 | 81 | 1.92 | 1,851 |
+| `caini/hrana-caini/hrana-umeda` | 526 | 44 | 1.67 | 876 |
+| `caini/hrana-caini/recompense---snacks` | 754 | 63 | 1.00 | 754 |
+| `pisici/hrana-pisici/hrana-uscata` | 491 | 41 | 2.83 | 1,391 |
+| `pisici/hrana-pisici/hrana-umeda` | 836 | 70 | 1.75 | 1,463 |
+| `pisici/hrana-pisici/recompense---snacks` | 258 | 22 | 1.00 | 258 |
+| **Total** | **3,831** | **321** | — | **~6,593** |
+
+**Estimated one full daily run:** 321 page requests — noticeably more than petmax's 208 for
+*thirteen* categories, because pentruanimale returns only 12 products per page against petmax's 24
+listings per page. One real fetch measured 2.76s (network + server). Because the client's rate
+limiter only sleeps the *remainder* of the target delay after the previous request completes,
+fetch time and delay partially overlap rather than stack — wall-clock is bounded between the
+delay-only floor (321 × ~3s ≈ 16 min) and the delay-plus-fetch ceiling (321 × ~5.5s ≈ 30 min).
+**~16–30 minutes**, inside the ~45-minute per-source budget CLAUDE.md §7 sets for staying a polite
+guest on a small shop — no need to cut category scope.
+
+### Title grammar observed
+
+- `ROYAL CANIN Mini Adult, hrană uscată câini, 8kg` — per-SKU name, weight last, comma-separated
+- `EXTRU-CAN Standard Hipocaloric, XS-XL, Pui, hrană uscată câini, obezitate, 10kg` — breed-size
+  code (`XS-XL`) and flavour (`Pui` = chicken) both inline, comma-separated, same grammar CLAUDE.md
+  §7 predicts for this shop
+- **`ADVANCE Adult Maxi, L-XL, Pui, hrană uscată câini, GRATUIT, 14kg + 3kg`** vs
+  **`ADVANCE Adult Maxi, L-XL, Pui, hrană uscată câini, 14kg`** — the *same* bonus-weight trap
+  CLAUDE.md §7 documents for petmax, found here in real data on the same product (`sp-48-none`):
+  two SKUs, same "14kg" numeral in both names, genuinely different purchasable items at different
+  prices. Seeded into the offline fixture deliberately (see
+  `tests/fixtures/pentruanimale_ro/README.md`).
+
+### Cost
+
+**$0.** Self-hosted `httpx` + `selectolax`/`json`, no proxies, no paid services.
 
 ## Excluded
 
