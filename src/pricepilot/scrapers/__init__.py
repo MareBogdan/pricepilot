@@ -10,10 +10,19 @@ at once (DECISIONS.md ADR-0010).
 """
 
 from pricepilot.scrapers.base import Listing, Scraper, ScrapeResult
+from pricepilot.scrapers.pentruanimale import PentruAnimaleScraper
 from pricepilot.scrapers.petmax import PetmaxScraper
 
-SCRAPERS: dict[str, type[PetmaxScraper]] = {
+SCRAPERS: dict[str, type[PetmaxScraper] | type[PentruAnimaleScraper]] = {
     PetmaxScraper.name: PetmaxScraper,
+    PentruAnimaleScraper.name: PentruAnimaleScraper,
 }
 
-__all__ = ["SCRAPERS", "Listing", "PetmaxScraper", "ScrapeResult", "Scraper"]
+__all__ = [
+    "SCRAPERS",
+    "Listing",
+    "PentruAnimaleScraper",
+    "PetmaxScraper",
+    "ScrapeResult",
+    "Scraper",
+]
