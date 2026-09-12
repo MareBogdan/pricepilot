@@ -1,0 +1,40 @@
+name: Recon petmax.ro (single page, runner IP)
+
+# Answers exactly one question before anything else in the Neon/Actions migration is built:
+# does a GitHub-hosted runner get a usable response from petmax.ro, or does the shop's
+# Cloudflare block Azure datacenter IPs the way it might block any other datacenter range?
+# One page, no loop, no ingest, no database write. See the session notes in DECISIONS.md.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch-one-page:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch one category page and report
+        env:
+          SCRAPER_USER_AGENT: ${{ secrets.SCRAPER_USER_AGENT }}
+          URL: https://www.petmax.ro/hrana-uscata-caini
+        run: |
+          set -u
+          if [ -z "${SCRAPER_USER_AGENT:-}" ]; then
+            echo "REFUSING TO RUN: SCRAPER_USER_AGENT secret is not set." >&2
+            exit 2
+          fi
+
+          http_code=$(curl -sL --compressed -A "$SCRAPER_USER_AGENT" \
+            -o /tmp/page.html -w '%{http_code}' "$URL")
+          bytes=$(wc -c < /tmp/page.html)
+          gomag_hits=$(grep -c 'data-Gomag' /tmp/page.html || true)
+          price_hits=$(grep -c 'Lei_final_price' /tmp/page.html || true)
+
+          echo "=== petmax.ro single-page recon (GitHub Actions runner) ==="
+          echo "url               $URL"
+          echo "http_status       $http_code"
+          echo "response_bytes    $bytes"
+          echo "data-Gomag        $([ "$gomag_hits" -gt 0 ] && echo present || echo ABSENT) ($gomag_hits matches)"
+          echo "Lei_final_price   $([ "$price_hits" -gt 0 ] && echo present || echo ABSENT) ($price_hits matches)"
+          echo "first_200_chars:"
+          head -c 200 /tmp/page.html
+          echo
