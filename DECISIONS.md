@@ -433,3 +433,35 @@ investigating the keyable-rate asymmetry (a genuine, narrow edge case — see ST
 it is a change to what counts as *sufficient* identity to key on, not a normalisation, and was left
 alone per this session's scope).
 **Date.** 2026-09-12
+
+## ADR-0022 — pentruanimale.ro's search pagination has a hard ~600-product-per-category ceiling
+
+**Context.** STEP 1's investigation into 224 fetched pages vs. a 321-page recon estimate found two
+separate causes, not one. The first (a transient `__STATE__` parse failure mistaken for "category
+exhausted", fixed the same session) recovered some pages on re-run (224 → 269) but did not close
+the gap. Direct comparison of `?page=50` vs. `?page=51` on `hrana-uscata-caini` showed why: page 50
+returns a normal, populated `$ROOT_QUERY.productSearch(...)` key; **page 51 returns HTTP 200 with
+no `productSearch` key in `__STATE__` at all** — only unrelated facet-widget data. The same
+boundary (page 50 → 51) was hit independently on all three categories whose recon page count
+exceeds 50 (`hrana-uscata-caini` 81, `recompense---snacks-caini` 63, `hrana-umeda-pisici` 70); the
+other three, all under 50 pages, completed with zero errors. `recordsFiltered` itself was
+re-verified accurate (zero drift across all six categories, re-checked a session later) — the
+error was in assuming every page `ceil(recordsFiltered/12)` implies is actually retrievable.
+**Decision.** Documented as a platform limit, not an adapter defect: this store's search
+pagination stops returning product results past page 50 (600 products) per category, regardless
+of the claimed total. `docs/SOURCES.md`'s category volume table is corrected accordingly (321 → 257
+pages, ~6,593 → ~5,327 estimated listings). The three affected categories now permanently lose
+everything past their first 600 products until a different retrieval path exists.
+**Rationale.** `_should_continue_category`'s consecutive-parse-error cap (the STEP 1 code fix)
+already makes the adapter fail this specific wall gracefully — a few wasted attempts, a clear
+logged error, move to the next category — rather than either looping for `max_pages_per_category`
+(120) pages against a wall that will never open, or (the original bug) silently truncating
+everything *before* the wall on an unrelated transient hiccup. No further adapter change was made
+to work around the ceiling itself.
+**Rejected.** Enumerating `sitemap/product-N.xml` to reach the remaining ~639+ products per capped
+category (a real option — petmax's own `docs/SOURCES.md` names its product sitemap as exactly this
+kind of fallback — but a genuinely new retrieval mechanism, out of this session's explicitly
+bounded scope: STEP 1 was diagnose-and-fix-the-adapter-bug, not build a second retrieval path);
+treating the wall as unexplained and re-running repeatedly hoping it clears (it is a fixed
+platform behaviour, not a transient condition — confirmed identically on three categories).
+**Date.** 2026-09-12

@@ -75,12 +75,13 @@ ADR-0017's petmax recon:
 | `pisici/hrana-pisici/recompense---snacks` | 258 | 22 | 1.00 | 258 |
 | **Total** | **3,831** | **321** | — | **~6,593** |
 
-**Estimated one full daily run:** 321 page requests. Measured one real fetch at 2.76s (network +
-server); `SCRAPER_MIN/MAX_DELAY_SECONDS` (2–4s) sometimes overlaps with that fetch time rather than
-adding to it (the client only sleeps the remainder of the target delay after the previous request
-completes) — so wall-clock is bounded between the delay-only floor (321 × ~3s ≈ 16 min) and the
-delay-plus-fetch ceiling (321 × ~5.5s ≈ 30 min). **~16–30 minutes**, comfortably inside the
-~45-minute per-source budget CLAUDE.md §7 sets for staying a polite guest on a small shop.
+**Estimated one full daily run:** 321 page requests, ~16–30 minutes — **corrected to ~257 pages
+after the first two real runs found a platform pagination ceiling** (this store's search stops
+returning results past page 50 / 600 products per category, regardless of `recordsFiltered`).
+See `docs/SOURCES.md`'s "Category volume and request-count recon" section for the full
+correction — not duplicated here to avoid the two copies drifting apart. Either way, comfortably
+inside the ~45-minute per-source budget CLAUDE.md §7 sets for staying a polite guest on a small
+shop.
 
 **Category scope chosen: the same 6 as petmax's original set** — dry food, wet food, treats, dogs
 and cats — not petmax's later-expanded 13. Cross-shop overlap (this session's actual goal) lives in

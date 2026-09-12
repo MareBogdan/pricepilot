@@ -279,7 +279,7 @@ the overlap number needs it.
 `-externa`) are separate categories from the six scraped — the allowlist is the first line of
 defence. A per-SKU regulated-token check on the name is the second, for a mis-filed item.
 
-### Category volume and request-count recon (2026-09-12)
+### Category volume and request-count recon (2026-09-12) — CORRECTED after the first two real runs
 
 One request per category (page 1), reading `recordsFiltered` and each product's variant count
 directly from `__STATE__` — no extra crawling needed to estimate volume:
@@ -294,14 +294,51 @@ directly from `__STATE__` — no extra crawling needed to estimate volume:
 | `pisici/hrana-pisici/recompense---snacks` | 258 | 22 | 1.00 | 258 |
 | **Total** | **3,831** | **321** | — | **~6,593** |
 
-**Estimated one full daily run:** 321 page requests — noticeably more than petmax's 208 for
-*thirteen* categories, because pentruanimale returns only 12 products per page against petmax's 24
-listings per page. One real fetch measured 2.76s (network + server). Because the client's rate
-limiter only sleeps the *remainder* of the target delay after the previous request completes,
-fetch time and delay partially overlap rather than stack — wall-clock is bounded between the
-delay-only floor (321 × ~3s ≈ 16 min) and the delay-plus-fetch ceiling (321 × ~5.5s ≈ 30 min).
-**~16–30 minutes**, inside the ~45-minute per-source budget CLAUDE.md §7 sets for staying a polite
-guest on a small shop — no need to cut category scope.
+**This 321-page estimate is not actually reachable, and the reason is a platform limit, not a
+recon error.** `recordsFiltered` itself is confirmed accurate — re-fetched page 1 of all six
+categories a session later and every count matched exactly, zero drift. The error is in the
+assumption that all `ceil(recordsFiltered / 12)` pages are retrievable via `?page=N`. They are
+not: **fetching `?page=51` on `hrana-uscata` returned HTTP 200, but its `__STATE__` blob has no
+`$ROOT_QUERY.productSearch(...)` key at all** — only unrelated facet-widget data — while `?page=50`
+(the page before it) has a normal, populated one. Confirmed at exactly the same boundary
+(page 50 → 51) independently on three categories in the first two real runs
+(`hrana-uscata-caini`, `recompense---snacks-caini`, `hrana-umeda-pisici` — precisely the three
+whose recon page count exceeds 50; the other three, all under 50 pages, completed with no errors).
+**This store's search pagination stops returning product results at 50 pages (600 products) per
+category, regardless of how many `recordsFiltered` claims to exist.** Not a bug in this adapter —
+the adapter's job here is to fail that gracefully rather than loop or misreport, which
+`_should_continue_category`'s consecutive-parse-error cap now does (STEP 1 fix, session note
+2026-09-12): it tries a few pages past the wall, logs a clear error, and moves on to the next
+category instead of retrying forever or silently truncating everything *before* the wall (the
+original, separate bug this same investigation found and fixed first).
+
+**Corrected estimate, capping every category at 50 pages / 600 products:**
+
+| Category | Corrected pages | Corrected est. listings |
+|---|---:|---:|
+| `caini/hrana-caini/hrana-uscata` | 50 (was 81) | ~1,152 (was 1,851) |
+| `caini/hrana-caini/hrana-umeda` | 44 (unaffected) | 876 |
+| `caini/hrana-caini/recompense---snacks` | 50 (was 63) | ~600 (was 754) |
+| `pisici/hrana-pisici/hrana-uscata` | 41 (unaffected) | 1,391 |
+| `pisici/hrana-pisici/hrana-umeda` | 50 (was 70) | ~1,050 (was 1,463) |
+| `pisici/hrana-pisici/recompense---snacks` | 22 (unaffected) | 258 |
+| **Total** | **257** (was 321) | **~5,327** (was ~6,593) |
+
+**Estimated one full daily run, corrected:** ~257 successful page requests plus a handful of wasted
+retries against the wall each time a capped category is hit (observed: 269 pages fetched in the
+run that included this discovery, consistent with 257 + ~12 wasted attempts before the three
+capped categories each gave up). Still comfortably inside the ~45-minute per-source budget — no
+change needed there. **Real second run: 4,012 listings ingested** (up from 3,551 in the first run,
+which additionally lost pages to the separate transient-parse-error bug fixed in the same
+investigation) — both numbers are below the corrected ~5,327 estimate, which is expected: the
+estimate assumes every one of the retrievable products' average-variant-count holds exactly, and
+regulated-title filtering and dedup both trim the real count further.
+
+**What this means going forward:** the ~639 products (966−600, plus the smaller shortfalls in the
+other two capped categories) beyond each category's first 600 are permanently unreachable through
+this pagination mechanism. Reaching them would need a different retrieval path (e.g. enumerating
+`sitemap/product-N.xml` directly, matching petmax's own fallback plan for a broken category
+crawl) — a real option, not attempted this session; flagged for whoever next touches this adapter.
 
 ### Title grammar observed
 
