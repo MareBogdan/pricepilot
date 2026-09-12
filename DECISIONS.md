@@ -311,3 +311,27 @@ CLAUDE.md §5 spend schedule); leaving the Windows task registered as a backup (
 truth for "is collection running" is worse than one, and an operator checking `make status` has
 no way to know which one actually produced today's row).
 **Date.** 2026-09-12
+
+## ADR-0019 — Collected data moves to Neon, a managed Postgres, at $0
+
+**Context.** ADR-0018 moves collection to GitHub Actions, which has no persistent local disk
+between runs — a scheduled job on GitHub-hosted runners needs a database reachable from outside
+Bogdan's laptop, not the docker-compose Postgres Phase 0 built (ADR-0002's local-only container).
+**Decision.** Neon, free plan, Frankfurt region (closest to Romania of Neon's EU options, lowest
+latency for the daily run), pgvector enabled from the start (Phase 3 will need it, and ADR-0004
+already enables the extension in migration 0001 for exactly this reason). Connection uses the
+**unpooled** endpoint with `postgresql+psycopg://`, not the pooled one — Neon's pooled endpoint
+(PgBouncer in transaction mode) does not support prepared statements, and Alembic's DDL relies on
+them. `DATABASE_URL` in GitHub Secrets and in local `.env`; never in the repo (CLAUDE.md §0.5).
+See ADR-0014 for the resulting split from the local docker Postgres, and ADR-0015 for the
+cold-start handling this plan choice requires (Neon's free tier suspends compute after 5 minutes
+idle).
+**Rationale.** Free tier costs nothing (CLAUDE.md §5: Phase 1 must be $0), needs no server to
+patch or secure (unlike a Hetzner box provisioned early, which would also front-load Phase 7
+money), and pgvector is a first-class extension rather than something to compile in later.
+**Rejected.** Self-hosting Postgres on a VPS now (front-loads the Phase 7 hosting spend — CLAUDE.md
+§5's priority-ordered spend schedule reserves that money for the deployed demo, not Phase 1
+storage); Supabase (a heavier managed platform — auth, storage, realtime — for a need that is
+purely "a Postgres GitHub Actions can reach"); SQLite over a persisted GitHub Actions artifact (no
+concurrent-write story for a future second workflow, and artifacts are not built for this).
+**Date.** 2026-09-12
