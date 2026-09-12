@@ -7,8 +7,8 @@ Offline fixtures for the `pentruanimale_ro` adapter. **Tests never touch the liv
 
 | File | Provenance |
 |---|---|
-| `robots.txt` | `https://www.pentruanimale.ro/robots.txt`, fetched 2026-09-13. Verbatim — it is a policy document and trimming it would misrepresent it. |
-| `category_caini_hrana-uscata_p1.html` | Trimmed from `https://www.pentruanimale.ro/caini/hrana-caini/hrana-uscata`, fetched 2026-09-13 with `curl -sL --compressed` and the `SCRAPER_USER_AGENT` from `.env`. |
+| `robots.txt` | `https://www.pentruanimale.ro/robots.txt`, fetched 2026-09-12. Verbatim — it is a policy document and trimming it would misrepresent it. |
+| `category_caini_hrana-uscata_p1.html` | Trimmed from `https://www.pentruanimale.ro/caini/hrana-caini/hrana-uscata`, fetched 2026-09-12 with `curl -sL --compressed` and the `SCRAPER_USER_AGENT` from `.env`. |
 
 ## The site is VTEX, not Gomag — different parsing target entirely
 
@@ -59,7 +59,7 @@ embedded query's `"from"`/`"to"` range shifted from `0-11` to `12-23`, `recordsF
 `products` list comes back empty, mirroring how the petmax adapter trusts `<link rel="next">`
 rather than guessing a fixed page count.
 
-## Category volume and request-count recon (2026-09-13)
+## Category volume and request-count recon (2026-09-12)
 
 One request per category (bare URL, page 1), reading `recordsFiltered` and each product's variant
 count directly from `__STATE__` — no extra crawling needed to estimate volume, same approach as

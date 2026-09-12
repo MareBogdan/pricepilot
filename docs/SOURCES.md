@@ -4,7 +4,7 @@ One entry per competitor shop. **No adapter is written until its row here is fil
 (CLAUDE.md §7 Phase 1): fetch one page with `curl`, confirm titles and prices are present in the
 raw response rather than injected by JS, read `robots.txt`, note the crawl-delay.
 
-> **Status: `petmax.ro` verified 2026-09-12; `pentruanimale.ro` verified 2026-09-13.** Their rows
+> **Status: `petmax.ro` verified 2026-09-12; `pentruanimale.ro` verified 2026-09-12.** Their rows
 > below and the detailed sections that follow are measurements, not restatements of CLAUDE.md.
 > Every other row is still unverified, and the columns marked *unverified* are not claims.
 >
@@ -16,7 +16,7 @@ raw response rather than injected by JS, read `robots.txt`, note the crawl-delay
 | Shop | Platform | Server-rendered | robots.txt checked | Crawl-delay | Structural note | Status |
 |---|---|---|---|---|---|---|
 | petmax.ro | Gomag | **yes, verified** | **yes, 2026-09-12** | **none declared for `*`** | Prices in a `data-Gomag` JSON attribute: current *and* pre-discount. One row per size, no variant grouping. Pagination `?p=N`. **Anchor source.** | **implemented, on daily schedule** |
-| pentruanimale.ro | **VTEX** | **yes, verified** | **yes, 2026-09-13** | **none declared for `*`** | Prices in a `<template data-varname="__STATE__">` JSON blob (VTEX's server-rendered Apollo cache) — current *and* list price, per SKU. **Groups variants** under one product; expansion needs no extra request, every SKU's price is already in the same blob. Pagination `?page=N`, one-based. | **implemented, on daily schedule** |
+| pentruanimale.ro | **VTEX** | **yes, verified** | **yes, 2026-09-12** | **none declared for `*`** | Prices in a `<template data-varname="__STATE__">` JSON blob (VTEX's server-rendered Apollo cache) — current *and* list price, per SKU. **Groups variants** under one product; expansion needs no extra request, every SKU's price is already in the same blob. Pagination `?page=N`, one-based. | **implemented, on daily schedule** |
 | animax.ro | Magento | per CLAUDE.md: yes | unverified | unverified | Indexed product pages carry full titles including weight. | not started |
 | magazindeanimale.ro | unknown | unverified | unverified | unverified | Same catalogue as zoopoint, different title conventions; diacritics present. | not started |
 | zoopoint.ro | unknown | unverified | unverified | unverified | **No weight in title** — size is a separate variant. | not started |
@@ -194,7 +194,7 @@ Confirms what CLAUDE.md §7 predicts, and adds a trap:
 
 **$0.** Self-hosted `httpx` + `selectolax`, no proxies, no paid services.
 
-## pentruanimale.ro — verified recon (2026-09-13)
+## pentruanimale.ro — verified recon (2026-09-12)
 
 Fetched with `curl -sL --compressed` and the `SCRAPER_USER_AGENT` from `.env`: `robots.txt`,
 `sitemap.xml`, `sitemap/category-0.xml`, one category page, one second-page fetch to confirm
@@ -279,7 +279,7 @@ the overlap number needs it.
 `-externa`) are separate categories from the six scraped — the allowlist is the first line of
 defence. A per-SKU regulated-token check on the name is the second, for a mis-filed item.
 
-### Category volume and request-count recon (2026-09-13)
+### Category volume and request-count recon (2026-09-12)
 
 One request per category (page 1), reading `recordsFiltered` and each product's variant count
 directly from `__STATE__` — no extra crawling needed to estimate volume:

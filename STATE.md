@@ -1,6 +1,6 @@
 # STATE
 
-Phase: 1 — Collection (petmax.ro only, on a daily GitHub Actions cron)
+Phase: 1 — Collection (petmax.ro + pentruanimale.ro on a daily GitHub Actions cron)
 Updated: 2026-09-12
 
 ## Gate progress

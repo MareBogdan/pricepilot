@@ -374,4 +374,4 @@ have been necessary — the real client already worked); ignoring the discrepanc
 allow for this one shop (papers over a bug that will resurface against the next stricter shop);
 leaving `RobotFileParser.read()` in place and pre-emptively catching its exception into "allow"
 (silently defeats robots.txt compliance for any shop that legitimately blocks robots.txt access).
-**Date.** 2026-09-13
+**Date.** 2026-09-12
