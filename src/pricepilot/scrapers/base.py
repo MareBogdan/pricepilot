@@ -162,7 +162,12 @@ class PoliteClient:
     so a shop asking for more than 2 seconds gets it.
     """
 
-    def __init__(self, source: str, crawl_delay_floor: float | None = None) -> None:
+    def __init__(
+        self,
+        source: str,
+        crawl_delay_floor: float | None = None,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
         settings = get_settings()
         self.source = source
         self.user_agent = require_honest_user_agent()
@@ -178,6 +183,11 @@ class PoliteClient:
             },
             timeout=httpx.Timeout(30.0),
             follow_redirects=True,
+            # Injection seam for tests only (e.g. httpx.MockTransport) — CLAUDE.md §9 forbids a
+            # scraper hitting a live site during tests, and this is what lets tests/test_base.py
+            # exercise the real robots.txt request path (headers, status handling) with no
+            # network at all. `None` (the default) means "use httpx's real transport", unchanged.
+            transport=transport,
         )
 
     def __enter__(self) -> PoliteClient:
@@ -192,15 +202,37 @@ class PoliteClient:
     # -- robots -------------------------------------------------------------
 
     def _robots_for(self, url: str) -> RobotFileParser:
+        """Fetch and parse `robots.txt` for `url`'s origin.
+
+        Deliberately does **not** call `RobotFileParser.read()`: that method fetches with a bare
+        `urllib.request.urlopen()`, which sends Python's generic default User-Agent — not the
+        honest, configured one every other request on this client uses. A shop that 403s
+        unidentified/anonymous traffic while happily allowing our real, honestly-identified
+        client would otherwise produce a false "everything disallowed" reading — found against
+        pentruanimale.ro (ADR-0020): the real client got 200 on every request, robots.txt
+        included, while stdlib's anonymous fetch of the same URL got 403. Fetching through
+        `self._client` instead means the compliance check sees exactly what our crawler sees.
+        """
         parts = urlparse(url)
         origin = f"{parts.scheme}://{parts.netloc}"
         if origin not in self._robots:
+            robots_url = f"{origin}/robots.txt"
             parser = RobotFileParser()
-            parser.set_url(f"{origin}/robots.txt")
+            parser.set_url(robots_url)
             try:
-                parser.read()
-            except OSError as exc:  # unreachable robots.txt: refuse, never assume allowed
-                raise RobotsDisallowed(f"could not read {origin}/robots.txt: {exc}") from exc
+                response = self._client.get(robots_url)
+            except httpx.HTTPError as exc:  # unreachable robots.txt: refuse, never assume allowed
+                raise RobotsDisallowed(f"could not read {robots_url}: {exc}") from exc
+            # Mirrors RobotFileParser.read()'s own status-code handling (see its source), just
+            # sourced from our identified fetch instead of an anonymous one.
+            if response.status_code in (401, 403):
+                parser.disallow_all = True  # type: ignore[attr-defined]  # real attr, undeclared in typeshed
+            elif 400 <= response.status_code < 500:
+                parser.allow_all = True  # type: ignore[attr-defined]  # real attr, undeclared in typeshed
+            elif response.status_code < 400:
+                parser.parse(response.text.splitlines())
+            # >=500: matches stdlib's own behaviour for that case — neither flag is set and
+            # nothing is parsed, so can_fetch() falls through to its default of allowing.
             self._robots[origin] = parser
         return self._robots[origin]
 

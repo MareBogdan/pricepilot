@@ -335,3 +335,43 @@ storage); Supabase (a heavier managed platform — auth, storage, realtime — f
 purely "a Postgres GitHub Actions can reach"); SQLite over a persisted GitHub Actions artifact (no
 concurrent-write story for a future second workflow, and artifacts are not built for this).
 **Date.** 2026-09-12
+
+## ADR-0020 — `robots.txt` is fetched through our own honest client, not `RobotFileParser.read()`
+
+**Context.** Building the pentruanimale.ro adapter, a bounded live `--dry-run` (the same kind of
+check that verified petmax before it went on the schedule) raised `RobotsDisallowed` for a category
+page that a plain `curl` with our real `SCRAPER_USER_AGENT` fetched cleanly (HTTP 200) — including
+for `robots.txt` itself. Investigated rather than routed around, per this session's standing rule
+that a block is answered, not engineered past. Root cause: `PoliteClient._robots_for` called
+`RobotFileParser.read()`, which fetches with a bare `urllib.request.urlopen()` — no custom headers,
+so it sends Python's generic default User-Agent, not the honest one every other request on the
+client uses. Confirmed directly: `urllib.request.urlopen("https://www.pentruanimale.ro/robots.txt")`
+with no UA returns HTTP 403; the same URL fetched with our configured `SCRAPER_USER_AGENT` returns
+200, byte-identical every time this session. `RobotFileParser` treats a 401/403 on its own fetch as
+"disallow everything" (its documented behaviour) — so our compliance check was reading a block that
+was never actually aimed at our crawler, only at an anonymous one it never otherwise uses.
+**Decision.** `_robots_for` now fetches `robots.txt` through `self._client` — the same `httpx`
+client, same honest `User-Agent` header, as every other request — and reproduces
+`RobotFileParser.read()`'s own status-code handling (401/403 → disallow all; other 4xx → allow all;
+5xx → fall through to the default of allowing, matching what stdlib does for that case too) by
+hand, since `.parse()` still does the rule parsing itself. `PoliteClient.__init__` gained an
+optional `transport` parameter purely as a test seam (`httpx.MockTransport`), default `None`
+meaning "real network, unchanged". `tests/test_scraper_base.py` is the offline regression suite —
+every branch (real rules honoured, 401, 403, 404, an unreachable robots.txt, and the User-Agent the
+request itself carries) exercised via a mock transport, no network at all.
+**This was not a shop blocking us; it was our own tooling misrepresenting itself.** Nothing about
+this fix rotates, alters, or works around any User-Agent a shop has actually seen — pentruanimale.ro
+has only ever seen the one honest, configured identity, and has allowed it on every request,
+`robots.txt` included, throughout this session. The bug made our own compliance check briefly
+disagree with reality; this closes that gap rather than papering over it.
+**Rationale.** This bug is generic to `PoliteClient`, so it silently affected petmax.ro too — it
+simply never surfaced there, because petmax.ro's server does not 403 anonymous/default-UA traffic
+the way pentruanimale.ro's does. A second source with a stricter WAF is exactly the kind of thing
+that was always going to catch this, and did.
+**Rejected.** Retrying the blocked request under a different identity (indistinguishable from
+exactly the "rotate the UA to get past a block" this session's rules forbid, and would not even
+have been necessary — the real client already worked); ignoring the discrepancy and hardcoding an
+allow for this one shop (papers over a bug that will resurface against the next stricter shop);
+leaving `RobotFileParser.read()` in place and pre-emptively catching its exception into "allow"
+(silently defeats robots.txt compliance for any shop that legitimately blocks robots.txt access).
+**Date.** 2026-09-13
