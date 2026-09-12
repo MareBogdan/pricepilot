@@ -171,3 +171,31 @@ PowerShell 7 (not installed, and the Phase 7 VPS runs neither).
 **Cost of the rule.** Markdown and Python keep their typography; only `.ps1` is constrained. That
 is a small price for a failure mode whose error message points at the wrong line.
 **Date.** 2026-09-12
+
+## ADR-0014 — Two databases, explicit split, enforced mechanically
+
+**Context.** Collection moved to Neon (managed Postgres, Frankfurt, pgvector enabled): a Windows
+Task Scheduler job cannot guarantee 7 consecutive days when the laptop is not open at 06:10, so
+collection moves to a GitHub Actions cron. `DATABASE_URL` now points at Neon; `POSTGRES_*` still
+describe the local docker container. Left implicit, this is exactly the kind of ambiguity where a
+`pytest` run — or an accidental `make migrate` from an untrusted branch — writes into the same
+database that holds real, unrecoverable collection history.
+**Decision.** `DATABASE_URL` is authoritative for collected data (Neon, unpooled endpoint,
+`postgresql+psycopg://`, because the pooled endpoint refuses prepared statements and Alembic needs
+them). `TEST_DATABASE_URL` is authoritative for tests and offline development (local docker
+Postgres). `tests/conftest.py::pytest_configure` overwrites the `DATABASE_URL` a test process
+actually sees with `TEST_DATABASE_URL` — or unsets it entirely for a fully-offline run — before any
+test module is collected, and then asserts the result does not name a Neon host, raising
+`NeonGuardError` if it ever does. This is mechanical, not a convention someone has to remember:
+even a `.env` with `TEST_DATABASE_URL` mistakenly set to Neon fails loudly instead of connecting.
+`tests/test_database_split.py` is the self-test proving the guard actually trips — same reasoning
+as ADR-0013's PowerShell ASCII guard.
+**Rationale.** A rule written only in `.env.example` comments is a suggestion; the failure mode it
+guards against (a test run quietly touching production collection data) is exactly the one that
+cannot be caught by review, because nothing about a normal `pytest` invocation looks wrong.
+**Rejected.** Documenting the split in CLAUDE.md/`.env.example` only (relies on memory, and the
+Neon URL sits in `.env` regardless); a single `DATABASE_URL` with a runtime `APP_ENV` check (one
+more thing to get right per environment, and no test fails if it's wrong); a second Neon branch/
+database for tests (still a paid managed service in the loop for something that must cost nothing,
+CLAUDE.md §5).
+**Date.** 2026-09-12
