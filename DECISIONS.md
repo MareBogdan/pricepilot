@@ -375,3 +375,61 @@ allow for this one shop (papers over a bug that will resurface against the next 
 leaving `RobotFileParser.read()` in place and pre-emptively catching its exception into "allow"
 (silently defeats robots.txt compliance for any shop that legitimately blocks robots.txt access).
 **Date.** 2026-09-12
+
+## ADR-0021 — The overlap proxy key is a floor estimate; it was tuned for precision, not recall
+
+**Context.** The first real cross-shop measurement (petmax_ro + pentruanimale_ro) found 13 shared
+products against the 400 gate. All 13 were hand-verified as genuine matches — precision was not
+the problem. But CLAUDE.md §7 is explicit that the proxy key is "wrong in both directions" *by
+design*, "a floor estimate", and that "it will join a few products that are not the same" is
+**acceptable**. A key returning 13 pairs at ~100% precision is optimised for the wrong target: it
+is a ceiling on false positives, not a floor on true overlap, and 13 cannot serve the one decision
+CLAUDE.md §7 built this proxy for.
+
+Two specific, measured causes, both bounded by "normalisation only" (no model, no fuzzy matching,
+no learned threshold):
+
+1. **Weight-token spacing.** `line_tokens()` stripped a bare unit token (`"kg"`, `"g"`) via
+   `_NOISE`, but not a *combined* digit+unit token (`"85g"`, `"400g"`, `"0,85kg"`) — the decimal
+   separator already splits a spaced-out number from its unit at the regex level, but an unspaced
+   one glues the fractional digits to the unit into one surviving token. The identical product
+   keyed differently purely from which shop's spacing convention it inherited. Measured: this one
+   asymmetry alone hid 79 of 92 genuine matches in a diagnostic re-run.
+2. **ml/l unsupported.** `net_weight_grams()` recognised only `kg`/`g`/`gr`/`grame` — a liquid
+   product (shampoo, a supplement sold by volume) had no weight at all and was silently unkeyable,
+   regardless of any spacing issue.
+
+**Decision.**
+- `_WEIGHT_UNIT_TOKEN` strips any `\d+(kg|g|gr|grame|mg|ml|l)` token from both `line_tokens()` and
+  `normalized_brand()`'s no-brand-field fallback (factored into a shared `_is_line_token()` so the
+  two functions cannot drift).
+- `net_weight_grams()` gained `ml`/`l` (1 ml ≈ 1 g, 1 l = 1000 g — a water-density proxy, not an
+  exact conversion; CLAUDE.md §7 asks for one canonical grams value, not more precision than the
+  key needs).
+- Curly apostrophes (U+2018/U+2019) fold to the ASCII `'` in `strip_diacritics`, so "Hill's"
+  tokenizes identically regardless of which apostrophe glyph a shop uses — CLAUDE.md §7 names this
+  trap explicitly.
+- **Bonus-weight guard, encoded into the key, not just the weight parser.** `net_weight_grams()`
+  still returns the base pack weight only (unchanged) — but the earlier documented judgement call
+  that this was sufficient ("keeps product 233 and 2542 in the same bucket, which is correct for a
+  floor estimate") is reversed: real measurement showed the trap is real and worth guarding
+  against, not accepting. `bonus_weight_grams()` extracts the bonus amount (0 for a plain pack) and
+  `OverlapKey` gained `bonus_g` as a first-class field (part of equality/hash), so `"15 kg"` and
+  `"15 + 3 Kg Gratis"` never collide (`bonus_g` 0 vs 3000), while two shops' bonus-weight listings
+  of the *same* product — in either word order or spacing — still do, because the comparison is on
+  the normalized gram amount, not the raw text.
+
+**Rationale.** CLAUDE.md §7 already states the target explicitly; this ADR is not introducing a
+new goal, it is correcting the code to match one that was already written down. A trustworthy
+floor needs recall a third source can plausibly grow toward 400; a 100%-precision key that misses
+7 in 8 real matches gives that decision nothing to work with.
+**Rejected.** A learned/fuzzy similarity threshold (explicitly out of bounds — normalisation only,
+per this session's instructions, and a floor estimate should not depend on a tuned cutoff no one
+can audit by reading it); adding the bonus grams into `net_weight_grams()` itself instead of a
+separate key field (would make `net_weight_grams()` ambiguous for Phase 2, which needs the base
+pack weight specifically, not a promotion-inflated one); relaxing `overlap_key()`'s "line tokens
+must be non-empty" requirement to recover the rare brand-name-is-the-only-content case found while
+investigating the keyable-rate asymmetry (a genuine, narrow edge case — see STATE.md — but relaxing
+it is a change to what counts as *sufficient* identity to key on, not a normalisation, and was left
+alone per this session's scope).
+**Date.** 2026-09-12

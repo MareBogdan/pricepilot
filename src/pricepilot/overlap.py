@@ -87,20 +87,60 @@ _STOPWORDS = frozenset(
 # Pack forms that some shops append and others do not.
 _NOISE = frozenset({"kg", "g", "gr", "grame", "mg", "ml", "l", "buc", "x"})
 
-# "8 kg + 1 kg gratuit" and "15 + 3 Kg Gratis" — the unit may sit only on the bonus.
+# STEP 4 (session note 2026-09-12): a shop that omits the space before the unit ("85g", "400g",
+# "0,85kg") produces one combined alnum token that survives `line_tokens()`'s `_NOISE` filter
+# (only the *bare* unit "g"/"kg" is filtered, not "85g") while the spaced form ("85 g") tokenizes
+# to a bare digit (dropped by `isdigit()`) and a bare unit (dropped by `_NOISE`) — so the same
+# product gets a different key purely from a shop's spacing convention. Measured impact: this
+# single asymmetry alone hid 79 of 92 genuine cross-shop matches in the first real measurement.
+# The decimal separator (`,` or `.`) is not part of this pattern because it already splits the
+# token in two at the regex level (`[a-z0-9']+` does not include `,`/`.`), leaving only the
+# fractional digits glued to the unit, e.g. "0,85kg" tokenizes to "0" and "85kg".
+_WEIGHT_UNIT_TOKEN = re.compile(r"^\d+(?:kg|g|gr|grame|mg|ml|l)$")
+
+# One alternation shared by the bonus/pack/plain weight-or-volume patterns below. "ml"/"l" added
+# per STEP 4 — a liquid product (shampoo, supplement) previously returned no weight at all and
+# was silently unkeyable. Longer unit names first so the alternation cannot short-match "gr" out
+# of "grame" or "g" out of "gr".
+_UNIT = r"(?:grame|kg|ml|gr|g|l)"
+
+
+def _unit_multiplier(unit: str) -> Decimal:
+    """Grams-equivalent per unit. `l`/`kg` are the only "x1000" units; a millilitre is treated
+    as one gram (water-density proxy) — a floor-estimate key does not need more precision than
+    that, and CLAUDE.md §7 asks for one canonical grams value, not an exact-density conversion."""
+    return Decimal("1000") if unit in ("kg", "l") else Decimal("1")
+
+
+# "8 kg + 1 kg gratuit" and "15 + 3 Kg Gratis" — the unit may sit only on the bonus, and the base
+# number may have none at all ("8+1kg"). Named groups: `bonus`/`bonus_unit` feed
+# `bonus_weight_grams()`, which is a DIFFERENT purchasable unit from the plain pack and must
+# never collide with it — see `OverlapKey.bonus_g` and DECISIONS.md ADR-0021.
 _BONUS = re.compile(
-    r"(\d+(?:[.,]\d+)?)\s*(kg|g|gr)?\s*\+\s*\d+(?:[.,]\d+)?\s*(kg|g|gr)\b",
+    rf"(?P<base>\d+(?:[.,]\d+)?)\s*(?P<base_unit>{_UNIT})?\s*\+\s*"
+    rf"(?P<bonus>\d+(?:[.,]\d+)?)\s*(?P<bonus_unit>{_UNIT})\b",
 )
 # "24x85 g", "5 x 900 g" — pack count times unit weight. Both x and the multiplication sign occur.
-_PACK = re.compile(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|gr)\b")  # noqa: RUF001
-_PLAIN: tuple[tuple[re.Pattern[str], Decimal], ...] = (
-    (re.compile(r"(\d+(?:[.,]\d+)?)\s*kg\b"), Decimal("1000")),
-    (re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:g|gr|grame)\b"), Decimal("1")),
-)
+_PACK = re.compile(rf"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*({_UNIT})\b")  # noqa: RUF001
+_PLAIN: tuple[re.Pattern[str], ...] = (re.compile(rf"(\d+(?:[.,]\d+)?)\s*({_UNIT})\b"),)
 
 # Characters `unicodedata` will not decompose, because they are letters in their own right
 # rather than a base letter plus a combining mark. CLAUDE.md §7 names Smølke explicitly.
-_LETTER_FOLD = str.maketrans({"ø": "o", "Ø": "O", "æ": "ae", "Æ": "AE", "ß": "ss", "đ": "d"})
+# The two apostrophes fold to the same character for the same reason CLAUDE.md §7 names Hill's:
+# a shop writing the curly U+2019 and one writing the plain ASCII "'" must tokenize identically,
+# or "Hill's" and "Hill's" become two different brand tokens.
+_LETTER_FOLD = str.maketrans(
+    {
+        "ø": "o",
+        "Ø": "O",
+        "æ": "ae",
+        "Æ": "AE",
+        "ß": "ss",
+        "đ": "d",
+        "’": "'",  # curly right single quote  # noqa: RUF001
+        "‘": "'",  # curly left single quote  # noqa: RUF001
+    }
+)
 
 
 def strip_diacritics(text: str) -> str:
@@ -109,34 +149,56 @@ def strip_diacritics(text: str) -> str:
 
 
 def net_weight_grams(title: str) -> int | None:
-    """Net weight in grams, or `None` when the title does not state one.
+    """Net weight (or volume, converted to a grams-equivalent) in grams, or `None` when the
+    title states neither. Handles the forms CLAUDE.md §7 names: "4.5 kg", "4,5 kg", "4500 g", a
+    leading "12 kg", plus "ml"/"l" (STEP 4, session note 2026-09-12). Pack forms ("5 x 900 g")
+    multiply out.
 
-    Handles the four forms CLAUDE.md §7 names: "4.5 kg", "4,5 kg", "4500 g", and a leading
-    "12 kg". Pack forms ("5 x 900 g") multiply out.
-
-    **Bonus weights are not added.** "8 kg + 1 kg gratuit" resolves to 8000 g, not 9000 g: the
-    base pack is what identifies the product line, and the bonus is a promotion on top of it.
-    This is a judgement call, and it is the one that keeps petmax product 233 ("Mini Adult 8 kg")
-    and 2542 ("Mini Adult 8 kg + 1 kg gratuit") in the same overlap bucket while their prices
-    differ — which is correct for a floor estimate of overlap.
+    **This is the BASE pack weight only — bonus grams are never added here.** "8 kg + 1 kg
+    gratuit" resolves to 8000 g, not 9000 g: the base pack is what identifies the product line,
+    and the bonus is a promotion on top of it. The bonus amount is a *separate* signal — see
+    `bonus_weight_grams()` — encoded into `OverlapKey.bonus_g` specifically so a bonus-weight
+    listing and its plain-pack counterpart do NOT collide just because this function returns the
+    same base weight for both (ADR-0021; this replaces the earlier, now-reversed judgement call
+    that merging them was an acceptable floor-estimate approximation).
     """
     text = strip_diacritics(title.lower())
 
     if (bonus := _BONUS.search(text)) is not None:
-        unit = bonus.group(2) or bonus.group(3)
-        multiplier = Decimal("1000") if unit == "kg" else Decimal("1")
-        return int(Decimal(bonus.group(1).replace(",", ".")) * multiplier)
+        unit = bonus.group("base_unit") or bonus.group("bonus_unit")
+        return int(Decimal(bonus.group("base").replace(",", ".")) * _unit_multiplier(unit))
 
     if (pack := _PACK.search(text)) is not None:
         count = Decimal(pack.group(1))
         unit_weight = Decimal(pack.group(2).replace(",", "."))
-        multiplier = Decimal("1000") if pack.group(3) == "kg" else Decimal("1")
-        return int(count * unit_weight * multiplier)
+        return int(count * unit_weight * _unit_multiplier(pack.group(3)))
 
-    for pattern, multiplier in _PLAIN:
+    for pattern in _PLAIN:
         if (match := pattern.search(text)) is not None:
-            return int(Decimal(match.group(1).replace(",", ".")) * multiplier)
+            return int(Decimal(match.group(1).replace(",", ".")) * _unit_multiplier(match.group(2)))
     return None
+
+
+def bonus_weight_grams(title: str) -> int:
+    """The bonus amount in a "+N kg/g/ml/l" promotion (e.g. "8 kg + 1 kg gratuit", "15 + 3 Kg
+    Gratis"), in grams, or 0 for a plain pack with no bonus.
+
+    STEP 4 (session note 2026-09-12): a bonus-weight listing is a genuinely different
+    purchasable unit from the plain pack — different price, often a different SKU — and must
+    not collide with it in `overlap_key()`. Encoding this as its own key component (rather than
+    adding it into `net_weight_grams()`, or ignoring it as the earlier design did) means: a plain
+    "15 kg" and a bonus "15 + 3 Kg Gratis" never share a key (0 vs 3000), while two listings
+    expressing the *same* bonus — in either shop's word order or spacing — still do, because the
+    comparison is on the normalized gram amount, not the raw text. See ADR-0021.
+    """
+    text = strip_diacritics(title.lower())
+    match = _BONUS.search(text)
+    if match is None:
+        return 0
+    return int(
+        Decimal(match.group("bonus").replace(",", "."))
+        * _unit_multiplier(match.group("bonus_unit"))
+    )
 
 
 def line_tokens(title: str, brand: str | None) -> tuple[str, ...]:
@@ -151,12 +213,21 @@ def line_tokens(title: str, brand: str | None) -> tuple[str, ...]:
         for word in strip_diacritics(brand.lower()).split():
             text = text.replace(word, " ")
     raw = re.findall(r"[a-z0-9']+", text)
-    keep = [
-        token
-        for token in raw
-        if token not in _STOPWORDS and token not in _NOISE and not token.isdigit()
-    ]
+    keep = [token for token in raw if _is_line_token(token)]
     return tuple(sorted(set(keep)))
+
+
+def _is_line_token(token: str) -> bool:
+    """A token that carries product-line identity — not shop prose, not a bare unit, not a
+    weight-glued-to-unit artifact (STEP 4: "85g" must be excluded the same way "85 g" already
+    is, or the two spellings of the same product key differently). Shared by `line_tokens` and
+    `normalized_brand`'s no-brand-field fallback, so both filter identically."""
+    return (
+        token not in _STOPWORDS
+        and token not in _NOISE
+        and not token.isdigit()
+        and not _WEIGHT_UNIT_TOKEN.match(token)
+    )
 
 
 def normalized_brand(brand: str | None, title: str) -> str:
@@ -171,7 +242,7 @@ def normalized_brand(brand: str | None, title: str) -> str:
         return " ".join(strip_diacritics(brand.lower()).split())
     tokens: list[str] = re.findall(r"[a-z0-9']+", strip_diacritics(title.lower()))
     for token in tokens:
-        if token not in _STOPWORDS and token not in _NOISE and not token.isdigit():
+        if _is_line_token(token):
             return token
     return ""
 
@@ -181,16 +252,22 @@ class OverlapKey:
     brand: str
     line: tuple[str, ...]
     weight_g: int
+    # STEP 4 / ADR-0021 (session note 2026-09-12): 0 for a plain pack, >0 for a bonus-weight
+    # promotion ("+N kg/g gratuit/gratis"). Part of the key's identity (dataclass equality and
+    # hash both include it) specifically so a plain pack and its bonus-weight counterpart never
+    # collide, while two listings expressing the same bonus amount still do.
+    bonus_g: int = 0
 
     def __str__(self) -> str:
-        return f"{self.brand} | {' '.join(self.line)} | {self.weight_g}g"
+        bonus = f" +{self.bonus_g}g" if self.bonus_g else ""
+        return f"{self.brand} | {' '.join(self.line)} | {self.weight_g}g{bonus}"
 
 
 def overlap_key(title: str, brand: str | None) -> OverlapKey | None:
     """The proxy key, or `None` when the listing cannot produce one.
 
-    A listing with no weight in the title cannot be keyed — `zoopoint.ro` does exactly this,
-    which is why the count is a floor and not an estimate of the truth.
+    A listing with no weight (or volume) in the title cannot be keyed — `zoopoint.ro` does
+    exactly this, which is why the count is a floor and not an estimate of the truth.
     """
     weight = net_weight_grams(title)
     if weight is None or weight <= 0:
@@ -201,7 +278,9 @@ def overlap_key(title: str, brand: str | None) -> OverlapKey | None:
     tokens = line_tokens(title, key_brand)
     if not key_brand or not tokens:
         return None
-    return OverlapKey(brand=key_brand, line=tokens, weight_g=weight)
+    return OverlapKey(
+        brand=key_brand, line=tokens, weight_g=weight, bonus_g=bonus_weight_grams(title)
+    )
 
 
 @dataclass

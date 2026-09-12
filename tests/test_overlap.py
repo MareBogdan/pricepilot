@@ -11,6 +11,7 @@ import pytest
 
 from pricepilot.overlap import (
     OVERLAP_TARGET,
+    bonus_weight_grams,
     line_tokens,
     net_weight_grams,
     normalized_brand,
@@ -35,6 +36,11 @@ from pricepilot.overlap import (
         ("Natures Protection 5 x 900 g", 4500),
         ("Orijen Original Dog Adult Mini", None),
         ("Trixie jucarie cauciuc", None),
+        # STEP 4 (session note 2026-09-12): ml/l added — a liquid product previously had no
+        # weight at all and was silently unkeyable.
+        ("Beaphar Shampoo 250 ml", 250),
+        ("Beaphar Shampoo 1 l", 1000),
+        ("Beaphar Shampoo 1.5 l", 1500),
     ],
 )
 def test_net_weight_grams(title: str, grams: int | None) -> None:
@@ -42,14 +48,89 @@ def test_net_weight_grams(title: str, grams: int | None) -> None:
 
 
 def test_bonus_weight_is_not_added_to_the_base_pack() -> None:
-    """ "8 kg + 1 kg gratuit" is an 8 kg product with a promotion, not a 9 kg product.
-
-    This is a judgement call and it is documented in `overlap.py`: the base pack identifies the
-    product line, so the two petmax listings land in the same overlap bucket. Their prices still
-    differ, and Phase 3's matcher is free to decide otherwise — the proxy only needs a floor.
-    """
+    """ "8 kg + 1 kg gratuit" is an 8 kg product with a promotion, not a 9 kg product — the base
+    pack identifies the product line. `net_weight_grams` still returns the base weight only; the
+    bonus amount is a *separate* signal now (`bonus_weight_grams`, `OverlapKey.bonus_g`) so a
+    bonus listing and its plain-pack counterpart do not collide at the key level — see the
+    "bonus-weight guard" section below (ADR-0021, this replaces the earlier documented behaviour
+    of merging them, which this session's real measurement showed was the wrong call)."""
     assert net_weight_grams("Royal Canin Mini Adult 8 kg + 1 kg gratuit") == 8000
     assert net_weight_grams("Royal Canin Medium Adult 15 + 3 Kg Gratis") == 15000
+
+
+@pytest.mark.parametrize(
+    ("title", "bonus_grams"),
+    [
+        ("Royal Canin Mini Adult 8 kg + 1 kg gratuit", 1000),
+        ("Royal Canin Medium Adult 15 + 3 Kg Gratis", 3000),
+        ("ROYAL CANIN Mini Adult, hrana uscata caini, 8+1kg GRATUIT", 1000),
+        ("Royal Canin Mini Adult 8 kg", 0),
+        ("Orijen Original Dog Adult Mini 1.8 kg", 0),
+    ],
+)
+def test_bonus_weight_grams(title: str, bonus_grams: int) -> None:
+    assert bonus_weight_grams(title) == bonus_grams
+
+
+# ---------------------------------------------------------------------------
+# STEP 4 (session note 2026-09-12): weight-token spacing must not split one product into two
+# keys, and a bonus-weight listing must never collide with its plain-pack counterpart.
+# ---------------------------------------------------------------------------
+
+
+def test_weight_token_spacing_does_not_split_the_key() -> None:
+    """The bug the first real measurement found: "85g" (no space) survived line_tokens() as
+    noise while "85 g" (spaced) did not, so the identical product keyed differently depending on
+    which shop's spacing convention it inherited. Simulating the fix beforehand raised the
+    measured overlap count from 13 to 92 (docs/SOURCES.md)."""
+    no_space = overlap_key("APPLAWS Piept, Pui, conserva hrana umeda pisici, 85g", "APPLAWS")
+    spaced = overlap_key("Applaws, conserva hrana umeda pisici cu piept de pui, 85 g", "Applaws")
+    assert no_space is not None and spaced is not None
+    assert no_space == spaced
+
+
+def test_weight_token_spacing_also_covers_gr_and_decimal_comma() -> None:
+    a = overlap_key("Test Brand Formula X 0,85kg", "Test Brand")
+    b = overlap_key("Test Brand Formula X 0.85 kg", "Test Brand")
+    assert a is not None and b is not None
+    assert a == b
+
+    c = overlap_key("Test Brand Formula Y 400gr", "Test Brand")
+    d = overlap_key("Test Brand Formula Y 400 gr", "Test Brand")
+    assert c is not None and d is not None
+    assert c == d
+
+
+def test_a_plain_pack_and_its_bonus_weight_counterpart_never_collide() -> None:
+    """The trap CLAUDE.md §7 names, and the specific thing STEP 4 asks for: "15 kg" and
+    "15 + 3 Kg Gratis" are different purchasable units at different prices and must not merge,
+    even though they share brand, line and base weight."""
+    plain = overlap_key("Royal Canin Medium Adult 15 Kg", "Royal Canin")
+    bonus = overlap_key("Royal Canin Medium Adult 15 + 3 Kg Gratis", "Royal Canin")
+    assert plain is not None and bonus is not None
+    assert plain != bonus
+    assert plain.bonus_g == 0
+    assert bonus.bonus_g == 3000
+
+
+def test_two_bonus_weight_forms_of_the_same_product_still_collide() -> None:
+    """The other half of the same requirement: two shops' bonus-weight listings of the SAME
+    product must still key together, in whichever word order/spacing each shop uses."""
+    petmax_form = overlap_key("Royal Canin Mini Adult 8 kg + 1 kg gratuit", "Royal Canin")
+    pentruanimale_form = overlap_key(
+        "ROYAL CANIN Mini Adult, hrana uscata caini, 8+1kg GRATUIT", "ROYAL CANIN"
+    )
+    assert petmax_form is not None and pentruanimale_form is not None
+    assert petmax_form == pentruanimale_form
+    assert petmax_form.bonus_g == 1000
+
+
+def test_hills_apostrophe_curly_vs_straight() -> None:
+    """CLAUDE.md §7 names Hill's as a brand-spelling trap. A shop writing the curly U+2019 and
+    one writing the plain ASCII apostrophe must tokenize identically."""
+    straight = normalized_brand("Hill's", "x")
+    curly = normalized_brand("Hill’s", "x")  # noqa: RUF001
+    assert straight == curly == "hill's"
 
 
 # ---------------------------------------------------------------------------
