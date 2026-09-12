@@ -9,6 +9,7 @@ Run:  make status   |   .\make.ps1 status   |   uv run python scripts/status.py
 
 from __future__ import annotations
 
+import io
 import json
 import re
 import subprocess
@@ -18,6 +19,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+# The Windows console defaults to cp1252 and cannot encode the em dashes and box-drawing
+# characters these reports use, so `print` raises UnicodeEncodeError partway down the output.
+# A report that dies halfway is worse than useless - force UTF-8 on the way out.
+for _stream in (sys.stdout, sys.stderr):
+    if isinstance(_stream, io.TextIOWrapper):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 GREEN, YELLOW, RED, DIM, BOLD, RESET = (
     "\033[32m",
@@ -133,6 +141,30 @@ def fixture_count() -> int:
 # ---------------------------------------------------------------------------
 
 
+def overlap_section(total_listings: int) -> None:
+    """The Phase 1 gate metric (CLAUDE.md §7, ADR-0009): products on two or more shops.
+
+    Reported from day one, so a thin positive class for Phase 3 is visible as it fails to grow
+    rather than discovered at the gate. It is a proxy key, not a matching model — see
+    `src/pricepilot/overlap.py` for why that is the point.
+    """
+    from pricepilot.overlap import compute_overlap
+
+    if total_listings == 0:
+        _row("cross-shop overlap", "0 / 400 — no listings yet", False)
+        return
+    report = compute_overlap()
+    _row("cross-shop overlap", f"{report.shared:,} / {report.target} products", report.met)
+    _row("  └ sources compared", report.sources, report.sources >= 2)
+    if report.sources < 2:
+        print(f"  {DIM}one source only — overlap is 0 by definition until a second lands{RESET}")
+    _row(
+        "  └ keyable listings",
+        f"{report.keys_built:,} of {report.listings_considered:,} "
+        f"({report.keyable_share:.0%}; {report.unkeyable:,} have no weight in the title)",
+    )
+
+
 def db_section() -> None:
     try:
         from sqlalchemy import func, select
@@ -146,6 +178,7 @@ def db_section() -> None:
     if not check_database():
         _row("database", "UNREACHABLE — run `docker compose up -d db`", False)
         _row("listings collected", "0 (no database)", False)
+        _row("cross-shop overlap", "unknown (no database)", False)
         _row("days of price history", "0 (no database)", False)
         _row("llm spend to date", "$0.000000 (no database)", True)
         return
@@ -185,6 +218,7 @@ def db_section() -> None:
     else:
         _row("days of price history", "0 — Phase 1 has not run", False)
     _row("scrape runs", f"{runs} ({alerts} volume alerts)", alerts == 0)
+    overlap_section(total)
     _row("llm calls logged", f"{calls} ({hits} cache hits)")
     _row("llm spend to date", f"${float(spend):.6f}", True)
 

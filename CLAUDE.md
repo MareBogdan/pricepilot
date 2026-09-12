@@ -127,6 +127,9 @@ Needs you: <a decision or manual step only Bogdan can do — or "nothing">
 ### Model and effort policy
 The user is on a Pro plan and is budget-conscious with tokens.
 
+- **Sonnet is the default.** From Phase 1 onward, implementation runs on Sonnet unless the session
+  is explicitly one of the Opus cases below. If you are on Opus and the work in front of you is
+  ordinary implementation, say so and ask the user to switch (`/model sonnet`) before continuing.
 - Use **Opus** for: phase audits, architecture decisions, debugging hard problems, reviewing the fine-tuning setup
 - Use **Sonnet** for: everything else — implementation, tests, docs, refactoring
 - **Do not use maximum effort/thinking settings.** Standard reasoning is sufficient for this work.
@@ -156,6 +159,9 @@ This is the part where money gets wasted. Treat it as a hard engineering constra
 2. Every scraper has a `--limit` flag. Default is 5 items. Full runs are explicit.
 3. Every scraper has a `--dry-run` flag that parses and prints but writes nothing.
 4. Rate limit: minimum 2 seconds between requests, randomized. Respect `robots.txt`. Honest User-Agent with a contact.
+   **The contact address is never committed.** Scrapers read `SCRAPER_USER_AGENT` from `.env`; the repo
+   carries only `.env.example` with a placeholder. A scraper that finds no `SCRAPER_USER_AGENT` fails
+   loudly at startup rather than falling back to a default or an invented address.
 5. Self-hosted HTTP first (`httpx` + `selectolax`). Playwright only when a site genuinely requires JS. Paid scraping services (proxies, Apify-style) only if the user explicitly approves — assume €0 for these by default.
 6. Every run logs to a `scrape_runs` table: source, items found, errors, duration. If a source's item count drops more than 40% vs the previous run, raise an alert instead of silently ingesting.
 
@@ -175,16 +181,30 @@ Fine-tuning runs on rented GPU by the hour. Before any training run: state the e
 
 The user currently has **$20 available**. Ceiling for the whole project is **$100**, but the realistic landing point is around $50. Most of this project costs nothing.
 
-| Phase | What costs money | Expected | Approval needed |
+**Money is reserved in priority order, not spent in phase order.** The deliverable is a publicly
+reachable demo. Hosting is what makes the project visible to a recruiter; a fine-tuned model on a
+dead URL is worth nothing. So:
+
+| Priority | What | Reserve | Approval needed |
 |---|---|---|---|
-| 0 | nothing | $0 | — |
-| 1 | nothing (self-hosted scraping) | $0 | — |
-| 2 | LLM extraction of title-only attributes, cached | $2–3 | yes, before first batch |
-| 3 | optional pre-labelling assist | $2–4 | yes |
-| 3 | **GPU rental for fine-tuning** | $15–25 | yes, per run |
-| 4 | nothing (local PyTorch) | $0 | — |
-| 5 | recommendation generation | $5–8 | yes |
-| 6–7 | VPS hosting, ~€4/month | €12–16 total | yes, once |
+| **1 — reserved first** | VPS hosting, three months (Hetzner CX22 ~€4/mo) | **~$15** | yes, once, at Phase 7 |
+| **2** | LLM attribute extraction, Phase 2, cached by title hash | $2–3 | yes, before first batch |
+| **3** | Recommendation generation, Phase 5 | $5–8 | yes |
+| **4** | Optional pre-labelling assist, Phase 3 | $2–4 | yes |
+| **not committed** | GPU rental for LoRA fine-tuning | — | **separate decision at week 5** |
+
+Phases 0, 1 and 4 cost nothing and are not in this table.
+
+**GPU fine-tuning is not a committed budget line.** It is a decision taken at week 5, on the
+evidence available then: whether the annotated dataset exists, whether the cross-encoder baseline
+is recorded, and whether a free tier (Colab / Kaggle T4) can carry the run. Treating it as
+committed now is what makes the $20-available arithmetic fail.
+
+**When that decision is taken, the first fine-tune is a deliberate smoke run.** Smallest model,
+~200 examples, a few minutes of wall clock, **~$1–2** — its purpose is to prove the pipeline runs
+end to end: dataset loads, LoRA attaches, training steps, checkpoint saves, eval harness scores it.
+The number it produces is discarded. Only after that succeeds does the real run get approved, as a
+second `SPEND:` line. Never start the real run first.
 
 **Rules that follow from this:**
 - Phases 0, 1 and 4 must be completed with zero spend. If a design needs money in those phases, the design is wrong.
@@ -290,7 +310,39 @@ Decimal comma versus point, diacritics present or absent, brand casing, weight i
 
 Implement adapters behind a common `Scraper` protocol. Save fixtures. Schedule runs. Log every run and detect volume drops. Validate with Pydantic at the boundary.
 
-**Gate:** ≥3,000 in-scope listings from ≥3 sources, at least one of them non-Shopify, ≥7 consecutive days of history, all adapters tested offline against fixtures, `docs/SOURCES.md` complete.
+**Build order — one scraper first, on a schedule, before the others exist.**
+
+Do not build three adapters and then schedule them. Build **`petmax.ro` only**, put it on a daily
+schedule, and let it accumulate history while the other two adapters are written. History is
+wall-clock: a day not collected is a day that cannot be recovered later, and Phase 4 is the phase
+that pays for it. The other sources join the schedule as each one is finished. The cost of this
+ordering is nothing; the cost of the alternative is weeks.
+
+**Cross-shop overlap is a gate condition, not an assumption.**
+
+Phase 3 is a matching problem. If the same product does not appear on two shops, there is no
+positive class, and every downstream phase is unfounded. This must be measured while there is still
+time to react — in Phase 1, not in week 6.
+
+Measure it with a **cheap proxy key**, no matching model involved, just SQL: normalise
+`(brand, product-line tokens, net weight in grams)` and count keys that collide across two or more
+sources. The proxy will be wrong in both directions — it will miss real matches the model would
+find, and it will join a few products that are not the same. That is acceptable: it is a floor
+estimate used to make one decision, and a floor is exactly what is needed here. Do not build a
+matching model to compute it.
+
+If the count cannot reach **400**, **add a source before leaving Phase 1** — not later. That is the
+whole point of measuring it now.
+
+`make status` reports the overlap count from day one, alongside listings per source, so the number
+is visible as it grows rather than discovered at the gate.
+
+**Gate:**
+- ≥3,000 in-scope listings from ≥3 sources, at least one of them non-Shopify
+- ≥7 consecutive days of history
+- **≥400 products appearing on two or more shops**, by the proxy key above, reported by `make status`
+- all adapters tested offline against fixtures
+- `docs/SOURCES.md` complete
 
 > Start collection as early as possible and let it run in the background. Phase 4 needs price history, and history cannot be backfilled.
 
@@ -321,15 +373,54 @@ Also handle: Romanian descriptive prefixes the shop adds ("Hrana uscata pentru c
 
 > If fine-tuning does not beat the baseline, write that down honestly and analyse why. A correctly reported negative result is stronger evidence of competence than an unexplained good number.
 
+**Fine-tune versus cross-encoder is an uncertain bet, and that is accepted going in.** The fine-tune
+may not beat the classical cross-encoder on F1. That does not make the phase a failure, and it does
+not license quietly reframing the goal afterwards:
+
+- If the fine-tune **wins on F1** — report the margin, broken down by category, with error analysis.
+- If the two **tie on F1** — the serving benchmark is the result. A local quantized model matching a
+  cross-encoder at some cost per 1,000 comparisons and some p95 latency is a real, reportable finding,
+  and it is the engineering question a hiring manager actually cares about. Report cost and latency
+  as the headline, F1 as the parity claim it is.
+- If the fine-tune **loses** — say so, in the README results table, and analyse why.
+
+Whichever happens, report what actually happened. The decision rule is written down here, before the
+numbers exist, precisely so the numbers cannot choose the framing.
+
 ### Phase 4 — Demand model (PyTorch)
 
 **Price history is real, sales are synthetic.** By the time you reach this phase, Phase 1 will have collected weeks of genuine daily prices, plus promotion events visible through `compare_at_price`. Use that as the real backbone: actual price levels, actual competitor moves, actual discount timing. Generate only the sales series on top of it, with category-varying elasticity, weekly seasonality, noise and psychological price thresholds.
 
 This matters for how you report it. "Real price and promotion history from N shops over M weeks; sales simulated on top because no retailer shares that data" is a defensible methodology. "Everything is synthetic" is not. State the split explicitly in the README and in `docs/learned/demand-model.md`.
 
-MLP or GRU — no transformer needed. Compare against a naive 7-day-average baseline. Report MAE/MAPE. Derive elasticity per category.
+**The circularity trap, and the rule that avoids it.**
 
-**Gate:** beats naive baseline on validation; prediction-vs-actual plot committed; the real/synthetic split documented.
+The mock store's 180 days of price and sales history were generated from a planted elasticity
+constant. A model trained on that data and then measured against that constant is measuring nothing:
+it recovers a number that was put there by hand, and calling that a result is a fabricated claim.
+`make status` will not catch it, an interviewer will.
+
+Three rules, binding:
+
+1. **Real collected history is the backbone.** Once Phase 1 has genuine daily price observations,
+   those are the price series the demand model consumes. The mock store's 180 days are **bootstrap
+   only** — they exist to let the code be written and tested before enough real history accumulates,
+   and they are labelled as such wherever they appear.
+2. **Never report "recovered the planted elasticity" as a result.** Not in the README, not in
+   `docs/learned/`, not in conversation. It is a self-test of the generator, and at most it belongs
+   in a unit test asserting the training loop is not broken — never in a results table.
+3. **Grade only against a naive baseline, on real observed price movements.** The comparison is
+   MAE/MAPE versus a naive 7-day-average forecast, evaluated on periods where the price actually
+   moved in the collected data. A model that only beats the baseline on flat stretches has learned
+   nothing about price response.
+
+The README must state plainly which parts of this phase are real and which are simulated — real
+prices, real promotions, real competitor moves; simulated sales volumes — in the same table as the
+numbers, not in a footnote.
+
+MLP or GRU — no transformer needed. Compare against a naive 7-day-average baseline. Report MAE/MAPE. Derive elasticity per category, and label every derived elasticity as an estimate from simulated volumes.
+
+**Gate:** beats the naive baseline on validation, measured on real observed price movements; prediction-vs-actual plot committed; the real/synthetic split stated in the README and in `docs/learned/demand-model.md`; no elasticity-recovery number reported as a result anywhere.
 
 ### Phase 5 — Decision engine
 Write a 300–500 word pricing policy document. Index it. Build the recommendation prompt combining: product, matched competitor prices (SQL), estimated elasticity (model), relevant policy passages (RAG). Deterministic margin guardrail after the LLM. Full trace persisted.
@@ -373,6 +464,12 @@ Written incrementally, not at the end. Must contain:
 - Secrets committed
 - A claim that something works without showing the command output
 - Silent degradation when a budget cap is hit
+- A contact email, or any personal detail, in a committed file
+- A non-ASCII byte in a `.ps1` file (PowerShell 5.1 reads a BOM-less script as ANSI and mis-parses it; `tests/test_powershell_ascii.py` enforces this, ADR-0013)
+- Reporting "recovered the planted elasticity" — or any metric computed against the mock store's
+  generator constants — as a result
+- Leaving Phase 1 with cross-shop overlap below 400 instead of adding a source
+- Starting a paid fine-tuning run before the ~$1–2 smoke run has passed
 - Agreeing with a bad idea because the user proposed it
 
 ---
@@ -407,7 +504,7 @@ Updated: 2026-09-20
 - <decisions or manual steps waiting on him>
 ```
 
-**`make status`** — prints the live numbers, queried from the database and the repo, never hand-written: current phase, gate checklist, listings collected per source, days of price history, annotated pairs, tests passing, spend to date. This is the command he runs when he opens the terminal. Build it in Phase 0 and extend it each phase.
+**`make status`** — prints the live numbers, queried from the database and the repo, never hand-written: current phase, gate checklist, listings collected per source, **cross-shop overlap count (≥400 is the Phase 1 gate)**, days of price history, annotated pairs, tests passing, spend to date. This is the command he runs when he opens the terminal. Build it in Phase 0 and extend it each phase.
 
 **`DECISIONS.md`** — short ADRs, append-only. One entry per architectural choice: context, decision, alternatives rejected, date. Three to six lines each. Future-Bogdan reads this when he cannot remember why something is the way it is, and at interview prep.
 

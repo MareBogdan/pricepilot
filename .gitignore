@@ -37,3 +37,6 @@ Thumbs.db
 
 # claude local state
 .claude/settings.local.json
+
+# Scraper run logs (scripts/schedule_daily.ps1)
+logs/

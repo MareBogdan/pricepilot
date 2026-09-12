@@ -5,7 +5,7 @@
 # file is the source of truth. See DECISIONS.md ADR-0003.
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test status cost up down logs migrate revision api mock-store health check clean
+.PHONY: help install lint format typecheck test status cost scrape overlap up down logs migrate revision api mock-store health check clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -34,6 +34,12 @@ status: ## Live project status — the command to run first each session
 
 cost: ## LLM spend to date by phase and model
 	uv run python scripts/cost.py
+
+scrape: ## Run one adapter: make scrape ARGS="--source petmax_ro --limit 5 --dry-run"
+	uv run python scripts/scrape.py $(ARGS)
+
+overlap: ## Cross-shop overlap count — the Phase 1 gate metric
+	uv run python scripts/overlap_report.py
 
 up: ## Start Postgres + API + mock store
 	docker compose up -d --build

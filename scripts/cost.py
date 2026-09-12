@@ -6,11 +6,19 @@ Numbers come from the `llm_calls` table only. docs/COSTS.md is the narrative led
 
 from __future__ import annotations
 
+import io
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+# The Windows console defaults to cp1252 and cannot encode the em dashes and box-drawing
+# characters these reports use, so `print` raises UnicodeEncodeError partway down the output.
+# A report that dies halfway is worse than useless - force UTF-8 on the way out.
+for _stream in (sys.stdout, sys.stderr):
+    if isinstance(_stream, io.TextIOWrapper):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def main() -> int:

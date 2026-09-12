@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
 
     # --- database ---
-    database_url: str = "postgresql+psycopg://pricepilot:pricepilot@localhost:5432/pricepilot"
+    database_url: str = "postgresql+psycopg://pricepilot:pricepilot@localhost:5433/pricepilot"
 
     # --- mock store ---
     mock_store_port: int = 8001
