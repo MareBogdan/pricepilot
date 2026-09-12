@@ -248,3 +248,33 @@ the same bug into every consumer — `make status`, `overlap.py`, Phase 4 — in
 once at the boundary that owns it); a `scrape_runs`-level lock preventing more than one run per day
 (defeats the purpose of `workflow_dispatch` for a manual re-run after fixing a bug mid-day).
 **Date.** 2026-09-12
+
+## ADR-0017 — petmax category coverage expanded from 6 to 13, chosen from the real sitemap
+
+**Context.** STEP 5. The original six categories (food and treats, dogs and cats) hold the
+cross-shop overlap the Phase 1 gate needs, but cannot reach ≥3,000 in-scope listings from petmax
+alone, and petmax is still the only adapter that exists (ADR-0010 — the other two are next
+session's work). Guessing plausible-sounding category slugs risks scraping URLs that don't exist
+or double-counting an already-covered category under a different name.
+**Decision.** Fetched `sitemap_categories.xml` once (134 real category URLs) and picked the
+smallest in-scope addition per CLAUDE.md §7's product-scope list: litter
+(`asternut-litiera-nisip-silicat`), grooming/hygiene (`igiena-si-ingrijire-{caini,pisici}`),
+accessories (`accesorii-{caini,pisici}`) and toys (`jucarii-{caini,pisici}`) — 7 new categories,
+13 total. Volume was estimated with **one request per category**, reading the last page number
+directly off the pagination widget's own link (page 0 of a Gomag category page already shows it,
+e.g. `?p=37` → 38 pages) rather than crawling every page just to count — recon that respects the
+same rate limit as production scraping. Estimate: ~208 page requests, ~4,990 listings, ~15–20
+minutes wall-clock — comfortably under the ~45-minute guest-of-a-small-shop budget. Full
+breakdown in `docs/SOURCES.md`.
+**Rationale.** Broad umbrella categories (`accesorii-*`) were chosen over petmax's many narrower
+ones (`hamuri-lese-si-zgarzi`, `castroane-boluri-apa-mancare-*`, `custi-transport-*`, …) because
+those look like they cross-list the same products under the umbrella category — scraping both
+would spend request budget re-observing listings already collected instead of growing distinct
+volume. Regulated products mis-filed into any new category are still caught by
+`REGULATED_TITLE_TOKENS`, independent of which category found them.
+**Rejected.** Scraping all 134 categories (far more requests and wall-clock than the volume gain
+justifies, and includes the pharmacy tree CLAUDE.md §7 excludes); guessing category slugs instead
+of reading the sitemap (risks 404s or accidental duplicates); estimating volume by crawling every
+page of every candidate category (10–40× the requests, for a number the pagination widget already
+gives away in one).
+**Date.** 2026-09-12

@@ -108,8 +108,59 @@ recompense-delicioase-caini recompense-delicioase-pisici
 ```
 
 Six categories — food and treats for dogs and cats. This is where cross-shop overlap lives (the
-400-product gate), and it is a modest enough crawl to run daily. Breadth (litter, grooming,
-accessories, toys) is added only if the 3,000-listing gate needs it.
+400-product gate).
+
+**STEP 5 (session note 2026-09-12) — expanded to 13 categories.** Six categories alone cannot
+reach the ≥3,000-in-scope-listings gate from petmax by itself (petmax is currently the only
+adapter that exists; the gate needs ≥3 sources overall, but petmax's own volume is the down
+payment while the next two adapters are written — ADR-0010). The smallest in-scope addition that
+reliably clears it, per CLAUDE.md §7's product-scope list (litter, grooming/hygiene, accessories,
+toys), fetched from petmax's own sitemap of 134 categories (`sitemap_categories.xml`) rather than
+guessed:
+
+```
+asternut-litiera-nisip-silicat    litter
+igiena-si-ingrijire-caini         grooming/hygiene, dogs
+igiena-si-ingrijire-pisici        grooming/hygiene, cats
+accesorii-caini                   accessories, dogs
+accesorii-pisici                  accessories, cats
+jucarii-caini                     toys, dogs
+jucarii-pisici                    toys, cats
+```
+
+Broad umbrella categories were chosen over petmax's many narrower ones (`hamuri-lese-si-zgarzi`,
+`castroane-boluri-apa-mancare-*`, `custi-transport-*`, `paturi-perne-si-cosuri-pentru-*`, …)
+deliberately: those look like they cross-list the same products Gomag also files under
+`accesorii-*`, and scraping both would burn request budget re-fetching listings already collected
+rather than growing distinct volume. Regulated products mis-filed into any of these are still
+caught by the `REGULATED_TITLE_TOKENS` second line of defence in the adapter regardless of which
+category found them.
+
+**Recon (2026-09-12), one page per category, read from the pagination widget's own last-page
+link — no extra crawling needed to estimate volume:**
+
+| Category | Pages | Est. listings |
+|---|---:|---:|
+| hrana-uscata-caini | 38 | 912 |
+| hrana-uscata-pisici | 19 | 456 |
+| hrana-umeda-caini | 14 | 336 |
+| hrana-umeda-pisici | 15 | 360 |
+| recompense-delicioase-caini | 16 | 384 |
+| recompense-delicioase-pisici | 3 | 72 |
+| accesorii-caini | 36 | 864 |
+| accesorii-pisici | 14 | 336 |
+| igiena-si-ingrijire-caini | 17 | 408 |
+| igiena-si-ingrijire-pisici | 18 | 432 |
+| jucarii-caini | 10 | 240 |
+| jucarii-pisici | 2 | 48 |
+| asternut-litiera-nisip-silicat | 6 | 144 |
+| **Total** | **208** | **~4,992** |
+
+**Estimated one full daily run:** ~208 page requests, ~4,990 in-scope listings before regulated
+filtering and the price cross-check reject a few. At `SCRAPER_MIN/MAX_DELAY_SECONDS` (2–4s) plus
+fetch time, roughly 4–5.5s per request → **~15–20 minutes wall-clock**, comfortably inside the
+~45-minute budget CLAUDE.md §7 sets for staying a polite guest on a small shop. `~4,990` clears the
+3,000 gate with margin for the listings the two filters remove.
 
 **Excluded category prefixes** — the regulated tree, confirmed present in the sitemap:
 `farmacie-*`, `produse-farmaceutice-*`, `antiparazitare-*`, `deparazitare-*`, `diete-veterinare-*`,

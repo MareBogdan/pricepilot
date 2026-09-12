@@ -41,9 +41,13 @@ from pricepilot.scrapers.base import (
 SOURCE = "petmax_ro"
 BASE_URL = "https://www.petmax.ro"
 
-# Categories collected on the daily schedule. Food and treats for dogs and cats: this is where
-# cross-shop overlap lives (CLAUDE.md §7 Phase 1 — the 400-product overlap gate), and it is a
-# modest enough crawl to run daily. Breadth is added only if the 3,000-listing gate needs it.
+# Categories collected on the daily schedule. STEP 5 (session note 2026-09-12): the original six
+# (food and treats — where cross-shop overlap lives, CLAUDE.md §7's 400-product gate) cannot
+# reach the 3,000-in-scope-listings gate from petmax alone. Expanded to the smallest in-scope set
+# that reliably clears it: litter, grooming/hygiene, accessories and toys for dogs and cats, per
+# CLAUDE.md §7's product-scope list. Recon (one page per category, 2026-09-12) estimated ~4,990
+# listings and ~208 page requests across all 13 — see docs/SOURCES.md for the per-category
+# breakdown and the request-count / wall-clock estimate.
 DEFAULT_CATEGORIES: tuple[str, ...] = (
     "hrana-uscata-caini",
     "hrana-umeda-caini",
@@ -51,6 +55,13 @@ DEFAULT_CATEGORIES: tuple[str, ...] = (
     "hrana-uscata-pisici",
     "hrana-umeda-pisici",
     "recompense-delicioase-pisici",
+    "asternut-litiera-nisip-silicat",
+    "igiena-si-ingrijire-caini",
+    "igiena-si-ingrijire-pisici",
+    "accesorii-caini",
+    "accesorii-pisici",
+    "jucarii-caini",
+    "jucarii-pisici",
 )
 
 # CLAUDE.md §7 Phase 1: regulated products are filtered **at ingest, not later**. The category
