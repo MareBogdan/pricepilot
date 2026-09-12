@@ -47,6 +47,23 @@ _UPSERT_COLUMNS = (
 # CLAUDE.md §5.6. A drop this large is a markup change or a block, not a quiet sale.
 VOLUME_DROP_THRESHOLD = 0.40
 
+# Session note (2026-09-12): `scrape_runs.errors` used to be a bare count, and twice now that
+# made a real problem un-diagnosable after the fact (petmax's skipped_out_of_scope reasons,
+# pentruanimale's 3 unexplained parse errors). `error_detail` persists the actual strings,
+# capped so a pathological run (thousands of errors) can't bloat the row.
+MAX_PERSISTED_ERRORS = 50
+MAX_ERROR_LENGTH = 500
+
+
+def _error_detail(errors: list[str]) -> list[str] | None:
+    if not errors:
+        return None
+    capped = errors[:MAX_PERSISTED_ERRORS]
+    truncated = [e[:MAX_ERROR_LENGTH] for e in capped]
+    if len(errors) > MAX_PERSISTED_ERRORS:
+        truncated.append(f"... and {len(errors) - MAX_PERSISTED_ERRORS} more errors not shown")
+    return truncated
+
 
 @dataclass
 class RunOutcome:
@@ -149,6 +166,7 @@ def run_source(
             errors=len(result.errors),
             status=status,
             notes=notes[:4000],
+            error_detail=_error_detail(result.errors),
         )
         session.add(run)
         session.flush()

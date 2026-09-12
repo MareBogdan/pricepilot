@@ -231,12 +231,25 @@ def db_section() -> None:
             select(func.count()).select_from(LlmCall).where(LlmCall.cache_hit.is_(True))
         ).scalar_one()
 
+        # Session note (2026-09-12): the last run's actual error text, per source, not just a
+        # count — a bare count made two separate real problems undiagnosable after the fact.
+        latest_run_ids = select(func.max(ScrapeRun.id)).group_by(ScrapeRun.source).scalar_subquery()
+        latest_runs_with_errors = s.execute(
+            select(ScrapeRun.source, ScrapeRun.errors, ScrapeRun.error_detail)
+            .where(ScrapeRun.id.in_(latest_run_ids), ScrapeRun.errors > 0)
+            .order_by(ScrapeRun.source)
+        ).all()
+
     _row("database", "reachable", True)
     _row("listings collected", f"{total:,}", total >= 3000)
     for source, count, days in per_source:
         _row(f"  └ {source}", f"{count:,} listings / {days} distinct days")
     history_section()
     _row("scrape runs", f"{runs} ({alerts} volume alerts)", alerts == 0)
+    for source, error_count, detail in latest_runs_with_errors:
+        _row(f"  └ {source} last-run errors", error_count, False)
+        for line in detail or []:
+            print(f"      {DIM}{line}{RESET}")
     overlap_section(total)
     _row("llm calls logged", f"{calls} ({hits} cache hits)")
     _row("llm spend to date", f"${float(spend):.6f}", True)

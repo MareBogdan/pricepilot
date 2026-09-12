@@ -75,6 +75,9 @@ class ScrapeRun(Base):
     # "ok" | "running" | "failed" | "volume_alert"
     status: Mapped[str] = mapped_column(String(32), default="running", index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The actual error strings (capped — see runner.py), not just the `errors` count above.
+    # Session note (2026-09-12): a bare count was un-diagnosable after the fact, twice.
+    error_detail: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     listings: Mapped[list[RawListing]] = relationship(back_populates="run")
 
