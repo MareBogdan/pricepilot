@@ -17,7 +17,15 @@ Phase 0 — Foundation: **CLOSED**, verified end to end in Docker on 2026-09-12.
 [x] `make lint` passes — ruff check + format clean, mypy strict clean on 20 source files
 [x] zero dollars spent
 
-Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-12.
+Phase 1 — Collection: in progress. Gate per CLAUDE.md §7. Checked against git history
+(2026-09-13): the ≥400-overlap bullet did not exist before 2026-09-12 (`git show 591b7a3 --
+CLAUDE.md`) — that commit added it, along with the proxy-key methodology and the build-order
+note. The ≥3,000/≥3-sources/≥7-days wording predates that commit unchanged (only its formatting,
+from one sentence into a bulleted list, changed that day). The overlap bullet's *measurement
+method* was amended again on 2026-09-13, this time in CLAUDE.md text itself (this session), to
+point to ADR-0023 rather than the proxy key alone. So "as amended 2026-09-12" was accurate only
+for the overlap bullet's addition, not for the whole gate, and is now stale for that same bullet's
+measurement method — hence dropped in favour of dating each actual change.
 
 [x] `docs/SOURCES.md` filled in for petmax.ro, pentruanimale.ro and animax.ro from real fetches
 [x] fixtures saved for all three sources, offline tests passing
@@ -30,7 +38,10 @@ Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-1
 [x] collection running on a GitHub Actions cron for all three sources —
     `.github/workflows/scrape-petmax.yml` (name kept; the workflow now runs three independent jobs)
 [x] ≥3,000 in-scope listings — **18,700 total** (8,127 petmax_ro + 8,023 pentruanimale_ro +
-    2,550 animax_ro), verified from `scrape_runs` and `raw_listings` on a separate connection
+    2,550 animax_ro), verified from `scrape_runs` and `raw_listings` on a separate connection.
+    (2,550 is the correct, distinct-product count; `docs/SOURCES.md`'s category table sums to
+    2,551 because one product is a genuine member of two of the ten categories and gets counted
+    twice by a per-category sum — see that doc for the verified diff. Not a bug, not data loss.)
 [x] ≥3,000 in-scope listings from **≥3 sources** — **3 sources, animax.ro added and verified
     2026-09-13** (ADR-0024): real dispatched run, 2,550 items ingested, 0 errors, verified on a
     fresh Neon connection. petmax (Gomag) and pentruanimale (VTEX) are both non-Shopify, satisfying
@@ -113,6 +124,16 @@ Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-1
 
 ## Open issues
 
+- **`is_regulated()` is not catching real veterinary-diet products on animax.ro — 108 listings,
+  not fixed this session.** Found while reconciling the 2,551-vs-2,550 count (`docs/SOURCES.md`):
+  108 ingested animax listings carry `product_type` "Diete veterinare pentru caini/pisici"
+  (veterinary diets — explicitly out of scope per CLAUDE.md §7). Title-substring matching misses
+  them (e.g. "Brit Grain Free **VD** Recovery 400g" — "VD" reads as a product-line code, not a
+  flagged phrase). These are legitimately cross-listed into the general food categories by animax
+  itself, not a category-selection mistake. Needs a decision: extend `is_regulated()`'s vocabulary
+  (title tokens like "VD", "recovery", or check `raw_payload.product_type` instead of/alongside
+  title), or leave it — either way this is a scope/logic change, deliberately not made this
+  session (out of the 3-step brief that found it).
 - **Deferred to Phase 2 (Normalization)**, causes already diagnosed in `docs/AUDIT.md`: brand-field
   canonicalization (petmax splits Brit into Brit/Brit Premium/Brit Care/Brit Fresh and Calibra into
   5 strings; pentruanimale writes "HILL'S Science Plan" where petmax writes "Hill's"), an
