@@ -1,8 +1,11 @@
 # STATE
 
-Phase: 1 — Collection (petmax.ro + pentruanimale.ro + animax.ro, all three on a daily GitHub
-Actions cron). Gate met except the 7-consecutive-days requirement, which just needs time to pass.
-Updated: 2026-09-14
+Phase: 1 — Collection (still open — gate met except 7-consecutive-days, which just needs time to
+pass) **and** Phase 2 — Normalization (opened this session, running in parallel per instruction:
+Phase 1 is not blocked on and does not get ticked closed by Phase 2 work). Phase 2 is mid-STEP:
+schema built and migrated (STEP 1), gate sample frozen (STEP 2). STEP 3 (deterministic extractor)
+not started.
+Updated: 2026-09-13 (verified against the system clock — see Open issues on prior date drift)
 
 ## Gate progress
 
@@ -57,14 +60,96 @@ measurement method — hence dropped in favour of dating each actual change.
     reports 241 with all three sources live (up from 94 with two) and is a known floor at ~8%
     measured recall — kept in `make status` as a daily indicator, not as the gate metric. The
     sample itself (n=50, seed 20260913, p̂=0.52 unchanged) covered petmax food listings vs
-    pentruanimale.ro only, projected onto 2,334 keyable in-scope listings (was 2,329 before
-    ADR-0025 removed 4 quarantined rows from that population). Gate holds with the same wide
-    margin — the correction moved the estimate by about 0.3%. See `docs/AUDIT.md`'s 2026-09-13
+    pentruanimale.ro only, projected onto 2,334 keyable in-scope listings. That number moved from
+    ADR-0023's original 2,329 via two separate effects, not one — stated separately per the
+    2026-09-13 correction below because the combined "2,329 → 2,334" wording read as the
+    population growing after quarantine, when quarantine only ever removes:
+      1. **Catalogue churn, 2,329 → 2,338** (+9): each daily petmax run replaces the "latest
+         observation" row for a product, so the keyable-food population measured today is not
+         the same snapshot ADR-0023 measured on 2026-09-13 — new listings, re-priced listings and
+         weight-parsing outcomes shift the count independently of any filtering rule.
+      2. **Quarantine, 2,338 → 2,334** (-4): of the 118 rows ADR-0025 quarantined, only 4 fall
+         inside this specific population (petmax, food categories, keyable) — the rest are
+         non-food-category petmax rows or animax/pentruanimale rows this population never included.
+    Recomputed and verified 2026-09-13, against the system clock (`petmax food-category, keyable, latest-observation, ALL
+    rows: 2338 / in-scope: 2334 / quarantined: 4`). Gate holds with the same wide margin — neither
+    effect moves the estimate by more than about 0.4%. See `docs/AUDIT.md`'s 2026-09-13
     verification note and ADR-0023/ADR-0025 for the full computation and its limitations.
 [x] adapter for animax.ro — **built, tested, deployed 2026-09-13** (ADR-0024)
 [x] all adapters tested offline against fixtures — petmax, pentruanimale and animax all done
 
-## Last done (2026-09-14 session, in order)
+Phase 2 — Normalization: opened this session (2026-09-13), running in parallel with Phase 1 —
+not blocked on Phase 1's remaining 7-consecutive-days box, and does not tick it closed either.
+Gate per CLAUDE.md §7: "≥85% attribute accuracy on 100 manually verified listings, with weight
+parsing measured separately." Accuracy cannot be reported yet — the sample is frozen and
+unlabelled by design (STEP 2 below), so there is nothing to overfit to and nothing to measure
+against until Bogdan labels it.
+
+[x] `norm_listings` schema designed, reviewed, approved with three changes, migrated (0005) and
+    verified live on Neon (ADR-0026) — see "Last done" below for the content_hash verification
+    that gated the migration
+[x] gate sample frozen — 100 rows, seed 20260913, `docs/learned/phase2-gate-sample.csv`, every
+    attribute column empty, committed before any extractor code exists
+[ ] deterministic extractor (STEP 3) — not started. Weight/volume first, then brand
+    canonicalization (printing real per-source brand strings before writing aliases), then the
+    EN/RO flavour table, then the rest
+[ ] coverage report (STEP 4) — not started, depends on STEP 3
+[ ] 85% accuracy on the frozen 100 — cannot be measured until Bogdan labels the CSV
+
+## Last done (2026-09-13 Phase 2 session, in order)
+
+1. **STEP 0a — Hill's "PD" (Prescription Diet) token, checked and added.** Same per-token
+   discipline ADR-0025 used for " vd "/" vhn ": " pd " checked against all 18,703 stored titles —
+   8 matches, all genuine (Hill's PD Afectiuni hepatice L/D, Metabolic, Digestive Care I/D, Low
+   Fat I/D, Urinary Care C/D, Gastrointestinal Biome, Stress C/D, Boli Renale K/D), zero false
+   positives. Added to `REGULATED_TITLE_TOKENS`. Re-ran `scripts/quarantine_regulated.py`: 0
+   newly matched — all 8 were already quarantined via animax's `product_type` signal, so this is
+   defense-in-depth for petmax/pentruanimale (neither exposes a structured signal), not a
+   population change.
+2. **STEP 0b — the mixed "2,329 → 2,334" population number, separated into its two causes.** See
+   the corrected Gate progress text above: catalogue churn (+9, 2,329 → 2,338, a day of collection
+   passing between ADR-0023's original measurement and this session) and quarantine (-4, 2,338 →
+   2,334, only 4 of the 118 quarantined rows fall inside that specific population). Recomputed and
+   verified directly against the DB, not asserted.
+3. **STEP 1 — `norm_listings` schema, proposed, corrected on review, migrated, verified**
+   (ADR-0026). Before reusing `raw_listings.content_hash` as the cache key, actually read
+   `Listing.content_hash` (scrapers/base.py) rather than assuming: confirmed
+   `sha256(normalize_title(title))` — title only, no price/stock/source — so it's safe to reuse,
+   and confirmed it carries no source component, making the key deliberately global across
+   sources (documented as a decision, not left as an accident). Added `net_volume_ml` as
+   `net_weight_g`'s sibling, enforced mutually-exclusive by a DB `CheckConstraint` written in
+   plain boolean SQL (not Postgres's `num_nonnulls()`) specifically so it's testable against
+   SQLite in-memory with no live database, plus a second, independent ORM-level `@validates`
+   guard. `dosage_band` stays text (approved as proposed). `brand` indexed for Phase 3. Migration
+   0005 applied to Neon and verified live via `sqlalchemy.inspect` (columns, both unique-index
+   forms, the check constraint, the PK — all match). 10 new offline tests
+   (`tests/test_norm_listings.py`), including a real constraint-violation insert against SQLite
+   that bypasses the ORM guard entirely. `test_migration_covers_every_model_table` (test_schema.py)
+   generalized to scan every migration file, not just 0001 — it had assumed every table lived in
+   the first migration, true until this session's first genuinely new table.
+4. **STEP 2 — gate sample drawn and frozen, `docs/learned/phase2-gate-sample.csv`**
+   (`scripts/draw_gate_sample.py`, committed and reusable). 100 rows, seed 20260913, in-scope only
+   (`excluded_reason IS NULL`), deduplicated to one row per `content_hash` (10,503 distinct
+   titles in the in-scope population) so each row is a genuinely distinct extraction case, not a
+   title repeated across collection days. Stratified roughly proportional to each source's share
+   of that population (25/36/39 vs. a 23/38/39 population split). Ten CLAUDE.md-named hard-case
+   forms deliberately over-sampled first (2 each, one source — special-char brands — had only 1
+   genuine candidate under an early, buggy detector regex; caught and fixed before freezing, see
+   below), then the remainder filled by the proportional random draw. Every attribute column
+   written empty; the four STEP 2 conventions are written verbatim at the top of the file. Not
+   filled in by this session, not filled in by the extractor — labelling happens in parallel with
+   STEP 3.
+5. **Caught and fixed a bug in the sample's own hard-case detector before freezing it.** The
+   first draft's diacritic-folding helper didn't touch apostrophes, so its "Hill's" detector
+   (`hill s|hills`) matched neither "Hill's" nor "hill's" — it found exactly one candidate, and
+   that candidate was "Manitoba Hills" (an unrelated line name containing the substring
+   "Hills"), a false positive. Caught by checking the actual candidate count (1) before trusting
+   it, not by assuming the regex worked. Fixed by reusing `overlap.strip_diacritics` (which
+   already folds both apostrophe styles) instead of a bespoke fold — candidate count went from 1
+   (wrong) to 387 (genuine), and the frozen sample now carries two real Hill's rows. No genuine
+   Smolke candidates exist in the current three-source data — CLAUDE.md's Smolke example names
+   zoomalia.ro, a source not yet built — so that half of the "special-character brands" case is
+   absent from this sample by data reality, not by a detector miss.
 
 1. **Confirmed the petmax toy-category anomaly is dedup working correctly, not a bug** (STEP 0).
    Live-fetched `jucarii-caini`'s real product ids and checked them against `raw_listings`: all
@@ -166,6 +251,13 @@ measurement method — hence dropped in favour of dating each actual change.
 
 ## Open issues
 
+- **CLOSED 2026-09-13: Hill's "PD" token, checked and added** — 0 newly quarantined (all 8
+  matches were already caught by animax's `product_type` signal); defense-in-depth for the other
+  two sources going forward. See "Last done" above.
+- **Phase 2 gate sample is frozen and awaiting Bogdan's labelling.**
+  `docs/learned/phase2-gate-sample.csv` — 100 rows, every attribute column empty. STEP 3
+  (deterministic extractor) proceeds in parallel; the extractor must never see or be tuned
+  against this file's answers, since Bogdan is labelling it independently.
 - **CLOSED 2026-09-14: `is_regulated()` veterinary-diet leak** (ADR-0025). Tightened the shared
   token check (diacritic folding, line-code tokens), added animax's `product_type` as a second
   signal, and quarantined the 118 already-collected rows the tightened rule catches. See "Last
@@ -224,8 +316,12 @@ measurement method — hence dropped in favour of dating each actual change.
 
 ## Blocked on Bogdan
 
-Nothing that blocks progress right now. Every Phase 1 gate box is met except 7 consecutive days
+- **Label `docs/learned/phase2-gate-sample.csv`** (100 rows, frozen 2026-09-13) — fill in the
+  attribute columns and the `ambiguous` flag per the four conventions at the top of the file.
+  This is what makes the Phase 2 gate (≥85% attribute accuracy) measurable at all; STEP 3/4
+  (extractor + coverage report) proceed without it, but accuracy cannot be reported until it's
+  labelled. Can happen in parallel with STEP 3, not before or after it.
+
+Nothing else blocks progress right now. Every Phase 1 gate box is met except 7 consecutive days
 of history, which is wall-clock — it closes on its own once the daily cron has run 5 more times,
-nothing to decide. Phase 2 (Normalization) is the natural next phase to open when ready; its
-starting scope is already recorded in Open issues above (brand-field canonicalization, the
-EN/RO flavour table, partial token overlap).
+nothing to decide.
