@@ -146,11 +146,15 @@ def fixture_count() -> int:
 # These are that one-time hand measurement's results, not something a query recomputes — the
 # gate is decided from this sample, not from the proxy key's raw count. See DECISIONS.md ADR-0023
 # and docs/AUDIT.md's 2026-09-13 verification note for the sample and the Wilson CI computation.
+#
+# ADR-0025 (2026-09-14): the population was recomputed after quarantining 118 regulated-product
+# rows (4 of which were petmax food listings inside this population) — 2,329 -> 2,334. p_hat is
+# unchanged (the sample itself was not re-drawn); only the population it is projected onto moved.
 SAMPLE_N = 50
 SAMPLE_X = 26
-SAMPLE_KEYABLE_POPULATION = 2329  # keyable petmax food listings, the sample's population
-SAMPLE_POINT_ESTIMATE = 1211
-SAMPLE_CI_95 = (897, 1519)
+SAMPLE_KEYABLE_POPULATION = 2334  # keyable, in-scope petmax food listings (ADR-0025-corrected)
+SAMPLE_POINT_ESTIMATE = 1214
+SAMPLE_CI_95 = (899, 1522)
 SAMPLE_PROXY_RECALL = 94 / SAMPLE_POINT_ESTIMATE  # ~8% — the proxy key's measured recall
 
 
@@ -276,10 +280,19 @@ def db_section() -> None:
 
     with session_scope() as s:
         total = s.execute(select(func.count()).select_from(RawListing)).scalar_one()
+        # ADR-0025: a stored row is not necessarily an in-scope one — 118 rows were quarantined
+        # (regulated products caught after the fact, never deleted; excluded_reason names why).
+        # Both numbers are printed, always, so the difference stays visible rather than being
+        # silently applied — CLAUDE.md §7's "≥3,000 in-scope listings" is a claim about the
+        # second number, not the first.
+        in_scope_total = s.execute(
+            select(func.count()).select_from(RawListing).where(RawListing.excluded_reason.is_(None))
+        ).scalar_one()
         per_source = s.execute(
             select(
                 RawListing.source,
                 func.count(),
+                func.count().filter(RawListing.excluded_reason.is_(None)),
                 func.count(func.distinct(RawListing.collected_date)),
             )
             .group_by(RawListing.source)
@@ -305,9 +318,21 @@ def db_section() -> None:
         ).all()
 
     _row("database", "reachable", True)
-    _row("listings collected", f"{total:,}", total >= 3000)
-    for source, count, days in per_source:
-        _row(f"  └ {source}", f"{count:,} listings / {days} distinct days")
+    quarantined_total = total - in_scope_total
+    _row(
+        "listings collected (total / in-scope)",
+        f"{total:,} / {in_scope_total:,}"
+        + (f"  ({quarantined_total} quarantined, ADR-0025)" if quarantined_total else ""),
+        in_scope_total >= 3000,
+    )
+    for source, count, in_scope_count, days in per_source:
+        quarantined = count - in_scope_count
+        suffix = f", {quarantined} quarantined" if quarantined else ""
+        _row(
+            f"  └ {source}",
+            f"{count:,} total / {in_scope_count:,} in-scope listings / "
+            f"{days} distinct days{suffix}",
+        )
     history_section()
     _row("scrape runs", f"{runs} ({alerts} volume alerts)", alerts == 0)
     for source, error_count, detail in latest_runs_with_errors:

@@ -310,23 +310,30 @@ def compute_overlap(target: int = OVERLAP_TARGET) -> OverlapReport:
     Reads the **latest observation per (source, product)** rather than every historical row —
     `raw_listings` is append-only (ADR-0005), so counting rows would multiply the answer by the
     number of days collected.
+
+    Quarantined rows (`excluded_reason IS NOT NULL`, ADR-0025 — a regulated product caught after
+    the fact, never deleted) are excluded from both the "latest observation" computation and the
+    final count. A product's `excluded_reason` does not vary by day (it is derived from the
+    title/`product_type`, which do not change day to day for the same product), so this is
+    equivalent to dropping the product entirely, not just its most recent row.
     """
     with session_scope() as session:
+        in_scope = select(RawListing).where(RawListing.excluded_reason.is_(None)).subquery()
         latest = (
             select(
-                RawListing.source,
-                RawListing.source_product_id,
-                func.max(RawListing.scraped_at).label("scraped_at"),
+                in_scope.c.source,
+                in_scope.c.source_product_id,
+                func.max(in_scope.c.scraped_at).label("scraped_at"),
             )
-            .group_by(RawListing.source, RawListing.source_product_id)
+            .group_by(in_scope.c.source, in_scope.c.source_product_id)
             .subquery()
         )
         rows = session.execute(
-            select(RawListing.source, RawListing.title, RawListing.raw_payload).join(
+            select(in_scope.c.source, in_scope.c.title, in_scope.c.raw_payload).join(
                 latest,
-                (RawListing.source == latest.c.source)
-                & (RawListing.source_product_id == latest.c.source_product_id)
-                & (RawListing.scraped_at == latest.c.scraped_at),
+                (in_scope.c.source == latest.c.source)
+                & (in_scope.c.source_product_id == latest.c.source_product_id)
+                & (in_scope.c.scraped_at == latest.c.scraped_at),
             )
         ).all()
 
