@@ -184,6 +184,53 @@ def test_in_scope_titles_are_kept(title: str) -> None:
     assert not is_regulated(title)
 
 
+# ---------------------------------------------------------------------------
+# ADR-0025 (2026-09-14): line-code tokens, diacritic folding, symptom words rejected
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Hrana uscata dietetica pentru caini Calibra VD Dog Joint & Mobility 12 kg",
+        "Hrana uscata pentru caini Royal Canin VHN Gastrointestinal 2kg",
+        "Diete veterinare pentru caini",  # plural — the documented gap this session found
+        "Dietă veterinară pentru câini cu afecțiuni digestive",  # accented singular
+    ],
+)
+def test_adr_0025_line_code_and_folded_tokens_are_regulated(title: str) -> None:
+    assert is_regulated(title)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Royal Canin Urinary Care, 10 kg",
+        "Hill's SP Canine Adult Healthy Mobility Small and Mini Chicken 1.5 kg",
+        "Sanabelle Urinary 10 kg",
+        "Brit Care Dog Hypoallergenic Adult Large Breed 3 kg",
+        "Royal Canin Feline Digestive Care, 10 kg",
+        "REMI PREMIUM Dog Lite, obezitate, 3kg",
+        "Pro Plan Sterilised Renal Plus cu somon 1.5 kg",
+        "Brit Functional Snack Recovery Hering 150g",
+    ],
+)
+def test_adr_0025_symptom_words_are_explicitly_not_regulated(title: str) -> None:
+    """The rejected half of ADR-0025: these are ordinary retail condition-support food, not
+    prescription diets — the 2026-09-13/14 diagnostic's own Tier-B samples. Adding "urinar",
+    "renal", "mobility", "hypoallergenic", "digestive care", "obezitate" or "recovery" as tokens
+    would flag every one of these as regulated, which is wrong."""
+    assert not is_regulated(title)
+
+
+def test_adr_0025_regulated_match_names_the_token() -> None:
+    from pricepilot.scrapers.petmax import regulated_match
+
+    assert regulated_match("Royal Canin VHN Renal Pui 85g") == " vhn "
+    assert regulated_match("Brit Grain Free VD Recovery 400g") == " vd "
+    assert regulated_match("Royal Canin Urinary Care 400 g") is None
+
+
 def test_regulated_card_is_skipped_and_counted() -> None:
     html = """
     <div class="product-box" data-product-id="7"

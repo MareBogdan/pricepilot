@@ -35,6 +35,7 @@ from pricepilot.scrapers.base import (
     Listing,
     PoliteClient,
     ScrapeResult,
+    normalize_title,
     parse_romanian_money,
 )
 
@@ -67,7 +68,25 @@ DEFAULT_CATEGORIES: tuple[str, ...] = (
 # CLAUDE.md §7 Phase 1: regulated products are filtered **at ingest, not later**. The category
 # allowlist above already excludes petmax's pharmacy tree (`farmacie-*`, `antiparazitare-*`,
 # `deparazitare-*`, `diete-veterinare-*`, `antibiotice-*`, `afectiuni-*`, `dermatologice-*`).
-# This is the second line of defence, for a regulated item mis-filed into a food category.
+# This is the second line of defence, for a regulated item mis-filed into a food category — the
+# 2026-09-13/14 diagnostic session found exactly that: veterinary-diet products cross-listed
+# inside the general food categories on all three sources.
+#
+# Matched against a diacritic-folded, lowercased title (`normalize_title()`, ADR-0025) so
+# "dietă veterinară" matches the same token as "dieta veterinara" without a second spelling.
+#
+# ADR-0025: the 2026-09-14 addition is deliberately narrow — **brand line-code and preparation
+# markers only** (" vd ", " vhn ", "diete veterinare" plural, "hidrolizat"/"hydrolyzed"), never
+# symptom or condition words ("urinar", "renal", "mobility", "hypoallergenic", "digestive care",
+# "obezitate", "recovery", "satiety", "hepatic", "gastrointestinal", "sensitivity", "diabetic").
+# Tested individually against all 18,703 titles stored at the time: every symptom word above
+# overwhelmingly caught ordinary retail condition-support food sold without a prescription
+# (Royal Canin Urinary Care, Hill's Healthy Mobility, Julius-K9 Hypoallergenic) — the real
+# manufacturer distinction is the *line*, not the *symptom*: Royal Canin splits retail "Care
+# Nutrition" from veterinary-channel "VHN"; Brit splits retail "Brit Care" from veterinary "Brit
+# VD". "dietetic"/"dietetica" was tested too and dropped — every hit was already caught by " vd "
+# (fully redundant in this data) and Romanian retail marketing uses "dietetic" loosely for
+# ordinary weight-control food, a real false-positive risk with no offsetting benefit shown.
 REGULATED_TITLE_TOKENS: tuple[str, ...] = (
     "antiparazitar",
     "deparazitare",
@@ -77,10 +96,15 @@ REGULATED_TITLE_TOKENS: tuple[str, ...] = (
     "antibiotic",
     "veterinary diet",
     "dieta veterinara",
+    "diete veterinare",
     "prescription diet",
     "vet diet",
     "comprimate",
     "antiinflamator",
+    " vd ",
+    " vhn ",
+    "hidrolizat",
+    "hydrolyzed",
 )
 
 # The two prices must agree to the leu. Gomag rounds the display text, so an exact-cent match is
@@ -92,10 +116,32 @@ def _text(node: Node | None) -> str:
     return node.text(strip=True) if node is not None else ""
 
 
+def regulated_match(title: str) -> str | None:
+    """The `REGULATED_TITLE_TOKENS` entry that matched, or `None`. Diacritic-folded via
+    `normalize_title()` (ADR-0025) so "dietă veterinară" matches "dieta veterinara".
+
+    Space-padded tokens (`" vd "`, `" vhn "`) are brand-line codes, not fragments of ordinary
+    words — the padding on both sides is what keeps them from matching inside an unrelated
+    longer word; `normalize_title()` already collapses internal whitespace, so the folded title
+    is re-padded here to give those tokens the same leading/trailing boundary a real word break
+    would.
+
+    Returns the token itself (not just `True`/`False`) so a caller — `scripts/
+    quarantine_regulated.py` — can record *which* signal fired in `raw_listings.excluded_reason`
+    without re-deriving it.
+    """
+    folded = f" {normalize_title(title)} "
+    for token in REGULATED_TITLE_TOKENS:
+        folded_token = normalize_title(token.strip())
+        needle = f" {folded_token} " if token != token.strip() else folded_token
+        if needle in folded:
+            return token
+    return None
+
+
 def is_regulated(title: str) -> bool:
     """True if the title names a regulated product (CLAUDE.md §7 Phase 1)."""
-    lowered = title.lower()
-    return any(token in lowered for token in REGULATED_TITLE_TOKENS)
+    return regulated_match(title) is not None
 
 
 class PetmaxScraper:
