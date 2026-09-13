@@ -547,3 +547,100 @@ for future Phase 2 work (the 500g-vs-2kg disagreement found in recon rules this 
 parsing remains authoritative, consistent with the existing key).
 
 **Date.** 2026-09-13
+
+## ADR-0025 — Regulated-product detection: line-code tokens only; quarantine, never delete
+
+**Context.** The 2026-09-13/14 diagnostic session found `is_regulated()` (12 hardcoded
+lowercase-substring tokens, unfolded) missing real veterinary-diet products cross-listed inside
+the general food categories on all three sources: it never folds diacritics (`"dietă
+veterinară"` does not match `"dieta veterinara"`), never matches the plural (`"diete
+veterinare"` matches nothing), and consults no source-side classification at all. Tested against
+all 18,703 stored titles at the time, token by token:
+
+| candidate token | matches | verdict |
+|---|---|---|
+| `"diete veterinare"` (plural) | 0 today | kept — real gap, just not yet exercised in this data |
+| `" vd "` | 70, all genuine (Calibra VD, Brit Grain Free VD, ADVANCE VD) | kept |
+| `" vhn "` | 23, all genuine (Royal Canin VHN) | kept — found *during* this session, not in the original diagnostic |
+| `"dietetic"`/`"dietetica"` | 8, all already covered by `" vd "` | **dropped** — zero net catch, and Romanian retail uses "dietetic" loosely for ordinary weight-control food (a real false-positive risk with no offsetting benefit shown here) |
+| `"hidrolizat"`/`"hydrolyzed"` | 0 today | kept — defensive, same reasoning as the plural |
+
+The diagnostic session's own Tier-B samples (urinar/urinary, renal, mobility, hypoallergenic,
+digestive care, obezitate, recovery, satiety, hepatic, gastrointestinal, sensitivity, diabetic —
+95–362 rows per source) read overwhelmingly as ordinary retail condition-support food sold
+without a prescription (Royal Canin Urinary Care, Hill's Healthy Mobility, Julius-K9
+Hypoallergenic), not restricted veterinary diets. The real manufacturer distinction is the
+*line*, not the *symptom*: Royal Canin splits retail "Care Nutrition" from veterinary-channel
+"VHN"; Brit splits retail "Brit Care" from veterinary "Brit VD"; Hill's splits retail lines from
+"PD" (Prescription Diet — found this session, not yet acted on, see Open issues in STATE.md).
+
+Two further signals exist beyond title text. animax's Shopify `product_type` field already
+classifies 108 rows as "Diete veterinare pentru caini/pisici" — a title check alone would miss
+25 of them (e.g. "Hill's PD Metabolic", no token catches "PD") and the shop's own classification
+misses 2 that title tokens catch (e.g. "ADVANCE VD Gastroenteric", filed as plain "Hrana uscata
+pentru caini"). pentruanimale's VTEX `__STATE__` carries `categories`/`categoryId` on every
+Product node (confirmed live) but the adapter never captured it — so pentruanimale's true leak
+size cannot be measured from data already collected; its 0-Tier-A-hits result is "not measured",
+not "clean" (see STATE.md).
+
+**Decision.**
+1. `is_regulated()`/`REGULATED_TITLE_TOKENS` (petmax.py, shared): fold diacritics via the
+   existing `normalize_title()` before matching; add `"diete veterinare"`, `" vd "`, `" vhn "`,
+   `"hidrolizat"`, `"hydrolyzed"`. A new `regulated_match()` returns *which* token fired (not
+   just a bool), so a caller can record the reason without re-deriving it.
+2. animax (A4): `product_type` is checked as a second, independent signal in `_parse_product`,
+   before insertion — a product is skipped if *either* the title or `product_type` flags it.
+3. pentruanimale (A4): `categories`/`categoryId` are captured into `raw_payload` from now on.
+   Forward-only — **not backfilled, cannot be backfilled**. STATE.md states plainly that
+   pentruanimale's regulated-product exposure is unmeasured, not clean.
+4. petmax (A4): no change. Its leak is entirely cross-listed items inside allowed food
+   categories (confirmed in the diagnostic session) — the category the listing was scraped from
+   tells us nothing a title check doesn't already know.
+5. **118 already-collected rows are quarantined, not deleted** (STEP 2, this session): a new
+   nullable `raw_listings.excluded_reason` column (migration 0004) records which signal fired;
+   `NULL` means in scope. `scripts/quarantine_regulated.py` applied the tightened rule + the
+   animax `product_type` check to every row with `excluded_reason IS NULL` — idempotent, and
+   reversible by clearing the column on any row later found to be a false positive. `make
+   status`, the listing-count gate, and `overlap.py`'s population all now read `excluded_reason
+   IS NULL`, and `make status` prints total and in-scope side by side rather than applying the
+   difference silently.
+
+This lands **now**, in Phase 1, not deferred to Phase 2's `raw_listings -> norm_listings` work —
+the in-scope listing count is a Phase 1 gate claim already ticked in STATE.md; holding a ticked
+gate on a number known to include regulated products would be worse than the gap it corrects.
+Phase 2 will reuse this same rule at the `norm_listings` boundary; it does not originate it.
+
+**Evidence.** Per-source quarantine counts (`scripts/quarantine_regulated.py`, applied
+2026-09-14): petmax_ro 8 rows (4 distinct products × 2 collected days), pentruanimale_ro 0,
+animax_ro 110 (of which 83 agree on both signals, 25 caught by `product_type` only, 2 caught by
+title only). Grand total: 18,703 stored → **18,585 in-scope**, still far above the 3,000
+threshold. ADR-0023's sampled population, recomputed with quarantined rows removed: 2,329 →
+**2,334** keyable, in-scope petmax food listings (only 4 of the 118 fell inside that specific
+population). p̂ = 0.52 unchanged (the sample itself was not re-drawn); point estimate 1,211 →
+**1,214**, 95% CI [897, 1,519] → **[899, 1,522]**. The gate holds with the same wide margin as
+before — the correction moved the estimate by about 0.3%.
+
+**Rejected.**
+- **Adding symptom/condition-word tokens** (urinar/urinary, renal, mobility, hypoallergenic,
+  digestive care, obezitate, recovery, satiety, hepatic, gastrointestinal, sensitivity,
+  diabetic). This session's own Tier-B data is the argument: these tokens would flag hundreds of
+  ordinary, purchasable retail products per source that are not restricted in any way — trading
+  a small, real false-negative problem for a much larger false-positive one that would remove
+  genuinely in-scope competitor products from the catalogue. If a specific named product turns
+  out to be genuinely regulated, that is a case-by-case judgment a human makes by checking the
+  brand's actual retail-vs-veterinary line split — not a keyword a script can reliably apply.
+- **Deleting the 118 rows.** They carry two real, already-collected days of price history that
+  CLAUDE.md §7 Phase 4 says cannot be recovered once missed. Given how much the tokens themselves
+  changed between this session's first pass and its per-token-verified final pass (adding `"
+  vhn "` alone added 23 rows that a narrower, earlier version of "Tier A" did not catch), treating
+  today's rule as permanently final and destroying data on that basis would be premature. The
+  quarantine column costs one migration and a few query filters; deletion costs the ability to
+  ever revisit the decision.
+- **Deferring the correction to Phase 2's `norm_listings` boundary.** Considered and rejected in
+  this same session: the in-scope listing count is a Phase 1 gate claim, ticked in STATE.md
+  today. A phase that has not started cannot be where a currently-ticked gate's number gets
+  corrected. Phase 2 will still apply this same rule at the `raw_listings -> norm_listings`
+  boundary for its own purposes — it inherits the rule, it does not own the decision to apply it
+  now.
+
+**Date.** 2026-09-14
