@@ -1,9 +1,10 @@
-name: Scrape daily (petmax, pentruanimale)
+name: Scrape daily (petmax, pentruanimale, animax)
 
 # STEP 4 (session note 2026-09-12): collection moved here from a Windows Task Scheduler job,
 # which could not guarantee 7 consecutive days when the laptop is not open at 06:10 (ADR-0018).
 # pentruanimale.ro joined this same workflow the following session, as its own job — same
-# schedule, same secrets, independent per-source budget and idempotency.
+# schedule, same secrets, independent per-source budget and idempotency. animax.ro joined the
+# same way on 2026-09-13 (ADR-0024).
 #
 # Cron is UTC-only — GitHub Actions has no IANA time zone support. 03:10 UTC is 06:10
 # Europe/Bucharest during EEST (UTC+3, in effect now, late March-late October). After the
@@ -69,3 +70,28 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SCRAPER_USER_AGENT: ${{ secrets.SCRAPER_USER_AGENT }}
         run: uv run python scripts/scrape.py --source pentruanimale_ro --limit 0
+
+  scrape-animax:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: scrape-animax
+      cancel-in-progress: false
+    # 2,551 products across 10 categories, at most ~13 requests total (Shopify's products.json
+    # takes up to 250 per page) — docs/SOURCES.md. Far fewer requests than either other source;
+    # the timeout ceiling matches theirs anyway so a genuine hang fails loudly, not because this
+    # job needs the time. Independent job: a slow/failed run here never blocks the other two.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --extra dev
+
+      - name: Full daily run — animax.ro, 10 categories
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SCRAPER_USER_AGENT: ${{ secrets.SCRAPER_USER_AGENT }}
+        run: uv run python scripts/scrape.py --source animax_ro --limit 0
