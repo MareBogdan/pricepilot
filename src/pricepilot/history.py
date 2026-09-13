@@ -84,3 +84,42 @@ def compute_history() -> HistoryReport:
         last_date=max(dates),
         gap_dates=gaps,
     )
+
+
+def compute_history_by_source() -> dict[str, HistoryReport]:
+    """The same computation `compute_history()` does, broken out per source.
+
+    2026-09-13 session note (STATE.md): the project-wide count above is a **union** of every
+    source's `collected_date` values. That is deliberate — CLAUDE.md §7's gate is ≥7 consecutive
+    days for the project, not per source — but it means one source silently missing a day is
+    invisible in the project-wide number as long as another source collected that same day. A
+    cron drifting far enough to land a run's `collected_date` on the wrong side of midnight
+    (`runner.py`'s `started_at.date()`, real wall-clock, never the cron's intended trigger time)
+    would produce exactly that shape: one source with a gap, masked by the others.
+
+    This function changes no gate and fixes nothing — it exists so `make status` can print each
+    source's own date list, consecutive count, and gaps explicitly, so a per-source gap is visible
+    the day it happens rather than discovered only once it happens to coincide with every other
+    source's gap too.
+    """
+    with session_scope() as session:
+        rows = session.execute(
+            select(RawListing.source, RawListing.collected_date).distinct()
+        ).all()
+
+    dates_by_source: dict[str, set[date]] = {}
+    for source, collected_date in rows:
+        if collected_date is None:
+            continue
+        dates_by_source.setdefault(source, set()).add(collected_date)
+
+    reports: dict[str, HistoryReport] = {}
+    for source, dates in dates_by_source.items():
+        consecutive, gaps = consecutive_days_from(dates)
+        reports[source] = HistoryReport(
+            consecutive_days=consecutive,
+            first_date=min(dates),
+            last_date=max(dates),
+            gap_dates=gaps,
+        )
+    return reports

@@ -197,8 +197,14 @@ def history_section() -> None:
     must not be hidden inside a bigger span. `src/pricepilot/history.py` walks backward from the
     most recent collected date and names every gap date explicitly, so a gap is visible here
     rather than discovered at the gate.
+
+    2026-09-13 session note: the project-wide number above is a union of every source's dates,
+    which is the correct gate metric (CLAUDE.md §7 is project-wide, not per source) but can mask
+    one source's own gap behind the others' — a cron drifting across midnight could do exactly
+    that. The per-source breakdown below changes no gate; it exists so a single source's gap is
+    visible the day it happens, not discovered on day 7.
     """
-    from pricepilot.history import compute_history
+    from pricepilot.history import compute_history, compute_history_by_source
 
     report = compute_history()
     if report.last_date is None:
@@ -216,6 +222,38 @@ def history_section() -> None:
         _row("  └ gap dates", f"{len(report.gap_dates)} missing: {shown}{more}", False)
     else:
         _row("  └ gap dates", "none", True)
+
+    # Per-source breakdown — detection only, printed loudly regardless of whether the project-wide
+    # number above looks healthy, because a union across sources cannot reveal one source's own
+    # gap when another source still collected on the same day.
+    by_source = compute_history_by_source()
+    for source in sorted(by_source):
+        src_report = by_source[source]
+        # "Healthy" for one source means both: its own run of days is unbroken (no gap_dates)
+        # AND its most recent day matches the project-wide most recent day (it collected as
+        # recently as any source did) — either failing is a real, visible problem for that source
+        # even when the project-wide number above still reads a full streak.
+        stale = src_report.last_date != report.last_date
+        healthy = not src_report.gap_dates and not stale
+        note = ""
+        if stale:
+            note += f" — STALE, project-wide latest is {report.last_date:%Y-%m-%d}"
+        if src_report.gap_dates:
+            note += f" — {len(src_report.gap_dates)} gap day(s)"
+        _row(
+            f"  └ {source}",
+            f"{src_report.consecutive_days} consecutive day(s), "
+            f"last collected {src_report.last_date:%Y-%m-%d}{note}",
+            healthy,
+        )
+        if src_report.gap_dates:
+            shown = ", ".join(d.isoformat() for d in src_report.gap_dates[:10])
+            more = (
+                f" (+{len(src_report.gap_dates) - 10} more)"
+                if len(src_report.gap_dates) > 10
+                else ""
+            )
+            _row(f"      gap dates ({source})", f"{shown}{more}", False)
 
 
 def db_section() -> None:
