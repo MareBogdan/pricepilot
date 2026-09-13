@@ -2,9 +2,10 @@
 
 Phase: 1 — Collection (still open — gate met except 7-consecutive-days, which just needs time to
 pass) **and** Phase 2 — Normalization (opened this session, running in parallel per instruction:
-Phase 1 is not blocked on and does not get ticked closed by Phase 2 work). Phase 2 is mid-STEP:
-schema built and migrated (STEP 1), gate sample frozen (STEP 2). STEP 3 (deterministic extractor)
-not started.
+Phase 1 is not blocked on and does not get ticked closed by Phase 2 work). Phase 2: schema built
+and migrated (STEP 1), gate sample frozen (STEP 2), deterministic extractor built and run (STEP
+3), coverage report done (STEP 4). Only the 85%-accuracy gate itself remains, blocked on Bogdan
+labelling the frozen sample.
 Updated: 2026-09-13 (verified against the system clock — see Open issues on prior date drift)
 
 ## Gate progress
@@ -93,10 +94,15 @@ against until Bogdan labels it.
     "#" comment block on the CSV was invalid CSV, see "Last done" below), every attribute column
     still empty, five conventions now (brand form added), committed before any extractor code
     exists
-[ ] deterministic extractor (STEP 3) — not started. Weight/volume first, then brand
-    canonicalization (printing real per-source brand strings before writing aliases), then the
-    EN/RO flavour table, then the rest
-[ ] coverage report (STEP 4) — not started, depends on STEP 3
+[x] deterministic extractor (STEP 3) — built, `src/pricepilot/normalize/` (`quantity.py` ->
+    `brand.py` -> `flavour.py` -> `attributes.py`, weight first as CLAUDE.md §7 asks). Regex and
+    lookup tables only, no LLM, no network. 45 offline tests. `scripts/normalize.py` populated
+    `norm_listings` for all 10,503 in-scope distinct titles, 0 extractor exceptions; a second run
+    confirmed the content_hash cache works (0 new to extract). Two real bugs found and fixed
+    before trusting the output — see "Last done" below — so the data was re-extracted once
+    (extractor_version v1 -> v2) before this coverage was measured.
+[x] coverage report (STEP 4) — `scripts/normalize_coverage.py`, run against all 10,503 rows. Not
+    accuracy (the gate sample stays unlabelled) — see the coverage table in "Last done" below.
 [ ] 85% accuracy on the frozen 100 — cannot be measured until Bogdan labels the CSV
 
 ## Last done (2026-09-13 Phase 2 session, in order)
@@ -163,6 +169,49 @@ against until Bogdan labels it.
    e.g. "brit" not "Brit Premium"), which would otherwise have failed the gate on a definition
    disagreement rather than a real extraction error. Recorded in ADR-0026 as a same-day
    amendment, not a silent rewrite of what the ADR originally said.
+7. **STEP 3 — deterministic extractor built, `src/pricepilot/normalize/`.** Order per CLAUDE.md
+   §7: `quantity.py` (weight/volume/pack/bonus/dosage) first, then `brand.py` (built from real
+   per-source brand strings — 132/153/185 distinct on animax/pentruanimale/petmax, printed and
+   read before any alias was written, not guessed), then `flavour.py` (EN/RO pairs — CLAUDE.md's
+   eight plus fish/liver/game, extended from real titles), then `attributes.py` (breed-size, life
+   stage, food form). 55 new offline tests (`tests/test_normalize_*.py`). `scripts/normalize.py`
+   populated `norm_listings` for all 10,503 distinct in-scope titles, 0 extractor exceptions; a
+   second dry run confirmed the content_hash cache works (0 new to extract, matching CLAUDE.md
+   §5.1's "runs once per unique title" rule, extended here to deterministic extraction too even
+   though it costs nothing).
+8. **Two real bugs found and fixed before trusting the output — same "verify before trusting a
+   regex" discipline as ADR-0025's token checks, applied to STEP 3's own code, not just the
+   quarantine rule.**
+   - **Breed-size single-letter matcher had two false-positive classes.** Checked the pattern
+     against all 18,585 in-scope titles before trusting it (same discipline the " pd " token
+     check used): (a) `"Nisip Silicat ... 7,6 L"` — a **volume unit**, not a size code, matched
+     because a bare `\bL\b` doesn't know a preceding digit means "litres"; (b) `"HILL'S ..."`,
+     `"SAM'S FIELD ..."`, `"WOLF'S MOUNTAIN ..."` each produced a **phantom standalone "S"**
+     purely from the apostrophe creating a word boundary — every Hill's-branded title would
+     otherwise have silently gained a fabricated size code. Both guarded in
+     `attributes.py::extract_breed_size` before any coverage number was measured.
+   - **Dosage-band regex collided with the "Julius K-9" brand name** (385 titles). "Julius K-9-
+     3kg" parsed as dosage band "9-3 kg", swallowing the product's real 3kg weight — found via
+     STEP 4's own coverage report (a "quantity regex missed it" example), not by inspection.
+     Fixed with a lookbehind requiring the band's first digit not be glued to a letter-hyphen
+     code (`quantity.py::_DOSAGE_BAND`). `norm_listings` was cleared and fully re-extracted
+     (`EXTRACTOR_VERSION` v1 -> v2) before the coverage numbers below were measured, so they
+     reflect the fixed extractor, not the buggy first pass.
+9. **STEP 4 — coverage report, `scripts/normalize_coverage.py`.** Coverage, not accuracy (the
+   gate sample is still unlabelled, nothing to score against). Quantity found (net_weight_g OR
+   net_volume_ml): **86.1% overall** — pentruanimale 98.5%, animax 88.6%, petmax 72.2% (petmax's
+   gap matches the already-diagnosed 2026-09-12 finding: its non-food categories genuinely carry
+   no weight in the title, not a parsing failure). `brand` 100.0% (only 3 nulls, all a genuinely
+   empty shop-side field). `flavour` 59.6%, `food_form` 56.1% — of their nulls, ~2,882 have
+   *both* null together (very likely non-food listings: toys, litter, accessories) and the
+   remainder (~1,300-1,700 each) are titles the extractor's word lists plausibly should have
+   caught but didn't, the honest remaining gap. `breed_size_code` 26.8%, `life_stage` 27.9% — no
+   further failure-shape breakdown built for these two this session (raw examples only).
+   `product_line` 0.0% (not built this session, by design — see Open issues).
+   `pack_count`/`bonus_weight_g`/`dosage_band` are all correctly low (8.5%/0.4%/0.1%): most
+   listings genuinely have no multipack, bonus, or dosage band, and the report deliberately
+   excludes these three (plus `product_line`) from "worst fields" analysis so a low, expected
+   number isn't presented as if it were a discovered failure.
 
 1. **Confirmed the petmax toy-category anomaly is dedup working correctly, not a bug** (STEP 0).
    Live-fetched `jucarii-caini`'s real product ids and checked them against `raw_listings`: all
@@ -268,9 +317,27 @@ against until Bogdan labels it.
   matches were already caught by animax's `product_type` signal); defense-in-depth for the other
   two sources going forward. See "Last done" above.
 - **Phase 2 gate sample is frozen and awaiting Bogdan's labelling.**
-  `docs/learned/phase2-gate-sample.csv` — 100 rows, every attribute column empty. STEP 3
-  (deterministic extractor) proceeds in parallel; the extractor must never see or be tuned
+  `docs/learned/phase2-gate-sample.csv` — 100 rows, every attribute column empty. STEP 3/4
+  (deterministic extractor, coverage report) are done; the extractor never saw or was tuned
   against this file's answers, since Bogdan is labelling it independently.
+- **`product_line` extraction not built this session** (STATE.md gate progress, ADR-0026's
+  `extract()` composition already reserves the field, returns `None` always). Needs a real design
+  choice — title-minus-brand-minus-noise, or something else — deferred, not forgotten.
+- **`flavour`/`food_form` have a real, uninvestigated gap beyond the "not a food item" cases.**
+  STEP 4's coverage report found roughly 1,300-1,700 titles each where the *other* of the pair was
+  found (so the row is very likely a real food item) but this field's word list still missed it —
+  worth a follow-up read of a sample of those titles before Phase 3 to see if the flavour/food-
+  form tables need a further, real-data-driven extension the same way `brand.py`'s alias table was
+  built.
+- **Brand extraction has no title-only fallback.** `canonicalize_brand()` returns `None` when the
+  shop's own structured brand field is empty — only 3 of 10,503 rows today (all petmax), so low
+  priority, but the function's `title` parameter is already reserved for this if it ever becomes
+  worth building.
+- **`breed_size_code` (26.8%) and `life_stage` (27.9%) coverage has no failure-shape breakdown
+  built** — STEP 4's report shows raw null examples for these two but no cross-field or
+  structural bucketing like `flavour`/`food_form` got. Both are genuinely often-absent from a
+  title (not every listing states a breed size or a life stage), so low coverage alone doesn't
+  mean a gap the way it might for `flavour`/`food_form` — but nobody has actually checked.
 - **CLOSED 2026-09-14: `is_regulated()` veterinary-diet leak** (ADR-0025). Tightened the shared
   token check (diacritic folding, line-code tokens), added animax's `product_type` as a second
   signal, and quarantined the 118 already-collected rows the tightened rule catches. See "Last
