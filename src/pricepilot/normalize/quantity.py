@@ -139,6 +139,63 @@ def extract_quantity(title: str) -> QuantityResult:
     )
 
 
+def quantity_spans(title: str) -> list[tuple[int, int]]:
+    """Character spans (start, end) of every quantity-related substring `extract_quantity` used
+    to produce its result — the dosage band, and whichever of bonus/multipack/plain/piece-count
+    actually matched. Built for `product_line.py`, which needs to erase exactly these spans from
+    the title (not re-derive them with a second, possibly-drifting regex) — reuses the same
+    compiled patterns and the same precedence order as `extract_quantity` above, so the two can
+    never disagree about what counts as "the quantity" in a title.
+
+    Spans are computed against `strip_diacritics(title.lower())`, but returned as offsets into
+    the *original* `title` string — safe because folding a Romanian diacritic (ă/â/î/ș/ț) and
+    lowercasing never changes a string's length, character for character, for the text these
+    titles actually contain."""
+    text = strip_diacritics(title.lower())
+    spans: list[tuple[int, int]] = []
+
+    dosage_match = _DOSAGE_BAND.search(text)
+    if dosage_match is not None:
+        spans.append((dosage_match.start(), dosage_match.end()))
+        text = (
+            text[: dosage_match.start()]
+            + " " * (dosage_match.end() - dosage_match.start())
+            + text[dosage_match.end() :]
+        )
+
+    if (bonus := _BONUS.search(text)) is not None:
+        spans.append((bonus.start(), bonus.end()))
+        return spans
+
+    pack = _PACK_TIGHT.search(text) or _PACK_WITH_WORD.search(text)
+    if pack is not None:
+        spans.append((pack.start(), pack.end()))
+        return spans
+
+    if (plain := _PLAIN.search(text)) is not None:
+        spans.append((plain.start(), plain.end()))
+        if (piece := _PIECE_COUNT.search(text)) is not None:
+            spans.append((piece.start(), piece.end()))
+            # "85g x 4buc" — a weight/volume and a piece count written in reverse of the tight
+            # "Nx" form (§PACK_TIGHT expects count-then-value, not value-then-count), so neither
+            # pack pattern above matches and this falls through to two separate spans (85g,
+            # 4buc) that both resolve correctly on their own — but the "x" glue between them
+            # (622 titles carry this exact shape, checked before adding this) isn't part of
+            # either span, and would otherwise survive product_line extraction as a dangling
+            # token. Bridged only when the gap is short and contains nothing but whitespace or
+            # the "x"/multiplication-sign separator, never across unrelated content that happens
+            # to have a piece count far away.
+            if plain.end() < piece.start():
+                gap = text[plain.end() : piece.start()]
+                if len(gap) <= 5 and re.fullmatch(r"[\sx×]*", gap):  # noqa: RUF001
+                    spans.append((plain.end(), piece.start()))
+        return spans
+
+    if (piece := _PIECE_COUNT.search(text)) is not None:
+        spans.append((piece.start(), piece.end()))
+    return spans
+
+
 def _extract_and_mask_dosage_band(text: str) -> tuple[str | None, str]:
     match = _DOSAGE_BAND.search(text)
     if match is None:
@@ -186,4 +243,4 @@ def _from_plain(match: re.Match[str], dosage_band: str | None) -> QuantityResult
     return QuantityResult(net_volume_ml=_millilitres(value, unit), dosage_band=dosage_band)
 
 
-__all__ = ["QuantityResult", "extract_quantity"]
+__all__ = ["QuantityResult", "extract_quantity", "quantity_spans"]

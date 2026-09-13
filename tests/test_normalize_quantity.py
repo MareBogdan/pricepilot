@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-from pricepilot.normalize.quantity import extract_quantity
+from pricepilot.normalize.quantity import extract_quantity, quantity_spans
+from pricepilot.overlap import strip_diacritics
 
 # ---------------------------------------------------------------------------
 # STEP 2 conventions, verbatim
@@ -137,3 +138,41 @@ def test_standalone_piece_count_alongside_a_plain_weight() -> None:
 def test_never_both_weight_and_volume(title: str) -> None:
     r = extract_quantity(title)
     assert r.net_weight_g is None or r.net_volume_ml is None
+
+
+# ---------------------------------------------------------------------------
+# quantity_spans() — used by product_line.py to erase exactly what extract_quantity found,
+# never a second, independently-drifting regex.
+# ---------------------------------------------------------------------------
+
+
+def _erase(title: str) -> str:
+    folded = strip_diacritics(title.lower())
+    spans = quantity_spans(title)
+    for start, end in sorted(spans, reverse=True):
+        folded = folded[:start] + folded[end:]
+    return folded
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Royal Canin Mini Adult 4.5 kg",
+        "Sheba Mini, Selectii mixte, 6x50g",
+        "Hrana uscata caini, Calibra Dog Premium Line Adult 12+2 kg",
+        "Recompense pentru caini Purina Dentalife Medium 12-25kg 115g",
+        "Advocate pipete antiparazitare caini 4-10 kg",
+        "Recompense caini - Crackers Collagen+ cu gust de rata - 6 bucati / 90 g",
+    ],
+)
+def test_quantity_spans_erase_every_digit_the_extractor_used(title: str) -> None:
+    """If a digit `extract_quantity` turned into a real field survives erasure, the spans and
+    the values have drifted apart — this is the regression guard for that."""
+    remaining = _erase(title)
+    assert not any(c.isdigit() for c in remaining), (
+        f"quantity_spans left a digit behind for {title!r}: {remaining!r}"
+    )
+
+
+def test_quantity_spans_empty_when_nothing_found() -> None:
+    assert quantity_spans("Jucarie pentru pisici Kong Cat Bila plutitoare") == []
