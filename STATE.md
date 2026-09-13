@@ -4,8 +4,11 @@ Phase: 1 — Collection (still open — gate met except 7-consecutive-days, whic
 pass) **and** Phase 2 — Normalization (opened this session, running in parallel per instruction:
 Phase 1 is not blocked on and does not get ticked closed by Phase 2 work). Phase 2: schema built
 and migrated (STEP 1), gate sample frozen (STEP 2), deterministic extractor built and run (STEP
-3), coverage report done (STEP 4). Only the 85%-accuracy gate itself remains, blocked on Bogdan
-labelling the frozen sample.
+3), coverage report done (STEP 4), parallel work done while the sample is labelled externally
+(STEP A `product_line` built + awaiting pair review, STEP B breed_size/life_stage gap reported,
+STEP C flavour/food_form tables extended). Only the 85%-accuracy gate itself remains, blocked on
+Bogdan labelling the frozen sample — plus a smaller decision: approve `product_line`'s 30 preview
+pairs so STEP A can run over the full table.
 Updated: 2026-09-13 (verified against the system clock — see Open issues on prior date drift)
 
 ## Gate progress
@@ -103,6 +106,14 @@ against until Bogdan labels it.
     (extractor_version v1 -> v2) before this coverage was measured.
 [x] coverage report (STEP 4) — `scripts/normalize_coverage.py`, run against all 10,503 rows. Not
     accuracy (the gate sample stays unlabelled) — see the coverage table in "Last done" below.
+[x] STEP A — `product_line` extraction built and tested, 30+ real before/after pairs shown for
+    review (ADR-0027). NOT yet wired into `extract()` / run over `norm_listings` — waiting on
+    that review, per explicit instruction.
+[x] STEP B — `breed_size_code`/`life_stage` failure-shape breakdown, diagnostic only (ADR-0027):
+    ~96-98% of nulls for both fields are genuinely correct; the small real-gap remainder is
+    documented, not fixed this session.
+[x] STEP C — `flavour`/`food_form` table extension from a checked 60-title sample (ADR-0027):
+    flavour 59.6% -> 61.3%, food_form 56.1% -> 57.7%.
 [ ] 85% accuracy on the frozen 100 — cannot be measured until Bogdan labels the CSV
 
 ## Last done (2026-09-13 Phase 2 session, in order)
@@ -212,6 +223,37 @@ against until Bogdan labels it.
    listings genuinely have no multipack, bonus, or dosage band, and the report deliberately
    excludes these three (plus `product_line`) from "worst fields" analysis so a low, expected
    number isn't presented as if it were a discovered failure.
+10. **STEP A/B/C — parallel work while the gate sample is labelled externally (ADR-0027).**
+    Every example drawn from `raw_listings`/`norm_listings`, never `docs/learned/
+    phase2-gate-sample.csv`.
+    - **STEP A, `product_line.py` built.** Title minus raw `source_brand` text, minus a closed-
+      vocabulary RO food/treat descriptive-clause regex (form/packaging/qualifier/animal/
+      trailing-stage words, all read from real leading n-grams and mid-title descriptor windows
+      before being added), minus `quantity.quantity_spans()` (new function, reuses
+      `extract_quantity`'s own patterns so the two can never disagree). Life-stage words are
+      consumable ONLY inside a matched clause, never free-standing — verified against
+      `"Royal Canin Mini Adult 8 kg"`, where "Adult" is the product's own real line name, not
+      boilerplate. Previewing 30+ real pairs surfaced and fixed two real bugs before the full-
+      table run: a dangling "x" glue character from the reversed "85g x 4buc" pack form (622
+      titles), and "multipack"/"bax"/"pachet economic"/"pachet mixt" (199+115 titles) needing
+      their own removal pattern. **Not yet wired into `extract()` or run over `norm_listings`** —
+      waiting on review of the pairs (see below), per explicit instruction.
+    - **STEP B, `breed_size_code`/`life_stage` failure shapes — report only, not fixed.**
+      `breed_size_code` (7,690 nulls): 96.4% correct null, 2.0% RO "talie mica/mare/medie"
+      stated-but-missed, 1.5% EN "Small/Medium/Large/Giant/Toy Breed" stated-but-missed.
+      `life_stage` (7,571 nulls): 97.6% correct null, 2.3% "kitten" stated-but-missed, 0.1% an RO
+      diminutive stated-but-missed. Both fields' low raw coverage mostly reflects real absence in
+      the title, not a broken matcher.
+    - **STEP C, flavour/food_form tables extended from a checked sample.** 60 real titles sampled
+      (seed 20260917) from the 3,090-title "likely real food, one field missing" pool. Ten new
+      flavour pairs (bison, mackerel, ham, poultry — kept distinct from chicken, deer, reindeer —
+      kept distinct from deer/game, goose, sardine, cod) and six new food_form words (jerky->dry;
+      pate/ragout/cremoasa/tub/sos->wet), every one checked against the full population before
+      adding. "Cutie" (box) checked and dropped — packaged both dry and wet items in real
+      samples, no reliable single mapping. `norm_listings` cleared and re-extracted
+      (`EXTRACTOR_VERSION` v2 -> v3): flavour 59.6% -> 61.3% (+187 rows), food_form
+      56.1% -> 57.7% (+166 rows).
+    - 351 tests total (65 new this round), ruff/format/mypy clean throughout.
 
 1. **Confirmed the petmax toy-category anomaly is dedup working correctly, not a bug** (STEP 0).
    Live-fetched `jucarii-caini`'s real product ids and checked them against `raw_listings`: all
@@ -320,24 +362,29 @@ against until Bogdan labels it.
   `docs/learned/phase2-gate-sample.csv` — 100 rows, every attribute column empty. STEP 3/4
   (deterministic extractor, coverage report) are done; the extractor never saw or was tuned
   against this file's answers, since Bogdan is labelling it independently.
-- **`product_line` extraction not built this session** (STATE.md gate progress, ADR-0026's
-  `extract()` composition already reserves the field, returns `None` always). Needs a real design
-  choice — title-minus-brand-minus-noise, or something else — deferred, not forgotten.
-- **`flavour`/`food_form` have a real, uninvestigated gap beyond the "not a food item" cases.**
-  STEP 4's coverage report found roughly 1,300-1,700 titles each where the *other* of the pair was
-  found (so the row is very likely a real food item) but this field's word list still missed it —
-  worth a follow-up read of a sample of those titles before Phase 3 to see if the flavour/food-
-  form tables need a further, real-data-driven extension the same way `brand.py`'s alias table was
-  built.
+- **`product_line` extraction BUILT this session, NOT yet run over the full table.**
+  `src/pricepilot/normalize/product_line.py` — brand (raw source_brand text) + RO food/treat
+  descriptive clause + quantity/pack/bonus/dosage tokens removed, everything else preserved
+  verbatim. 30+ real before/after pairs shown for review (see "Last done" below and ADR-0027) per
+  explicit instruction, before running it over `norm_listings` — `extract()`'s `product_line`
+  field stays hardcoded `None` until that review is done. Once approved: wire it into
+  `normalize.extract()`, bump `EXTRACTOR_VERSION`, clear + repopulate `norm_listings`, recompute
+  coverage.
+- **CLOSED: `flavour`/`food_form` gap investigated (STEP C, ADR-0027).** Sampled 60 real titles
+  (seed 20260917) from the combined "likely real food, one field missing" pool, checked every
+  candidate word against the full population before adding. flavour 59.6% -> 61.3%, food_form
+  56.1% -> 57.7%. "Cutie" (box) was checked and deliberately NOT added — real samples packaged
+  both dry and wet items, no reliable single mapping. Full list of additions in ADR-0027.
 - **Brand extraction has no title-only fallback.** `canonicalize_brand()` returns `None` when the
   shop's own structured brand field is empty — only 3 of 10,503 rows today (all petmax), so low
   priority, but the function's `title` parameter is already reserved for this if it ever becomes
   worth building.
-- **`breed_size_code` (26.8%) and `life_stage` (27.9%) coverage has no failure-shape breakdown
-  built** — STEP 4's report shows raw null examples for these two but no cross-field or
-  structural bucketing like `flavour`/`food_form` got. Both are genuinely often-absent from a
-  title (not every listing states a breed size or a life stage), so low coverage alone doesn't
-  mean a gap the way it might for `flavour`/`food_form` — but nobody has actually checked.
+- **CLOSED: `breed_size_code`/`life_stage` failure-shape breakdown built (STEP B, ADR-0027) —
+  diagnostic only, not fixed.** For both fields, ~96-98% of nulls are genuinely correct (title
+  states nothing); the small real-gap remainder (talie mica/mare/medie, Small/Large/Medium/
+  Giant/Toy Breed, kitten, RO diminutives) is documented in `scripts/normalize_coverage.py` and
+  ADR-0027 but deliberately not wired into `attributes.py` this session — scoped strictly to what
+  was asked (report the split, not fix it).
 - **CLOSED 2026-09-14: `is_regulated()` veterinary-diet leak** (ADR-0025). Tightened the shared
   token check (diacritic folding, line-code tokens), added animax's `product_type` as a second
   signal, and quarantined the 118 already-collected rows the tightened rule catches. See "Last
@@ -397,10 +444,15 @@ against until Bogdan labels it.
 ## Blocked on Bogdan
 
 - **Label `docs/learned/phase2-gate-sample.csv`** (100 rows, frozen 2026-09-13) — fill in the
-  attribute columns and the `ambiguous` flag per the four conventions at the top of the file.
-  This is what makes the Phase 2 gate (≥85% attribute accuracy) measurable at all; STEP 3/4
-  (extractor + coverage report) proceed without it, but accuracy cannot be reported until it's
-  labelled. Can happen in parallel with STEP 3, not before or after it.
+  attribute columns and the `ambiguous` flag per the five conventions in
+  `docs/learned/phase2-gate-sample-README.md` (moved out of the CSV itself, see that session's
+  "Last done"). This is what makes the Phase 2 gate (≥85% attribute accuracy) measurable at all;
+  STEP 3/4/A/B/C proceed without it, but accuracy cannot be reported until it's labelled. Can
+  happen in parallel, not before or after any of them.
+- **Review STEP A's 30+ `product_line` before/after pairs** and say go/no-go before it runs over
+  the full table — the pairs are in this session's chat output, not yet saved to a committed
+  file. Until approved, `extract()`'s `product_line` field stays hardcoded `None` and
+  `norm_listings` is unaffected.
 
 Nothing else blocks progress right now. Every Phase 1 gate box is met except 7 consecutive days
 of history, which is wall-clock — it closes on its own once the daily cron has run 5 more times,

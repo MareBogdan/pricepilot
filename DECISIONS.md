@@ -771,3 +771,115 @@ into a sibling file, `docs/learned/phase2-gate-sample-README.md`; the CSV now st
 its real header row. The 100 rows, their order and their ids are unchanged — verified by diffing
 the old file's data rows against the new CSV before committing, not re-drawn. This is also when
 convention 5 (brand form, above) was added, for the reason given there.
+
+## ADR-0027 — product_line extraction design; breed_size/life_stage gap report stays diagnostic-only; flavour/food_form tables extended from a checked sample
+
+**Context.** Three parallel gaps from STEP 3/4's coverage report needed work while the Phase 2
+gate sample is being labelled externally (docs/learned/phase2-gate-sample.csv — frozen,
+unlabelled, and never read or used as input for any of this): `product_line` extraction did not
+exist (0% coverage, by design); `breed_size_code`/`life_stage` had raw coverage numbers but no
+breakdown of what their nulls actually meant; `flavour`/`food_form` had ~1,300-1,700 titles each
+flagged as "likely a real food item, this field's word was missed". All work below draws its
+examples from `raw_listings`/`norm_listings` (the full in-scope population), never the frozen CSV.
+
+**Decision — product_line.** Built as a closed-vocabulary removal: the title minus (a) the shop's
+own raw `source_brand` field text (never a canonicalized or guessed form — see `brand.py`'s own
+note that convention 5's sub-line belongs in `product_line`, not `brand`), (b) a small,
+data-built regex matching only contiguous sequences of recognized Romanian food/treat
+descriptive words (form: uscata/umeda; packaging: plic/conserva/tavita/punguta/galetusa/bax/tub/
+bol; qualifiers: monoproteica/fara cereale/continut redus cereale; animal: caini/pisici and
+variants; a closed set of pack-descriptor words: multipack/pachet economic/pachet mixt), and (c)
+the exact spans `quantity.quantity_spans()` used to produce its result (a new function added to
+`quantity.py` this session, reusing the same compiled patterns and precedence order as
+`extract_quantity` so the two can never disagree about what counts as "the quantity"). Everything
+else is preserved verbatim, in its original language and casing.
+
+Life-stage words (junior/senior/adult(i/e)/sterilizat(e/i)) are consumable **only** as the word
+directly following an animal word inside a matched clause, never as a free-standing strip —
+checked and enforced before trusting the pattern: `"Royal Canin Mini Adult 8 kg"` has no
+`"hrana"/"recompense"` clause at all, and `"Adult"` there is the product's own real line name
+(Royal Canin genuinely sells "Mini Adult"), not shop boilerplate. A global life-stage strip would
+have silently deleted it. `tests/test_normalize_product_line.py::test_royal_canin_line_name_survives_intact`
+is the regression guard.
+
+Two real gaps were found and fixed while previewing 33 real before/after pairs (the required 30,
+plus a few extra) before running this over the full table: (1) the reversed pack form
+(`"85g x 4buc"`, 622 titles) left a dangling `"x"` glue character — bridged by extending
+`quantity_spans()` to merge the gap between two adjacent found spans when it contains nothing but
+whitespace or the multiplication sign; (2) `"multipack"`/`"bax"`/`"pachet economic"`/`"pachet
+mixt"` (199+115 titles, checked in real context before adding — every occurrence sits directly
+adjacent to a pack quantity, never inside a brand's sub-line name) needed their own removal
+pattern, since some occur with no preceding hrana/recompense clause at all. A third refinement —
+`"junior & adult"`-style compound stage chains (130 titles) — extended the trailing-stage slot to
+accept `"& (junior|senior|adult(i/e)|adult)"` repeats, with the bare, otherwise-forbidden `"adult"`
+form allowed **only** as the second+ link of a chain already anchored by a real stage word, never
+as an entry point on its own — preserving the exact safety property the Royal Canin case above
+depends on.
+
+**`product_line` is NOT wired into `normalize.extract()` or run over `norm_listings` this
+session** — CLAUDE.md's explicit instruction: 30 real pairs are shown for review first, full-table
+coverage is measured only after that review. `extract()`'s `product_line` field stays hardcoded
+`None` until that happens.
+
+**Decision — breed_size_code/life_stage stay diagnostic-only.** The ask was to report the split
+between "correct null" (the title genuinely doesn't state it) and "real gap" (stated in a form the
+matcher misses), not to fix it. `scripts/normalize_coverage.py` gained two new shape functions
+(`_breed_size_shape`, `_life_stage_shape`), each pattern checked against the real null population
+before being trusted as a "real gap" bucket. Result: for both fields, the overwhelming majority of
+nulls are genuinely correct —
+
+- `breed_size_code` (7,690 nulls): 7,416 (96.4%) correct null, 155 (2.0%) RO "talie
+  mica/mare/medie" stated but unmatched, 119 (1.5%) EN "Small/Medium/Large/Giant/Toy Breed" stated
+  but unmatched.
+- `life_stage` (7,571 nulls): 7,387 (97.6%) correct null, 175 (2.3%) "kitten" stated but
+  unmatched, 9 (0.1%) an RO diminutive (catelus/pisicuta/pisoi) stated but unmatched.
+
+Neither field's extractor was changed. If wired in later, the ceiling this data supports is
+roughly 29.4% (`breed_size_code`) and 29.7% (`life_stage`) — a real but modest gain, not the
+difference between a broken and a working extractor. The low raw coverage numbers mostly reflect
+that most pet-food/treat listings genuinely don't state a breed size or life stage as a separate
+descriptor, not that the matcher is failing on stated ones.
+
+**Decision — flavour/food_form table extensions.** A seeded (20260917) random sample of 60 real
+titles was drawn from the combined "likely real food, one field missing" pool (3,090 candidates:
+1,366 flavour-missing + 1,724 food_form-missing) and read in full before any table change. Every
+candidate word was then checked against the full in-scope population — count and real context
+printed — before being added, same discipline as ADR-0025's per-token check:
+
+*Flavour* (`flavour.py`), ten new EN/RO pairs: Bison/Bizon (14), Mackerel/Macrou (36),
+Ham/Sunca/Jambon (77+5), Poultry/Pasare (210, kept **distinct** from Chicken/Pui — a different
+level of specificity, and merging them would lose real information), Deer/Caprioara/Venison
+(61+24), Reindeer/Ren (17, kept **distinct** from Deer and from the existing Game/Vanat bucket — a
+different species; collapsing distinct species into one canonical value would hurt Phase 3
+matching precision, not help it), Goose/Gasca (23), Sardine (28), Cod (142, identical spelling in
+both languages).
+
+*Food form* (`attributes.py`), six new words folded into the existing "specific" tier (checked
+before the generic uscata/umeda fallback, same priority as conserva/plic): Jerky -> dry (108
+total, 106 net-new), Pate -> wet (704 total, 51 net-new), Ragout -> wet (11 total, 8 net-new),
+Cremoasa/Cremos -> wet (30 total, 30 net-new), Tub -> wet (76 total, 30 net-new), Sos -> wet (1,212
+total, 74 net-new — mostly redundant with already-detected wet signal, as expected, but the net-new
+74 are real).
+
+**Rejected.**
+- **"Cutie" (box, 128 total / 110 net-new) as a food_form signal.** Checked in real context first:
+  samples showed it packaging both dry treats (dental sticks, supplements) and wet toppers with
+  no reliable way to tell which from the word alone. Mapping it to any of dry/wet/tin/pouch would
+  have been a guess dressed as a finding, exactly what this discipline exists to prevent.
+- **Merging Reindeer into Deer or Game**, and **Poultry into Chicken.** Both would read as smaller,
+  cleaner tables. Both would also destroy a real distinction Phase 3's matching needs — a
+  reindeer product and a deer product are not the same product, and neither is a generic-poultry
+  product the same as a chicken-specific one.
+- **Fixing `breed_size_code`/`life_stage` in the same pass as reporting their gap.** Scoped
+  strictly to what was asked (report the split); the found patterns (talie mica/mare/medie,
+  Small/Large/Medium/Giant/Toy Breed, kitten, RO diminutives) are recorded here and in
+  `normalize_coverage.py` precisely so a future session can wire them in without re-deriving the
+  evidence.
+
+**Evidence.** Coverage recomputed after STEP C (v3, `norm_listings` cleared and fully
+re-extracted): flavour 59.6% -> 61.3% (+187 rows), food_form 56.1% -> 57.7% (+166 rows). Full
+per-source breakdown and every remaining failure-shape bucket in STATE.md and this session's tool
+output. STEP A's product_line coverage is deliberately not measured yet, pending the 30-pair
+review.
+
+**Date.** 2026-09-13
