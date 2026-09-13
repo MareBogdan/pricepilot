@@ -1,7 +1,8 @@
 # STATE
 
-Phase: 1 — Collection (petmax.ro + pentruanimale.ro on a daily GitHub Actions cron)
-Updated: 2026-09-12
+Phase: 1 — Collection (petmax.ro + pentruanimale.ro + animax.ro, all three on a daily GitHub
+Actions cron). Gate met except the 7-consecutive-days requirement, which just needs time to pass.
+Updated: 2026-09-13
 
 ## Gate progress
 
@@ -18,31 +19,59 @@ Phase 0 — Foundation: **CLOSED**, verified end to end in Docker on 2026-09-12.
 
 Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-12.
 
-[x] `docs/SOURCES.md` filled in for petmax.ro and pentruanimale.ro from real fetches
-[x] fixtures saved for both sources, offline tests passing
-[x] both adapters implemented behind the `Scraper` protocol, tested offline
+[x] `docs/SOURCES.md` filled in for petmax.ro, pentruanimale.ro and animax.ro from real fetches
+[x] fixtures saved for all three sources, offline tests passing
+[x] all three adapters implemented behind the `Scraper` protocol, tested offline
 [x] every run logs to `scrape_runs`; volume-alert logic verified; error text now persisted
     (`error_detail`, ADR from this session) after hitting the "count only, no detail" gap twice
 [x] ingest is idempotent on (source, external_id, collected_date) — **re-verified twice**: petmax
     ran twice today, pentruanimale ran twice today, zero duplicate
     (source, external_id, collected_date) groups anywhere in the table (query shown, ADR-0016)
-[x] collection running on a GitHub Actions cron for both sources — `.github/workflows/scrape-petmax.yml`
-[x] ≥3,000 in-scope listings — **8,076 total** (4,064 petmax_ro + 4,012 pentruanimale_ro), verified
-    from `scrape_runs` and `raw_listings` on a separate connection
-[ ] ≥3,000 in-scope listings from **≥3 sources** — 2 sources only; volume is not the blocker, source
-    count is
+[x] collection running on a GitHub Actions cron for all three sources —
+    `.github/workflows/scrape-petmax.yml` (name kept; the workflow now runs three independent jobs)
+[x] ≥3,000 in-scope listings — **18,700 total** (8,127 petmax_ro + 8,023 pentruanimale_ro +
+    2,550 animax_ro), verified from `scrape_runs` and `raw_listings` on a separate connection
+[x] ≥3,000 in-scope listings from **≥3 sources** — **3 sources, animax.ro added and verified
+    2026-09-13** (ADR-0024): real dispatched run, 2,550 items ingested, 0 errors, verified on a
+    fresh Neon connection. petmax (Gomag) and pentruanimale (VTEX) are both non-Shopify, satisfying
+    CLAUDE.md §7's "at least one non-Shopify" regardless of animax's own platform.
 [ ] ≥7 consecutive days of history — **2 / 7** (2026-09-12 → 2026-09-13, no gap; the scheduled
     cron fired for the first time on 2026-09-13, 5 hours late against its 03:10 UTC trigger)
 [x] **≥400 products on two or more shops — MET by hand-verified sample estimate: point 1,211,
-    95% CI [897, 1,519]** (ADR-0023). The proxy key itself still reports 94 and is a known floor
-    at ~8% measured recall — kept in `make status` as a daily indicator, not as the gate metric.
-    n=50 hand-verified sample (seed 20260913), petmax food listings vs pentruanimale.ro only;
-    see `docs/AUDIT.md`'s 2026-09-13 verification note and ADR-0023 for the full computation and
-    its limitations.
-[ ] adapter for animax.ro — not started (deliberately out of this session's scope)
-[ ] all adapters tested offline against fixtures — petmax + pentruanimale done, animax to go
+    95% CI [897, 1,519]** (ADR-0023). The proxy key itself now reports 241 with all three sources
+    live (up from 94 with two) and is a known floor at ~8% measured recall — kept in `make status`
+    as a daily indicator, not as the gate metric. The sample itself (n=50, seed 20260913) covered
+    petmax food listings vs pentruanimale.ro only; see `docs/AUDIT.md`'s 2026-09-13 verification
+    note and ADR-0023 for the full computation and its limitations.
+[x] adapter for animax.ro — **built, tested, deployed 2026-09-13** (ADR-0024)
+[x] all adapters tested offline against fixtures — petmax, pentruanimale and animax all done
 
-## Last done (this session, in order)
+## Last done (2026-09-13 session, in order)
+
+1. **Closed the overlap gate by measurement method, not by lowering the bar** (ADR-0023): the
+   proxy key's recall measured at ~8% (a hand-verified n=50 sample implies point estimate 1,211,
+   95% CI [897, 1,519], against the key's own 94) — too low to support the decision the gate
+   exists to make. Threshold stays 400; the gate is now decided from the sample. `make status`
+   and `make overlap` both relabelled so the proxy count reads as a known-low floor, never as the
+   gate itself.
+2. **Built, tested, and deployed the animax.ro adapter** (ADR-0024). Recon corrected the plan's
+   platform guess (Shopify, not Magento) before any code was written against the wrong
+   assumptions. Reads the standard `products.json` endpoint, not scraped HTML — structured data,
+   ~58x lighter bandwidth than the rendered page. `external_id` is the Shopify variant id, never
+   product id/handle/url — this morning's identity-stability diagnostic's lesson applied
+   immediately. 26 offline tests against a real, trimmed fixture; live `--limit 5 --dry-run`
+   clean; real dispatched run ingested 2,550 items with 0 errors, verified on a fresh Neon
+   connection. Wired into the daily workflow as a third independent job.
+3. **Re-measured the proxy overlap with all three sources live**: 94 → 241 (sources=3). Reported
+   as a floor with its recall caveat, not as the gate — the gate stays decided by ADR-0023's
+   sample.
+4. **Found real animax data quirks worth keeping**: the shop's own structured `grams` field
+   disagrees with its own title text on at least one listing (500g vs a title stating "2 kg");
+   decimal point vs comma within the same shop on the same product line (not just cross-shop);
+   age-band/breed-size codes ("8+", "L+XL") that contain "+" but are not CLAUDE.md §7's
+   bonus-weight pattern. All captured in `docs/SOURCES.md` and the adapter's test fixture.
+
+## Last done (2026-09-12 session, in order)
 
 1. **Built and shipped the pentruanimale.ro adapter** (VTEX — different platform from petmax's
    Gomag). Prices and every grouped-variant SKU come from a server-rendered `__STATE__` Apollo
@@ -99,10 +128,15 @@ Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-1
   fixed today.
 - **The 2026-09-13 scheduled run started at 08:13 UTC against a 03:10 UTC cron** — a ~5 hour
   delay, far past the 10-30 minutes ADR-0018 anticipates. One data point so far; watch it.
-- **The proxy key's 94 is still concentrated in one brand** (88% Royal Canin) even though the gate
-  itself is now closed by the hand-verified sample (ADR-0023), not by this number. Relevant to how
-  representative animax.ro's contribution will look in the proxy key's own reporting, not to
-  whether the gate is met. See the arithmetic in `docs/SOURCES.md`.
+- **The proxy key moved 94 → 241 once animax.ro joined** (sources=3, 2026-09-13), still a known
+  floor at ~8% measured recall, not the gate — the gate stays closed by the hand-verified sample
+  (ADR-0023). Whether animax's contribution is concentrated the same way petmax/pentruanimale's
+  overlap was (88% Royal Canin, per the diagnostic session) has not been re-checked; worth a look
+  before trusting 241 as evenly distributed across brands.
+- **animax's structured `grams` field cannot be trusted as ground truth** — a real listing titled
+  "... 2 kg" carries `grams: 500` in the shop's own data (docs/SOURCES.md, ADR-0024). Captured into
+  `raw_payload` for reference only; nothing reads it as authoritative. Reinforces why the overlap
+  key parses weight from title text and was not changed to use it.
 - **7 consecutive days is 2 so far** (2026-09-12 → 2026-09-13, no gap) — the scheduled cron has now
   fired once, 5 hours late (see above).
 - **pentruanimale.ro's ~600-product-per-category ceiling is permanent** with the current
@@ -119,7 +153,8 @@ Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-1
 
 ## Blocked on Bogdan
 
-Nothing that blocks progress right now. One real decision when ready: whether to build animax.ro
-next as originally planned, or first decide whether/how to broaden category scope (the 400 gate's
-gap now looks partly structural — concentrated in one brand and in food/treats categories only —
-so a third adapter alone may not be sufficient on the arithmetic in `docs/SOURCES.md`).
+Nothing that blocks progress right now. Every Phase 1 gate box is met except 7 consecutive days
+of history, which is wall-clock — it closes on its own once the daily cron has run 5 more times,
+nothing to decide. Phase 2 (Normalization) is the natural next phase to open when ready; its
+starting scope is already recorded in Open issues above (brand-field canonicalization, the
+EN/RO flavour table, partial token overlap).
