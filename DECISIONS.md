@@ -719,9 +719,11 @@ phase's scope that has been shown to need it yet, and CLAUDE.md §5 treats an LL
 that requires justification and a budget line before it exists, not a default reached for when a
 regex would do.
 
-**The four STEP 2 conventions** (decided this session, written here verbatim so the gate-sample
-labeller and the extractor cannot diverge on definitions — also carried at the top of the frozen
-CSV export):
+**The five STEP 2 conventions** (four decided when this ADR was first written, a fifth added the
+same day, before labelling started — see below. Written here verbatim so the gate-sample labeller
+and the extractor cannot diverge on definitions; also carried in
+`docs/learned/phase2-gate-sample-README.md`, a sibling of the frozen CSV, not a comment block
+inside it — see the amendment at the end of this ADR for why):
 
 1. Multipack `"12x85 g"`: `net_weight_g = 85` (the single unit), `pack_count = 12`. Total mass is
    derived, never the stored net weight — a 12-pouch box and a single pouch are different
@@ -734,6 +736,14 @@ CSV export):
    populate `net_weight_g` — the highest-risk confusion in this field, and the reason
    `net_weight_g`/`dosage_band` are two separate columns rather than one field a heuristic has to
    disambiguate after the fact.
+5. **`brand` is the manufacturer, lowercased, in its simplest form**: `"brit"` (not
+   `"Brit Premium"`), `"hill's"` (not `"HILL'S Science Plan"`), `"royal canin"`, `"calibra"`. The
+   sub-line ("Premium by Nature", "Science Plan", "Life", "Care") belongs in `product_line`,
+   never in `brand`. Added same-day, before any labelling happened, once review caught that brand
+   form was otherwise undefined in this schema — the column existed, but nothing said whether
+   "Brit Premium" or "brit" was the correct value, which would have failed the 85% gate on a
+   definition disagreement between the labeller and the extractor rather than on either one being
+   wrong. STEP 3's brand canonicalization targets exactly this shape.
 
 **Rejected.**
 - **Scoping `content_hash` per `(source, content_hash)`.** Would multiply extraction work exactly
@@ -752,3 +762,12 @@ CSV export):
   applied-and-trusted.
 
 **Date.** 2026-09-13
+
+**Amendment, same day, before labelling started.** The frozen sample originally carried the
+conventions as a "#" comment block at the top of the CSV itself. That block's first line contains
+a comma, so Excel, Google Sheets and pandas all read it as the header row and scrambled every
+column — the file was invalid CSV in practice, not just untidy. Fixed by moving the conventions
+into a sibling file, `docs/learned/phase2-gate-sample-README.md`; the CSV now starts directly with
+its real header row. The 100 rows, their order and their ids are unchanged — verified by diffing
+the old file's data rows against the new CSV before committing, not re-drawn. This is also when
+convention 5 (brand form, above) was added, for the reason given there.

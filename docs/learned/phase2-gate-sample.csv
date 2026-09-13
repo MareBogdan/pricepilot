@@ -1,23 +1,3 @@
-# PHASE 2 GATE SAMPLE — frozen 2026-09-13, seed 20260913. DO NOT EDIT rows or fill any
-# attribute column below by hand until you are labelling for real. See STATE.md / ADR-0026.
-#
-# FOUR CONVENTIONS (decided, ADR-0026) — apply these exactly, so the labeller and the
-# extractor cannot diverge on definitions:
-#
-# 1. Multipack "12x85 g": net_weight_g = 85 (the single unit), pack_count = 12. Total mass
-#    is derived, never the stored net weight.
-# 2. Bonus pack "12+2 kg": net_weight_g = 12000 (base), bonus_weight_g = 2000, recorded
-#    separately. Reuses OverlapKey.bonus_g's existing semantics exactly.
-# 3. "1 x 85 g": pack_count = 1, net_weight_g = 85.
-# 4. Dosage bands ("10-25 kg") are the ANIMAL's weight, never the product's. These must
-#    NEVER populate net_weight_g — the highest-risk confusion in this field.
-#
-# A quantity is mass-based XOR volume-based: fill at most one of net_weight_g /
-# net_volume_ml per row, never both (ADR-0026's DB-enforced invariant). Leave BOTH empty
-# when the title states no quantity at all — that is a real, expected answer.
-#
-# Leave every attribute column empty until you label for real. Use the final "ambiguous"
-# column to flag any row where these conventions do not settle the answer.
 listing_id,source,title,brand,product_line,net_weight_g,net_volume_ml,pack_count,bonus_weight_g,breed_size_code,life_stage,flavour,food_form,dosage_band,ambiguous
 1569,petmax_ro,Recompense delicioase Royal Canin Hypoallergenic Dog 230g,,,,,,,,,,,,
 3925,petmax_ro,Ansamblu de joaca pentru pisici tip coloana cu canapea dubla si ciucure culoare portocaliu cu gri 50 x 38 x 30 cm,,,,,,,,,,,,

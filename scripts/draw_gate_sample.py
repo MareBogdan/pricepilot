@@ -3,10 +3,17 @@ manually verified listings, with weight parsing measured separately".
 
     uv run python scripts/draw_gate_sample.py
 
-Writes `docs/learned/phase2-gate-sample.csv`. Run **once**, before any extractor code exists
-(STEP 2 of this session, ahead of STEP 3) — the same discipline CLAUDE.md applies to a baseline
-before fine-tuning: the 100 rows are drawn and the labeller works from them before the thing being
-measured is written, so the gate cannot be measured on data the extractor was tuned against.
+Writes `docs/learned/phase2-gate-sample.csv` (valid CSV, header row first — no preamble) and
+`docs/learned/phase2-gate-sample-README.md` (the five conventions and labelling instructions).
+The two used to be one file, with the conventions as a "#" comment block on top of the CSV — fixed
+same-day, before labelling started: line 1 of that block contained a comma, so Excel, Google
+Sheets and pandas all read it as the header row and scrambled every column. Split so the CSV is
+actually valid CSV.
+
+Run **once**, before any extractor code exists (STEP 2 of this session, ahead of STEP 3) — the
+same discipline CLAUDE.md applies to a baseline before fine-tuning: the 100 rows are drawn and the
+labeller works from them before the thing being measured is written, so the gate cannot be
+measured on data the extractor was tuned against.
 
 Every extracted-attribute column in the export is written EMPTY. Filling any of them here would
 mean the gate measures the extractor against itself.
@@ -51,9 +58,10 @@ from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.models import RawListing  # noqa: E402
 from pricepilot.overlap import bonus_weight_grams, net_weight_grams, strip_diacritics  # noqa: E402
 
-SEED = 20260913  # recorded again in the CSV preamble — see CLAUDE.md's dates-as-seeds convention
+SEED = 20260913  # recorded again in the README — see CLAUDE.md's dates-as-seeds convention
 SAMPLE_SIZE = 100
 OUTPUT_PATH = ROOT / "docs" / "learned" / "phase2-gate-sample.csv"
+README_PATH = ROOT / "docs" / "learned" / "phase2-gate-sample-README.md"
 
 ATTRIBUTE_COLUMNS: tuple[str, ...] = (
     "brand",
@@ -69,27 +77,52 @@ ATTRIBUTE_COLUMNS: tuple[str, ...] = (
     "dosage_band",
 )
 
-PREAMBLE = f"""\
-# PHASE 2 GATE SAMPLE — frozen 2026-09-13, seed {SEED}. DO NOT EDIT rows or fill any
-# attribute column below by hand until you are labelling for real. See STATE.md / ADR-0026.
-#
-# FOUR CONVENTIONS (decided, ADR-0026) — apply these exactly, so the labeller and the
-# extractor cannot diverge on definitions:
-#
-# 1. Multipack "12x85 g": net_weight_g = 85 (the single unit), pack_count = 12. Total mass
-#    is derived, never the stored net weight.
-# 2. Bonus pack "12+2 kg": net_weight_g = 12000 (base), bonus_weight_g = 2000, recorded
-#    separately. Reuses OverlapKey.bonus_g's existing semantics exactly.
-# 3. "1 x 85 g": pack_count = 1, net_weight_g = 85.
-# 4. Dosage bands ("10-25 kg") are the ANIMAL's weight, never the product's. These must
-#    NEVER populate net_weight_g — the highest-risk confusion in this field.
-#
-# A quantity is mass-based XOR volume-based: fill at most one of net_weight_g /
-# net_volume_ml per row, never both (ADR-0026's DB-enforced invariant). Leave BOTH empty
-# when the title states no quantity at all — that is a real, expected answer.
-#
-# Leave every attribute column empty until you label for real. Use the final "ambiguous"
-# column to flag any row where these conventions do not settle the answer.
+README_BODY = f"""\
+# Phase 2 gate sample — read this before labelling `phase2-gate-sample.csv`
+
+Frozen **2026-09-13**, seed **{SEED}**. This file used to be a comment block at the top of the
+CSV itself — moved out because a "#" preamble containing commas is invalid CSV: line 1 had a
+comma in it, so Excel, Google Sheets and pandas all read that line as the header and scrambled
+every column. The CSV now starts directly with its real header row. Same 100 rows, same order,
+same ids, still empty — nothing about the sample itself changed, only where this text lives.
+
+**Do not edit the CSV's rows.** Fill in the attribute columns and the final `ambiguous` column
+only, per the five conventions below. If you're unsure a row's answer follows from these
+conventions unambiguously, flag it in `ambiguous` rather than guessing — a hand-check of every
+flagged row (plus a random 10 of the rest) is part of the plan.
+
+CLAUDE.md §7's Phase 2 gate: **>=85% attribute accuracy on these 100 listings, with weight
+parsing measured separately.**
+
+## The five conventions (decided, ADR-0026)
+
+Apply these exactly, so the labeller and the extractor cannot diverge on definitions:
+
+1. **Multipack** `"12x85 g"`: `net_weight_g = 85` (the single unit), `pack_count = 12`. Total mass
+   is derived, never the stored net weight — a 12-pouch box and a single pouch are different
+   purchasable units, and `pack_count` is what distinguishes them.
+2. **Bonus pack** `"12+2 kg"`: `net_weight_g = 12000` (base), `bonus_weight_g = 2000`, recorded
+   separately. Reuses `OverlapKey.bonus_g`'s existing semantics exactly — not a second,
+   conflicting convention.
+3. `"1 x 85 g"`: `pack_count = 1`, `net_weight_g = 85`.
+4. **Dosage bands** (`"10-25 kg"`) are the **ANIMAL's** weight, never the product's. These must
+   NEVER populate `net_weight_g` — the highest-risk confusion in this field.
+5. **`brand` is the manufacturer, lowercased, in its simplest form** — added same-day, before
+   labelling started, once it became clear brand form was otherwise undefined and a mismatch
+   there would fail the gate on a definition disagreement rather than on a real extraction error:
+   - `"brit"` (not `"Brit Premium"`)
+   - `"hill's"` (not `"HILL'S Science Plan"`)
+   - `"royal canin"`, `"calibra"`
+   - The sub-line ("Premium by Nature", "Science Plan", "Life", "Care") belongs in
+     `product_line`, never in `brand`. STEP 3's brand canonicalization targets exactly this
+     shape — every variant a source writes maps onto it.
+
+A quantity is mass-based XOR volume-based: fill **at most one** of `net_weight_g` /
+`net_volume_ml` per row, never both (ADR-0026's DB-enforced invariant). Leave **both** empty when
+the title states no quantity at all — that is a real, expected answer, not a gap.
+
+Leave every attribute column empty until you are labelling for real — if you pre-fill any column,
+the gate measures the extractor against itself.
 """
 
 # ---------------------------------------------------------------------------
@@ -160,10 +193,10 @@ def main() -> int:
         print("database UNREACHABLE — run `docker compose up -d db`", file=sys.stderr)
         return 2
 
-    if OUTPUT_PATH.exists():
+    if OUTPUT_PATH.exists() or README_PATH.exists():
         print(
-            f"{OUTPUT_PATH} already exists — refusing to overwrite a frozen gate sample. "
-            "Delete it by hand first if you really mean to re-draw it.",
+            f"{OUTPUT_PATH.name} or {README_PATH.name} already exists — refusing to overwrite a "
+            "frozen gate sample. Delete both by hand first if you really mean to re-draw it.",
             file=sys.stderr,
         )
         return 1
@@ -246,13 +279,14 @@ def main() -> int:
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with OUTPUT_PATH.open("w", encoding="utf-8", newline="") as fh:
-        fh.write(PREAMBLE)
         writer = csv.writer(fh)
         writer.writerow(["listing_id", "source", "title", *ATTRIBUTE_COLUMNS, "ambiguous"])
         for row_id, source, title in final_rows:
             writer.writerow([row_id, source, title, *([""] * len(ATTRIBUTE_COLUMNS)), ""])
+    README_PATH.write_text(README_BODY, encoding="utf-8")
 
     print(f"\nwrote {OUTPUT_PATH}")
+    print(f"wrote {README_PATH}")
     return 0
 
 

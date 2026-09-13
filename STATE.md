@@ -88,8 +88,11 @@ against until Bogdan labels it.
 [x] `norm_listings` schema designed, reviewed, approved with three changes, migrated (0005) and
     verified live on Neon (ADR-0026) — see "Last done" below for the content_hash verification
     that gated the migration
-[x] gate sample frozen — 100 rows, seed 20260913, `docs/learned/phase2-gate-sample.csv`, every
-    attribute column empty, committed before any extractor code exists
+[x] gate sample frozen — 100 rows, seed 20260913, `docs/learned/phase2-gate-sample.csv` +
+    `docs/learned/phase2-gate-sample-README.md` (split same day, before labelling — the original
+    "#" comment block on the CSV was invalid CSV, see "Last done" below), every attribute column
+    still empty, five conventions now (brand form added), committed before any extractor code
+    exists
 [ ] deterministic extractor (STEP 3) — not started. Weight/volume first, then brand
     canonicalization (printing real per-source brand strings before writing aliases), then the
     EN/RO flavour table, then the rest
@@ -150,6 +153,16 @@ against until Bogdan labels it.
    Smolke candidates exist in the current three-source data — CLAUDE.md's Smolke example names
    zoomalia.ro, a source not yet built — so that half of the "special-character brands" case is
    absent from this sample by data reality, not by a detector miss.
+6. **Fixed the frozen CSV's own comment-block preamble — it was invalid CSV.** Line 1 of the
+   "#" block contained a comma, so Excel/Sheets/pandas would have read it as the header and
+   scrambled every column. Moved the conventions into a sibling file,
+   `docs/learned/phase2-gate-sample-README.md`; the CSV now starts directly at its real header
+   row. Verified the 100 data rows are byte-identical to before (diffed old vs. new, not
+   re-drawn) — same rows, same order, same ids, still empty. Also added a fifth convention,
+   caught on review: `brand` form was undefined (manufacturer only, lowercased, simplest form —
+   e.g. "brit" not "Brit Premium"), which would otherwise have failed the gate on a definition
+   disagreement rather than a real extraction error. Recorded in ADR-0026 as a same-day
+   amendment, not a silent rewrite of what the ADR originally said.
 
 1. **Confirmed the petmax toy-category anomaly is dedup working correctly, not a bug** (STEP 0).
    Live-fetched `jucarii-caini`'s real product ids and checked them against `raw_listings`: all
