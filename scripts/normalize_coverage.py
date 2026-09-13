@@ -32,6 +32,7 @@ from sqlalchemy import select  # noqa: E402
 
 from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.models import NormListing  # noqa: E402
+from pricepilot.overlap import strip_diacritics  # noqa: E402
 
 FIELDS: tuple[str, ...] = (
     "brand",
@@ -96,6 +97,37 @@ def _cross_field_shape(other_field_present: bool, other_field_name: str) -> str:
             f"likely a real food item ({other_field_name} was found) — this field's word was missed"
         )
     return f"{other_field_name} is also null — likely not a food item at all, not a real gap"
+
+
+# STEP B (this session): breed_size_code/life_stage failure shapes. Every pattern below was
+# checked against every null row's real title before being trusted as a "real gap" bucket — same
+# discipline as everything else this project checks before trusting a regex. Report-only: these
+# patterns are NOT wired into attributes.py's extractor this session, so `norm_listings` itself
+# is unaffected by this diagnostic — see STATE.md for why that's a deliberate scope boundary.
+_BREED_SIZE_RO_TALIE = re.compile(r"\btalie\s+(?:mica|mare|medie|uriasa)\b")
+_BREED_SIZE_EN_WORD = re.compile(r"\b(?:small|medium|large|giant|toy)\s+breed\b")
+
+
+def _breed_size_shape(folded_title: str) -> str:
+    if _BREED_SIZE_RO_TALIE.search(folded_title):
+        return 'RO "talie mica/mare/medie" stated — a real gap, not wired into the extractor yet'
+    if _BREED_SIZE_EN_WORD.search(folded_title):
+        return 'EN "Small/Medium/Large/Giant/Toy Breed" stated — a real gap, not wired in yet'
+    return "no recognized size-indicating text of any form — likely a correct null"
+
+
+_LIFE_STAGE_KITTEN = re.compile(r"\bkitten\b")
+_LIFE_STAGE_RO_DIMINUTIVE = re.compile(r"\b(?:catelus(?:i)?|pisicut[ae]|pisoi(?:i)?)\b")
+
+
+def _life_stage_shape(folded_title: str) -> str:
+    if _LIFE_STAGE_KITTEN.search(folded_title):
+        return (
+            '"kitten" stated (EN, no RO counterpart wired in) — a real gap, not fixed this session'
+        )
+    if _LIFE_STAGE_RO_DIMINUTIVE.search(folded_title):
+        return 'RO diminutive ("catelus"/"pisicuta"/"pisoi") stated — a real gap, not fixed this session'
+    return "no recognized life-stage word of any form — likely a correct null"
 
 
 def main() -> int:
@@ -171,6 +203,10 @@ def main() -> int:
                 shape = _cross_field_shape(values["food_form"] is not None, "food_form")
             elif field_name == "food_form":
                 shape = _cross_field_shape(values["flavour"] is not None, "flavour")
+            elif field_name == "breed_size_code":
+                shape = _breed_size_shape(strip_diacritics(title.lower()))
+            elif field_name == "life_stage":
+                shape = _life_stage_shape(strip_diacritics(title.lower()))
             else:
                 shape = "no sub-shape built for this field — raw examples only"
             null_shape_counts[field_name][shape] += 1
