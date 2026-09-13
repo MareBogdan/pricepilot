@@ -644,3 +644,111 @@ before — the correction moved the estimate by about 0.3%.
   now.
 
 **Date.** 2026-09-14
+
+## ADR-0026 — Phase 2 normalized layer: `norm_listings` schema, content_hash as a global title-only cache key, weight/volume as a checked invariant, dosage bands stay text, deterministic extraction first
+
+**Context.** CLAUDE.md §6 names the pipeline stage (`raw_listings -> norm_listings`) but not the
+table's shape. Phase 2 needs somewhere to put brand, product line, net weight/volume, pack count,
+breed-size code, life stage, flavour, food form and dosage band, extracted from titles — with two
+constraints CLAUDE.md's cost discipline and this session both insist on: extraction must run once
+per unique title, never per scrape run (§5.1 — the single largest cost-risk named in the whole
+document), and a null attribute must be distinguishable as "the title doesn't say" from "the
+extractor broke" — conflating the two would make the Phase 2 gate (≥85% attribute accuracy)
+unmeasurable, since a broken extractor and an honest "not stated" would look identical.
+
+**Decision — table shape.** One table, `norm_listings` (migration 0005): `content_hash` (the
+cache key, unique), `sample_source`/`sample_title` (one representative raw title/source, since
+a hash isn't reversible), the ten extracted attributes (`brand`, `product_line`, `net_weight_g`,
+`net_volume_ml`, `pack_count`, `bonus_weight_g`, `breed_size_code`, `life_stage`, `flavour`,
+`food_form`, `dosage_band` — all nullable), and three extraction-metadata columns
+(`extraction_status`, `extraction_errors` JSON, `extractor_version`). No foreign key to
+`raw_listings`: `content_hash` is not unique there (many rows legitimately share one hash), so the
+join is by hash value at query time, not by a constrained relationship. `raw_listings` stays
+untouched — this table only ever reads `WHERE excluded_reason IS NULL`, never writes back.
+
+**Decision — `content_hash` is reused, verified first, and is deliberately global across
+sources.** Before reusing it as the cache key, `Listing.content_hash` (scrapers/base.py) was read,
+not assumed: `sha256(normalize_title(self.title))` — title only. No price, no `compare_at_price`,
+no stock state, no source. Confirmed by reading `runner.py:192`, which persists exactly that value
+into `raw_listings.content_hash` with nothing else mixed in. It is therefore safe to reuse: it does
+not change when a price moves, so it will not grow a new `norm_listings` row per price change or
+force re-extraction on an unchanged title — the CLAUDE.md §9 failure mode this had to be checked
+against before use, not after.
+
+Because the hash carries no source component, reusing it as-is makes the key **global across
+sources by construction**, not scoped per `(source, content_hash)` — a deliberate choice, not an
+accident inherited from the reuse. Considered and rejected: scoping per-source, which would
+re-extract every time two shops happen to write a byte-identical normalized title. That happens
+rarely given how differently these shops write titles (CLAUDE.md §7's own examples), but when it
+does happen it means the same real product with the same real attributes — extraction depends only
+on the text, not on which shop produced it — so paying to re-derive the same answer twice would be
+waste with no accuracy benefit, not caution.
+
+**Decision — net_weight_g and net_volume_ml are mutually exclusive, enforced twice.** A listing's
+quantity is mass-based (kibble, litter) or volume-based (shampoo, liquid supplements), never both.
+Enforced at two levels: a DB `CheckConstraint` (`ck_norm_listings_weight_xor_volume`, plain boolean
+SQL — `NOT (net_weight_g IS NOT NULL AND net_volume_ml IS NOT NULL)` — deliberately not Postgres's
+`num_nonnulls()`, so the identical constraint is testable against SQLite in-memory with no live
+database) and a SQLAlchemy `@validates` hook on the ORM model that raises `ValueError` at
+assignment time, independent of the DB round-trip. Both null is allowed and means "quantity not
+stated in the title" — a legitimate, expected value, not a violation. Tested offline
+(`tests/test_norm_listings.py`): the ORM guard, the DB constraint via a Core-level insert that
+bypasses the ORM guard entirely, and that exactly-one-or-neither is accepted.
+
+**Decision — "not stated" vs "extraction failed" stays distinguishable.** A null attribute with no
+matching key in `extraction_errors` means the extractor ran and the title genuinely doesn't state
+that attribute. A null attribute **with** a matching key in `extraction_errors` (a JSON map of
+`{field_name: error message}`) means the extractor raised on that field and the null is a gap. The
+column is written only for the second case — never for an ordinary absent value — because writing
+it for both would erase the exact distinction the column exists to preserve.
+
+**Decision — `dosage_band` stays text, not split into min/max.** The Phase 2 gate needs the value
+correct and distinguishable from "not stated", not range-queryable. A split into
+`dosage_min_kg`/`dosage_max_kg` is mechanically derivable later from the stored text without
+re-extraction, so deferring it costs nothing and avoids inventing a numeric convention (open vs.
+closed bounds, unit handling) the gate does not yet need. Convention 4 (STEP 2, below) is the
+higher-stakes rule for this field: a dosage band is the *animal's* weight and must never populate
+`net_weight_g`.
+
+**Decision — deterministic extraction first, LLM fallback stays unimplemented.** CLAUDE.md §7 is
+explicit: regex and lookup tables first, an LLM only for what they cannot reach, cached by content
+hash. STEP 3 of this session builds weight/volume parsing, brand canonicalization, an EN/RO
+flavour table, and the rest as pure functions with offline fixture tests — no network call, no
+API key read. The LLM transport stays unimplemented (ADR-0006 unchanged): there is nothing in this
+phase's scope that has been shown to need it yet, and CLAUDE.md §5 treats an LLM call as something
+that requires justification and a budget line before it exists, not a default reached for when a
+regex would do.
+
+**The four STEP 2 conventions** (decided this session, written here verbatim so the gate-sample
+labeller and the extractor cannot diverge on definitions — also carried at the top of the frozen
+CSV export):
+
+1. Multipack `"12x85 g"`: `net_weight_g = 85` (the single unit), `pack_count = 12`. Total mass is
+   derived, never the stored net weight — a 12-pouch box and a single pouch are different
+   purchasable units, and `pack_count` is what distinguishes them.
+2. Bonus pack `"12+2 kg"`: base = 12000, bonus = 2000, recorded separately in `net_weight_g` and
+   `bonus_weight_g`. Reuses `OverlapKey.bonus_g`'s existing semantics exactly (ADR-0021) — not a
+   second, conflicting convention.
+3. `"1 x 85 g"`: `pack_count = 1`, `net_weight_g = 85`.
+4. Dosage bands (`"10-25 kg"`) are the **animal's** weight, never the product's. They must never
+   populate `net_weight_g` — the highest-risk confusion in this field, and the reason
+   `net_weight_g`/`dosage_band` are two separate columns rather than one field a heuristic has to
+   disambiguate after the fact.
+
+**Rejected.**
+- **Scoping `content_hash` per `(source, content_hash)`.** Would multiply extraction work exactly
+  in the case where two shops coincidentally agree, which is the one case where re-extraction is
+  guaranteed to produce the same answer — see above.
+- **A single sentinel value (e.g. `-1` or `""`) for "extraction failed" instead of a separate
+  `extraction_errors` column.** A sentinel inside a typed numeric/text column is exactly the kind
+  of silent conflation CLAUDE.md's schema requirement this session was written to prevent — it
+  would be indistinguishable from a real value without an out-of-band convention every reader has
+  to remember. A separate JSON column makes the failure explicit and inspectable instead.
+- **Splitting `dosage_band` into numeric min/max now.** Not needed for the gate; derivable later
+  from the stored text without re-extraction; see above.
+- **Postgres's `num_nonnulls()` for the weight/volume constraint.** Works, but ties the constraint
+  (and any test of it) to a live Postgres instance. Plain boolean SQL does exactly the same job and
+  is portable to SQLite in-memory, so the enforcement is offline-testable, not just
+  applied-and-trusted.
+
+**Date.** 2026-09-13

@@ -53,10 +53,15 @@ def test_llm_calls_records_cost_and_cache_hits() -> None:
 
 
 def test_migration_covers_every_model_table() -> None:
-    """A model with no migration is a silent Phase-1 failure."""
-    migration = (ROOT / "alembic" / "versions" / "0001_initial_schema.py").read_text(
-        encoding="utf-8"
+    """A model with no migration is a silent Phase-1 failure.
+
+    Originally checked migration 0001 alone, back when every table was created there. Phase 2
+    added `norm_listings` in a later migration (0005) — a genuinely new table, not a column added
+    to an existing one — so the check now scans every migration file, not just the first."""
+    versions_dir = ROOT / "alembic" / "versions"
+    combined = "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted(versions_dir.glob("*.py"))
     )
     for table in Base.metadata.tables:
-        assert f'"{table}"' in migration, f"{table} is missing from the initial migration"
-    assert "CREATE EXTENSION IF NOT EXISTS vector" in migration
+        assert f'"{table}"' in combined, f"{table} is missing from every migration"
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in combined
