@@ -7,6 +7,17 @@ resolve). "Extended from the data rather than guessed" — reading real titles i
 sample and the sources scanned while building `brand.py` surfaced three more unambiguous pairs:
 Fish/Peste, Liver/Ficat, Game/Vanat (venison).
 
+**STEP C (this session).** A random, seeded sample of 60 real titles flagged by
+`normalize_coverage.py` as "likely a real food item, flavour missing" or "..., food_form missing"
+was read (never `docs/learned/phase2-gate-sample.csv`, which stays frozen). Every candidate word
+below was checked against the full in-scope population before being added — counts and sample
+context are in `STATE.md`/`DECISIONS.md`, not repeated here. Ten more species/protein words:
+Bison/Bizon, Mackerel/Macrou, Ham/Sunca/Jambon, Poultry/Pasare (generic bird — kept distinct from
+Chicken/Pui, which names the specific species), Deer/Caprioara/Venison, Reindeer/Ren (a different
+species from deer, kept as its own canonical value rather than merged into "game" or "deer" —
+lumping distinct species would hurt Phase 3 matching precision, not help it), Goose/Gasca,
+Sardine, Cod (identical spelling in both languages).
+
 A title can genuinely name more than one protein ("cu Iepure si Vita" — rabbit AND beef). The
 schema has one `flavour` column, not a list, so multiple matches are joined with "+" in the order
 they appear in the title, deduplicated — information-preserving rather than arbitrarily keeping
@@ -45,6 +56,19 @@ _FLAVOUR_WORDS: tuple[tuple[str, str], ...] = (
     ("ficat", "liver"),
     ("game", "game"),
     ("vanat", "game"),  # "vânat" folds to "vanat"
+    # STEP C additions — each checked against the full in-scope population before adding.
+    ("bizon", "bison"),  # 14 catches, all TASTE OF THE WILD / PRIMORDIAL, all genuine
+    ("macrou", "mackerel"),  # 36 catches, all ACANA/PRIMORDIAL/APPLAWS, all genuine
+    ("sunca", "ham"),  # "șuncă" folds to "sunca" — 77 catches, all genuine
+    ("jambon", "ham"),  # French loanword, 5 catches, same meaning as "sunca" above
+    ("pasare", "poultry"),  # "pasăre" folds to "pasare" — 210 catches, generic bird, kept
+    # distinct from "pui"/chicken (the specific species) rather than merged into it
+    ("caprioara", "deer"),  # "căprioară" folds to "caprioara" — 61 catches
+    ("venison", "deer"),  # EN synonym of "căprioară" — 24 catches, same species as above
+    ("ren", "reindeer"),  # 17 catches — a different species from deer, not merged with it
+    ("gasca", "goose"),  # "gâsca" folds to "gasca" — 23 catches
+    ("sardine", "sardine"),  # 28 catches
+    ("cod", "cod"),  # 142 catches — identical spelling in English and Romanian
 )
 
 _PATTERN = re.compile(r"\b(" + "|".join(re.escape(word) for word, _ in _FLAVOUR_WORDS) + r")\b")

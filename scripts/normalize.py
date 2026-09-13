@@ -42,7 +42,7 @@ from pricepilot.normalize import extract  # noqa: E402
 # (the cache check is purely "does a norm_listings row exist for this content_hash") — recorded
 # per-row so a future session can decide whether a rule change is worth re-running against rows
 # that predate it, per the module docstring above.
-EXTRACTOR_VERSION = "2026-09-13-v2"  # v2: fixed the Julius K-9 dosage-band false positive
+EXTRACTOR_VERSION = "2026-09-13-v3"  # v3: STEP C flavour/food_form table extensions
 
 
 def main(argv: list[str] | None = None) -> int:

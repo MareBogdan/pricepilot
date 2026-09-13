@@ -120,3 +120,34 @@ def test_food_form(title: str, expected: str) -> None:
 
 def test_no_food_form_word_is_none() -> None:
     assert extract_food_form("Jucarie pentru pisici Kong Cat Bila plutitoare") is None
+
+
+# ---------------------------------------------------------------------------
+# STEP C additions — real titles from the in-scope population, each checked against the full
+# population before adding (counts in STATE.md/DECISIONS.md)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("BRIT Jerky Salmon Protein Bar, recompense caini, Batoane proteice Somon, 80g", "dry"),
+        ("Brit Pate and Meat Rabbit 800 g", "wet"),
+        ("Miamor Ragout Royale Cat Pui 100g", "wet"),
+        ("INABA Churu Dog, Pui, recompense lichide fara cereale caini, topping cremos, 14g", "wet"),
+        (
+            "INABA Churu Varieties, Ton, galetusa, tub recompense fara cereale pisici, (piure), 700g",
+            "wet",
+        ),
+        ("Wellness Core Cat Tender Cuts Pui si Curcan, in Sos, 85 g", "wet"),
+    ],
+)
+def test_step_c_new_food_form_words(title: str, expected: str) -> None:
+    assert extract_food_form(title) == expected
+
+
+def test_cutie_was_checked_and_deliberately_not_added() -> None:
+    """Real samples showed "cutie" (box) packaging both dry treats and wet toppers with no
+    reliable way to tell which from the word alone — mapping it to any category would have been
+    a guess, not a finding, so it stays unrecognized."""
+    assert extract_food_form("PETKULT Hypoallergenic Dental Stix, cutie recompense caini") is None

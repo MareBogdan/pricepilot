@@ -89,7 +89,17 @@ def extract_life_stage(title: str) -> str | None:
 # values, not "wet" ⊃ "pouch"), so a title naming both a packaging word and the generic
 # "umeda"/wet ("...plic hrana umeda pisici...") must resolve to the packaging word regardless of
 # which one it happens to write first.
-_SPECIFIC_FORM = re.compile(r"\b(conserv[aă]|plic(?:uri)?)\b")
+#
+# STEP C (this session): six more words folded into this same specific tier, each checked
+# against the full in-scope population before adding (counts in STATE.md/DECISIONS.md) — "jerky"
+# (dry by definition — dried meat), "pate"/"ragout"/"cremoasa"/"cremos"/"tub"/"sos" (all wet —
+# pâté, ragout, a creamy topping, a squeezable tube, and "in sauce" are all liquid/moist
+# preparations). "cutie" (box) was checked too and dropped — real samples showed it packaging
+# both dry treats and wet toppers with no reliable way to tell which from the word alone, so
+# mapping it to any single category would have been a guess, not a finding.
+_SPECIFIC_FORM = re.compile(
+    r"\b(conserv[aă]|plic(?:uri)?|jerky|pate|ragout|cremo(?:asa|s)|tub|sos)\b"
+)
 _GENERIC_FORM = re.compile(r"\b(uscat[aă]?|umed[aă]?)\b")
 _FOOD_FORM_CANONICAL = {
     "uscata": "dry",
@@ -99,6 +109,13 @@ _FOOD_FORM_CANONICAL = {
     "conserva": "tin",
     "plic": "pouch",
     "plicuri": "pouch",
+    "jerky": "dry",
+    "pate": "wet",
+    "ragout": "wet",
+    "cremoasa": "wet",
+    "cremos": "wet",
+    "tub": "wet",
+    "sos": "wet",
 }
 
 
