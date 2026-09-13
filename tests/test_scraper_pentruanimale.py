@@ -77,7 +77,14 @@ def test_multi_variant_product_expands_to_three_distinct_prices(parsed) -> None:
     assert eight_kg.title == "ROYAL CANIN Mini Adult, hrană uscată câini, 8kg"
     assert eight_kg.price == Decimal("190.68")
     assert eight_kg.compare_at_price == Decimal("228.99")
-    assert eight_kg.raw_payload == {"ean": "3182551055757"}
+    # ADR-0025: category_id/categories are captured now (forward-only, not backfillable) but
+    # this fixture's synthetic product node never sets `categoryId`/`categories`, so both are
+    # None here — see test_captures_vtex_category_fields_when_present below for a node that does.
+    assert eight_kg.raw_payload == {
+        "ean": "3182551055757",
+        "category_id": None,
+        "categories": None,
+    }
 
 
 def test_single_variant_product_is_one_listing_with_no_compare_at(parsed) -> None:
@@ -171,6 +178,38 @@ def _sku_state(
         seller_key: {"commertialOffer": {"type": "id", "id": offer_key, "typename": "Offer"}},
         offer_key: {"Price": price, "ListPrice": list_price, "AvailableQuantity": qty},
     }
+
+
+def test_captures_vtex_category_fields_when_present() -> None:
+    """ADR-0025 (A4): `categoryId` and `categories` (a typed-JSON breadcrumb wrapper) exist on
+    every real VTEX Product node (confirmed live, 2026-09-13) but were never captured before —
+    forward-only from here, not backfillable. `categories` arrives as
+    `{"type": "json", "json": [...]}`, not a plain list."""
+    state = _sku_state("77", "Test Product 1kg", 50.0, 50.0, 5)
+    state["Product:sp-x-none"]["categoryId"] = "10101"
+    state["Product:sp-x-none"]["categories"] = {
+        "type": "json",
+        "json": ["/Caini/Hrana Caini/Hrana Uscata/", "/Caini/Hrana Caini/", "/Caini/"],
+    }
+    html = _state_html(state)
+    listings, errors = PentruAnimaleScraper().parse(html, PAGE_URL)
+    assert errors == []
+    assert listings[0].raw_payload == {
+        "ean": "123",
+        "category_id": "10101",
+        "categories": ["/Caini/Hrana Caini/Hrana Uscata/", "/Caini/Hrana Caini/", "/Caini/"],
+    }
+
+
+def test_malformed_categories_field_is_ignored_not_raised() -> None:
+    """A `categories` field that isn't the expected typed-JSON wrapper shape (or is absent)
+    must never break parsing — this is a forward-looking capture, not a required field."""
+    state = _sku_state("78", "Test Product 2kg", 50.0, 50.0, 5)
+    state["Product:sp-x-none"]["categories"] = ["not", "the", "expected", "shape"]
+    html = _state_html(state)
+    listings, errors = PentruAnimaleScraper().parse(html, PAGE_URL)
+    assert errors == []
+    assert listings[0].raw_payload["categories"] is None
 
 
 def test_one_broken_product_does_not_lose_the_page() -> None:

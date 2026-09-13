@@ -113,6 +113,20 @@ def _deref(state: dict[str, Any], ref: object, what: str) -> dict[str, Any]:
     return target
 
 
+def _category_breadcrumbs(raw: object) -> list[str] | None:
+    """VTEX's `categories` field on a Product node, e.g.
+    `{"type": "json", "json": ["/Caini/Hrana Caini/Hrana Uscata/", "/Caini/Hrana Caini/",
+    "/Caini/"]}` — a typed-JSON wrapper, not a plain list. Returns the breadcrumb list itself,
+    or `None` if the field is absent or not in this shape (never raises: this is captured for
+    future reference, ADR-0025, not relied on for anything today)."""
+    if not isinstance(raw, dict):
+        return None
+    breadcrumbs = raw.get("json")
+    if not isinstance(breadcrumbs, list) or not all(isinstance(b, str) for b in breadcrumbs):
+        return None
+    return breadcrumbs
+
+
 def _items_key(product: dict[str, Any]) -> str | None:
     """The SKU-list key is `items({"filter":"ALL_AVAILABLE"})` — found by prefix rather than an
     exact literal, so incidental key-ordering differences in the query string do not matter."""
@@ -205,6 +219,13 @@ class PentruAnimaleScraper:
             return [], errors, 0
         url = f"{BASE_URL}{link}"
 
+        # ADR-0025 (A4): captured from now on for future normalization/regulated-detection work,
+        # not consulted for filtering here — the 2026-09-13/14 diagnostic found this field exists
+        # in VTEX's own response but had never been captured, so pentruanimale has zero
+        # historical visibility on it (STATE.md). Forward-only; not backfillable.
+        category_id = product.get("categoryId")
+        categories = _category_breadcrumbs(product.get("categories"))
+
         items_key = _items_key(product)
         if items_key is None:
             errors.append(f"{page_url} product {product_id or '?'}: no items(...) key")
@@ -212,7 +233,7 @@ class PentruAnimaleScraper:
 
         for sku_ref in product.get(items_key) or []:
             try:
-                listing = self._parse_sku(state, sku_ref, url, brand)
+                listing = self._parse_sku(state, sku_ref, url, brand, category_id, categories)
             except PentruAnimaleParseError as exc:
                 errors.append(f"{page_url} product {product_id or '?'}: {exc}")
                 continue
@@ -224,7 +245,13 @@ class PentruAnimaleScraper:
         return listings, errors, skipped
 
     def _parse_sku(
-        self, state: dict[str, Any], sku_ref: object, url: str, brand: str | None
+        self,
+        state: dict[str, Any],
+        sku_ref: object,
+        url: str,
+        brand: str | None,
+        category_id: object,
+        categories: list[str] | None,
     ) -> Listing | None:
         """One SKU node -> one `Listing`, or `None` if it is a regulated product."""
         sku = _deref(state, sku_ref, "sku")
@@ -269,7 +296,11 @@ class PentruAnimaleScraper:
             currency="RON",
             compare_at_price=compare_at,
             in_stock=in_stock,
-            raw_payload={"ean": sku.get("ean")},
+            raw_payload={
+                "ean": sku.get("ean"),
+                "category_id": category_id,
+                "categories": categories,
+            },
         )
 
     # -- __STATE__ extraction -------------------------------------------------
