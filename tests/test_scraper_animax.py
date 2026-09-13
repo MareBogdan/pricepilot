@@ -304,6 +304,104 @@ def test_regulated_product_is_skipped_and_counted() -> None:
     assert raw_count == 1
 
 
+def test_product_type_diete_veterinare_is_regulated_even_with_a_clean_title() -> None:
+    """ADR-0025 (A4): the shop's own `product_type` classification is a second, independent
+    signal — real animax data has "Hill's PD Metabolic" filed under product_type "Diete
+    veterinare pentru caini" with no title token to catch it. The title check alone must not
+    be the only line of defence."""
+    body = json.dumps(
+        {
+            "products": [
+                {
+                    "id": 1,
+                    "title": "Hill's PD Metabolic 1.5kg",
+                    "handle": "hills-pd-metabolic",
+                    "vendor": "Hill's",
+                    "product_type": "Diete veterinare pentru caini",
+                    "variants": [
+                        {
+                            "id": 10,
+                            "title": "Default Title",
+                            "sku": "s1",
+                            "price": "90.00",
+                            "compare_at_price": None,
+                            "grams": 1500,
+                            "available": True,
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    listings, errors, skipped, raw_count = AnimaxScraper().parse_page(body, PAGE_URL)
+    assert listings == []
+    assert errors == []
+    assert skipped == 1
+    assert raw_count == 1
+
+
+def test_product_type_check_does_not_replace_the_title_check() -> None:
+    """The reverse real case: "ADVANCE VD Gastroenteric" carries a plain food product_type but
+    a title that matches " vd " — must still be caught."""
+    body = json.dumps(
+        {
+            "products": [
+                {
+                    "id": 2,
+                    "title": "ADVANCE VD Gastroenteric, pt caini cu probleme gastrointestinale",
+                    "handle": "advance-vd-gastroenteric",
+                    "vendor": "Advance",
+                    "product_type": "Hrana uscata pentru caini",
+                    "variants": [
+                        {
+                            "id": 20,
+                            "title": "Default Title",
+                            "sku": "s2",
+                            "price": "120.00",
+                            "compare_at_price": None,
+                            "grams": 12000,
+                            "available": True,
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    listings, _errors, skipped, _raw_count = AnimaxScraper().parse_page(body, PAGE_URL)
+    assert listings == []
+    assert skipped == 1
+
+
+def test_ordinary_product_type_is_not_regulated() -> None:
+    body = json.dumps(
+        {
+            "products": [
+                {
+                    "id": 3,
+                    "title": "Royal Canin Urinary Care 400 g",
+                    "handle": "royal-canin-urinary-care",
+                    "vendor": "Royal Canin",
+                    "product_type": "Hrana umeda pentru pisici",
+                    "variants": [
+                        {
+                            "id": 30,
+                            "title": "Default Title",
+                            "sku": "s3",
+                            "price": "20.00",
+                            "compare_at_price": None,
+                            "grams": 400,
+                            "available": True,
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    listings, _errors, skipped, _raw_count = AnimaxScraper().parse_page(body, PAGE_URL)
+    assert len(listings) == 1
+    assert skipped == 0
+
+
 def test_no_regulated_categories_in_the_default_set() -> None:
     scraper = AnimaxScraper()
     for category in scraper.categories:

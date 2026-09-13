@@ -183,6 +183,17 @@ class AnimaxScraper:
         brand = vendor if isinstance(vendor, str) and vendor else None
         multi_variant = len(variants) > 1
 
+        # ADR-0025 (A4): a second, independent regulated-product signal alongside the title
+        # check — animax's *own* classification. Checked once per product, not per title, since
+        # `product_type` is a product-level field. Neither signal subsumes the other: the
+        # 2026-09-13/14 diagnostic found "ADVANCE VD Gastroenteric" (title-flagged, but
+        # `product_type` says plain "Hrana uscata pentru caini") and "Hill's PD Metabolic"
+        # (product_type says "Diete veterinare pentru caini", but no title token catches "PD").
+        product_type = product.get("product_type")
+        product_type_regulated = isinstance(product_type, str) and (
+            "diete veterinare" in product_type.lower()
+        )
+
         listings: list[Listing] = []
         skipped = 0
         for variant in variants:
@@ -200,7 +211,7 @@ class AnimaxScraper:
                 else f"{base_title} - {variant_title}"
             )
 
-            if is_regulated(title):
+            if is_regulated(title) or product_type_regulated:
                 skipped += 1
                 continue
 
