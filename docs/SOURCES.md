@@ -417,6 +417,35 @@ page:
 | jucarii-pisici | 107 |
 | **Total** | **2,551** |
 
+**2,551 (this table) vs. 2,550 (ingested, `scrape_runs`/`raw_listings`/STATE.md): the two numbers
+measure different things, confirmed 2026-09-13, not a bug.** This table sums each category's own
+product count, and one product is genuinely a member of *two* of the ten categories: "Hrana umeda
+pentru caini si pisici Brit Grain Free VD Recovery 400g" (variant id `47783183057234`) is food
+marketed for both species, listed under both `hrana-umeda-caini` and `hrana-umeda-pisici`. Summing
+per-category counts counts it twice (contributing to 2,551); the runner's `seen` set dedupes by
+`external_id` (the variant id) within one run, so it is ingested once — hence 2,550 distinct rows
+actually land in `raw_listings`. Verified by re-fetching all ten categories' full variant-id lists
+live and diffing against the ingested `external_id` set: 2,550 distinct ids on both sides, zero
+missing, zero extra, with the one variant id appearing under exactly two category fetches. The
+live catalog itself was also re-measured at exactly 2,551 (identical per-category counts to this
+table) both before and after the real run — so this is not catalogue churn between two points in
+time, it is the same double-count every time this table's method is used. **This table's "Total"
+row is a sum of category memberships, not a count of distinct products** — 2,550 is the correct
+distinct-product number and the one that matters everywhere else in this repo.
+
+**Same investigation surfaced a separate, more important finding, not yet acted on:** ingested
+animax listings include a `product_type` of "Diete veterinare pentru caini" (46), "... pentru
+pisici" (61), and "... pentru caini si pisici" (1) — 108 listings total, one of them the same
+Brit VD Recovery product above. "VD" in that title is short for *veterinary diet*. CLAUDE.md §7
+excludes veterinary/prescription diets from scope, and `is_regulated()` is the enforcement
+mechanism — but it matches on title substrings ("veterinary diet", "dieta veterinara", "vet diet",
+etc.), and none of these titles contain those substrings ("VD Recovery" reads as a product-line
+name, not a flagged phrase). These products are in the ten selected categories legitimately from
+animax's own collection structure (a "Diete veterinare" product cross-listed into the general food
+collections), not from a category-selection mistake. **Not fixed this session** — extending
+`is_regulated()`'s vocabulary is a scope/logic change outside this session's three-step brief, and
+is flagged in STATE.md's Open issues for a decision.
+
 **`recompense-caini` vs `snack-caini`, and `recompense-snacks-pisici` vs `snackuri-pisici`:**
 animax also has narrower "snack" collections that looked like a second, distinct treats category.
 Checked directly by comparing product-id sets: `snack-caini`'s 230 products are a 98% subset of
