@@ -510,3 +510,40 @@ old 94 figure, which is now known to be wrong by more than an order of magnitude
 genuine market signal.
 
 **Date.** 2026-09-13
+
+## ADR-0024 — animax.ro adapter: Shopify (not Magento), read via `products.json`
+
+**Context.** CLAUDE.md §7's plan-stage note guessed animax.ro was Magento. Live recon
+(`docs/SOURCES.md`) found `robots.txt` opens with `# Shopify storefront.` and the sitemap has
+Shopify's standard shape — the plan's guess was wrong, caught before any code was written against
+the wrong platform's assumptions. Every Shopify storefront also exposes
+`/collections/<handle>/products.json`, a standard public part of the storefront theme (not a
+private/reverse-engineered API), returning structured per-variant data (`vendor`, `sku`, `price`,
+`compare_at_price`, `grams`, `available`, a stable numeric `id`) at roughly 1/58th the bandwidth of
+the equivalent HTML collection page (~150 KB vs ~8.7 MB for the same 250 products, because the
+HTML duplicates full facet/quick-add JSON inline per card).
+
+**Decision.** The adapter reads `products.json`, not scraped HTML — the same "prefer the
+structured source over parsing markup" instinct that led pentruanimale's adapter to read VTEX's
+`__STATE__` JSON blob rather than its rendered HTML. `external_id` is the Shopify **variant** id
+(`variants[].id`) — a platform-internal integer, never derived from title, handle, or URL slug,
+per this morning's identity-stability finding (ADR from the 2026-09-13 diagnostic session) and
+petmax's `-6847` slug-collision counter-example. `raw_payload` carries `sku`, `grams`, and
+`product_type` — `grams` specifically for future reference, not as ground truth: recon found a
+real animax listing (`grams: 500` on a product titled "... 2 kg") where the shop's own structured
+weight field disagrees with its own title text by 4×. The overlap key stays title-only for exactly
+this reason and was not changed.
+
+**Evidence.** 10 categories, 2,551 products, exact-counted by walking `products.json` to its final
+page (`docs/SOURCES.md`). Checked empirically, not assumed: zero of 750+ sampled products carry
+more than one variant — every pack size is its own product, matching petmax's convention rather
+than pentruanimale's grouping — so no variant-expansion logic was needed, though the adapter still
+iterates `variants[]` generically rather than hardcoding "exactly one".
+
+**Rejected.** Scraping the rendered HTML collection page (works, per CLAUDE.md §5's "prices in
+the raw response" test, but ~58× the bandwidth for identical data, and requires class-based markup
+parsing the JSON endpoint makes unnecessary). Treating `grams` as the net-weight source of truth
+for future Phase 2 work (the 500g-vs-2kg disagreement found in recon rules this out; title-text
+parsing remains authoritative, consistent with the existing key).
+
+**Date.** 2026-09-13

@@ -4,9 +4,10 @@ One entry per competitor shop. **No adapter is written until its row here is fil
 (CLAUDE.md §7 Phase 1): fetch one page with `curl`, confirm titles and prices are present in the
 raw response rather than injected by JS, read `robots.txt`, note the crawl-delay.
 
-> **Status: `petmax.ro` verified 2026-09-12; `pentruanimale.ro` verified 2026-09-12.** Their rows
-> below and the detailed sections that follow are measurements, not restatements of CLAUDE.md.
-> Every other row is still unverified, and the columns marked *unverified* are not claims.
+> **Status: `petmax.ro` verified 2026-09-12; `pentruanimale.ro` verified 2026-09-12; `animax.ro`
+> verified 2026-09-13.** Their rows below and the detailed sections that follow are measurements,
+> not restatements of CLAUDE.md. Every other row is still unverified, and the columns marked
+> *unverified* are not claims.
 >
 > Per DECISIONS.md ADR-0010, `petmax.ro` goes on a daily schedule before the next adapter is
 > written, because price history is wall-clock and cannot be backfilled.
@@ -17,7 +18,7 @@ raw response rather than injected by JS, read `robots.txt`, note the crawl-delay
 |---|---|---|---|---|---|---|
 | petmax.ro | Gomag | **yes, verified** | **yes, 2026-09-12** | **none declared for `*`** | Prices in a `data-Gomag` JSON attribute: current *and* pre-discount. One row per size, no variant grouping. Pagination `?p=N`. **Anchor source.** | **implemented, on daily schedule** |
 | pentruanimale.ro | **VTEX** | **yes, verified** | **yes, 2026-09-12** | **none declared for `*`** | Prices in a `<template data-varname="__STATE__">` JSON blob (VTEX's server-rendered Apollo cache) — current *and* list price, per SKU. **Groups variants** under one product; expansion needs no extra request, every SKU's price is already in the same blob. Pagination `?page=N`, one-based. | **implemented, on daily schedule** |
-| animax.ro | Magento | per CLAUDE.md: yes | unverified | unverified | Indexed product pages carry full titles including weight. | not started |
+| animax.ro | **Shopify** (plan-stage guess of "Magento" was wrong — see recon below) | **yes, verified** | **yes, 2026-09-13** | **none declared for `*`** | Standard Shopify `/collections/<handle>/products.json` — structured JSON, not scraped HTML. One purchasable pack size per product (no variant grouping), same convention as petmax. | **implemented, offline-tested** |
 | magazindeanimale.ro | unknown | unverified | unverified | unverified | Same catalogue as zoopoint, different title conventions; diacritics present. | not started |
 | zoopoint.ro | unknown | unverified | unverified | unverified | **No weight in title** — size is a separate variant. | not started |
 | zoomalia.ro | unknown | unverified | unverified | unverified | Weight-first title grammar, appends price-per-kg. Audit before implementing. | candidate |
@@ -356,6 +357,125 @@ crawl) — a real option, not attempted this session; flagged for whoever next t
 ### Cost
 
 **$0.** Self-hosted `httpx` + `selectolax`/`json`, no proxies, no paid services.
+
+## animax.ro — verified recon (2026-09-13)
+
+Fetched with `curl -sL --compressed` and the `SCRAPER_USER_AGENT` from `.env`, plus a small
+Python recon script (not committed — scratch only) for the per-category volume walk. Every
+number below is from a real fetch shown or reproducible the same way.
+
+### Platform: Shopify — the plan's "Magento" guess was wrong
+
+`robots.txt` opens with `# Shopify storefront.` and names a UCP/MCP agentic-commerce endpoint
+(`https://animax.ro/api/ucp/mcp`) plus `shop.app/SKILL.md` — modern Shopify boilerplate aimed at
+AI shopping agents, irrelevant to us since we only read public catalogue JSON and never touch
+cart/checkout. `sitemap.xml` is Shopify's standard sitemap-index shape
+(`sitemap_products_N.xml`, `sitemap_collections_1.xml`, etc.), confirming the platform
+independently of `robots.txt`'s own header comment.
+
+### robots.txt
+
+`https://animax.ro/robots.txt` → HTTP 200, 1093 bytes, fetched verbatim into
+`tests/fixtures/animax_ro/robots.txt`. `Allow: /` broadly; disallows are cart/checkout/account/
+admin/internal-AJAX and crawl-trap query patterns (`sort_by`, `+`/`%2B` in collection URLs,
+double-`filter`). Nothing disallows `/collections/<handle>/products.json` or its query string.
+No `Crawl-delay` declared for `User-agent: *` — the configured 2–4s floor applies.
+
+### Server-rendered? Yes — and there's a cheaper structured source than HTML
+
+`https://animax.ro/collections/hrana-uscata-caini` returns full product data in the raw HTML
+(price classes present: `price-item--sale`, `price-item--regular-price`), so it would pass
+CLAUDE.md §5's "prices in the raw response" test. But every Shopify storefront also exposes
+`/collections/<handle>/products.json` — a standard, public, unauthenticated part of the storefront
+theme itself (not a private/reverse-engineered API) — returning the same data as structured JSON:
+`vendor` (clean brand field), `product_type`, and per-`variants[]` `id`, `sku`, `price`,
+`compare_at_price`, `grams`, `available`. The adapter reads this instead of HTML. Bandwidth
+comparison, same 250 products: **the HTML collection page is ~8.7 MB decompressed** (full
+facet/quick-add JSON duplicated inline for every card); **the JSON endpoint for the same 250 is
+~150 KB** — roughly 58× lighter, for both us and the shop.
+
+### Category discovery and volumes
+
+Categories came from `sitemap_collections_1.xml` (470 collections total — most are promo/
+Black-Friday/brand-specific duplicates, not a real category tree). Ten were selected: the
+food/treats/hygiene/toy categories for dogs and cats, mirroring petmax's 13-category scope minus
+categories that don't exist as a clean umbrella here. Volume is an **exact count**, not an
+estimate — each category's `products.json?limit=250&page=N` was walked to its final (< 250-item)
+page:
+
+| Category (handle) | Products |
+|---|---|
+| hrana-uscata-caini | 507 |
+| hrana-umeda-caini | 337 |
+| recompense-caini | 369 |
+| igiena-si-ingrijire-caini | 53 |
+| jucarii-caini | 81 |
+| hrana-uscata-pisici | 367 |
+| hrana-umeda-pisici | 537 |
+| recompense-snacks-pisici | 128 |
+| asternut-litiera-pisici | 65 |
+| jucarii-pisici | 107 |
+| **Total** | **2,551** |
+
+**`recompense-caini` vs `snack-caini`, and `recompense-snacks-pisici` vs `snackuri-pisici`:**
+animax also has narrower "snack" collections that looked like a second, distinct treats category.
+Checked directly by comparing product-id sets: `snack-caini`'s 230 products are a 98% subset of
+`recompense-caini`'s 369, and `snackuri-pisici`'s 108 are a 99% subset of
+`recompense-snacks-pisici`'s 128. Using only the larger umbrella collection avoids nearly-all-
+wasted duplicate requests (the runner's `seen` dedup would silently absorb the overlap anyway, but
+there is no reason to fetch it twice).
+
+Categories deliberately excluded as regulated, per CLAUDE.md §7: `deparazitare-caini`,
+`deparazitare-pisici` (antiparasitics) were visible in the collection list and never added to
+the adapter's category set. `is_regulated()` (shared with `petmax.py`, unchanged) is the second
+line of defence for a stray regulated item mis-filed elsewhere.
+
+### Structural finding: no grouped variants (unlike pentruanimale)
+
+Checked empirically, not assumed: across 750+ products sampled from three categories
+(`hrana-uscata-caini`'s full 507, plus `jucarii-caini`), **zero** products had more than one
+Shopify variant. Every purchasable pack size is its own separate product — the same convention
+petmax uses, not pentruanimale's VTEX-style grouping. The adapter still iterates
+`product["variants"]` generically rather than hardcoding "exactly one", in case this doesn't hold
+catalogue-wide.
+
+### Traps found in real data
+
+- **Decimal point vs comma, same shop, same product line:** "Orijen Junior Talie Mare **11.4 kg**"
+  vs "ORIJEN Regional Red, **11,4 kg**" — both real animax listings, both `grams: 11400`.
+- **Full Romanian diacritics vs none, same shop:** Purina's titles ("hrană uscată pentru câini")
+  carry ă/â/î throughout; most other vendors' titles here are plain ASCII ("Hrana uscata pentru
+  caini"). Not just a cross-shop inconsistency — animax is inconsistent with itself.
+- **The structured `grams` field cannot be trusted as ground truth.** "Royal Canin Adult 8+ Mini
+  **2 kg**" carries `grams: 500` — the shop's own shipping-weight field disagrees with its own
+  title text by 4×. This is the concrete reason the overlap key (untouched this session) parses
+  weight from title text rather than from a shop-supplied structured field — a lesson that would
+  otherwise have stayed theoretical.
+- **Age-band and breed-size codes that look like bonus packs but aren't:** "Adult **8+** Mini",
+  "Mini **12+** Ageing", "Senior **L+XL**", "Senior **S+M**". None of these are a bonus-weight
+  promotion (CLAUDE.md §7's "12+2 kg" pattern) — they are age thresholds and breed-size bands. A
+  naive `+`-based bonus-pack detector would misfire on all of them; the shared logic doesn't do
+  that (it looks for a weight unit on both sides of the `+`).
+- **A title with no digit at all.** "PEDIGREE ... Adult Talie Medie/Mare, cu Vita/Legume" states
+  no weight anywhere in visible text; `grams: 3000` exists only in the structured field. Correctly
+  unkeyable by the current title-only key — the same "no weight in the title" bucket `make status`
+  already reports for petmax/pentruanimale, not a new failure mode.
+- **`compare_at_price` equal to `price`.** Seen on the Royal Canin 8+ Mini row — both `"104.99"`.
+  Not a real discount; the adapter applies the same guard petmax already uses
+  (`compare_at_price` counts only when it is genuinely *above* `price`).
+
+### Volume vs request cost
+
+Ten categories, 2,551 products at ≤250 per JSON request → **at most ~13 requests for a full daily
+run** (most categories fit in one page; only three exceed 250 and need a second). At the
+configured 2–4s floor, a full run is on the order of a minute of wall clock, plus regulated-
+filtering and Pydantic validation — far lighter than petmax's ~208 or pentruanimale's ~257 page
+fetches, because the JSON endpoint's page size (250) is much larger than either shop's HTML page
+size.
+
+### Cost
+
+**$0.** Self-hosted `httpx` + `json`, no proxies, no paid services, no headless browser.
 
 ## Excluded
 

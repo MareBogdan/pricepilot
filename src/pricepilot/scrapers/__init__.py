@@ -9,17 +9,20 @@ Each adapter joins it when it is finished — one source at a time, on a schedul
 at once (DECISIONS.md ADR-0010).
 """
 
+from pricepilot.scrapers.animax import AnimaxScraper
 from pricepilot.scrapers.base import Listing, Scraper, ScrapeResult
 from pricepilot.scrapers.pentruanimale import PentruAnimaleScraper
 from pricepilot.scrapers.petmax import PetmaxScraper
 
-SCRAPERS: dict[str, type[PetmaxScraper] | type[PentruAnimaleScraper]] = {
+SCRAPERS: dict[str, type[PetmaxScraper] | type[PentruAnimaleScraper] | type[AnimaxScraper]] = {
     PetmaxScraper.name: PetmaxScraper,
     PentruAnimaleScraper.name: PentruAnimaleScraper,
+    AnimaxScraper.name: AnimaxScraper,
 }
 
 __all__ = [
     "SCRAPERS",
+    "AnimaxScraper",
     "Listing",
     "PentruAnimaleScraper",
     "PetmaxScraper",

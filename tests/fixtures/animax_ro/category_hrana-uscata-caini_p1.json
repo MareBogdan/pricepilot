@@ -1,0 +1,130 @@
+{
+  "products": [
+    {
+      "id": 7886304837852,
+      "title": "Hrana uscata pentru caini Royal Canin Mini Adult 8 kg",
+      "handle": "hrana-uscata-pentru-caini-royal-canin-mini-adult-8-kg",
+      "vendor": "Royal Canin",
+      "product_type": "Hrana uscata pentru caini",
+      "variants": [
+        {
+          "id": 43522724200668,
+          "title": "Default Title",
+          "sku": "203211",
+          "price": "232.80",
+          "compare_at_price": null,
+          "grams": 8000,
+          "available": false
+        }
+      ]
+    },
+    {
+      "id": 7886387937500,
+      "title": "Hrana uscata pentru caini Orijen Junior Talie Mare 11.4 kg",
+      "handle": "hrana-uscata-pentru-caini-orijen-junior-talie-mare-11-4-kg",
+      "vendor": "Orijen",
+      "product_type": "Hrana uscata pentru caini",
+      "variants": [
+        {
+          "id": 43522887876828,
+          "title": "Default Title",
+          "sku": "211285",
+          "price": "482.49",
+          "compare_at_price": null,
+          "grams": 11400,
+          "available": true
+        }
+      ]
+    },
+    {
+      "id": 15927073341813,
+      "title": "ORIJEN Regional Red, 11,4 kg",
+      "handle": "orijen-regional-red-11-4-kg",
+      "vendor": "Orijen",
+      "product_type": "Hrana uscata pentru caini",
+      "variants": [
+        {
+          "id": 57360330588533,
+          "title": "Default Title",
+          "sku": "1200334",
+          "price": "569.99",
+          "compare_at_price": null,
+          "grams": 11400,
+          "available": true
+        }
+      ]
+    },
+    {
+      "id": 7887512830172,
+      "title": "PURINA® PRO PLAN® SENSITIVE SKIN Adult, bogat în somon, talie medie, hrană uscată pentru câini, 3kg",
+      "handle": "hrana-uscata-pentru-caini-pro-plan-medium-adult-sensitive-skin-somon-3kg",
+      "vendor": "Purina",
+      "product_type": "Hrana uscata pentru caini",
+      "variants": [
+        {
+          "id": 43525424546012,
+          "title": "Default Title",
+          "sku": "225904",
+          "price": "134.99",
+          "compare_at_price": null,
+          "grams": 3000,
+          "available": true
+        }
+      ]
+    },
+    {
+      "id": 15927071244661,
+      "title": "PEDIGREE Hrana uscata pentru caini Adult Talie Medie/Mare, cu Vita/Legume",
+      "handle": "pedigree-hrana-uscata-pentru-caini-adult-talie-medie-mare-cu-vita-legume-1",
+      "vendor": "Pedigree",
+      "product_type": "Hrana uscata pentru caini",
+      "variants": [
+        {
+          "id": 57360327868789,
+          "title": "Default Title",
+          "sku": "295164",
+          "price": "229.99",
+          "compare_at_price": null,
+          "grams": 3000,
+          "available": true
+        }
+      ]
+    },
+    {
+      "id": 7887270805724,
+      "title": "Hrana uscata pentru caini Royal Canin Adult 8+ Mini 2 kg",
+      "handle": "hrana-uscata-pentru-caini-royal-canin-adult-8-mini-2-kg",
+      "vendor": "Royal Canin",
+      "product_type": "Hrana uscata pentru caini",
+      "variants": [
+        {
+          "id": 43525008720092,
+          "title": "Default Title",
+          "sku": "224762",
+          "price": "104.99",
+          "compare_at_price": "104.99",
+          "grams": 500,
+          "available": true
+        }
+      ]
+    },
+    {
+      "id": 8700604252498,
+      "title": "Hrana uscata pentru caini Brit Premium Senior L+XL Pui 15kg",
+      "handle": "hrana-uscata-pentru-caini-brit-premium-senior-l-xl-pui-15kg",
+      "vendor": "Brit Premium",
+      "product_type": "Hrana uscata pentru caini",
+      "variants": [
+        {
+          "id": 47520196985170,
+          "title": "Default Title",
+          "sku": "192028",
+          "price": "144.90",
+          "compare_at_price": "188.49",
+          "grams": 15000,
+          "available": true
+        }
+      ]
+    }
+  ]
+}
