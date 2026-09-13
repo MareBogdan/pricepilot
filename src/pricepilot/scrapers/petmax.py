@@ -87,6 +87,17 @@ DEFAULT_CATEGORIES: tuple[str, ...] = (
 # VD". "dietetic"/"dietetica" was tested too and dropped — every hit was already caught by " vd "
 # (fully redundant in this data) and Romanian retail marketing uses "dietetic" loosely for
 # ordinary weight-control food, a real false-positive risk with no offsetting benefit shown.
+#
+# " pd " (Hill's Prescription Diet) added 2026-09-13 (Phase 2 session, date verified against the
+# system clock): checked individually against all 18,703
+# stored titles, same discipline as " vd "/" vhn " — 8 matches, all genuine ("Hill's PD Afectiuni
+# hepatice L/D", "Hill's PD Metabolic", "Hill's PD Digestive Care I/D", "Hill's PD Low Fat I/D",
+# "Hill's PD Urinary Care C/D", "Hill's PD Gastrointestinal Biome", "Hill's PD Stress C/D",
+# "Hill's PD Boli Renale K/D"), zero false positives. All 8 were already quarantined via animax's
+# `product_type` signal, so this token catches zero *new* rows today — it is defense-in-depth for
+# petmax and pentruanimale, neither of which exposes a structured signal, and for any future
+# animax row `product_type` misses. Deliberately checked before adding despite being shorter and
+# more collision-prone than "VD"/"VHN" (STATE.md flagged this risk explicitly) — verified clean.
 REGULATED_TITLE_TOKENS: tuple[str, ...] = (
     "antiparazitar",
     "deparazitare",
@@ -103,6 +114,7 @@ REGULATED_TITLE_TOKENS: tuple[str, ...] = (
     "antiinflamator",
     " vd ",
     " vhn ",
+    " pd ",
     "hidrolizat",
     "hydrolyzed",
 )

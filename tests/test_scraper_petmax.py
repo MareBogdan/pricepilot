@@ -205,6 +205,20 @@ def test_adr_0025_line_code_and_folded_tokens_are_regulated(title: str) -> None:
 @pytest.mark.parametrize(
     "title",
     [
+        "Hrana uscata pentru caini Hill's PD Afectiuni hepatice L/D 1.5kg",
+        "Hrana uscata pentru caini Hill's PD Metabolic 1.5kg",
+        "Hrana umeda pentru pisici Hill's PD Boli Renale K/D Pui 85g",
+    ],
+)
+def test_pd_token_is_regulated(title: str) -> None:
+    """ " pd " (Hill's Prescription Diet) added 2026-09-13 — verified against all 18,703 stored
+    titles before adding, per-token, same discipline as " vd "/" vhn " (ADR-0025)."""
+    assert is_regulated(title)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
         "Royal Canin Urinary Care, 10 kg",
         "Hill's SP Canine Adult Healthy Mobility Small and Mini Chicken 1.5 kg",
         "Sanabelle Urinary 10 kg",
@@ -228,6 +242,7 @@ def test_adr_0025_regulated_match_names_the_token() -> None:
 
     assert regulated_match("Royal Canin VHN Renal Pui 85g") == " vhn "
     assert regulated_match("Brit Grain Free VD Recovery 400g") == " vd "
+    assert regulated_match("Hill's PD Metabolic 1.5kg") == " pd "
     assert regulated_match("Royal Canin Urinary Care 400 g") is None
 
 
