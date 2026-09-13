@@ -332,7 +332,10 @@ estimate used to make one decision, and a floor is exactly what is needed here. 
 matching model to compute it.
 
 If the count cannot reach **400**, **add a source before leaving Phase 1** — not later. That is the
-whole point of measuring it now.
+whole point of measuring it now. (2026-09-13, ADR-0023: the proxy key's own recall measured at
+~8% — too low to decide this on its own. The gate decision is now made from a hand-verified random
+sample instead; the proxy key stays a daily floor indicator, not the gate measurement. Threshold
+unchanged.)
 
 `make status` reports the overlap count from day one, alongside listings per source, so the number
 is visible as it grows rather than discovered at the gate.
@@ -340,7 +343,12 @@ is visible as it grows rather than discovered at the gate.
 **Gate:**
 - ≥3,000 in-scope listings from ≥3 sources, at least one of them non-Shopify
 - ≥7 consecutive days of history
-- **≥400 products appearing on two or more shops**, by the proxy key above, reported by `make status`
+- **≥400 products appearing on two or more shops** — the threshold, unchanged. Measured by the
+  proxy key above only as a first pass; the proxy key's own recall runs low enough (~8%, ADR-0023)
+  that it cannot decide this alone. The gate itself is met by a hand-verified random sample of
+  listings (method and evidence in DECISIONS.md ADR-0023), reported alongside the proxy key's own
+  count — which `make status` prints every day as a floor indicator, explicitly labelled as such,
+  never as the gate itself.
 - all adapters tested offline against fixtures
 - `docs/SOURCES.md` complete
 
@@ -468,7 +476,9 @@ Written incrementally, not at the end. Must contain:
 - A non-ASCII byte in a `.ps1` file (PowerShell 5.1 reads a BOM-less script as ANSI and mis-parses it; `tests/test_powershell_ascii.py` enforces this, ADR-0013)
 - Reporting "recovered the planted elasticity" — or any metric computed against the mock store's
   generator constants — as a result
-- Leaving Phase 1 with cross-shop overlap below 400 instead of adding a source
+- Leaving Phase 1 with the hand-verified overlap estimate (ADR-0023) below 400 instead of adding a
+  source — this refers to the gate measurement, not the proxy key's own daily-floor count, which
+  reads far lower by design and is never itself the gate
 - Starting a paid fine-tuning run before the ~$1–2 smoke run has passed
 - Agreeing with a bad idea because the user proposed it
 
@@ -504,7 +514,7 @@ Updated: 2026-09-20
 - <decisions or manual steps waiting on him>
 ```
 
-**`make status`** — prints the live numbers, queried from the database and the repo, never hand-written: current phase, gate checklist, listings collected per source, **cross-shop overlap count (≥400 is the Phase 1 gate)**, days of price history, annotated pairs, tests passing, spend to date. This is the command he runs when he opens the terminal. Build it in Phase 0 and extend it each phase.
+**`make status`** — prints the live numbers, queried from the database and the repo, never hand-written: current phase, gate checklist, listings collected per source, **the cross-shop overlap gate (≥400, met by the hand-verified sample per ADR-0023 — the proxy key it also prints alongside is a daily floor indicator, not the gate itself)**, days of price history, annotated pairs, tests passing, spend to date. This is the command he runs when he opens the terminal. Build it in Phase 0 and extend it each phase.
 
 **`DECISIONS.md`** — short ADRs, append-only. One entry per architectural choice: context, decision, alternatives rejected, date. Three to six lines each. Future-Bogdan reads this when he cannot remember why something is the way it is, and at interview prep.
 
