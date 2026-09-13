@@ -2,7 +2,7 @@
 
 Phase: 1 — Collection (petmax.ro + pentruanimale.ro + animax.ro, all three on a daily GitHub
 Actions cron). Gate met except the 7-consecutive-days requirement, which just needs time to pass.
-Updated: 2026-09-13
+Updated: 2026-09-14
 
 ## Gate progress
 
@@ -37,25 +37,67 @@ measurement method — hence dropped in favour of dating each actual change.
     (source, external_id, collected_date) groups anywhere in the table (query shown, ADR-0016)
 [x] collection running on a GitHub Actions cron for all three sources —
     `.github/workflows/scrape-petmax.yml` (name kept; the workflow now runs three independent jobs)
-[x] ≥3,000 in-scope listings — **18,700 total** (8,127 petmax_ro + 8,023 pentruanimale_ro +
-    2,550 animax_ro), verified from `scrape_runs` and `raw_listings` on a separate connection.
-    (2,550 is the correct, distinct-product count; `docs/SOURCES.md`'s category table sums to
-    2,551 because one product is a genuine member of two of the ten categories and gets counted
-    twice by a per-category sum — see that doc for the verified diff. Not a bug, not data loss.)
+[x] ≥3,000 in-scope listings — **18,703 total / 18,585 in-scope** (both numbers, always shown
+    together per ADR-0025 — 118 rows quarantined as regulated products, never deleted: 8
+    petmax_ro, 0 pentruanimale_ro, 110 animax_ro). By source, total/in-scope: petmax_ro
+    8,128/8,120, pentruanimale_ro 8,025/8,025, animax_ro 2,550/2,440. Verified from
+    `raw_listings` on a separate connection and from `make status`'s own output.
+    (`docs/SOURCES.md`'s category-volume table sums to 2,551 for animax because one product is a
+    genuine member of two of the ten categories and gets counted twice by a per-category sum —
+    not a bug, see that doc for the verified diff; unrelated to the quarantine above.)
 [x] ≥3,000 in-scope listings from **≥3 sources** — **3 sources, animax.ro added and verified
-    2026-09-13** (ADR-0024): real dispatched run, 2,550 items ingested, 0 errors, verified on a
-    fresh Neon connection. petmax (Gomag) and pentruanimale (VTEX) are both non-Shopify, satisfying
-    CLAUDE.md §7's "at least one non-Shopify" regardless of animax's own platform.
+    2026-09-13** (ADR-0024): real dispatched run, 2,550 items ingested (2,440 in-scope after
+    ADR-0025), 0 errors, verified on a fresh Neon connection. petmax (Gomag) and pentruanimale
+    (VTEX) are both non-Shopify, satisfying CLAUDE.md §7's "at least one non-Shopify" regardless
+    of animax's own platform.
 [ ] ≥7 consecutive days of history — **2 / 7** (2026-09-12 → 2026-09-13, no gap; the scheduled
     cron fired for the first time on 2026-09-13, 5 hours late against its 03:10 UTC trigger)
-[x] **≥400 products on two or more shops — MET by hand-verified sample estimate: point 1,211,
-    95% CI [897, 1,519]** (ADR-0023). The proxy key itself now reports 241 with all three sources
-    live (up from 94 with two) and is a known floor at ~8% measured recall — kept in `make status`
-    as a daily indicator, not as the gate metric. The sample itself (n=50, seed 20260913) covered
-    petmax food listings vs pentruanimale.ro only; see `docs/AUDIT.md`'s 2026-09-13 verification
-    note and ADR-0023 for the full computation and its limitations.
+[x] **≥400 products on two or more shops — MET by hand-verified sample estimate: point 1,214,
+    95% CI [899, 1,522]** (ADR-0023, population corrected by ADR-0025). The proxy key itself now
+    reports 241 with all three sources live (up from 94 with two) and is a known floor at ~8%
+    measured recall — kept in `make status` as a daily indicator, not as the gate metric. The
+    sample itself (n=50, seed 20260913, p̂=0.52 unchanged) covered petmax food listings vs
+    pentruanimale.ro only, projected onto 2,334 keyable in-scope listings (was 2,329 before
+    ADR-0025 removed 4 quarantined rows from that population). Gate holds with the same wide
+    margin — the correction moved the estimate by about 0.3%. See `docs/AUDIT.md`'s 2026-09-13
+    verification note and ADR-0023/ADR-0025 for the full computation and its limitations.
 [x] adapter for animax.ro — **built, tested, deployed 2026-09-13** (ADR-0024)
 [x] all adapters tested offline against fixtures — petmax, pentruanimale and animax all done
+
+## Last done (2026-09-14 session, in order)
+
+1. **Confirmed the petmax toy-category anomaly is dedup working correctly, not a bug** (STEP 0).
+   Live-fetched `jucarii-caini`'s real product ids and checked them against `raw_listings`: all
+   sampled ids were present, but filed under `accesorii-caini` — petmax cross-lists these
+   products under both categories, and the run-wide `seen` set (scoped across the whole run,
+   `accesorii-caini` iterated before `jucarii-caini` in `DEFAULT_CATEGORIES`) correctly captures
+   each product once, under whichever category it's encountered first. No listings missing.
+2. **Tightened `is_regulated()` and closed the veterinary-diet leak found 2026-09-13** (ADR-0025).
+   Diacritic folding (reusing `normalize_title()`) plus five new tokens — `"diete veterinare"`
+   (plural), `" vd "`, `" vhn "`, `"hidrolizat"`, `"hydrolyzed"` — each verified individually
+   against all 18,703 stored titles before being added (table in ADR-0025). `"dietetic"` was
+   tested and dropped: zero net catch beyond `" vd "`, real false-positive risk against ordinary
+   Romanian retail weight-control marketing. Explicitly did **not** add symptom/condition words
+   (urinar, renal, mobility, hypoallergenic, digestive care, obezitate, recovery, satiety,
+   hepatic, gastrointestinal, sensitivity, diabetic) — verified these overwhelmingly catch
+   ordinary retail condition-support food, not prescription diets.
+3. **Added animax's `product_type` as a second, independent regulated signal** (checked before
+   insertion, in `_parse_product`) and **started capturing pentruanimale's VTEX
+   `categories`/`categoryId`** into `raw_payload` going forward (forward-only — cannot be
+   backfilled; pentruanimale's historical regulated-product exposure stays genuinely unmeasured,
+   see Open issues).
+4. **Quarantined 118 already-collected rows, deleted none** (STEP 2, ADR-0025). New nullable
+   `raw_listings.excluded_reason` column (migration 0004) names the signal that fired; NULL means
+   in scope. `scripts/quarantine_regulated.py` applied the tightened rule — petmax 8 rows (4
+   products × 2 days), pentruanimale 0, animax 110 (83 both signals agree, 25 caught only by
+   `product_type`, 2 caught only by title) — verified idempotent (a second dry run found 0 new
+   matches). `overlap.py` and `make status` now read `excluded_reason IS NULL`; `make status`
+   prints total and in-scope side by side everywhere rather than applying the difference
+   silently.
+5. **Recomputed everything the quarantine touches, gate holds with the same wide margin**:
+   grand total 18,703 stored / 18,585 in-scope (still ≫ 3,000); ADR-0023's sampled population
+   2,329 → 2,334 (only 4 of the 118 fell inside that specific population); point estimate 1,211 →
+   1,214; 95% CI [897, 1,519] → [899, 1,522]. The correction moved the estimate by about 0.3%.
 
 ## Last done (2026-09-13 session, in order)
 
@@ -124,16 +166,24 @@ measurement method — hence dropped in favour of dating each actual change.
 
 ## Open issues
 
-- **`is_regulated()` is not catching real veterinary-diet products on animax.ro — 108 listings,
-  not fixed this session.** Found while reconciling the 2,551-vs-2,550 count (`docs/SOURCES.md`):
-  108 ingested animax listings carry `product_type` "Diete veterinare pentru caini/pisici"
-  (veterinary diets — explicitly out of scope per CLAUDE.md §7). Title-substring matching misses
-  them (e.g. "Brit Grain Free **VD** Recovery 400g" — "VD" reads as a product-line code, not a
-  flagged phrase). These are legitimately cross-listed into the general food categories by animax
-  itself, not a category-selection mistake. Needs a decision: extend `is_regulated()`'s vocabulary
-  (title tokens like "VD", "recovery", or check `raw_payload.product_type` instead of/alongside
-  title), or leave it — either way this is a scope/logic change, deliberately not made this
-  session (out of the 3-step brief that found it).
+- **CLOSED 2026-09-14: `is_regulated()` veterinary-diet leak** (ADR-0025). Tightened the shared
+  token check (diacritic folding, line-code tokens), added animax's `product_type` as a second
+  signal, and quarantined the 118 already-collected rows the tightened rule catches. See "Last
+  done" above and ADR-0025 for the full rule, evidence, and rejected alternatives.
+- **pentruanimale.ro's regulated-product exposure is "not measured", not "clean".** Its 0-hits
+  result from the 2026-09-13/14 title-text diagnostic is real but incomplete: the source also
+  carries VTEX `categories`/`categoryId` (confirmed live) that could in principle reveal a
+  veterinary-diet branch, but that field was never captured before ADR-0025 started capturing it
+  **going forward only** — it cannot be backfilled onto rows already collected. Do not read
+  pentruanimale's 0-Tier-A-hits as evidence it has no leak; it means only that title text alone
+  found nothing, which is the weaker of the two signals everywhere else it was checked.
+- **Hill's "PD" (Prescription Diet) is a candidate line-code token, not added this session.**
+  Found while reconciling animax's title-check against its `product_type`: "Hill's PD Metabolic",
+  "Hill's PD Afectiuni hepatice L/D" and similar are caught by `product_type` but not by any
+  title token (ADR-0025's token list is `" vd "`/`" vhn "` only, per the two brands checked).
+  Worth the same per-token verification ADR-0025 did for "VD"/"VHN" before adding "PD" — not done
+  this session, since "PD" is a much shorter, more collision-prone string than "VD"/"VHN" and
+  needs its own check across all stored titles before being trusted.
 - **Deferred to Phase 2 (Normalization)**, causes already diagnosed in `docs/AUDIT.md`: brand-field
   canonicalization (petmax splits Brit into Brit/Brit Premium/Brit Care/Brit Fresh and Calibra into
   5 strings; pentruanimale writes "HILL'S Science Plan" where petmax writes "Hill's"), an
