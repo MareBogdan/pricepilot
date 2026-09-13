@@ -38,8 +38,9 @@ def main() -> int:
         return 2
 
     report = compute_overlap()
-    verdict = "MET" if report.met else "NOT MET"
-    print(f"cross-shop overlap     {report.shared:,} / {report.target}   [{verdict}]")
+    # ADR-0023: this proxy count is a known-low floor (~8% measured recall against a hand-verified
+    # sample), not the gate itself — the gate is decided from that sample (see `make status`).
+    print(f"cross-shop overlap (proxy floor)   {report.shared:,}   — NOT the gate, see ADR-0023")
     print(f"sources compared       {report.sources}")
     print(f"listings considered    {report.listings_considered:,} (latest observation per product)")
     print(f"keys built             {report.keys_built:,} ({report.keyable_share:.0%})")
@@ -50,10 +51,10 @@ def main() -> int:
             "\nOne source only. Overlap is 0 by definition until a second adapter lands — "
             "this is expected while petmax.ro collects alone (ADR-0010)."
         )
-    elif not report.met:
+    else:
         print(
-            f"\nBelow the gate. CLAUDE.md §7 Phase 1: add a source before leaving Phase 1, "
-            f"not in week 6. Short by {report.target - report.shared:,}."
+            "\nThe gate (CLAUDE.md §7, ADR-0023) is decided from a hand-verified random sample, "
+            "not this proxy count — see `make status` and DECISIONS.md ADR-0023."
         )
     return 0
 

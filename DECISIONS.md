@@ -465,3 +465,48 @@ bounded scope: STEP 1 was diagnose-and-fix-the-adapter-bug, not build a second r
 treating the wall as unexplained and re-running repeatedly hoping it clears (it is a fixed
 platform behaviour, not a transient condition — confirmed identically on three categories).
 **Date.** 2026-09-12
+
+## ADR-0023 — Cross-shop overlap is measured by a hand-verified random sample, not by the proxy key
+
+**Context.** CLAUDE.md §7 sets the Phase 1 gate at ">=400 products appearing on two or more shops,
+by the proxy key above, reported by `make status`". The proxy key was specified as a cheap floor
+estimate, explicitly allowed to be "wrong in both directions". A random sample of 50 keyable
+petmax food listings (seed 20260913) was drawn and every claimed match opened by hand against the
+live shops (`docs/learned/q3-verification.md`, `docs/AUDIT.md`): 26/50 confirmed genuine, 1
+rejected (#13, a petmax slug collision), 1 false negative found on spot-checking the "no match"
+rows. Against the 94 the proxy key reports for the same listing pool, this implies the key's
+recall is roughly 94 / 1,211 ≈ 8% — it under-reports true overlap by more than an order of
+magnitude. A floor that low cannot support the one decision the gate exists to make ("add a source
+before leaving Phase 1"): it would say the market is thin when the sample says the opposite.
+
+**Decision.** The 400 threshold is UNCHANGED. The measurement method changes: the gate is
+evaluated from the hand-verified random sample, reported as a point estimate with a 95% Wilson
+confidence interval over the keyable food population, not from the proxy key's raw count. The
+proxy key stays in `make status` as a daily indicator, relabelled explicitly as a known-low floor
+with its measured recall printed next to it, so no future session mistakes it for the overlap.
+
+**Evidence** (recomputed independently this session, not copied on trust — see
+`docs/AUDIT.md`'s 2026-09-13 verification note for the sample itself):
+
+- n = 50, x = 26 confirmed matches, p̂ = 0.52
+- Wilson 95% CI on p̂ (z = 1.9600): **[0.3851, 0.6520]**
+- Applied to N = 2,329 keyable petmax food listings: point estimate **1,211**, 95% CI **[897,
+  1,519]**
+- The lower bound of the interval (897) is more than twice the 400 threshold.
+
+**Limitations, stated plainly.** n=50 is small — the CI is wide (±13 points either side of p̂).
+The sample covers petmax food categories against pentruanimale.ro only, not animax.ro or any
+other source. Verification judged brand, line, flavour, pack size and form as the criteria for
+"same product", and treats a bonus pack (e.g. 12+2 kg) as a different purchasable unit from its
+plain equivalent (12 kg) — a stricter standard than some matching definitions would use, which
+means this estimate is not inflated by that choice.
+
+**Rejected.** Lowering the 400 threshold to match what the broken key reports (would hide a
+measurement bug behind a weaker goal, and the gate would no longer measure what CLAUDE.md §7
+says it measures). Tuning `overlap_key()` until it reaches 400 (CLAUDE.md §7 forbids building a
+matcher to compute this gate, and a key tuned to hit a target number stops being an independent
+measurement — it becomes the thing being measured). Adding sources blindly on the strength of the
+old 94 figure, which is now known to be wrong by more than an order of magnitude rather than a
+genuine market signal.
+
+**Date.** 2026-09-13

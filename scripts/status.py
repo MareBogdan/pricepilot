@@ -141,12 +141,28 @@ def fixture_count() -> int:
 # ---------------------------------------------------------------------------
 
 
-def overlap_section(total_listings: int) -> None:
-    """The Phase 1 gate metric (CLAUDE.md §7, ADR-0009): products on two or more shops.
+# ADR-0023: the proxy key's recall was measured at ~8% by hand-verifying a random sample of 50
+# keyable petmax food listings against the live shops (n=50, x=26 confirmed, seed 20260913).
+# These are that one-time hand measurement's results, not something a query recomputes — the
+# gate is decided from this sample, not from the proxy key's raw count. See DECISIONS.md ADR-0023
+# and docs/AUDIT.md's 2026-09-13 verification note for the sample and the Wilson CI computation.
+SAMPLE_N = 50
+SAMPLE_X = 26
+SAMPLE_KEYABLE_POPULATION = 2329  # keyable petmax food listings, the sample's population
+SAMPLE_POINT_ESTIMATE = 1211
+SAMPLE_CI_95 = (897, 1519)
+SAMPLE_PROXY_RECALL = 94 / SAMPLE_POINT_ESTIMATE  # ~8% — the proxy key's measured recall
 
-    Reported from day one, so a thin positive class for Phase 3 is visible as it fails to grow
-    rather than discovered at the gate. It is a proxy key, not a matching model — see
-    `src/pricepilot/overlap.py` for why that is the point.
+
+def overlap_section(total_listings: int) -> None:
+    """The Phase 1 gate metric (CLAUDE.md §7, ADR-0023): products on two or more shops.
+
+    The gate is MET by the hand-verified sample estimate (ADR-0023), not by the proxy key's raw
+    count — the proxy key's recall measured at ~8%, too low to support the decision the gate
+    exists to make. The proxy key still runs and is reported every time, as a daily indicator and
+    so a thin positive class for Phase 3 is visible as it fails to grow — but explicitly labelled
+    as a known-low floor, not the overlap itself. See `src/pricepilot/overlap.py` for why a proxy
+    key (not a matching model) is the right tool for a daily indicator.
     """
     from pricepilot.overlap import compute_overlap
 
@@ -154,7 +170,17 @@ def overlap_section(total_listings: int) -> None:
         _row("cross-shop overlap", "0 / 400 — no listings yet", False)
         return
     report = compute_overlap()
-    _row("cross-shop overlap", f"{report.shared:,} / {report.target} products", report.met)
+    gate_met = SAMPLE_CI_95[0] >= 400  # even the CI's lower bound clears the gate
+    _row(
+        "cross-shop overlap (gate)",
+        f"{SAMPLE_POINT_ESTIMATE:,} / {report.target} (95% CI [{SAMPLE_CI_95[0]:,}, "
+        f"{SAMPLE_CI_95[1]:,}]) — hand-verified sample, n={SAMPLE_N}, ADR-0023",
+        gate_met,
+    )
+    _row(
+        "  └ proxy key (daily indicator, not the gate)",
+        f"{report.shared:,} — known floor, ~{SAMPLE_PROXY_RECALL:.0%} measured recall (ADR-0023)",
+    )
     _row("  └ sources compared", report.sources, report.sources >= 2)
     if report.sources < 2:
         print(f"  {DIM}one source only — overlap is 0 by definition until a second lands{RESET}")

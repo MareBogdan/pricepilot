@@ -31,19 +31,14 @@ Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-1
     from `scrape_runs` and `raw_listings` on a separate connection
 [ ] ≥3,000 in-scope listings from **≥3 sources** — 2 sources only; volume is not the blocker, source
     count is
-[ ] ≥7 consecutive days of history — **1 / 7** (2026-09-12 only so far; the scheduled, non-manual
-    cron has not fired yet — every run to date has been `workflow_dispatch`)
-[ ] **≥400 products on two or more shops — MEASURED, NOT MET: 94** (re-measured after fixing the
-    proxy key — see below). Hand-checked a random 25 of the 94: 22/25 (88%) clean, 3/25 (12%)
-    contain a false pairing mixed with a genuine one (life-stage/senior variant, packaging format)
-    — within CLAUDE.md §7's accepted floor-estimate error and above the 90% stop-and-report bar
-    this session set, so not tuned further. **83 of the 94 (88%) are Royal Canin** — the gap to
-    400 is now partly structural (concentrated in one brand, food/treats categories only), not
-    purely a key-recall problem. Arithmetic projection in `docs/SOURCES.md`: a well-chosen third
-    source plausibly lands overlap around ~150–250, not 400, because of heavy re-use of the same
-    Royal Canin SKUs across every source pair. **A third adapter helps but is not alone plausibly
-    sufficient on this arithmetic** — worth deciding alongside broader category scope or a further
-    key look, not assumed to close the gap by itself.
+[ ] ≥7 consecutive days of history — **2 / 7** (2026-09-12 → 2026-09-13, no gap; the scheduled
+    cron fired for the first time on 2026-09-13, 5 hours late against its 03:10 UTC trigger)
+[x] **≥400 products on two or more shops — MET by hand-verified sample estimate: point 1,211,
+    95% CI [897, 1,519]** (ADR-0023). The proxy key itself still reports 94 and is a known floor
+    at ~8% measured recall — kept in `make status` as a daily indicator, not as the gate metric.
+    n=50 hand-verified sample (seed 20260913), petmax food listings vs pentruanimale.ro only;
+    see `docs/AUDIT.md`'s 2026-09-13 verification note and ADR-0023 for the full computation and
+    its limitations.
 [ ] adapter for animax.ro — not started (deliberately out of this session's scope)
 [ ] all adapters tested offline against fixtures — petmax + pentruanimale done, animax to go
 
@@ -89,11 +84,27 @@ Phase 1 — Collection: in progress. Gate per CLAUDE.md §7 as amended 2026-09-1
 
 ## Open issues
 
-- **The 400 gate now looks partly structural, not just thin data.** 88% of current overlap is one
-  brand (Royal Canin). Whether a third adapter closes the gap depends heavily on whether it also
-  carries that brand's range near-completely — worth confirming before assuming animax.ro alone
-  solves this. See the arithmetic in `docs/SOURCES.md`.
-- **7 consecutive days is 1 so far**, and no scheduled (non-manual) cron run has fired yet.
+- **Deferred to Phase 2 (Normalization)**, causes already diagnosed in `docs/AUDIT.md`: brand-field
+  canonicalization (petmax splits Brit into Brit/Brit Premium/Brit Care/Brit Fresh and Calibra into
+  5 strings; pentruanimale writes "HILL'S Science Plan" where petmax writes "Hill's"), an
+  English-Romanian flavour-word table (Chicken/Pui, Lamb/Miel, Beef/Vita, Salmon/Somon,
+  Turkey/Curcan, Duck/Rata, Rabbit/Iepure, Tuna/Ton), and partial token overlap instead of exact
+  set equality. These are normalization work, not a proxy-key patch — `overlap_key()` stays as-is.
+- **petmax's `url` field is not a trustworthy identity signal.** Slug collisions produce a numeric
+  suffix (e.g. `-6847`) and the URL can describe a different product than the row's title (see
+  2026-09-13 verification note in `docs/AUDIT.md`). Checked this session: nothing downstream keys
+  on `url` — `overlap.py` never references it, and the one place it could matter,
+  `runner.py:182`'s `source_product_id or listing.url` fallback, has never actually fired (0 of
+  8,075 rows lack `source_product_id`). Stays a documented constraint for future code, not a bug
+  fixed today.
+- **The 2026-09-13 scheduled run started at 08:13 UTC against a 03:10 UTC cron** — a ~5 hour
+  delay, far past the 10-30 minutes ADR-0018 anticipates. One data point so far; watch it.
+- **The proxy key's 94 is still concentrated in one brand** (88% Royal Canin) even though the gate
+  itself is now closed by the hand-verified sample (ADR-0023), not by this number. Relevant to how
+  representative animax.ro's contribution will look in the proxy key's own reporting, not to
+  whether the gate is met. See the arithmetic in `docs/SOURCES.md`.
+- **7 consecutive days is 2 so far** (2026-09-12 → 2026-09-13, no gap) — the scheduled cron has now
+  fired once, 5 hours late (see above).
 - **pentruanimale.ro's ~600-product-per-category ceiling is permanent** with the current
   `?page=N` retrieval path. Reaching the remainder would need a different mechanism (e.g. the
   `sitemap/product-N.xml` files) — not attempted, flagged for whoever next touches this adapter.
