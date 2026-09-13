@@ -127,6 +127,20 @@ class RawListing(Base):
     # sha256 of the normalized title. Phase 2 caches attribute extraction on this so the
     # LLM never re-runs on an unchanged title (CLAUDE.md §5 — largest cost risk).
     content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    # NULL = in scope. Non-NULL = quarantined: names the signal that fired (e.g.
+    # "title_token:vd", "product_type:diete veterinare pentru caini"), never a boolean, so the
+    # reason is inspectable without a second lookup. Reversible by design (ADR-0025): clearing
+    # this column restores the row to every count and query that filters on it — nothing is
+    # ever deleted for a regulated-product finding.
+    #
+    # This column exists for rows collected *before* the tightened is_regulated()/product_type
+    # check existed (ADR-0025) — a one-off backfill (scripts/quarantine_regulated.py), never
+    # written by a scraper directly. Going forward, a regulated item is still filtered before
+    # insertion, exactly as before ADR-0025 — the tightened check just catches more of them — so
+    # a *new* row normally never needs this column at all; it stays populated only for the
+    # historical backfill and for any future manual quarantine of something the ingest-time
+    # check still misses.
+    excluded_reason: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     run: Mapped[ScrapeRun] = relationship(back_populates="listings")
 
