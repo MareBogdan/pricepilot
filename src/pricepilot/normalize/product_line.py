@@ -21,12 +21,20 @@ Adult"), not shop boilerplate — a global life-stage-word strip would have dele
 Tied to the clause, this only ever fires on the boilerplate form (`"... câini adulte, ..."`),
 never on a bare line name.
 
-**Brand removal** strips the shop's own raw `source_brand` field value (not the canonicalized
-form) from the title, case-insensitively — never a guess at how far "the brand" extends beyond
-that literal string. `"Brit Premium"` (a petmax brand-field value) is stripped from `"... Brit
-Premium by Nature Junior XL 15 kg"`, correctly leaving `"by Nature Junior XL"` as product-line
-text: `"Premium by Nature"` is the sub-line (ADR-0026 convention 5 says sub-line belongs in
-`product_line`, never in `brand`), and only the literal brand-field substring is ever removed.
+**Brand removal strips only `brand.brand_span_text()`'s manufacturer-only text, never the shop's
+whole raw `source_brand` field.** An earlier version of this function stripped the *entire* raw
+field, which for petmax's `"Brit Premium"` cut `"Premium"` out along with the brand — leaving
+`"by Nature Junior XL"` where the real product line is `"Premium by Nature Junior XL"`, and
+worse, making the *same* product non-comparable across shops: pentruanimale's raw brand field for
+the identical product is the bare `"BRIT"`, so its product_line kept `"Premium By Nature Adult
+Large Breed"` — two shops, one product, two product_lines that share barely a single token.
+`brand_span_text()` fixes this at the source (see `brand.py`'s own docstring): for a
+marketing-suffix brand string it returns only the retained manufacturer prefix (`"brit"`, not
+`"brit premium"`), so the suffix stays in the title as real sub-line text; for an alias-table
+entry (`"Affinity Advance"` -> `"advance"`, where the whole raw field names the manufacturer with
+no separate sub-line) it returns the whole normalized string, same as before. Diacritic-folded
+here (never inside `brand.py`, which preserves diacritics for its own canonical output) purely so
+the search matches this module's already diacritic-folded title.
 
 **Quantity/pack/bonus/dosage removal** reuses `quantity.quantity_spans()` — the exact spans
 `extract_quantity` used to produce its result, not a second regex that could quietly drift from
@@ -37,6 +45,7 @@ from __future__ import annotations
 
 import re
 
+from pricepilot.normalize.brand import brand_span_text
 from pricepilot.normalize.quantity import quantity_spans
 from pricepilot.overlap import strip_diacritics
 
@@ -83,21 +92,37 @@ _CLAUSE = re.compile(
 _PACK_DESCRIPTOR = re.compile(r"\b(?:multipack|pachet economic|pachet mixt|bax)\b")
 
 # Stray punctuation left dangling once the clause/brand/quantity spans are excised — cleaned up
-# in a fixed-point loop (each pass can expose another one, e.g. "- ," -> "-" -> "").
-_LEADING_TRAILING_JUNK = re.compile(r"^[\s,\-–—./]+|[\s,\-–—./]+$")  # noqa: RUF001 — en/em dash, real
+# in a fixed-point loop (each pass can expose another one, e.g. "- ," -> "-" -> ""). Includes "("
+# alongside the dash/slash/dot forms already here: a stray trailing open-paren is the same class
+# of leftover as a stray trailing dash, just from a parenthetical whose closing half survived.
+_LEADING_TRAILING_JUNK = re.compile(r"^[\s,\-–—./(]+|[\s,\-–—./(]+$")  # noqa: RUF001 — en/em dash, real
 _EMPTY_PARENS = re.compile(r"\(\s*\)")
 _REPEATED_COMMAS = re.compile(r",\s*,+")
 _MULTI_SPACE = re.compile(r"\s{2,}")
 _SPACE_BEFORE_COMMA = re.compile(r"\s+,")
 
+# ---------------------------------------------------------------------------
+# Dangling-token guard (STEP 1b, 2026-09-14) — general, not a per-case patch. Found via a real
+# accessory title where excising a quantity span ("2 l") left its own qualifier ("diametru")
+# stranded mid-string with nothing left to modify: "Bol ..., inox, diametru 2 l, 25 cm, Negru
+# Agility" -> (pre-guard) "Bol ..., inox, diametru, 25 cm, Negru" — "diametru" pointing at
+# nothing. This is a structural risk in *any* removal rule that can excise a quantity/clause span
+# adjacent to a connective or qualifier word, not just this one case, so the fix is a closed-
+# vocabulary post-step that runs after every removal, not a fix to the quantity/diametru pair
+# specifically.
+_DANGLING_WORDS = frozenset({"cu", "si", "de", "din", "diametru", "and", "with"})
+_EDGE_PUNCT = ",.-–—/()"  # noqa: RUF001 — en/em dash, real
+
 
 def _brand_span(folded_title: str, source_brand: str | None) -> tuple[int, int] | None:
-    """The shop's own raw brand-field text, found case-insensitively in the folded title —
-    never a canonicalized or guessed form. `None` when there's no brand field to strip (an
-    honest gap, not a failure — see `brand.py`'s own note that this affects a handful of rows)."""
-    if not source_brand or not source_brand.strip():
+    """`brand.brand_span_text()`'s manufacturer-only text, found case-insensitively in the
+    folded title — never the shop's whole raw brand-field string (see the module docstring for
+    why that was wrong). `None` when there's no brand field to strip (an honest gap, not a
+    failure — see `brand.py`'s own note that this affects a handful of rows)."""
+    span_text = brand_span_text(source_brand)
+    if not span_text:
         return None
-    folded_brand = strip_diacritics(source_brand.lower()).strip()
+    folded_brand = strip_diacritics(span_text).strip()
     if not folded_brand:
         return None
     match = re.search(re.escape(folded_brand), folded_title)
@@ -116,6 +141,89 @@ def _merge_spans(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
         else:
             merged.append((start, end))
     return merged
+
+
+def _folded_word(word: str) -> str:
+    return strip_diacritics(word.lower()).strip().strip(_EDGE_PUNCT).strip()
+
+
+def _is_dangling(segment: str) -> bool:
+    """True only when the whole (trimmed) segment folds down to exactly one dangling word —
+    never fires on a segment that happens to *contain* one ("cu miel" stays; a bare "cu" from a
+    now-gone "cu miel" doesn't)."""
+    return _folded_word(segment) in _DANGLING_WORDS
+
+
+def _drop_dangling_segments(result: str) -> str:
+    """Comma-delimited segments reduced to nothing but a single dangling word are dropped
+    wholesale — this is what catches a qualifier stranded *mid-string* once its quantity is gone
+    (`"..., diametru, 25 cm, ..."` -> `"..., 25 cm, ..."`), not just at the string's own edges."""
+    return ",".join(seg for seg in result.split(",") if not _is_dangling(seg))
+
+
+def _strip_dangling_edges(result: str) -> str:
+    """The string's own first/last whitespace-delimited token, dropped if it folds to a bare
+    connective or qualifier with nothing left to modify. Checked token-by-token, never
+    character-by-character, so this can't nibble into a real word."""
+    words = result.split()
+    while words and _folded_word(words[0]) in _DANGLING_WORDS:
+        words = words[1:]
+    while words and _folded_word(words[-1]) in _DANGLING_WORDS:
+        words = words[:-1]
+    return " ".join(words)
+
+
+def _clean_punctuation(result: str) -> str:
+    result = _EMPTY_PARENS.sub("", result)
+    result = _SPACE_BEFORE_COMMA.sub(",", result)
+    result = _REPEATED_COMMAS.sub(",", result)
+    result = _MULTI_SPACE.sub(" ", result)
+    result = _LEADING_TRAILING_JUNK.sub("", result)
+    return _LEADING_TRAILING_JUNK.sub("", result)  # second pass: one layer can reveal another
+
+
+def _strip_dangling_tokens(result: str) -> str:
+    """The single validated post-step (STEP 1b): runs the segment-drop and edge-strip guards
+    together with the punctuation cleanup to a fixed point, since dropping a segment or an edge
+    word routinely exposes stray commas/whitespace that only `_clean_punctuation` knows how to
+    fix, and fixing *that* can reveal another dangling word underneath (e.g. a title with two
+    consecutive dangling segments). Bounded so a pathological input can't loop forever; every real
+    title seen so far settles in 1-2 passes."""
+    for _ in range(10):
+        previous = result
+        result = _drop_dangling_segments(result)
+        result = _strip_dangling_edges(result)
+        result = _clean_punctuation(result)
+        result = result.strip()
+        if result == previous:
+            break
+    return result
+
+
+def product_line_guard_violations(result: str | None) -> list[str]:
+    """The invariants a `product_line` must satisfy after `_strip_dangling_tokens` — exported
+    (not test-private) so a future removal rule can be checked against the same definition rather
+    than a re-guessed copy of it. Checks the whole-string edges *and* every comma-delimited
+    segment (the "diametru" case is mid-string, not at either edge — an edges-only check would
+    have missed the exact bug this guard exists for). Empty list means clean. `None`/empty input
+    trivially passes."""
+    if not result:
+        return []
+    violations: list[str] = []
+    words = result.split()
+    if words and _folded_word(words[-1]) in _DANGLING_WORDS:
+        violations.append("ends_in_connective_or_qualifier")
+    if words and _folded_word(words[0]) in _DANGLING_WORDS:
+        violations.append("starts_with_connective_or_qualifier")
+    if any(_is_dangling(segment) for segment in result.split(",")):
+        violations.append("orphaned_qualifier_in_comma_segment")
+    if re.search(r",\s*,", result):
+        violations.append("contains_double_comma")
+    if re.match(r"^[\s,.\-–—/(]", result):  # noqa: RUF001 — en/em dash, real
+        violations.append("starts_with_connective_or_punctuation")
+    if result[-1] in "-–—/(":  # noqa: RUF001 — en/em dash, real
+        violations.append("ends_in_bare_punctuation")
+    return violations
 
 
 def extract_product_line(title: str, source_brand: str | None) -> str | None:
@@ -142,17 +250,14 @@ def extract_product_line(title: str, source_brand: str | None) -> str | None:
     # glue together. This routinely introduces doubled whitespace at splice points; the cleanup
     # pass below normalizes it rather than trying to get spacing exactly right here.
     result = " ".join(kept_segments)
-    result = _EMPTY_PARENS.sub("", result)
-    result = _SPACE_BEFORE_COMMA.sub(",", result)
-    result = _REPEATED_COMMAS.sub(",", result)
-    result = _MULTI_SPACE.sub(" ", result)
-    result = _LEADING_TRAILING_JUNK.sub("", result)
-    # A second pass: removing one layer of junk can reveal another underneath (e.g. "- ," once
-    # the dash's neighbour is gone).
-    result = _LEADING_TRAILING_JUNK.sub("", result)
+    result = _clean_punctuation(result)
     result = result.strip()
+    # STEP 1b's guard, run last: only after brand/clause/quantity removal and punctuation
+    # cleanup can a connective or qualifier word actually be left dangling with nothing to
+    # modify — see `_strip_dangling_tokens`'s own docstring for the motivating case.
+    result = _strip_dangling_tokens(result)
 
     return result or None
 
 
-__all__ = ["extract_product_line"]
+__all__ = ["extract_product_line", "product_line_guard_violations"]

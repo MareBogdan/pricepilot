@@ -100,6 +100,37 @@ def _strip_marketing_suffix(normalized: str) -> str:
     return normalized
 
 
+def brand_span_text(source_brand: str | None) -> str | None:
+    """The quote/case-folded substring of `source_brand` that `product_line` should strip from
+    the title — the manufacturer name only, never sub-line text the shop packed into the same
+    field. `None` under the same conditions `canonicalize_brand` returns `None`.
+
+    Two shapes, matching the two branches `canonicalize_brand` itself takes:
+
+    - **Alias-table entry** (a full-string remap, e.g. `"Affinity Advance"` -> `"advance"`,
+      `"PRO PLAN"` -> `"purina"`): the *entire* raw field names the manufacturer, with no
+      separate sub-line inside it, so the whole normalized string is returned.
+    - **Marketing-suffix case** (e.g. `"Brit Premium"` -> `"brit"`, `"HILL'S Science Plan"` ->
+      `"hill's"`): only the retained *prefix* is returned. The stripped suffix (`"premium"`,
+      `"science plan"`) is real sub-line text — per convention 5 (ADR-0026) it belongs in
+      `product_line`, and stripping the whole raw field (the bug this function replaces) cut it
+      out of the title along with the brand, silently fragmenting the same product's sub-line
+      differently on every shop that phrases its brand field differently (petmax's `"Brit
+      Premium"` vs pentruanimale's bare `"BRIT"` — see the 2026-09-14 diagnostic in
+      DECISIONS.md/ADR-0027). Falls out of `_strip_marketing_suffix` returning its input
+      unchanged when no suffix phrase matches, so a bare `"BRIT"`/`"CALIBRA"` naturally returns
+      the whole (short) string with no special-casing needed here.
+    """
+    if not source_brand or not source_brand.strip():
+        return None
+    normalized = _normalize_case(source_brand)
+    if not normalized:
+        return None
+    if normalized in _ALIASES:
+        return normalized
+    return _strip_marketing_suffix(normalized)
+
+
 def canonicalize_brand(title: str, source_brand: str | None) -> str | None:
     """`title` is accepted for a future title-only fallback (not built this session — every
     source's structured brand field is populated for all but a handful of rows, so the fallback's
@@ -115,4 +146,4 @@ def canonicalize_brand(title: str, source_brand: str | None) -> str | None:
     return _strip_marketing_suffix(normalized)
 
 
-__all__ = ["canonicalize_brand"]
+__all__ = ["brand_span_text", "canonicalize_brand"]

@@ -8,7 +8,10 @@ touches `raw_listings`/`norm_listings` — this package never does.
 
 Build order (STEP 3, weight first because CLAUDE.md §7 says it's the highest-leverage field):
 `quantity` (weight/volume/pack/bonus/dosage) -> `brand` -> `flavour` -> `attributes` (breed-size,
-life stage, food form). `extract()` below composes all four into one `ExtractedAttributes`.
+life stage, food form). `product_line` (STEP A, wired in STEP 1 of the 2026-09-14 session after
+its brand-field-fragmentation and dangling-token fixes) reuses `quantity`'s spans and `brand`'s
+canonicalization, so it's composed alongside them rather than at the end. `extract()` below
+composes all five into one `ExtractedAttributes`.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from pricepilot.normalize.attributes import (
 )
 from pricepilot.normalize.brand import canonicalize_brand
 from pricepilot.normalize.flavour import extract_flavour
+from pricepilot.normalize.product_line import extract_product_line
 from pricepilot.normalize.quantity import QuantityResult, extract_quantity
 
 __all__ = [
@@ -67,6 +71,7 @@ def extract(title: str, source_brand: str | None = None) -> ExtractedAttributes:
 
     quantity = _safe(errors, "quantity", extract_quantity, title) or QuantityResult()
     brand = _safe(errors, "brand", canonicalize_brand, title, source_brand)
+    product_line = _safe(errors, "product_line", extract_product_line, title, source_brand)
     flavour = _safe(errors, "flavour", extract_flavour, title)
     breed_size = _safe(errors, "breed_size_code", extract_breed_size, title)
     life_stage = _safe(errors, "life_stage", extract_life_stage, title)
@@ -74,7 +79,7 @@ def extract(title: str, source_brand: str | None = None) -> ExtractedAttributes:
 
     return ExtractedAttributes(
         brand=brand,
-        product_line=None,  # not built this session — see STATE.md Open issues
+        product_line=product_line,
         net_weight_g=quantity.net_weight_g,
         net_volume_ml=quantity.net_volume_ml,
         pack_count=quantity.pack_count,
