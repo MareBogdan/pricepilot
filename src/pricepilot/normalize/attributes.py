@@ -77,6 +77,20 @@ _FOLLOWED_BY_DIMENSION = re.compile(
     r"^[\s,]*\d+(?:[.,]\d+)?\s*(?:[x×-]\s*\d+(?:[.,]\d+)?\s*)*(?:cm|mm)\b"  # noqa: RUF001
 )
 
+# STEP 3 fix #2 (2026-09-14, gate mismatches #3322/#3908, both "... M-PETS ..."): a bare size
+# letter immediately followed by a hyphen and more letters is a hyphenated code or word, never a
+# size — the hyphen creates a `\b` word boundary that makes the letter look free-standing to
+# `_SINGLE_LETTER_SIZE`, the same mechanism `_PRECEDED_BY_APOSTROPHE` already guards against on
+# the other side. Checked against the full population before trusting this as a general guard,
+# not a brand-specific patch: every `<letter>-<word>` shape that isn't already a legitimate
+# `_COMPOUND_SIZE` code (XS-XL, S-M, etc. — matched first, never reaches this loop) is
+# `"m-pets"`/`"m-pets "` (81 distinct titles, the brand M-Pets — 73 of them currently mis-tagged
+# `breed_size_code="M"`), `"m-pes"` (1 title, a typo/OCR variant of the same brand), and
+# `"l-carnitina"` (1 title, L-Carnitine — a supplement ingredient, not a size at all). All three
+# are real false positives this guard clears; none is a real size code shaped like this in the
+# checked data.
+_FOLLOWED_BY_HYPHEN_WORD = re.compile(r"^-[A-Za-z]")
+
 
 def extract_breed_size(title: str) -> str | None:
     folded = strip_diacritics(title.lower())
@@ -91,7 +105,7 @@ def extract_breed_size(title: str) -> str | None:
         after = title[match.end() :]
         if _LOOKS_LIKE_A_QUANTITY.search(before) or _PRECEDED_BY_APOSTROPHE.search(before):
             continue
-        if _FOLLOWED_BY_DIMENSION.search(after):
+        if _FOLLOWED_BY_DIMENSION.search(after) or _FOLLOWED_BY_HYPHEN_WORD.search(after):
             continue
         return match.group(1).upper()
     return None
@@ -129,25 +143,49 @@ def extract_life_stage(title: str) -> str | None:
 # "umeda"/wet ("...plic hrana umeda pisici...") must resolve to the packaging word regardless of
 # which one it happens to write first.
 #
-# STEP C (this session): six more words folded into this same specific tier, each checked
+# STEP C (prior session): six more words folded into this same specific tier, each checked
 # against the full in-scope population before adding (counts in STATE.md/DECISIONS.md) — "jerky"
 # (dry by definition — dried meat), "pate"/"ragout"/"cremoasa"/"cremos"/"tub"/"sos" (all wet —
 # pâté, ragout, a creamy topping, a squeezable tube, and "in sauce" are all liquid/moist
 # preparations). "cutie" (box) was checked too and dropped — real samples showed it packaging
 # both dry treats and wet toppers with no reliable way to tell which from the word alone, so
 # mapping it to any single category would have been a guess, not a finding.
+#
+# STEP 3 fix #1 (2026-09-14, gate mismatch #9747/#11418/#9752): "punguta" (diminutive of "pungă",
+# the shop's own word for a treat pouch — "punguță recompense") added to this tier, same category
+# as "plic". Checked against the full in-scope population before trusting: 420 distinct titles,
+# **every one** in a "recompense" (treat) context, zero collisions with any other use of the word.
 _SPECIFIC_FORM = re.compile(
-    r"\b(conserv[aă]|plic(?:uri)?|jerky|pate|ragout|cremo(?:asa|s)|tub|sos)\b"
+    r"\b(conserv[aă]|plic(?:uri)?|punguta|jerky|pate|ragout|cremo(?:asa|s)|tub|sos)\b"
 )
-_GENERIC_FORM = re.compile(r"\b(uscat[aă]?|umed[aă]?)\b")
+# STEP 3 fix #3 (2026-09-14, gate mismatch #17595 "fâșii uscate"): the plural "uscate" (dry) added
+# to the generic tier — `uscat[aă]?e?` now matches "uscat"/"uscata"/"uscată"/"uscate". Checked
+# against the full population: 8 distinct titles, all genuine dried treats ("Urechi Uscate",
+# "chipsuri uscate", "fâșii uscate") — no collisions.
+#
+# The plural "umede" (wet) was checked the same way and deliberately NOT added: 17 distinct
+# titles carry it, and every single one is "Servetele umede" (wet WIPES — a hygiene accessory),
+# never wet food. Adding it would have manufactured 17 false positives, tagging a hygiene product
+# as a food form — exactly the class of bug this checked-before-adding discipline exists to catch.
+#
+# STEP 3 fix (2026-09-14, gate mismatch #28159): "semi-umeda" (semi-moist) was matching the
+# generic "umeda" alternative via its own substring, tagging semi-moist food/treats as "wet" —
+# a real category error (semi-moist fits none of the four dry/wet/tin/pouch values cleanly, so
+# the honest answer is null, matching what the external label already said for this case). The
+# `umed[aă]?` alternative is now guarded against an immediately preceding "semi-"/"semi " —
+# checked against the full population: 8 distinct titles carry "semi-umeda", every one of them a
+# real semi-moist product, none of them a plain wet one the guard would wrongly null out instead.
+_GENERIC_FORM = re.compile(r"\b(uscat[aă]?e?)\b|(?<!semi-)(?<!semi )\b(umed[aă]?)\b")
 _FOOD_FORM_CANONICAL = {
     "uscata": "dry",
     "uscat": "dry",
+    "uscate": "dry",
     "umeda": "wet",
     "umed": "wet",
     "conserva": "tin",
     "plic": "pouch",
     "plicuri": "pouch",
+    "punguta": "pouch",
     "jerky": "dry",
     "pate": "wet",
     "ragout": "wet",
@@ -163,7 +201,11 @@ def extract_food_form(title: str) -> str | None:
     match = _SPECIFIC_FORM.search(folded) or _GENERIC_FORM.search(folded)
     if match is None:
         return None
-    return _FOOD_FORM_CANONICAL.get(match.group(1))
+    # `_GENERIC_FORM` has two alternatives, each its own capture group (the second carries the
+    # negative-lookbehind guard against "semi-"); `_SPECIFIC_FORM` has exactly one. Either way,
+    # exactly one group is populated on a match — take whichever it is.
+    word = next(g for g in match.groups() if g is not None)
+    return _FOOD_FORM_CANONICAL.get(word)
 
 
 __all__ = ["extract_breed_size", "extract_food_form", "extract_life_stage"]

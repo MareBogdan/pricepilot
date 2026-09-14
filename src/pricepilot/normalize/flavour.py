@@ -69,6 +69,16 @@ _FLAVOUR_WORDS: tuple[tuple[str, str], ...] = (
     ("gasca", "goose"),  # "gâsca" folds to "gasca" — 23 catches
     ("sardine", "sardine"),  # 28 catches
     ("cod", "cod"),  # 142 catches — identical spelling in English and Romanian
+    # STEP 3 fix #4 (2026-09-14, gate mismatch #11166 "Ton și Creveți" scoring as "tuna" alone,
+    # missing "shrimp"): checked against the full in-scope population before adding — 52 distinct
+    # titles carry "creveti" ("creveți" folds to it post-diacritic-strip), every one a real
+    # cat-food/treat shrimp flavour ("Ton și Creveți", "cu ton si creveti", "Somon și Creveți"),
+    # no collisions found. The singular RO form "crevete" and the EN "shrimp" have zero hits in
+    # this data today — kept anyway, same defensive-EN/RO-twin discipline this table's own
+    # docstring commits to for every other pair, not because either was observed.
+    ("creveti", "shrimp"),
+    ("crevete", "shrimp"),
+    ("shrimp", "shrimp"),
 )
 
 _PATTERN = re.compile(r"\b(" + "|".join(re.escape(word) for word, _ in _FLAVOUR_WORDS) + r")\b")

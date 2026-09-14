@@ -42,9 +42,12 @@ from pricepilot.normalize import extract  # noqa: E402
 # (the cache check is purely "does a norm_listings row exist for this content_hash") — recorded
 # per-row so a future session can decide whether a rule change is worth re-running against rows
 # that predate it, per the module docstring above.
-EXTRACTOR_VERSION = "2026-09-14-v4"  # v4: STEP 1 product_line wired in (1a brand-span fix, 1b
-# dangling-token guard); convention 6 tests added (no code change); convention 7 breed_size
-# accessory-context guard added
+EXTRACTOR_VERSION = "2026-09-14-v5"  # v5: STEP 3 gate-derived fixes — food_form: "punguta"
+# (pouch), plural "uscate" (dry), "semi-umeda" no longer false-positives as wet; breed_size_code:
+# hyphenated-code guard (M-PETS, L-carnitina no longer false-positive); flavour: "creveti"/
+# "crevete"/"shrimp" added. v4: STEP 1 product_line wired in (1a brand-span fix, 1b dangling-token
+# guard); convention 6 tests added (no code change); convention 7 breed_size accessory-context
+# guard added
 
 
 def main(argv: list[str] | None = None) -> int:

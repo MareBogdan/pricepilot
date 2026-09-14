@@ -92,3 +92,13 @@ def test_reindeer_is_not_merged_into_deer_or_game() -> None:
     Phase 3 matching precision, not help it."""
     assert extract_flavour("Ren, hrana uscata") == "reindeer"
     assert extract_flavour("Caprioara, hrana uscata") == "deer"
+
+
+def test_step_3_fix_4_shrimp_gate_mismatch() -> None:
+    """The exact gate mismatch (listing_id 11166) that surfaced this gap: the label said
+    "Tuna+Shrimp", the extractor found only "tuna" because "shrimp"/"creveti" wasn't in the
+    vocabulary yet. 52 distinct titles carry "creveti" in the full population, all genuine."""
+    result = extract_flavour(
+        "SCHESIR, Ton și Creveți, conservă hrană umedă pisici, (în aspic), 140g"
+    )
+    assert result == "tuna+shrimp"

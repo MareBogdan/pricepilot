@@ -123,6 +123,47 @@ def test_ham_the_english_flavour_word_is_not_mistaken_for_a_harness() -> None:
 
 
 # ---------------------------------------------------------------------------
+# STEP 3 fix #2 (2026-09-14, gate mismatches #3322/#3908) — a bare size letter immediately
+# followed by a hyphen and more letters is a hyphenated code or word, never a size. General
+# guard, checked against the full population (DECISIONS.md ADR-0027): every non-`_COMPOUND_SIZE`
+# `<letter>-<word>` shape found was one of these three real false positives.
+# ---------------------------------------------------------------------------
+
+
+def test_m_pets_brand_name_is_not_a_breed_size() -> None:
+    assert (
+        extract_breed_size("Jucarie din cauciuc pentru caini, Saturn M-PETS, 14 x 13 x 12 cm")
+        is None
+    )
+    assert (
+        extract_breed_size("Jucarie interactiva pentru pisici GAMMA M-PETS 16,2 x 16,2 x 7,8 cm")
+        is None
+    )
+
+
+def test_m_pets_typo_variant_is_not_a_breed_size() -> None:
+    assert (
+        extract_breed_size("Jucarie cu scartait pentru caini NABILA Rings M-Pes, 30x17x7 cm")
+        is None
+    )
+
+
+def test_l_carnitina_ingredient_is_not_a_breed_size() -> None:
+    assert (
+        extract_breed_size(
+            "Recompense delicioase pentru caini Bow Wow, Os natural cu L-carnitina, 30 bucati"
+        )
+        is None
+    )
+
+
+def test_hyphenated_compound_code_still_resolves() -> None:
+    """The hyphen guard must never swallow a legitimate `_COMPOUND_SIZE` code — those are matched
+    first and never reach the single-letter loop this guard applies to."""
+    assert extract_breed_size("SAM'S FIELD Junior Large Breed, L-XL, Miel, hrana uscata") == "L-XL"
+
+
+# ---------------------------------------------------------------------------
 # Life stage
 # ---------------------------------------------------------------------------
 
@@ -207,3 +248,43 @@ def test_cutie_was_checked_and_deliberately_not_added() -> None:
     reliable way to tell which from the word alone — mapping it to any category would have been
     a guess, not a finding, so it stays unrecognized."""
     assert extract_food_form("PETKULT Hypoallergenic Dental Stix, cutie recompense caini") is None
+
+
+# ---------------------------------------------------------------------------
+# STEP 3 fixes (2026-09-14, gate mismatches) — real titles from the in-scope population, each
+# checked against the full population before adding (counts in DECISIONS.md ADR-0027).
+# ---------------------------------------------------------------------------
+
+
+def test_step_3_punguta_diminutive_pouch() -> None:
+    result = extract_food_form(
+        "PET'S DESSERT Stick, XS-XL, Miel, punguță recompense fără cereale câini, 80g"
+    )
+    assert result == "pouch"
+
+
+def test_step_3_plural_uscate_is_dry() -> None:
+    result = extract_food_form("PEDIGREE Ranchos, recompense câini, fâșii uscate, Pui, 70g")
+    assert result == "dry"
+
+
+def test_step_3_plural_umede_deliberately_not_added() -> None:
+    """Checked against the full population before deciding, same discipline as "cutie": all 17
+    distinct titles carrying "umede" are "Servetele umede" (wet WIPES, a hygiene accessory), never
+    wet food. Adding it would have manufactured 17 false positives, so it stays unrecognized."""
+    assert extract_food_form("Servetele umede pentru caini, HUSHPET Floral 80 buc") is None
+
+
+def test_step_3_semi_umeda_is_not_matched_as_generic_wet() -> None:
+    """ "semi-umeda" (semi-moist) doesn't fit any of the four dry/wet/tin/pouch values cleanly —
+    None is the honest answer, not "wet" from a substring match on "umeda"."""
+    result = extract_food_form(
+        "Hrana semi-umeda pentru caini Devora Dog GF Semi-moist Mini Caprioara si curcan 5kg"
+    )
+    assert result is None
+
+
+def test_step_3_semi_umeda_does_not_break_plain_umeda() -> None:
+    """The "semi-" guard must only suppress the substring it's actually attached to, never a
+    plain "umeda" elsewhere in the same or a different title."""
+    assert extract_food_form("Hrana umeda pentru pisici Oasy More Love Ton si sardine 70g") == "wet"
