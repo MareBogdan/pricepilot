@@ -70,8 +70,11 @@ measurement method — hence dropped in favour of dating each actual change.
     ADR-0025), 0 errors, verified on a fresh Neon connection. petmax (Gomag) and pentruanimale
     (VTEX) are both non-Shopify, satisfying CLAUDE.md §7's "at least one non-Shopify" regardless
     of animax's own platform.
-[ ] ≥7 consecutive days of history — **2 / 7** (2026-09-12 → 2026-09-13, no gap; the scheduled
-    cron fired for the first time on 2026-09-13, 5 hours late against its 03:10 UTC trigger)
+[ ] ≥7 consecutive days of history — **3 / 7** (2026-09-12 → 2026-09-14, no gap — verified this
+    session against `scrape_runs`: `select date(started_at), source, status, count(*) from
+    scrape_runs group by 1,2,3 order by 1,2` shows a successful (`status='ok'`) run for every
+    in-scope source on each of the three dates — petmax/pentruanimale on 09-12, all three sources
+    from 09-13 onward, matching animax's 09-13 addition, ADR-0024)
 [x] **≥400 products on two or more shops — MET by hand-verified sample estimate: point 1,214,
     95% CI [899, 1,522]** (ADR-0023, population corrected by ADR-0025). The proxy key itself now
     reports 241 with all three sources live (up from 94 with two) and is a known floor at ~8%
