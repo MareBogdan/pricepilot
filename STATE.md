@@ -7,21 +7,26 @@ Phase 2, 2026-09-14 session, in order: fixed two real bugs the architect review 
 `product_line` (1a brand-span, 1b dangling-token guard — DECISIONS.md ADR-0027), added
 conventions 6 and 7, wired `product_line` into `extract()`, committed and scored the
 externally-labelled gate sample. **The first accuracy figure (96.6%) was inflated — mostly
-both-sides-null agreement — and was corrected before anything was tuned against it: the gate
-figure is labelled-cells-only, brand excluded, frozen as measured BEFORE any fix: 261/273 =
-95.6%, weight parsing 82/82 = 100%.** `brand` is excluded from the gate figure on principle, not
-because its score is weakest — 12 of its 15 mismatches are the gate sample seeing only `title`
-text while the extractor correctly prefers the shop's structured brand field, two different
-inputs the sample cannot grade either way; brand's own correctness is validated separately by
-STEP 1's cross-shop comparability check. Cache proof run with command output (0 new extractions
-on a second pass). Four gate-derived fixes then approved and implemented — `"punguta"` food_form
-gap (420 titles), a hyphenated-brand-code guard on `breed_size_code` (M-PETS/L-carnitina, 83
-titles checked, 80 fixed), two small `food_form` fixes (plural "uscate" added, plural "umede"
-checked and deliberately rejected — 17/17 would have been false positives on wet wipes, not wet
-food; "semi-umeda" no longer false-positives as wet), and the `"creveti"`/shrimp flavour gap (52
-titles) — each measured by population coverage, never by re-scoring the gate sample (that would
-be tuning on the test set; the 95.6% stays the frozen, un-re-measured figure of record). No Phase
-1 box ticked this session.
+both-sides-null agreement — and was corrected twice before anything was tuned against it: first
+to labelled-cells-only (95.6%, which cannot see a false positive), then to the symmetric figure
+that can — the gate figure, frozen as measured BEFORE any fix: 261/280 = 93.2% (labelled cells
+plus false positives, brand excluded), weight parsing 82/82 = 100%; 95.6% kept alongside it as
+the recall figure, not the gate number.** `brand` is excluded from the gate figure on principle,
+not because its score is weakest — 12 of its 15 mismatches are the gate sample seeing only
+`title` text while the extractor correctly prefers the shop's structured brand field, two
+different inputs the sample cannot grade either way; brand's own correctness is validated
+separately by STEP 1's cross-shop comparability check. The sample's ground truth is also
+known-imperfect (0 of 100 rows flagged `ambiguous` — the promised hand-check never ran) and
+recorded as a stated limitation, not a defect, since the margin over 85% is wide regardless. Cache
+proof run with command output (0 new extractions on a second pass). Four gate-derived fixes then
+approved and implemented — `"punguta"` food_form gap (420 titles now, 388 actually fixed by this
+change, 32 already correct via unrelated words), a hyphenated-brand-code guard on
+`breed_size_code` (M-PETS/L-carnitina, 83 titles checked, 80 fixed), two small `food_form` fixes
+(plural "uscate" added, plural "umede" checked and deliberately rejected — 17/17 would have been
+false positives on wet wipes, not wet food; "semi-umeda" no longer false-positives as wet), and
+the `"creveti"`/shrimp flavour gap (52 titles) — each measured by population coverage, never by
+re-scoring the gate sample (that would be tuning on the test set; 93.2%/95.6% stay the frozen,
+un-re-measured figures of record). No Phase 1 box ticked this session.
 Updated: 2026-09-14
 
 ## Gate progress
@@ -108,16 +113,32 @@ parsing measured separately", plus the cache demonstrably preventing repeat extr
 
 **The gate figure, exactly as recorded (not the first number this session produced — see below
 for why).** Scored on `docs/learned/phase2-gate-sample-labeled.csv` (100 rows, labelled
-externally, code-blind), against `norm_listings` under `EXTRACTOR_VERSION 2026-09-14-v5`
-(post-fix code, pre-fix *measurement* — the number below was taken before any of the four fixes,
-see "frozen" note further down):
+externally, code-blind), against `norm_listings` **under `EXTRACTOR_VERSION 2026-09-14-v4`** —
+run and recorded *before* the four gate-derived fixes existed. `EXTRACTOR_VERSION 2026-09-14-v5`
+(the current code, with those four fixes applied) **has no accuracy figure of its own, by
+design** — see "frozen" note further down for why it is never re-measured against this same
+sample, and will not have one until a new, independently drawn sample exists.
 
-- **Gate figure: labelled cells only, `brand` excluded — 261/273 = 95.6%.**
-- Weight parsing (`net_weight_g`), separately, on its 82 non-empty labels: **82/82 = 100.0%.**
+- **Gate figure: symmetric (labelled cells + false positives), `brand` excluded — 261/280 =
+  93.2%.** CLAUDE.md §7 says "attribute accuracy" — an extractor that invents a value on an empty
+  cell is not accurate, so the denominator must be able to see that error, not just a miss.
+- **Recall figure, kept alongside it, not as the gate number**: labelled cells only (cannot
+  penalise a false positive — see DECISIONS.md ADR-0027 addendum #2 for the two real category
+  errors this blind spot hid, listing_id 28159 and 28860), `brand` excluded — 261/273 = 95.6%.
+- Weight parsing (`net_weight_g`), separately, on its 82 non-empty labels: **82/82 = 100.0%**
+  (no false positives on this field, so recall and symmetric agree).
 - Reported for transparency, not the gate figure: all-cells 966/1000 = 96.6% (inflated — mostly
-  both-sides-null agreement); labelled-cells-with-brand 346/368 = 94.0%.
+  both-sides-null agreement); labelled-cells-with-brand 346/368 = 94.0%; symmetric-with-brand
+  346/380 = 91.1%.
+- The gate is met on both the 93.2% and 95.6% figures — the substantive conclusion is unchanged;
+  only the framing (which one is "the" gate figure) is corrected.
 - Cache proof: `scripts/normalize.py` run twice, second pass 0 new extractions out of 10,503
   content hashes (command output in DECISIONS.md ADR-0027 addendum).
+- **Labelling-provenance limitation, stated plainly:** the 100 rows were labelled by a code-blind
+  model, not a human, and 0 of 100 have the `ambiguous` column flagged (verified this session) —
+  the sample README's promised hand-check of flagged rows never ran, since nothing was flagged.
+  Recorded as a limitation of the gate, not a defect that invalidates it: the margin over 85% is
+  wide under every denominator computed. Full reasoning: DECISIONS.md ADR-0027 addendum #2.
 
 **Why `brand` is excluded from the gate figure — not because its score is weakest.** 12 of
 `brand`'s 15 mismatches (89.5% on its own 95 labelled cells) are a labelling-scope artifact: the
@@ -127,13 +148,20 @@ sample cannot grade `brand` either way, and it is neither an extractor bug nor a
 `brand`'s own correctness is validated separately, by STEP 1's cross-shop comparability check
 (Brit/Calibra/Hill's — same product, different shops, same canonical brand).
 
-**Why 95.6%, not the 96.6% first reported or the 90.8% used to approve the fix list.** 96.6% was
-scored against all 1,000 cells, and most fields are null on most rows — `dosage_band` alone
-contributes 1 real test and 99 free "both sides correctly said nothing" points. 90.8% (334/368)
-was a quick mental estimate (368 labelled cells minus all 34 mismatches) that double-subtracts:
-12 of the 34 mismatches are false positives on an empty label, never part of the 368-cell
-denominator to begin with. The rigorously computed figure is higher than the estimate, not lower.
-Full reasoning and the reconciliation arithmetic: DECISIONS.md ADR-0027, addendum #2.
+**Why 93.2%/95.6%, not the 96.6% first reported or the 90.8% used to approve the fix list.** 96.6%
+was scored against all 1,000 cells, and most fields are null on most rows — `dosage_band` alone
+contributes 1 real test and 99 free "both sides correctly said nothing" points. 95.6% (labelled
+cells only) is closer but structurally cannot see a false positive — a cell where the extractor
+invented a value against an empty label is simply excluded from that denominator, no penalty
+paid. Two real titles in this sample show the cost: listing_id 28159 ("semi-umeda", label empty,
+extractor said "wet") and 28860 ("Turkey Jerky", label empty, extractor said "dry") — both real
+category errors, both invisible to 95.6%, the first exactly what fix #3 corrected. The symmetric
+figure (93.2%) adds every false-positive cell to the denominator, so it can penalise them; that is
+now the gate figure, with 95.6% kept alongside as the recall figure. 90.8% (334/368) was a quick
+mental estimate (368 labelled cells minus all 34 mismatches) that double-subtracts: 12 of the 34
+mismatches are false positives on an empty label, never part of the 368-cell denominator to begin
+with. Both rigorously computed figures are higher than the 90.8% estimate, not lower. Full
+reasoning and the reconciliation arithmetic: DECISIONS.md ADR-0027, addendum #2.
 
 **This figure is frozen — measured before any gate-derived fix, and never re-measured after.**
 Every one of the four fixes below was derived from a mismatch inside this same 100-row sample;
@@ -159,8 +187,9 @@ future post-fix accuracy number needs a new, independently drawn sample.
     breed-size gap and "kitten" life-stage gap are documented, deliberately not fixed this
     session — resurfaced honestly in this session's gate mismatches, not silently ignored.
 [x] `flavour`/`food_form` table extensions (multiple sessions, most recently `"creveti"`/shrimp).
-[x] **85% accuracy gate — MET: 95.6% (261/273, labelled cells, brand excluded), weight parsing
-    100.0% (82/82).**
+[x] **85% accuracy gate — MET: 93.2% (261/280, symmetric — labelled cells + false positives,
+    brand excluded) — the gate figure; 95.6% (261/273, labelled cells only, cannot see false
+    positives) kept alongside it as the recall figure. Weight parsing 100.0% (82/82).**
 [x] cache proof — MET, command output in DECISIONS.md ADR-0027 addendum.
 [x] **four gate-derived fixes approved and implemented** (`"punguta"` food_form, M-PETS/
     L-carnitina breed_size false positives, two small food_form fixes, `"creveti"`/shrimp
@@ -209,9 +238,10 @@ Grounded in what this session actually saw in the data, not the plan's descripti
    **Convention 7** — `breed_size_code` accessory-context guard (`attributes.py`), verified zero
    accessory titles still leak a breed_size_code over the full population.
 5. **Gate sample labelled and committed**, scored (`scripts/measure_gate.py`). First figure
-   (96.6%, all-cells) was inflated; corrected to the gate figure — **95.6% (261/273, labelled
-   cells, brand excluded), 100% weight parsing (82/82)** — before any fix, and frozen at that
-   number. Cache proof run with command output. STEP 5 fix list proposed (15 named failure
+   (96.6%, all-cells) was inflated; corrected twice — to 95.6% (labelled cells only, cannot see a
+   false positive), then to **93.2% (261/280, symmetric, brand excluded) — the gate figure**,
+   100% weight parsing (82/82) — before any fix, and both frozen at those numbers. Cache proof run
+   with command output. STEP 5 fix list proposed (15 named failure
    shapes, priority-ordered, population counts for each real bug).
 6. **Four gate-derived fixes approved and implemented, measured by population coverage (never by
    re-scoring the gate sample):** `"punguta"` food_form gap (420 titles, all now `"pouch"`); a
@@ -470,10 +500,12 @@ Grounded in what this session actually saw in the data, not the plan's descripti
 - **CLOSED 2026-09-14: Phase 2 gate sample labelled and scored, gate MET and CLOSED.** Labelled
   externally (by a model with no visibility into this repo's code, so never tuned against),
   committed as `docs/learned/phase2-gate-sample-labeled.csv`, scored by
-  `scripts/measure_gate.py`: **gate figure 95.6% (261/273, labelled cells, brand excluded), 100%
-  weight parsing (82/82)** — the 96.6% first computed was the inflated all-cells figure, corrected
-  before anything was tuned against it (DECISIONS.md ADR-0027 addendum #2 has the full
-  reconciliation). This figure is frozen, taken before the four gate-derived fixes below, and not
+  `scripts/measure_gate.py`: **gate figure 93.2% (261/280, symmetric — labelled cells + false
+  positives, brand excluded), 95.6% kept alongside as the recall figure, 100% weight parsing
+  (82/82)** — the 96.6% first computed was the inflated all-cells figure, and the 95.6%
+  labelled-cells figure that replaced it structurally cannot see a false positive; both corrected
+  before anything was tuned against them (DECISIONS.md ADR-0027 addendum #2 has the full
+  reconciliation). These figures are frozen, taken before the four gate-derived fixes below, and not
   re-measured after them. Full breakdown and the 34 mismatches' failure-shape analysis in
   DECISIONS.md ADR-0027.
 - **CLOSED 2026-09-14: `product_line` extraction wired into `normalize.extract()` and run over

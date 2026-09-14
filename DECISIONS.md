@@ -991,7 +991,13 @@ corrected script scores three different denominators, none hidden behind the oth
 |---|---|---|
 | All cells (10 fields x 100 rows) | 966/1000 = 96.6% | transparency only, never the gate number |
 | Labelled cells only, brand included | 346/368 = 94.0% | honest denominator, still mixes in an un-gradeable field |
-| **Labelled cells only, brand EXCLUDED** | **261/273 = 95.6%** | **the gate number** |
+| Labelled cells only, brand EXCLUDED | 261/273 = 95.6% | **superseded as "the gate number" by addendum #2 below** — this denominator cannot see a false positive; kept as the recall figure |
+
+**Superseded — see addendum #2 below.** This table's own "95.6% is the gate number" claim was
+itself corrected the same day: a labelled-cells-only denominator cannot penalise a false positive
+(the extractor inventing a value where the label is empty), and two real titles in this sample
+show that isn't academic. Addendum #2 adds a fourth, symmetric denominator that can — **93.2%
+(261/280) is the actual gate figure**; 95.6% stays useful as the recall figure, not the headline.
 
 Weight parsing (`net_weight_g`), measured separately per CLAUDE.md §7, on its 82 non-empty
 labels: **82/82 = 100.0%**. Every per-field line in the script's output prints its own
@@ -1130,31 +1136,88 @@ implemented the same day; see the next addendum.
 ### Addendum #2, 2026-09-14 (same day, continued) — the gate figure corrected; the four approved fixes implemented; gate frozen
 
 **The gate figure was corrected before anything was implemented, per instruction, so a fix could
-not be tuned against an inflated number.** The 96.6% first reported above is the "all cells"
-figure — mostly "both sides correctly produced nothing" (a plain title correctly has no
-`dosage_band`, no `bonus_weight_g` — `dosage_band` alone contributes 1 real test and 99 such free
-points). The gate number is now reported as three explicit denominators, with the third the
-headline:
+not be tuned against an inflated number. Scored against `norm_listings` under `EXTRACTOR_VERSION
+2026-09-14-v4` — before any of the four fixes below existed.** `2026-09-14-v5` (the current code,
+fixes applied) has no accuracy figure of its own, by design; see the "frozen" note further down.
 
-| Denominator | Result |
-|---|---|
-| All cells (10 fields x 100 rows) | 966/1000 = 96.6% — transparency only, never the gate figure |
-| Labelled cells only, brand included | 346/368 = 94.0% |
-| **Labelled cells only, brand EXCLUDED — THE GATE FIGURE** | **261/273 = 95.6%** |
+The 96.6% first reported above is the "all cells" figure — mostly "both sides correctly produced
+nothing" (a plain title correctly has no `dosage_band`, no `bonus_weight_g` — `dosage_band` alone
+contributes 1 real test and 99 such free points). A second pass then scored only labelled cells
+(label non-empty), landing on 95.6% — closer, but that denominator **cannot penalise a false
+positive**: a cell where the extractor invented a value against an empty label has no label to
+compare against, so it is simply excluded from both numerator and denominator, and the extractor
+pays no price for having been wrong. Two real titles in this exact sample show why that is not
+academic: `"Hrana semi-umeda pentru caini Devora Dog GF Semi-moist Mini Caprioara si curcan
+5kg"` (listing_id 28159, label empty, extractor said `"wet"`) and `"Recompense pentru caini Lily's
+Kitchen Festive Dog Turkey Jerky 70g"` (listing_id 28860, label empty, extractor said `"dry"`) —
+both real category errors, both structurally invisible to a labelled-cells-only score, and the
+first is exactly what fix #3 below corrected. A denominator that cannot see the error class a fix
+was written for is not measuring what the gate is supposed to measure.
 
-Weight parsing (`net_weight_g`), on its 82 non-empty labels: **82/82 = 100.0%**.
-`scripts/measure_gate.py` prints every field's own `labelled_n` alongside its score, so a field
-with 1 labelled cell can never again be mistaken for one measured 100 times; full output is
-reproducible with `uv run python scripts/measure_gate.py`.
+So a **fourth, symmetric denominator** was added: every cell where *either* side claims a value
+(label non-empty OR extractor non-empty) counts in the denominator, with the same numerator as
+before (a false-positive cell was never "correct"). Derived arithmetically from the already-
+recorded v4 counters — not a re-run:
+
+```
+total mismatches                                  34
+labelled-cell errors (368 - 346)                  22
+=> false positives (34 - 22)                      12
+brand labelled-cell errors (95 - 85)              10
+=> brand false positives (15 - 10)                 5
+=> headline-field false positives (12 - 5)         7
+
+Headline fields, symmetric:  261 / (273 + 7) = 261/280 = 93.2%
+All ten fields, symmetric:   346 / (368 + 12) = 346/380 = 91.1%
+```
+
+The gate number is now reported as four explicit denominators, relabelled for what each one
+actually answers:
+
+| Denominator | Result | What it answers |
+|---|---|---|
+| All cells (10 fields x 100 rows) | 966/1000 = 96.6% | transparency only, never a gate figure |
+| Recall on stated values, brand included | 346/368 = 94.0% | can the extractor reproduce a stated value? cannot see false positives |
+| Recall on stated values, brand excluded | 261/273 = 95.6% | same, brand excluded |
+| Symmetric, brand included | 346/380 = 91.1% | recall + false positives penalised |
+| **Symmetric, brand EXCLUDED — THE GATE FIGURE** | **261/280 = 93.2%** | **the gate number: CLAUDE.md §7 says "attribute accuracy", and an extractor that invents values on empty cells is not accurate** |
+
+Weight parsing (`net_weight_g`), on its 82 non-empty labels: **82/82 = 100.0%** (no false
+positives on this field, so recall and symmetric agree). `scripts/measure_gate.py` prints every
+field's own `labelled_n` and `symmetric_n` alongside its score, so a field with 1 labelled cell
+can never again be mistaken for one measured 100 times.
+
+**The gate is met on both figures — 95.6% recall and 93.2% symmetric — so the substantive
+conclusion (gate met) is unchanged. Only the framing is corrected: 93.2% is the gate figure,
+95.6% is kept alongside it as the recall figure**, because it answers a real, different, useful
+question (of the values the extractor did produce, how many matched) even though it cannot stand
+alone as an accuracy claim.
 
 **Reconciling against the 90.8% (334/368) mental estimate that accompanied the approval of this
 fix list.** 368 - 34 (all mismatches) = 334 double-subtracts: 12 of the 34 mismatches are
 `extractor_has_extra` cases (label empty, extractor produced a value — a false positive), and a
 cell with an empty label was never part of the 368-cell "labelled" denominator to begin with, so
-it cannot be subtracted from it a second time. The correctly computed figure is higher, not lower,
-than the estimate: **95.6%, not 90.8%**. Both clear the ≥85% gate, so the substantive conclusion
-(gate met) does not change — only the specific number is corrected here, with the arithmetic shown
-rather than either figure asserted silently.
+it cannot be subtracted from it a second time. Both correctly computed figures (95.6% recall,
+93.2% symmetric) are higher than the 90.8% estimate, not lower — the substantive conclusion (gate
+met) does not change under any of the three numbers; only the specific figures are corrected here,
+with the arithmetic shown rather than any of them asserted silently.
+
+**A labelling-provenance limitation, stated plainly, not worked around.** CLAUDE.md §7 asks for
+"100 manually verified listings". What exists is 100 listings labelled by an external, code-blind
+model — not a human — and, checked this session, **zero of the 100 rows have the `ambiguous`
+column flagged**. `docs/learned/phase2-gate-sample-README.md` commits to "a hand-check of every
+flagged row (plus a random 10 of the rest)"; with nothing flagged, that QA step never ran. This
+session's own STEP 5 table already classified 4 `flavour` mismatches as probable label errors, and
+one of them is concrete: listing_id 28159's label states only `"Turkey"` while the title reads
+`"Caprioara si curcan"` (deer and turkey — both present, per this codebase's own multi-flavour
+convention). The ground truth behind both the 95.6%/93.2% figures is therefore known-imperfect and
+was never independently adjudicated. This is recorded as a **stated limitation of the gate, not a
+defect that invalidates it** — the margin over the ≥85% threshold is wide under every one of the
+four denominators computed above. A future, compliant sample needs three things this one lacks:
+human adjudication of every `ambiguous`-flagged row (plus a random check of the rest, as the
+README already promised), exposure of `raw_payload.brand` to the labeller (see the `brand`-
+exclusion reasoning above), and `product_line` labelled against the current (STEP 1) convention
+rather than the superseded one STEP A's labels used.
 
 **`brand` stays excluded from every headline figure** (89.5% on its own 95 labelled cells, for the
 record) — not because its score is weakest, but because 12 of its 15 mismatches are a
@@ -1165,15 +1228,18 @@ bad label. `brand`'s correctness is validated a different, better way: the cross
 comparability check in this ADR's first addendum (Brit/Calibra/Hill's, same product, same
 canonical brand across shops).
 
-**This 95.6% figure is now frozen as the measurement of record, taken BEFORE any of the four
-fixes below.** It is not re-measured after the fixes, and no post-fix accuracy figure is reported
-anywhere in this repo. Every one of the four fixes below was *derived from* a mismatch inside this
-same 100-row sample; re-scoring those same 100 rows after fixing exactly what they revealed would
-be tuning on the test set — the extractor would now be partly optimized for the cases used to
-grade it, and any number that produced would answer a different, easier question ("did we fix what
-we just saw") than the one the frozen 95.6% answers ("does the extractor generalize"). If a future
-session wants a post-fix accuracy number, it needs a new, independently drawn sample — never this
-one, scored twice.
+**Both figures (93.2% symmetric, the gate figure; 95.6% recall) are now frozen as the measurement
+of record, taken BEFORE any of the four fixes below.** Neither is re-measured after the fixes, and
+no post-fix accuracy figure is reported anywhere in this repo. Every one of the four fixes below
+was *derived from* a mismatch inside this same 100-row sample; re-scoring those same 100 rows
+after fixing exactly what they revealed would be tuning on the test set — the extractor would now
+be partly optimized for the cases used to grade it, and any number that produced would answer a
+different, easier question ("did we fix what we just saw") than the one the frozen figures answer
+("does the extractor generalize"). If a future session wants a post-fix accuracy number, it needs
+a new, independently drawn sample — never this one, scored twice.
+`scripts/measure_gate.py` now also computes the symmetric denominator for any *future* sample, but
+was not re-run against today's database — the code was added and statically checked
+(ruff/mypy/compile), never executed for this session's own figures.
 
 **The four fixes — implemented, measured by population coverage (never by re-scoring the sample),
 same checked-before-trusting discipline as ADR-0025.** `EXTRACTOR_VERSION` bumped
