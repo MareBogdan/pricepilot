@@ -1181,9 +1181,20 @@ same checked-before-trusting discipline as ADR-0025.** `EXTRACTOR_VERSION` bumpe
 grown from 10,503 by ordinary scheduled collection between sessions, not a data issue; 0
 extraction errors).
 
-1. **`"punguta"` (diminutive pouch) added to `food_form`'s specific tier.** Checked first: 420
-   distinct titles carry it, **every one** in a `"recompense"` (treat) context — zero collisions.
-   After: all 420 now resolve to `"pouch"` (100%).
+1. **`"punguta"` (diminutive pouch) added to `food_form`'s specific tier.** Checked first: 418
+   distinct titles carried it at the time of the STEP 5 fix-list check, **every one** in a
+   `"recompense"` (treat) context — zero collisions. Reconciled this session against a fresh
+   count: **420** distinct titles carry it now — the 2-title difference is ordinary scheduled
+   collection between the two measurements (the in-scope population grew from ~10,503 to 10,532
+   distinct titles over the same window), confirmed by direct count, not assumed. Of those 420,
+   **388 were null before the fix and now correctly resolve to `"pouch"`** — the fix's own
+   contribution, verified by re-running the pre-fix `_SPECIFIC_FORM`/`_GENERIC_FORM` regex
+   (without `"punguta"`) against the same 420 titles. The other **32 already had a non-null
+   `food_form`** before this fix, via an unrelated word co-occurring in the same title (`"plic"`,
+   or a generic `"uscata"`/`"umeda"` elsewhere in the title) — the earlier framing in this
+   addendum ("all 420 now resolve to `"pouch"` (100%)") was accurate about the *end state* but
+   overstated the fix's own contribution; corrected here to the true before/after: 388 fixed, 32
+   already correct for unrelated reasons, 420 total after.
 2. **A hyphenated-code guard added to `breed_size_code`'s single-letter matcher** — a bare size
    letter immediately followed by a hyphen and more letters is a code, never a size. Checked
    first, broader than the proposed "M-PETS" case alone: every non-`_COMPOUND_SIZE`
