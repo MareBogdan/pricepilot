@@ -67,6 +67,62 @@ def test_no_breed_size_is_none() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Convention 7 (ADR-0027, 2026-09-14) — breed_size_code names the ANIMAL a product is sized for,
+# never a physical accessory's own dimension band. All four titles below are real, in-scope
+# examples: each carries a size token from the exact same vocabulary a food/treat title uses for
+# a genuine breed-size classification, and each must come back empty.
+# ---------------------------------------------------------------------------
+
+
+def test_harness_size_is_not_a_breed_size() -> None:
+    assert extract_breed_size("Ham caine Julius K9 IDC Power - 2XS 33-45 cm - Roz") is None
+    assert extract_breed_size("Ham Julius K9 IDC Power PAW Patrol - L - Rocky") is None
+
+
+def test_transport_crate_size_is_not_a_breed_size() -> None:
+    assert (
+        extract_breed_size("Cusca transport animale MPB GIPSY L, 58x38x38 cm, usa metal, Lila")
+        is None
+    )
+
+
+def test_collar_size_band_is_not_a_breed_size() -> None:
+    assert extract_breed_size("Zgarda caine Julius K9 Color & Gray - 49 - 70 cm - Gri") is None
+
+
+def test_leash_capacity_band_is_not_a_breed_size() -> None:
+    assert (
+        extract_breed_size(
+            "Lesa retractabila banda pentru caini, LIBERTY M-PETS, albastra S, 3m, <15 kg"
+        )
+        is None
+    )
+
+
+def test_dental_stick_medium_for_medium_dogs_is_still_a_real_breed_size() -> None:
+    """The positive control: "Medium" here names the dogs the product is FOR, not the product's
+    own dimension — no accessory-category word is present, so this must still resolve."""
+    assert extract_breed_size("Bete dentare Medium pentru caini talie medie") == "Medium"
+
+
+def test_ham_the_english_flavour_word_is_not_mistaken_for_a_harness() -> None:
+    """ "ham" collides with the harness-context guard only when anchored to the title's start
+    (real harness titles all open with "Ham" as the product category); unanchored, it would
+    false-positive on the English loanword "ham" (the meat) some flavour descriptions use — both
+    real, in-scope titles. Neither has a size token to begin with, so a genuine breed-size letter
+    elsewhere in the same food title (synthetic, appended) proves the mid-title "ham" isn't
+    suppressing it via the guard."""
+    assert (
+        extract_breed_size(
+            "Hrana umeda pisici, Fresh Farm Shredded fillets in sauce with ham and chicken 70 gr"
+        )
+        is None
+    )
+    assert extract_breed_size("Brit Care Cat Turkey Pate With Ham 70 g") is None
+    assert extract_breed_size("Brit Care Cat Turkey Pate With Ham, M 70 g") == "M"
+
+
+# ---------------------------------------------------------------------------
 # Life stage
 # ---------------------------------------------------------------------------
 

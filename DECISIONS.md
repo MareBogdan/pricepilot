@@ -882,4 +882,93 @@ per-source breakdown and every remaining failure-shape bucket in STATE.md and th
 output. STEP A's product_line coverage is deliberately not measured yet, pending the 30-pair
 review.
 
-**Date.** 2026-09-13
+**Date.** 2026-09-13 [continued below, 2026-09-14]
+
+---
+
+### Addendum, 2026-09-14 — product_line wired in (two fixes first); conventions 6 and 7; first gate measurement
+
+**Context.** The architect-session review of `product_line`'s 30 preview pairs found two real bugs
+before approving it to run over the full table. Both are fixed here, product_line is now wired
+into `extract()`, and two more conventions surfaced while labelling `docs/learned/
+phase2-gate-sample-labeled.csv` externally.
+
+**Fix 1a — brand removal now strips only the manufacturer, never the shop's whole raw brand
+field.** The original implementation stripped `source_brand` verbatim. For petmax's `"Brit
+Premium"` that cut `"Premium"` out along with the brand, leaving `"by Nature Junior XL"` where the
+real product line is `"Premium by Nature Junior XL"` — and worse, made the same product
+non-comparable across shops: pentruanimale states the bare `"BRIT"` for the identical product, so
+its product_line kept the whole `"Premium By Nature Adult Large Breed"`, sharing barely a token
+with petmax's fragment. This is the exact Brit brand-field fragmentation the 2026-09-13 diagnostic
+documented, re-entering through `product_line` instead of `brand`.
+
+Fixed at the source: `brand.brand_span_text()` (new) returns only the manufacturer-only substring
+of the raw brand field — the retained prefix once `_strip_marketing_suffix` removes a marketing
+suffix (`"Brit Premium"` -> `"brit"`, leaving `"Premium"` as real sub-line text), or the whole
+normalized string for an alias-table entry with no separate sub-line inside it (`"Affinity
+Advance"` -> `"advance"`, unaffected by this fix). `product_line._brand_span` now searches for
+that text instead of the raw field. Verified as the acceptance test asked: petmax
+`"Brit Premium"` and pentruanimale `"BRIT"` now both produce a product_line starting with
+`"Premium by Nature..."`; Calibra's Life/Premium/Expert petmax forms and pentruanimale's bare
+`"CALIBRA"` all keep their real sub-line words; petmax's `"Hill's Pet Nutrition"` and
+pentruanimale's `"HILL'S Science Plan"` both strip to the bare manufacturer, keeping their
+(different, real) sub-lines. `tests/test_normalize_product_line.py` carries all of these as
+regression tests.
+
+**Fix 1b — a general dangling-token guard, not a per-case patch.** Found via a real accessory
+title: `"Bol pentru hrana animale, inox, diametru 2 l, 25 cm, Negru Agility"` — excising the
+quantity span `"2 l"` left `"diametru"` (its own qualifier) stranded in its own comma segment,
+naming nothing. `product_line.py` gained a closed-vocabulary post-step
+(`_strip_dangling_tokens`, run to a fixed point after every other removal) that drops a
+comma-delimited segment reduced to nothing but one connective/qualifier word (`cu`, `si`, `de`,
+`din`, `diametru`, `and`, `with`), and separately strips the same words from the whole string's
+own leading/trailing edge. A companion checker, `product_line_guard_violations` (exported, not
+test-private), encodes the same five invariants CLAUDE.md's instruction named — never fires on a
+word that sits inside a longer real phrase, only on a segment/edge that reduces to exactly one
+dangling word.
+
+**Evidence.** Swept the guard over the full in-scope population (18,585 titles, this session's own
+query): **zero** `product_line_guard_violations` after cleanup. Comparing pre-guard vs post-guard
+output found **260 real titles** where the guard changed something — not a hypothetical edge case.
+Two shapes, both represented in `scripts/preview_product_line.py`'s STEP 1b acceptance-test set:
+an orphaned mid-string qualifier once its quantity is excised (6 "Bol ... diametru ..." accessory
+titles, one of which had no attached quantity at all — the raw title's own text was already
+dangling, not just a guard-induced case), and a leading `"cu {word}"`/`"de {phrase}"` connective
+left dangling once the clause immediately before it is removed (254 titles, mostly Skipper/Pure
+Nurture/Dog&Dog "cu {flavour}"-leading titles).
+
+**Convention 6 — `"N x W"` vs `"N bucati / W"`.** Look alike, mean opposite things: `"12x85 g"` is
+N separately packaged units of W each (`net_weight_g = 85`, `pack_count = 12`); `"6 bucati / 90
+g"` is N pieces inside ONE package whose total net weight is W (`net_weight_g = 90`, `pack_count =
+6`). Verified on the live petmax page for listing_id 1597: `"Greutate neta: 6 bucati / 90g"` — 90 g
+is the bag, not the piece. **No code change was needed** — `quantity.py`'s existing precedence
+order (`_PACK_TIGHT` for the first form, `_PLAIN` + `_PIECE_COUNT` for the second) already
+produces the correct fields for both; this convention just names and pins the behaviour down with
+explicit tests (`test_convention_6_*` in `tests/test_normalize_quantity.py`) and in
+`docs/learned/phase2-gate-sample-README.md`.
+
+**Convention 7 — `breed_size_code` names the ANIMAL, never the product's own dimension.** A
+harness, leash, collar, or transport crate routinely carries a size letter/word from the exact
+same vocabulary ("L", "Medium", "XS-XL") as a genuine breed-size classification — but it's the
+*product's* own size. Fixed with two guards in `attributes.py`: an accessory-context vocabulary
+(`zgarda`/`lesa`/`cusca`/`transport`, each checked against the full population before trusting —
+113/187/51/54 distinct real titles respectively, zero collisions with any "hrana"/"recompense"
+title) that suppresses `breed_size_code` entirely when present; and a separate anchored check for
+`"ham"` (harness) requiring it as the title's *first* word, not matched anywhere — a bare `\bham\b`
+collides with the English loanword "ham" (the meat) two real flavour-description titles use
+("... with ham and chicken", "Pate With Ham"), while all 130 distinct real harness titles open
+with "Ham" as the product-category word. One known, accepted miss from this trade-off: `"Curea Y,
+ham Julius K9 - M"` states "ham" mid-title with no other accessory word present, so its own "M" is
+not excluded — "curea" (strap) appears in only 2 titles total in this data, too thin to trust as
+its own vocabulary entry by this codebase's own standard. A dedicated positive control (`"Bete
+dentare Medium pentru caini talie medie"` -> `"Medium"`) confirms a genuine breed-size word with no
+accessory context still resolves. Verified over the full population: zero accessory-context titles
+still produce a non-null `breed_size_code` after the fix.
+
+**Wiring.** `product_line` is now composed in `normalize.extract()` (previously hardcoded `None`).
+`EXTRACTOR_VERSION` bumped `2026-09-13-v3` -> `2026-09-14-v4`. `norm_listings` was cleared (10,503
+rows, fully derived/re-derivable from `raw_listings` — no data loss) and fully re-extracted:
+10,503 rows re-inserted, zero extraction errors. **`product_line` coverage: 10,496/10,503 =
+99.9%.**
+
+**Date.** 2026-09-14

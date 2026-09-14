@@ -7,14 +7,14 @@ every column. The CSV now starts directly with its real header row. Same 100 row
 same ids, still empty — nothing about the sample itself changed, only where this text lives.
 
 **Do not edit the CSV's rows.** Fill in the attribute columns and the final `ambiguous` column
-only, per the five conventions below. If you're unsure a row's answer follows from these
+only, per the seven conventions below. If you're unsure a row's answer follows from these
 conventions unambiguously, flag it in `ambiguous` rather than guessing — a hand-check of every
 flagged row (plus a random 10 of the rest) is part of the plan.
 
 CLAUDE.md §7's Phase 2 gate: **>=85% attribute accuracy on these 100 listings, with weight
 parsing measured separately.**
 
-## The five conventions (decided, ADR-0026)
+## The seven conventions (1-5 decided ADR-0026; 6-7 added 2026-09-14, ADR-0027)
 
 Apply these exactly, so the labeller and the extractor cannot diverge on definitions:
 
@@ -36,6 +36,23 @@ Apply these exactly, so the labeller and the extractor cannot diverge on definit
    - The sub-line ("Premium by Nature", "Science Plan", "Life", "Care") belongs in
      `product_line`, never in `brand`. STEP 3's brand canonicalization targets exactly this
      shape — every variant a source writes maps onto it.
+
+6. **`"N x W"` and `"N bucati / W"` look alike and mean opposite things.**
+   - `"12x85 g"` -> `net_weight_g = 85` (each unit's own weight), `pack_count = 12` (how many
+     separately packaged units) — this is convention 1, restated.
+   - `"6 bucati / 90 g"` -> `net_weight_g = 90` (the ONE package's total net weight), `pack_count
+     = 6` (how many pieces are inside that one package). Verified on the live petmax page for
+     listing_id 1597: `"Greutate neta: 6 bucati / 90g"` — 90 g is the bag, not one piece.
+   - The number after "x"/"×" is always a per-unit weight multiplied by a pack count; the number
+     after "bucati/buc" separated by "/" from a weight is always the whole package's weight, with
+     the piece count along for reference only. Do not swap these.
+7. **`breed_size_code` describes the ANIMAL the product is for, never the product's own physical
+   dimensions.** A harness `"2XL"`, a transport crate `"L"`, a collar or leash `"M 30-51 cm"` /
+   `"S, ... Pana la 15 kg"` all leave `breed_size_code` **empty** — that size names the accessory
+   itself, not a breed classification. A dental stick labelled `"Medium"` (for medium dogs) DOES
+   fill it, because there `"Medium"` genuinely classifies which animals the product is for. If a
+   title is for a harness, leash, collar, or transport crate, `breed_size_code` is empty
+   regardless of which size word or letter appears in it.
 
 A quantity is mass-based XOR volume-based: fill **at most one** of `net_weight_g` /
 `net_volume_ml` per row, never both (ADR-0026's DB-enforced invariant). Leave **both** empty when

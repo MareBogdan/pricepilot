@@ -122,6 +122,34 @@ def test_standalone_piece_count_alongside_a_plain_weight() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Convention 6 (ADR-0027, 2026-09-14) — "N x W" and "N bucati / W" look alike but mean opposite
+# things. "12x85 g" is N separately packaged units of W each: net_weight_g = W, pack_count = N.
+# "6 bucati / 90 g" is N pieces inside ONE package whose total net weight is W: net_weight_g = W
+# (the package), pack_count = N (the pieces) — same fields, same values in the abstract, but
+# semantically the package's own weight versus a piece count, and easy to get backwards. Both
+# forms already fell out correctly from the existing precedence order (_PACK_TIGHT for the first,
+# _PLAIN + _PIECE_COUNT for the second) — these tests just name and pin that down explicitly.
+# ---------------------------------------------------------------------------
+
+
+def test_convention_6_n_x_w_is_n_separately_packaged_units() -> None:
+    """ "12x85 g" — 12 separate 85g units. The multiplier is the pack, 85 is each unit's own
+    weight, never the total mass."""
+    r = extract_quantity("Calibra Cat Life Pouch Sterilised Multipack 12x85 g")
+    assert r.net_weight_g == 85
+    assert r.pack_count == 12
+
+
+def test_convention_6_n_bucati_slash_w_is_one_package_of_total_weight_w() -> None:
+    """Verified on the live petmax page for listing_id 1597: "Greutate neta: 6 bucati / 90g" —
+    90 g is the bag's own net weight, not one piece's weight; 6 is how many pieces are inside
+    that one bag."""
+    r = extract_quantity("Recompense caini Something - 6 bucati / 90g")
+    assert r.net_weight_g == 90
+    assert r.pack_count == 6
+
+
+# ---------------------------------------------------------------------------
 # Weight/volume are mutually exclusive by construction (never both set)
 # ---------------------------------------------------------------------------
 

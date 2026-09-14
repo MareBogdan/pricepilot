@@ -44,15 +44,54 @@ _SINGLE_LETTER_SIZE = re.compile(r"\b(XS|XL|S|M|L)\b")
 _LOOKS_LIKE_A_QUANTITY = re.compile(r"\d\s*,?\s*$")
 _PRECEDED_BY_APOSTROPHE = re.compile(r"['’]\s*$")  # noqa: RUF001 — curly apostrophe, real
 
+# Convention 7 (ADR-0027): breed_size_code names the ANIMAL a product is sized for, never a
+# physical accessory's own dimension band. A harness, leash, collar or transport crate routinely
+# carries a size letter/word drawn from the exact same vocabulary ("L", "Medium", "XS-XL") — but
+# it's the *product's* size, not a breed classification, and reading it as one is a real, checked
+# false-positive class (see the samples grounding this list in DECISIONS.md ADR-0027): "Cusca
+# transport animale MPB GIPSY L, 58x38x38 cm" (51 distinct titles carry "cusca", 54 "transport"),
+# "Lesa ... Pana la 15 kg, S, ..." (187 distinct titles carry "lesa"), "Zgarda ... 20-33 cm" (113
+# distinct titles carry "zgarda") — every one of these categories states its own size
+# independently of which breed it fits, and none of the words below collided with anything
+# food-related when checked against the full in-scope population (no "hrana"/"recompense" title
+# matched any of them).
+_ACCESSORY_CONTEXT = re.compile(r"\b(zgarda|zgarzi|lesa|lese|cusca|custi|transport)\b")
+
+# "ham" (harness) is handled separately, anchored to the *start* of the title, not matched
+# anywhere: unlike the words above, a bare `\bham\b` collides with the English loanword "ham"
+# (the meat) that a handful of titles use in a flavour phrase — "... with ham and chicken", "Pate
+# With Ham" (2 real titles, checked) — neither of which is a harness. Every real harness title
+# checked (130 distinct) opens with "Ham" as the product-category word, so anchoring to the start
+# clears both false positives at the cost of one known, accepted miss: "Curea Y, ham Julius K9 -
+# M" states "ham" mid-title with no other accessory word present, so its own "M" is not excluded.
+# Not fixed by adding "curea" as its own vocabulary word — that string appears in only 2 titles
+# total in this data, too thin to trust as a general accessory-category signal the way the others
+# above are (checked in DECISIONS.md ADR-0027 alongside the words that were added).
+_HARNESS_PREFIX = re.compile(r"^ham\b")
+
+# A size letter/word immediately followed by its own numeric dimension/capacity band ("M 30-51
+# cm", "L, 40x30x20 cm", "S, ... Pana la 15 kg" read in reverse as "kg ... S") is the product's
+# own measurement whatever the title's category words say — checked at the match itself, not
+# only via the vocabulary above, so an accessory outside that closed word list is still caught.
+_FOLLOWED_BY_DIMENSION = re.compile(
+    r"^[\s,]*\d+(?:[.,]\d+)?\s*(?:[x×-]\s*\d+(?:[.,]\d+)?\s*)*(?:cm|mm)\b"  # noqa: RUF001
+)
+
 
 def extract_breed_size(title: str) -> str | None:
+    folded = strip_diacritics(title.lower())
+    if _ACCESSORY_CONTEXT.search(folded) is not None or _HARNESS_PREFIX.match(folded) is not None:
+        return None
     if (match := _COMPOUND_SIZE.search(title)) is not None:
         return match.group(1).upper()
     if (match := _WORD_SIZE.search(title)) is not None:
         return match.group(1).capitalize()
     for match in _SINGLE_LETTER_SIZE.finditer(title):
         before = title[: match.start()]
+        after = title[match.end() :]
         if _LOOKS_LIKE_A_QUANTITY.search(before) or _PRECEDED_BY_APOSTROPHE.search(before):
+            continue
+        if _FOLLOWED_BY_DIMENSION.search(after):
             continue
         return match.group(1).upper()
     return None
