@@ -1,7 +1,25 @@
 # STATE
 
 Phase: 1 — Collection (still open — gate met except 7-consecutive-days, 3/7 as of 2026-09-14, pure
-wall-clock, nothing to decide) **and Phase 2 — Normalization, CLOSED 2026-09-14.**
+wall-clock, nothing to decide), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 —
+Matching, opened 2026-09-15 (prerequisites only this session — no baseline, no fine-tuning, no
+annotation run started).**
+
+Phase 3, 2026-09-15 session, in order: built a retrieval evaluation set independent of embeddings
+(142 known-positive pairs — 26 browser-verified + 116 plausibility-checked proxy-key collisions),
+measured candidate-retrieval recall@20 against it — **69.9% pooled, but the unbiased random-draw
+subset alone scores only 26.9%, both below CLAUDE.md's >=90% target** — found and documented the
+root cause (Phase 2's own `product_line` strips weight, so same-line-different-weight siblings
+embed identically and crowd the true cross-shop match out of retrieval), stopped without tuning
+per explicit instruction. Built the three retrieval signals STATE.md's own "what Phase 3 needs"
+list (below, now historical) named — `category`, `brand_blocking_key`, and a brand-trust flag
+that started as an automated classifier, was found unreliable on real data, and shipped instead
+as a small hand-verified list. Wrote the annotation conventions before the tool
+(`docs/learned/phase3-annotation-conventions.md`), built the tool (`tools/annotate.html`), and
+drew the 1,000-pair queue (444 hard / 519 easy / 37 trivial spot-check) — found and fixed two real
+bugs along the way (a URL-based variant-resolution bug in the eval set, a capacity-equality bug
+in the queue's own tier classifier), both caught by tracing a specific wrong case, not by
+inspection. Full detail: DECISIONS.md ADR-0028. **Stopped for review before any labelling begins.**
 
 Phase 2, 2026-09-14 session, in order: fixed two real bugs the architect review found in
 `product_line` (1a brand-span, 1b dangling-token guard — DECISIONS.md ADR-0027), added
@@ -27,7 +45,7 @@ false positives on wet wipes, not wet food; "semi-umeda" no longer false-positiv
 the `"creveti"`/shrimp flavour gap (52 titles) — each measured by population coverage, never by
 re-scoring the gate sample (that would be tuning on the test set; 93.2%/95.6% stay the frozen,
 un-re-measured figures of record). No Phase 1 box ticked this session.
-Updated: 2026-09-14
+Updated: 2026-09-15
 
 ## Gate progress
 
@@ -196,30 +214,75 @@ future post-fix accuracy number needs a new, independently drawn sample.
     flavour), each measured by population coverage before/after — never by re-scoring the gate
     sample. Details and every number: DECISIONS.md ADR-0027 addendum #2.
 
-## What Phase 3 will need from Phase 2's output that doesn't exist yet
+## What Phase 3 will need from Phase 2's output that doesn't exist yet (historical — written 2026-09-14, before Phase 3 opened)
 
-Grounded in what this session actually saw in the data, not the plan's description:
+Grounded in what that session actually saw in the data, not the plan's description. Status as of
+the 2026-09-15 Phase 3 session, item by item:
 
-- **A category signal** (food vs. accessory vs. litter vs. toy) — `norm_listings` has none. Two
-  real false-positive classes surfaced this session precisely because nothing upstream separates
-  categories: a food product line named `"Sheba Mini"` vs. an accessory's own `"Mini"` dimension;
-  `"umede"` (wet WIPES, an accessory) vs. wet food. Phase 3's candidate retrieval will hit the
-  same ambiguity at a larger scale without a cheap category filter.
-- **`product_line`'s own accuracy measurement.** It's the field Phase 3 will lean on hardest for
-  matching, and it has never been gated — the only external labels for it (STEP A, prior session)
-  were drawn against a convention STEP 1 superseded. It needs a fresh, convention-matched labelled
-  sample before Phase 3 trusts it at the level `brand`/quantity now are.
-- **A brand-trustworthiness signal.** Some shops' structured brand fields are genuine manufacturer
-  names; others are internal supplier/distributor codes (`"Ipts"`, `"Record"`, `"Opti"`) that
-  don't match across shops at all for the same product. Candidate blocking on `brand` can't treat
-  every value as equally reliable without knowing which is which.
-- **Hyphen/spacing-normalized brand keys.** `canonicalize_brand()` still leaves `"julius-k9"` and
-  a human's `"julius k9"` as different strings. Fine as a feature for a learned matcher; a real
-  gap if Phase 3 uses exact-match brand as a blocking key rather than just a signal.
+- **A category signal** (food vs. accessory vs. litter vs. toy) — **BUILT.**
+  `normalize/category.py`, `norm_listings.category` (migration 0007). See the Phase 3 gate
+  section below for the population breakdown.
+- **`product_line`'s own accuracy measurement.** **STILL OPEN, not addressed this session** —
+  Phase 3's own annotation queue (below) implicitly exercises `product_line` as part of the tier
+  classifier and the attribute-comparison table the annotator sees, but no dedicated accuracy
+  figure for the field itself was produced. Stays a real gap.
+- **A brand-trustworthiness signal.** **BUILT, with a correction.** An automated statistical
+  approach was tried and rejected as unreliable (real manufacturers like Chicopee and Dolina
+  Noteci score identically to confirmed distributor codes on title-overlap rate). Shipped as a
+  small hand-verified list instead: `"opti"` (confirmed) and `"ipts"` (weaker evidence, flagged as
+  such). **`"Record"`, named here as an example of a distributor code, was checked this session
+  and found to be a real manufacturer** — this line's own example was wrong; corrected in
+  DECISIONS.md ADR-0028, not silently dropped.
+- **Hyphen/spacing-normalized brand keys.** **BUILT.** `brand_blocking_key()`, grounded in 5 real
+  collisions found among today's canonical brand values (not the Julius K-9 case this line
+  named — that one turned out to already canonicalize identically via the existing alias, checked
+  this session; the real collisions found were different brands entirely — `"club 4 paws"`,
+  `"cat's best"`, `"my love"`, `"lolopets"`, `"dr. clauder's"`).
 - **The still-open EN breed-size vocabulary gap** (`"Small"`/`"Medium"`/`"Large"`/`"Giant"`/`"Toy
-  Breed"`, `"kitten"`) is exactly the size-variant hard-negative class CLAUDE.md names as the
-  dominant Phase 3 error risk — leaving it unmatched removes a real signal precisely where
-  matching needs it most.
+  Breed"`, `"kitten"`) — **STILL OPEN, not addressed this session.** Stays exactly the risk this
+  line described.
+
+## Phase 3 — Matching: opened 2026-09-15, prerequisites only
+
+CLAUDE.md §7 gate for this phase: candidate retrieval recall@20 >=90%, an annotation tool and
+1,000-pair dataset, a baseline, a fine-tuned model, a serving benchmark. **This session built only
+through the queue — no baseline, no fine-tuning, no annotation run.** Full detail and every
+number: DECISIONS.md ADR-0028.
+
+[x] STEP 1 — retrieval evaluation set independent of embeddings
+    (`scripts/build_retrieval_eval_set.py`, `docs/learned/phase3-retrieval-eval-set.csv`). 142
+    known-positive pairs: 26 browser-verified (`q3-verification.md`, ADR-0023) + 116 of 120
+    plausibility-checked proxy-key collisions (4 rejected — 3 life-stage variants, 1 uncertain).
+[x] STEP 2 — candidate retrieval built and measured
+    (`scripts/build_embeddings.py`, `scripts/measure_recall_at_20.py`). `sentence-transformers`
+    (local, free) + pgvector IVFFlat, migration 0006. **recall@20 = 95/136 = 69.9%, 95% CI
+    [61.7%, 76.9%] — BELOW the >=90% target.** Per-source: proxy_key_collision 80.0%,
+    q3_browser_verified (unbiased) only 26.9%, CI [13.7%, 46.1%]. Root cause found and documented
+    (product_line strips weight -> same-line-different-weight siblings embed identically and
+    crowd out the true cross-shop match) — **not tuned this session, per explicit instruction.**
+[x] STEP 3 — three retrieval signals (`normalize/category.py`, `normalize/brand.py`,
+    migration 0007, `scripts/backfill_phase3_signals.py`). category: food 8,601 / accessory
+    1,550 / litter 202 / toy 177 / unknown 2. brand_blocking_key built. brand-trust: automated
+    approach rejected as unreliable (checked, not assumed); small hand-verified list shipped
+    instead (`"opti"` confirmed, `"ipts"` weaker evidence).
+[x] STEP 4 — `docs/learned/phase3-annotation-conventions.md`, written before the tool. Ten
+    numbered rules plus five named gaps the rules don't yet cover (defaulted to `S`, not guessed).
+[x] STEP 5 — `tools/annotate.html`, single local HTML page, keyboard-driven (M/N/S/U/F).
+    Attribute diff table, token-level title diff, always-visible rubric sidebar, localStorage
+    autosave/resume, self-agreement spot-check support, never shows a model prediction. Verified
+    by syntax-checking the extracted script and running its core functions (diff, seeded shuffle)
+    against the real queue in Node — not opened in a live browser (extension unavailable this
+    session), no annotation decision made.
+[x] STEP 6 — the queue (`scripts/build_annotation_queue.py`,
+    `docs/learned/phase3-annotation-queue.json`). **1,000 pairs: hard 444 (44.4%), easy 519
+    (51.9%), trivial spot-check 37 (3.7%).** Two real bugs found and fixed while building this
+    (a URL-based variant-resolution bug reused from STEP 1's own fix; a capacity-equality bug in
+    the tier classifier that hid nearly every trivial pair) — both caught by tracing one specific
+    wrong case, not by inspection. Estimated wall-clock at 200 pairs/hour: **5.0 hours.**
+[ ] Baseline (classical cross-encoder) — not started.
+[ ] 800-1,000 pairs annotated by Bogdan — queue built, **labelling not started**.
+[ ] Fine-tuned matcher — not started.
+[ ] Serving benchmark (CPU-quantized vs. cross-encoder vs. hosted API) — not started.
 
 ## Last done (2026-09-14 Phase 2 session, in order)
 
@@ -599,3 +662,10 @@ with Phase 3.
 
 Every Phase 1 gate box is met except 7 consecutive days of history (3/7 as of 2026-09-14), which
 is wall-clock — it closes on its own once the daily cron has run 4 more times, nothing to decide.
+
+Phase 3 prerequisites (STEP 1-6, ADR-0028) are built and committed but **stopped for review before
+any labelling begins**, per explicit instruction. Bogdan needs to review, in particular: recall@20
+measured below the >=90% gate target (69.9% pooled / 26.9% on the unbiased subset alone) with the
+root cause documented but not yet fixed; and the annotation queue (1,000 pairs) built and ready but
+not yet opened for a single decision. Nothing is asked of him beyond reviewing before labelling
+starts — no architecture question is open.

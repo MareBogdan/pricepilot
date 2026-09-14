@@ -1306,3 +1306,150 @@ title must still resolve after the `"semi-"` guard) — `tests/test_normalize_at
 `tests/test_normalize_flavour.py`. 381 tests pass; ruff, ruff format, and mypy strict all clean.
 
 **Date.** 2026-09-14
+
+## ADR-0028 — Phase 3 prerequisites: embedding-independent recall@20 measured below target (69.9%/26.9%), root cause found; three retrieval signals; annotation conventions and tool built; queue drawn
+
+**Context.** Phase 3 opened per explicit instruction: build only the prerequisites for
+annotation this session — not the baseline, not fine-tuning. The user's annotation time is the
+scarcest resource in this project, so every step here exists to make sure the ~1,000 pairs Bogdan
+eventually labels are the pairs the real retriever actually produces, not an idealized set.
+
+**STEP 1 — a retrieval evaluation set independent of embeddings
+(`scripts/build_retrieval_eval_set.py`).** Two sources, neither touching an embedding:
+
+- (a) The 26 browser-verified genuine matches in `docs/learned/q3-verification.md` (27 rows
+  drawn; ADR-0023 records row #13 as rejected — a petmax slug collision). Matched back to
+  `raw_listings` by URL **and** the exact weight `q3-verification.md` recorded, not URL alone —
+  found the hard way: `pentruanimale.ro` groups every size variant under one shared product URL
+  (CLAUDE.md's own documented structural note), so a naive "latest row at this url" lookup
+  silently resolved a Hill's 6kg pair to its own 1.5kg sibling variant instead. Fixed
+  (`_resolve_variant`), never by recency.
+- (b) 120 of the proxy key's 241 current cross-shop collisions (`overlap.py`, ADR-0023 —
+  independent of embeddings by construction), manually plausibility-checked by reading each
+  title pair. 4 rejected: 3 are life-stage variants the proxy key can't distinguish (Junior vs
+  Adult, plain Adult vs Adult 7+/senior — the exact false-collision class ADR-0023's own 25-pair
+  hand-check already flagged), 1 genuinely uncertain.
+
+**142 known-positive pairs total** (26 + 116), comfortably over the ~100 floor — reported, not
+silently assumed sufficient.
+
+**STEP 2 — candidate retrieval (`scripts/build_embeddings.py`, `scripts/measure_recall_at_20.py`).**
+`sentence-transformers` added (`paraphrase-multilingual-MiniLM-L12-v2`, local, free, zero API
+spend, no `SPEND:` line). Migration 0006 adds `norm_listings.embedding` (384-dim, pgvector
+IVFFlat cosine index). All 10,532 rows embedded from `f"{brand} {product_line or sample_title}"`.
+
+**Result: recall@20 = 95/136 = 69.9%, 95% CI [61.7%, 76.9%] — below CLAUDE.md §7's >=90% target.
+Not tuned — per instruction, the number is reported and the misses analysed by shape, then this
+session stopped for review before touching the embedding text or the model.** The pooled figure
+hides the real signal: `proxy_key_collision` (the "easy" subset, textually similar by
+construction) scores 80.0%; `q3_browser_verified` (the true random, unbiased draw) scores only
+**26.9%, 95% CI [13.7%, 46.1%]** — the honest measure of how hard this retrieval problem actually
+is, since the proxy-key subset is biased toward pairs a crude token key already found similar.
+
+**Root cause found for ~49% of misses (20/41), confirmed with direct evidence, not inferred.**
+`product_line` (Phase 2's own field) already has weight stripped out of it by design — so
+embedding `f"{brand} {product_line}"` makes same-brand-same-line-different-weight siblings
+embed **identically** (a checked case: Hill's SP Canine Adult Small and Mini Light Chicken at 6kg
+vs 1.5kg — cosine distance **0.0**, brand and product_line byte-identical on both rows). The true
+cross-shop match for that Hill's listing never appears in its top-20 because 19 of the 20 nearest
+neighbours are the SAME petmax listing's own weight/life-stage sibling variants (Puppy/Senior/
+Mature/Adult × several weights) — the exact "same-line-different-weight" hard negative CLAUDE.md
+names, now shown to degrade RETRIEVAL itself, not just downstream matching. The remaining ~51% of
+misses show weaker cross-shop discrimination even without weight-crowding — a general-purpose
+multilingual model not separating brand identity from generic flavour-word overlap strongly
+enough (e.g. a `"MATISSE, Pui și Curcan"` query's top-20 is dominated by other brands' `"Pui"`
+products, not its own cross-shop `"Matisse"` twin).
+
+**STEP 3 — three retrieval signals, same checked-before-trusting discipline as ADR-0025/ADR-0027.**
+Migration 0007 adds `norm_listings.category`/`brand_blocking_key`/`brand_is_distributor_code`,
+backfilled by `scripts/backfill_phase3_signals.py` (kept separate from `scripts/normalize.py`
+deliberately — needs `url`/`raw_payload`, which the title-only deterministic `extract()` pipeline
+never reads).
+
+- **`category`** (`normalize/category.py`) — petmax's URL path segment IS its own category (12
+  segments, checked); animax's `raw_payload["product_type"]` is its own structured field (29
+  values, checked); pentruanimale has neither, and its entire 4,023-title collected catalogue was
+  checked against every non-food keyword this session — zero hits, so defaulting it to `"food"`
+  is evidence-backed, not assumed. Population: food 8,601 / accessory 1,550 / litter 202 / toy
+  177 / unknown 2.
+- **`brand_blocking_key`** (`normalize/brand.py`) — hyphen/space/punctuation-insensitive,
+  grounded in 5 real collisions found among today's own canonical brand values (`"club 4
+  paws"`/`"club4paws"`, `"cat's best"`/`` "cat`s best" ``, `"my love"`/`"mylove"`,
+  `"lolopets"`/`"lolo pets"`, `` "dr. clauder's"``/`` "dr. clauder`s" ``).
+- **`brand_is_distributor_code`** — an automated statistical approach (per-brand title-overlap
+  rate) was tried and **rejected as unreliable**: checked against the full population, real
+  manufacturers (`"essential foods"`, `"chicoppe"`, `"dr seidel"`, `"dolina"`/Dolina Noteci, whose
+  own "Piper" house brand shows in titles instead of its name) score identically to confirmed
+  distributor codes — the statistic cannot tell "a real brand a generic-category title doesn't
+  repeat" from "no brand identity at all". Shipped instead: a small, hand-verified list built by
+  actually reading titles — `"opti"` (confirmed: every sampled title is a generic colour-varying
+  cat-tree description, no brand word anywhere) and `"ipts"` (weaker evidence, kept with the
+  caveat recorded). `"record"` was checked and found to be a real, identifiable Italian
+  accessories manufacturer (most titles carry `"Record"`/`"BiscoRe"` visibly) — corrected from an
+  earlier, hastier read of the same string during the 2026-09-14 gate-fix session that had called
+  it a distributor code without checking title context.
+
+**STEP 4 — `docs/learned/phase3-annotation-conventions.md`, written before the tool, not derived
+from labelling** (Phase 2's own lesson: conventions invented mid-labelling produce a dataset that
+disagrees with itself). Operational question: "are these the same purchasable unit, such that a
+price-comparison engine should compare their prices?" Ten numbered rules (weight/multipack/bonus/
+flavour/breed-size/life-stage → N; brand-string provenance → M; no-weight-stated and >15s
+uncertain → S; reformulation → M, flagged) plus five named cases the rules don't yet fully cover
+(pack-count-vs-total-weight ambiguity, variety packs, accessory bundles, dosage-band-as-breed-size,
+a shop's own unresolved variant grouping) — each defaulted to `S` rather than given an invented
+firm rule, the same discipline that grew Phase 2's conventions from 5 to 7 from real labelling
+gaps rather than up-front guessing.
+
+**STEP 5 — `tools/annotate.html`, single local HTML page, keyboard-driven** (M/N/S/U/F).
+Extracted-attribute side-by-side table with differing cells highlighted; a token-level
+(LCS-based) title diff; the STEP 4 rubric always visible in a sidebar; autosave to `localStorage`
+on every decision (fully resumable — a deterministic seeded shuffle, Mulberry32, reproduces the
+identical display order across sittings); visible counter/timer/median-decision-time and
+per-tier progress; NEVER displays a model prediction or score anywhere — there is no such field
+in the queue schema. Structurally supports the "silently re-present ~50 labelled pairs to measure
+self-agreement" requirement (state is keyed by `occurrence_id`, distinct from the underlying
+`pair_id`, so a repeated pair's second showing is recorded independently) — this queue's own
+trivial-tier spot-check (37 pairs, below) is exactly that mechanism, exercised for real. Verified
+by extracting the inline script and syntax-checking it (`node --check`), and by running the
+token-diff and seeded-shuffle functions directly against the real queue JSON (Node, not a
+browser — the Chrome extension was unavailable this session) — determinism and diff output both
+confirmed correct. Not opened in a live browser; no annotation decision was made.
+
+**STEP 6 — the queue (`scripts/build_annotation_queue.py`), drawn from two sources, not one —
+found necessary this session, not assumed.** A first version drew every candidate purely from
+pgvector top-20 retrieval and got 120 hard-tier pairs out of 6,241 (1.9%) — nowhere near the
+>=40% floor. Cause: the same one STEP 2 diagnosed — top-20 neighbours are dominated by a
+listing's OWN shop's siblings, so genuine cross-shop hard cases are structurally crowded out of
+retrieval almost every time. Fixed with a second, targeted source: a direct SQL query for
+cross-shop pairs sharing `brand_blocking_key` and identical `product_line` text where capacity or
+flavour differs (444 such pairs exist, checked) — the same "deliberate hard-case inclusion"
+discipline Phase 2's own gate sample used (hard-case forms drawn first, by a targeted query, not
+invented for this script).
+
+**A second real bug caught while building the queue, not left in the shipped classifier.** An
+early tier classifier's `same_capacity` check required "at least one side states a value" before
+trusting equal `net_volume_ml` — which silently marked EVERY weight-only product (the
+overwhelming majority: `net_weight_g` stated, `net_volume_ml` correctly `NULL` on both sides,
+ADR-0026's mass-XOR-volume invariant) as "different capacity", corrupting the trivial/hard split
+for nearly the whole catalog and hiding every genuine trivial pair. Found by tracing one specific
+misclassified pair (two identical Applaws 70g cross-shop listings, wrongly tagged `hard`) rather
+than trusting the aggregate tier counts. Fixed to plain equality (`None == None` is a legitimate
+match).
+
+**Final queue: 1,000 pairs — hard 444 (44.4%), easy 519 (51.9%), trivial spot-check 37 (3.7%).**
+37 trivial-tier pairs were found in the combined pool (auto-labelled `M`); all 37 were re-inserted
+into the human queue as a spot-check (below the 50-pair target because only 37 exist — reported
+exactly, not padded). Fraction of the underlying draw removed from human labelling by
+auto-labelling: 3.7%. Estimated wall-clock at 200 pairs/hour: **5.0 hours**.
+
+**Rejected.** Shipping the statistical brand-trust classifier despite its false-positive evidence
+(would present an unreliable signal as trustworthy — worse than shipping nothing, same reasoning
+ADR-0023 used to reject tuning `overlap_key()` to hit a target number). Tuning the embedding text
+or model to push recall@20 above 90% this session (explicit instruction: report, analyse by
+shape, stop for review — not "quietly improve until it looks good", ADR-0023's own precedent).
+Inventing firm rules for the annotation-conventions gaps STEP 4 found (defaulted to `S` instead,
+to be resolved from real labelling data the way Phase 2's conventions 6-7 were). Opening
+`tools/annotate.html` in a live browser and making a real M/N/S decision (explicit instruction:
+do not start the annotation run).
+
+**Date.** 2026-09-15

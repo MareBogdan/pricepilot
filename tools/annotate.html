@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PricePilot — Phase 3 Annotation</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2b303b;
+    --text: #e6e8ec;
+    --muted: #8b93a3;
+    --accent: #4f8cff;
+    --diff: #f5a524;
+    --match: #35c46a;
+    --nomatch: #f04b4b;
+    --skip: #8b93a3;
+    --flag: #f5a524;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  #app { display: flex; height: 100vh; }
+
+  /* Sidebar: rubric, always visible */
+  #sidebar {
+    width: 300px; min-width: 260px; background: var(--panel);
+    border-right: 1px solid var(--border); padding: 16px;
+    overflow-y: auto; font-size: 12.5px; line-height: 1.5;
+  }
+  #sidebar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
+  #sidebar h2:first-child { margin-top: 0; }
+  #sidebar .q { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 10px; }
+  #sidebar ol, #sidebar ul { padding-left: 18px; margin: 4px 0; }
+  #sidebar li { margin-bottom: 6px; }
+  .key { display: inline-block; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-family: monospace; font-weight: 700; }
+
+  /* Main column */
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  #topbar {
+    display: flex; align-items: center; gap: 24px;
+    padding: 10px 20px; background: var(--panel);
+    border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  #topbar .stat { color: var(--muted); }
+  #topbar .stat b { color: var(--text); }
+  #tiers { display: flex; gap: 10px; margin-left: auto; }
+  .tier-pill { background: var(--panel-2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11.5px; color: var(--muted); }
+  .tier-pill b { color: var(--text); }
+
+  #content { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 20px; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; }
+
+  #titles { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .title-col .src { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+  .title-col .txt { font-size: 16px; line-height: 1.5; }
+  .tok-same { color: var(--text); }
+  .tok-diff { color: var(--diff); font-weight: 700; background: rgba(245,165,36,0.12); border-radius: 3px; padding: 0 2px; }
+
+  table#attrs { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table#attrs th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 4px 10px; border-bottom: 1px solid var(--border); }
+  table#attrs td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  table#attrs tr:last-child td { border-bottom: none; }
+  .attr-name { color: var(--muted); width: 140px; }
+  .attr-diff { background: rgba(240,75,75,0.10); }
+  .attr-diff .val { color: var(--nomatch); font-weight: 700; }
+  .attr-empty { color: var(--muted); font-style: italic; }
+
+  #decision-bar {
+    display: flex; gap: 10px; align-items: center; padding: 16px 20px;
+    background: var(--panel); border-top: 1px solid var(--border);
+  }
+  .btn {
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+    border-radius: 8px; padding: 10px 18px; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn .key { background: rgba(255,255,255,0.08); }
+  .btn-m:hover, .btn-m.active { border-color: var(--match); color: var(--match); }
+  .btn-n:hover, .btn-n.active { border-color: var(--nomatch); color: var(--nomatch); }
+  .btn-s:hover, .btn-s.active { border-color: var(--skip); color: var(--text); }
+  .btn-flag { margin-left: auto; }
+  .btn-flag.active { border-color: var(--flag); color: var(--flag); }
+  .btn-undo { color: var(--muted); }
+
+  #toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 16px; font-size: 12.5px; color: var(--muted); opacity: 0; transition: opacity .2s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+
+  #done-screen { display: none; flex: 1; align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
+  #done-screen h1 { font-size: 20px; }
+  #done-screen p { color: var(--muted); font-size: 13px; }
+
+  #resume-note { font-size: 11.5px; color: var(--muted); padding: 4px 20px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div class="q">"Are these the same purchasable unit, such that a price-comparison engine should compare their prices?"</div>
+
+    <h2>Answers</h2>
+    <ul>
+      <li><span class="key">M</span> match — same purchasable unit</li>
+      <li><span class="key">N</span> no match — different unit or product</li>
+      <li><span class="key">S</span> skip / uncertain — a real answer, not a failure</li>
+      <li><span class="key">U</span> undo last decision</li>
+      <li><span class="key">F</span> flag (add to any answer — e.g. reformulation, worth a second look)</li>
+    </ul>
+
+    <h2>N — always</h2>
+    <ol>
+      <li>Different net weight/volume</li>
+      <li>Multipack vs single unit</li>
+      <li>Bonus pack vs plain pack</li>
+      <li>Different flavour/protein</li>
+      <li>Different breed size, same weight</li>
+      <li>Different life stage (incl. Adult vs Adult 7+/Senior)</li>
+    </ol>
+
+    <h2>M</h2>
+    <ol start="7">
+      <li>Same product, different brand string (distributor code vs manufacturer) — judge from title/packaging, not the brand field alone</li>
+    </ol>
+
+    <h2>S</h2>
+    <ol start="8">
+      <li>One side states no weight at all</li>
+      <li><i>(reformulation → M, flagged, not S)</i></li>
+      <li>Uncertain for &gt;~15 seconds</li>
+    </ol>
+
+    <h2>Full rubric</h2>
+    <div>See <code>docs/learned/phase3-annotation-conventions.md</code> for worked examples and the edge cases these rules don't fully cover yet (default to <span class="key">S</span> on those).</div>
+  </div>
+
+  <div id="main">
+    <div id="topbar">
+      <div class="stat"><b id="stat-done">0</b> / <span id="stat-total">0</span> done</div>
+      <div class="stat">⏱ <b id="stat-timer">00:00</b></div>
+      <div class="stat">median <b id="stat-median">—</b>/decision</div>
+      <div id="tiers"></div>
+    </div>
+    <div id="resume-note"></div>
+
+    <div id="content">
+      <div class="card" id="titles">
+        <div class="title-col">
+          <div class="src" id="left-src"></div>
+          <div class="txt" id="left-title"></div>
+        </div>
+        <div class="title-col">
+          <div class="src" id="right-src"></div>
+          <div class="txt" id="right-title"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <table id="attrs">
+          <thead><tr><th></th><th id="attrs-left-h"></th><th id="attrs-right-h"></th></tr></thead>
+          <tbody id="attrs-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="decision-bar">
+      <button class="btn btn-m" data-answer="M"><span class="key">M</span> Match</button>
+      <button class="btn btn-n" data-answer="N"><span class="key">N</span> No match</button>
+      <button class="btn btn-s" data-answer="S"><span class="key">S</span> Skip</button>
+      <button class="btn btn-undo" id="btn-undo"><span class="key">U</span> Undo</button>
+      <button class="btn btn-flag" id="btn-flag"><span class="key">F</span> Flag</button>
+    </div>
+  </div>
+
+  <div id="done-screen">
+    <h1>Queue complete.</h1>
+    <p id="done-summary"></p>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ---------------------------------------------------------------------
+ * PricePilot Phase 3 annotation tool (CLAUDE.md §7: single local HTML
+ * page, keyboard-driven, target 200 pairs/hour = sub-18s median decision).
+ *
+ * Loads docs/learned/phase3-annotation-queue.json (STEP 6, scripts/build_annotation_queue.py)
+ * — run this page from a local static server (CORS blocks fetch() over
+ * file://), e.g. from the repo root:
+ *     python -m http.server 8000
+ * then open http://localhost:8000/tools/annotate.html
+ *
+ * NEVER shows a model prediction or score anywhere in this file — that
+ * would anchor the annotator and turn the ground truth into a copy of
+ * the model, per explicit instruction. There is no field in the queue
+ * JSON for one, and none should ever be added.
+ *
+ * Persistence: localStorage, keyed by a fixed STORAGE_KEY so the queue
+ * is fully resumable across sittings — every keystroke (an M/N/S
+ * decision, an undo, a flag toggle) is saved immediately, not batched.
+ * ------------------------------------------------------------------- */
+
+const STORAGE_KEY = "pricepilot_phase3_annotations_v1";
+const QUEUE_URL = "../docs/learned/phase3-annotation-queue.json";
+
+const ATTR_FIELDS = [
+  ["brand", "Brand"],
+  ["product_line", "Product line"],
+  ["net_weight_g", "Net weight (g)"],
+  ["net_volume_ml", "Net volume (ml)"],
+  ["pack_count", "Pack count"],
+  ["bonus_weight_g", "Bonus weight (g)"],
+  ["breed_size_code", "Breed size"],
+  ["life_stage", "Life stage"],
+  ["flavour", "Flavour"],
+  ["food_form", "Food form"],
+];
+
+let queue = [];       // full ordered list of {pair_id, occurrence_id, tier, left, right}
+let state = {};       // occurrence_id -> {answer, flagged, ms, decided_at}
+let order = [];       // shuffled-within-tier display order (indices into queue)
+let cursor = 0;       // position in `order`
+let decisionStart = null;
+let timerHandle = null;
+let sessionStartMs = null;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    toast("localStorage save failed — decisions may not persist");
+  }
+}
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 1400);
+}
+
+function tokenize(s) {
+  return (s || "").split(/(\s+)/);
+}
+
+/* Token-level diff, longest-common-subsequence based (small inputs — titles — so O(n*m) is fine). */
+function diffTokens(a, b) {
+  const ta = tokenize(a), tb = tokenize(b);
+  const n = ta.length, m = tb.length;
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = ta[i].trim().toLowerCase() === tb[j].trim().toLowerCase()
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const outA = [], outB = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (ta[i].trim().toLowerCase() === tb[j].trim().toLowerCase()) {
+      outA.push({ t: ta[i], same: true });
+      outB.push({ t: tb[j], same: true });
+      i++; j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      outA.push({ t: ta[i], same: false });
+      i++;
+    } else {
+      outB.push({ t: tb[j], same: false });
+      j++;
+    }
+  }
+  while (i < n) { outA.push({ t: ta[i], same: false }); i++; }
+  while (j < m) { outB.push({ t: tb[j], same: false }); j++; }
+  return [outA, outB];
+}
+
+function renderTokens(el, tokens) {
+  el.innerHTML = "";
+  for (const tok of tokens) {
+    if (!tok.t.trim()) { el.appendChild(document.createTextNode(tok.t)); continue; }
+    const span = document.createElement("span");
+    span.className = tok.same ? "tok-same" : "tok-diff";
+    span.textContent = tok.t;
+    el.appendChild(span);
+  }
+}
+
+function fmtAttr(v) {
+  if (v === null || v === undefined || v === "") return null;
+  return String(v);
+}
+
+function renderAttrs(left, right) {
+  document.getElementById("attrs-left-h").textContent = left.source;
+  document.getElementById("attrs-right-h").textContent = right.source;
+  const body = document.getElementById("attrs-body");
+  body.innerHTML = "";
+  for (const [field, label] of ATTR_FIELDS) {
+    const lv = fmtAttr(left[field]);
+    const rv = fmtAttr(right[field]);
+    const differs = lv !== rv;
+    const tr = document.createElement("tr");
+    if (differs) tr.classList.add("attr-diff");
+    const tdName = document.createElement("td");
+    tdName.className = "attr-name";
+    tdName.textContent = label;
+    const tdL = document.createElement("td");
+    const tdR = document.createElement("td");
+    for (const [td, v] of [[tdL, lv], [tdR, rv]]) {
+      if (v === null) {
+        td.className = "attr-empty";
+        td.textContent = "—";
+      } else {
+        const span = document.createElement("span");
+        if (differs) span.className = "val";
+        span.textContent = v;
+        td.appendChild(span);
+      }
+    }
+    tr.append(tdName, tdL, tdR);
+    body.appendChild(tr);
+  }
+}
+
+function tierCounts() {
+  const totals = {}, done = {};
+  for (const item of queue) {
+    totals[item.tier] = (totals[item.tier] || 0) + 1;
+    if (state[item.occurrence_id]) done[item.tier] = (done[item.tier] || 0) + 1;
+  }
+  return { totals, done };
+}
+
+function renderTiers() {
+  const { totals, done } = tierCounts();
+  const el = document.getElementById("tiers");
+  el.innerHTML = "";
+  for (const tier of Object.keys(totals).sort()) {
+    const pill = document.createElement("div");
+    pill.className = "tier-pill";
+    pill.innerHTML = `${tier}: <b>${done[tier] || 0}</b>/${totals[tier]}`;
+    el.appendChild(pill);
+  }
+}
+
+function medianDecisionMs() {
+  const times = Object.values(state).map((s) => s.ms).filter((ms) => typeof ms === "number");
+  if (!times.length) return null;
+  times.sort((a, b) => a - b);
+  const mid = Math.floor(times.length / 2);
+  return times.length % 2 ? times[mid] : (times[mid - 1] + times[mid]) / 2;
+}
+
+function fmtMs(ms) {
+  if (ms === null) return "—";
+  return (ms / 1000).toFixed(1) + "s";
+}
+
+function fmtDuration(totalMs) {
+  const totalSec = Math.floor(totalMs / 1000);
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+  const ss = String(totalSec % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+function updateTopbar() {
+  const doneCount = Object.keys(state).length;
+  document.getElementById("stat-done").textContent = doneCount;
+  document.getElementById("stat-total").textContent = queue.length;
+  document.getElementById("stat-median").textContent = fmtMs(medianDecisionMs());
+  renderTiers();
+}
+
+function tickTimer() {
+  if (sessionStartMs === null) return;
+  document.getElementById("stat-timer").textContent = fmtDuration(Date.now() - sessionStartMs);
+}
+
+function findNextUndone() {
+  for (let k = 0; k < order.length; k++) {
+    const idx = order[k];
+    if (!state[queue[idx].occurrence_id]) return k;
+  }
+  return -1;
+}
+
+function renderPair() {
+  if (cursor < 0 || cursor >= order.length) {
+    showDone();
+    return;
+  }
+  const item = queue[order[cursor]];
+  document.getElementById("left-src").textContent = item.left.source;
+  document.getElementById("right-src").textContent = item.right.source;
+  const [da, db] = diffTokens(item.left.title, item.right.title);
+  renderTokens(document.getElementById("left-title"), da);
+  renderTokens(document.getElementById("right-title"), db);
+  renderAttrs(item.left, item.right);
+
+  document.querySelectorAll(".btn[data-answer]").forEach((b) => b.classList.remove("active"));
+  document.getElementById("btn-flag").classList.remove("active");
+  const existing = state[item.occurrence_id];
+  if (existing) {
+    document.querySelector(`.btn[data-answer="${existing.answer}"]`)?.classList.add("active");
+    if (existing.flagged) document.getElementById("btn-flag").classList.add("active");
+  }
+  decisionStart = Date.now();
+  updateTopbar();
+}
+
+function showDone() {
+  document.getElementById("content").parentElement.querySelector("#decision-bar").style.display = "none";
+  document.getElementById("content").style.display = "none";
+  document.getElementById("done-screen").style.display = "flex";
+  const { totals, done } = tierCounts();
+  const lines = Object.keys(totals).sort().map((t) => `${t}: ${done[t] || 0}/${totals[t]}`).join(" · ");
+  document.getElementById("done-summary").textContent = `${Object.keys(state).length}/${queue.length} decisions recorded. ${lines}`;
+}
+
+function decide(answer) {
+  if (cursor < 0 || cursor >= order.length) return;
+  const item = queue[order[cursor]];
+  const ms = decisionStart ? Date.now() - decisionStart : null;
+  const prevFlag = state[item.occurrence_id]?.flagged || false;
+  state[item.occurrence_id] = {
+    pair_id: item.pair_id,
+    answer,
+    flagged: prevFlag,
+    ms,
+    decided_at: new Date().toISOString(),
+  };
+  saveState();
+  advance();
+}
+
+function advance() {
+  // Move to the next undone item, or the next item in order if all remaining are done
+  // (lets you review/change answers by scrolling forward manually too, via re-render).
+  let next = cursor + 1;
+  if (next >= order.length) {
+    const firstUndone = findNextUndone();
+    cursor = firstUndone === -1 ? order.length : firstUndone;
+  } else {
+    cursor = next;
+  }
+  renderPair();
+}
+
+function undo() {
+  // Undo = clear the CURRENT item's answer and step back to the previous decided item.
+  if (cursor > 0) {
+    cursor--;
+    const item = queue[order[cursor]];
+    delete state[item.occurrence_id];
+    saveState();
+    renderPair();
+    toast("undone");
+  }
+}
+
+function toggleFlag() {
+  if (cursor < 0 || cursor >= order.length) return;
+  const item = queue[order[cursor]];
+  if (!state[item.occurrence_id]) {
+    toast("decide M/N/S first, then flag");
+    return;
+  }
+  state[item.occurrence_id].flagged = !state[item.occurrence_id].flagged;
+  saveState();
+  document.getElementById("btn-flag").classList.toggle("active", state[item.occurrence_id].flagged);
+}
+
+function seededShuffle(arr, seed) {
+  // Mulberry32 PRNG — deterministic given the seed baked into the queue file, so re-opening the
+  // tool reproduces the identical display order (important for resuming a sitting correctly).
+  let a = seed;
+  function rnd() {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function buildOrder(seed) {
+  // Shuffle WITHIN each tier (fatigue must not correlate with any class), but keep tiers in a
+  // fixed, deliberate sequence (easiest-first isn't required — the queue file's own tier order
+  // is trusted as-authored by build_annotation_queue.py).
+  const byTier = {};
+  queue.forEach((item, idx) => {
+    (byTier[item.tier] = byTier[item.tier] || []).push(idx);
+  });
+  let out = [];
+  for (const tier of Object.keys(byTier).sort()) {
+    out = out.concat(seededShuffle(byTier[tier], seed + tier.length));
+  }
+  return out;
+}
+
+async function init() {
+  let data;
+  try {
+    const res = await fetch(QUEUE_URL);
+    data = await res.json();
+  } catch (e) {
+    document.getElementById("content").innerHTML =
+      `<div class="card">Could not load <code>${QUEUE_URL}</code>. This page must be served over
+      http:// (not opened as a file:// double-click) — run <code>python -m http.server</code>
+      from the repo root and open <code>http://localhost:8000/tools/annotate.html</code>.
+      Also run <code>scripts/build_annotation_queue.py</code> first if the queue file doesn't
+      exist yet.</div>`;
+    return;
+  }
+
+  queue = data.pairs;
+  state = loadState();
+  order = buildOrder(data.shuffle_seed || 20260915);
+
+  const firstUndone = findNextUndone();
+  cursor = firstUndone === -1 ? 0 : firstUndone;
+  if (Object.keys(state).length > 0) {
+    document.getElementById("resume-note").textContent =
+      `Resumed: ${Object.keys(state).length} decisions already recorded on this browser/machine.`;
+  }
+
+  sessionStartMs = Date.now();
+  timerHandle = setInterval(tickTimer, 1000);
+
+  renderPair();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  const key = e.key.toLowerCase();
+  if (key === "m") decide("M");
+  else if (key === "n") decide("N");
+  else if (key === "s") decide("S");
+  else if (key === "u") undo();
+  else if (key === "f") toggleFlag();
+});
+document.querySelectorAll(".btn[data-answer]").forEach((b) => {
+  b.addEventListener("click", () => decide(b.dataset.answer));
+});
+document.getElementById("btn-undo").addEventListener("click", undo);
+document.getElementById("btn-flag").addEventListener("click", toggleFlag);
+
+init();
+</script>
+</body>
+</html>
