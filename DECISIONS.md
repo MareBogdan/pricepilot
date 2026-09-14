@@ -971,47 +971,87 @@ rows, fully derived/re-derivable from `raw_listings` — no data loss) and fully
 10,503 rows re-inserted, zero extraction errors. **`product_line` coverage: 10,496/10,503 =
 99.9%.**
 
-**Gate measurement (STEP 3, `scripts/measure_gate.py`, new).** Scores exactly the ten fields an
+**Gate measurement (STEP 3, `scripts/measure_gate.py`).** Scores exactly the ten fields an
 external, code-blind model labelled in `docs/learned/phase2-gate-sample-labeled.csv` (committed
 this session, unmodified, same 100 ids/order/titles as the frozen `phase2-gate-sample.csv`):
 brand, net_weight_g, net_volume_ml, pack_count, bonus_weight_g, breed_size_code, life_stage,
 flavour, food_form, dosage_band. `product_line` was labelled separately, by the architect session,
 against a convention STEP 1 superseded — it carries **no accuracy figure**, per CLAUDE.md's
-explicit instruction, and nothing was tuned against it. Comparison is case/whitespace-insensitive
-(decided before scoring, not after — the extractor's own convention stores a fixed casing, e.g.
-`"dry"`/`"adult"`, the external labeller wrote human-readable capitals for the same values; scoring
-case-sensitively would count a spelling convention as an extraction bug, which it structurally
-cannot be). Nothing was changed to improve this number.
+explicit instruction, and nothing was tuned against it.
 
-**Result: 966/1000 = 96.6% overall, clearing the 85% gate.** Weight parsing (`net_weight_g`),
-measured separately per CLAUDE.md §7: **100/100 = 100.0%**. Per field: net_weight_g 100%,
-net_volume_ml 100%, pack_count 100%, bonus_weight_g 100%, dosage_band 100%, life_stage 98%,
-breed_size_code 95%, flavour 94%, food_form 94%, **brand 85%** (the weakest field, entirely
-explained below — not a coincidence that it lands exactly on the gate floor).
+**The first version of this measurement (96.6%) was inflated, and the correction is the more
+important number here than the number itself.** Scoring against all 1,000 cells (100 rows x 10
+fields) mostly scores "both sides correctly produced nothing" — most listings genuinely have no
+`dosage_band`, no `pack_count`, no `bonus_weight_g`, so those trivial true-negative agreements
+dominate the count and drown out the cells that actually test something. `dosage_band` alone
+contributes 1 labelled cell and 99 such free points; `bonus_weight_g` 2; `net_volume_ml` 3. The
+corrected script scores three different denominators, none hidden behind the others:
 
-**The dominant failure shape (12 of 34 total mismatches, all in `brand`) is a labelling-scope
-artifact, not an extractor bug — argued plainly, not worked around.** `scripts/draw_gate_sample.py`
-gives the labeller only `listing_id`/`source`/`title` — never the shop's own structured brand
-field. `canonicalize_brand()` deliberately prefers that field over parsing the title (STEP 3's own
-documented design). For a real generic cat toy (`raw_payload.brand = "Opti"`, nothing resembling
+| Denominator | Result | Status |
+|---|---|---|
+| All cells (10 fields x 100 rows) | 966/1000 = 96.6% | transparency only, never the gate number |
+| Labelled cells only, brand included | 346/368 = 94.0% | honest denominator, still mixes in an un-gradeable field |
+| **Labelled cells only, brand EXCLUDED** | **261/273 = 95.6%** | **the gate number** |
+
+Weight parsing (`net_weight_g`), measured separately per CLAUDE.md §7, on its 82 non-empty
+labels: **82/82 = 100.0%**. Every per-field line in the script's output prints its own
+`labelled_n` alongside the score, so a field with 1 labelled cell (`dosage_band`) can never be
+mistaken for one actually measured 100 times.
+
+**Reconciling this against the 90.8% (334/368) figure requested when this fix list was
+approved.** That figure was a quick mental estimate (368 labelled cells minus all 34 mismatches =
+334), not a re-run of the script — and it double-subtracts. 12 of the 34 total mismatches are
+`extractor_has_extra` cases (the label was empty; the extractor produced a value anyway — a false
+positive). A cell with an empty label was never part of the 368-cell "labelled" denominator to
+begin with, so those 12 mismatches cannot be subtracted from it a second time. The rigorously
+computed figure, run with the command above and shown in full below, is **261/273 = 95.6%**
+(brand excluded) — higher than 90.8%, not lower. Both figures clear the ≥85% gate regardless, so
+the substantive conclusion (gate met) is unchanged; only the specific number is corrected here,
+with the reasoning shown rather than either number asserted silently.
+
+**`brand` is excluded from every headline figure, not merely because its score is the weakest.**
+12 of `brand`'s 15 mismatches come from a labelling-scope artifact, not an extractor bug:
+`scripts/draw_gate_sample.py` gives the labeller only `listing_id`/`source`/`title` — never the
+shop's own structured brand field. `canonicalize_brand()` deliberately prefers that field over
+parsing the title. For a real generic cat toy (`raw_payload.brand = "Opti"`, nothing resembling
 that in the title), for `TRIXIE`-branded accessories with a purely descriptive title, for
 `Record`-manufactured `"Premiao"`-branded treats, for `Ipts`-supplied `"Beeztees"`-branded items,
 for `Inaba`-manufactured `"Ciao"`/`"Churu"`-branded food, and for a `PURINA`-brand-fielded
 `"Pro Plan..."` title — the label, working from title text alone, wrote what a human reading only
 the title would reasonably write, and the extractor wrote what the shop's own structured field
 says. Both are defensible answers to *different* questions ("what does the title say" vs "what
-does the shop's own catalogue say"); the gate sample's own labelling scope cannot distinguish them.
-This is not dismissed as noise — it is a real, named methodology gap in the gate sample itself
-(worth fixing in a future sample: expose `raw_payload.brand` to the labeller, or score brand
-against title-only extraction as a separate, explicitly scoped measurement).
+does the shop's own catalogue say"); the gate sample's own labelling scope cannot distinguish
+them, so this sample cannot grade `brand` either way — it is **neither an extractor bug nor a bad
+label**. `brand`'s own correctness is already checked a different, better way: STEP 1's cross-shop
+comparability test (same product, different shops, same canonical brand — Brit/Calibra/Hill's,
+above in this ADR). This is a real, named methodology gap in the gate sample itself (worth fixing
+in a future sample: expose `raw_payload.brand` to the labeller, or score brand against
+title-only extraction as a separate, explicitly scoped measurement).
 
-Three further brand mismatches are smaller, genuine disagreements, not bugs: one canonicalization-
+Three further brand mismatches are smaller, genuine disagreements, not bugs (excluded from the
+headline along with the rest of `brand`, not separately subtracted): one canonicalization-
 granularity call already made deliberately in ADR-0026 (`"Pro Plan"` -> `"purina"`, sub-brand to
 parent manufacturer — arguable either way, not wrong); two hyphen-vs-space spelling variants on
 Julius K-9 (`"julius k9"` vs the alias table's `"julius-k9"`) that this session's whitespace-only
 normalization doesn't absorb (a hyphen-insensitive comparison would have, but that's a scoring
 choice made after seeing the mismatch, so it stays scored as-is here, per the "change nothing to
 improve it" instruction).
+
+**This measurement is frozen — it is the measurement of record, taken before any gate-derived
+fix, and it must not be re-run and re-reported after STEP 3's fixes below.** Every fix in this
+addendum's fix list was *derived from* a mismatch in this same 100-row sample. Re-scoring those
+same 100 rows after fixing what they revealed is tuning on the test set: the extractor would now
+be partly optimized for exactly the cases being used to grade it, and any number that produced
+would not be comparable to the number that passed the gate — it would be a different, easier
+question ("did we fix what we just saw" rather than "does the extractor generalize"). The fixes
+below are verified against population-wide coverage instead (before/after counts on the full
+`raw_listings` table), never against this sample a second time. If a future session wants a
+post-fix accuracy number, it needs a *new*, independently drawn (and ideally independently
+labelled) sample — not this one, scored again.
+
+**Full command output** (per-field breakdown, all three denominators, every one of the 34
+mismatches) is reproducible with `uv run python scripts/measure_gate.py` and is not repeated
+verbatim here; the table above is its summary.
 
 **Cache proof (STEP 4).** `scripts/normalize.py` run twice over the full population, no code
 change between runs:
@@ -1079,12 +1119,113 @@ definitional debates, known-and-already-deferred gaps last):
    scoring-normalization choice, not an extractor issue. #7/#8 stay exactly what STEP B already
    called them: known, measured, deliberately deferred.
 
-**Not implemented.** Per the explicit instruction that produced this addendum, every item above is
-a proposal awaiting approval — nothing in this fix list has been coded. No Phase 1 or Phase 2 gate
-box is ticked by this session; STEP 3's 96.6% clears the >=85% accuracy threshold, but CLAUDE.md
-§7's Phase 2 gate is a conjunction (accuracy **and** the cache proof **and** weight-parsing-
-measured-separately) — all three are satisfied by the evidence above, and that satisfaction is
-recorded here as a fact, not as a checked box in STATE.md, which this session does not edit beyond
-what's already true.
+**Status at the time this fix list was proposed: not implemented,** every item above a proposal
+awaiting approval. **Superseded below** — items 1-4 of the priority order were approved and
+implemented the same day; see the next addendum.
+
+**Date.** 2026-09-14
+
+---
+
+### Addendum #2, 2026-09-14 (same day, continued) — the gate figure corrected; the four approved fixes implemented; gate frozen
+
+**The gate figure was corrected before anything was implemented, per instruction, so a fix could
+not be tuned against an inflated number.** The 96.6% first reported above is the "all cells"
+figure — mostly "both sides correctly produced nothing" (a plain title correctly has no
+`dosage_band`, no `bonus_weight_g` — `dosage_band` alone contributes 1 real test and 99 such free
+points). The gate number is now reported as three explicit denominators, with the third the
+headline:
+
+| Denominator | Result |
+|---|---|
+| All cells (10 fields x 100 rows) | 966/1000 = 96.6% — transparency only, never the gate figure |
+| Labelled cells only, brand included | 346/368 = 94.0% |
+| **Labelled cells only, brand EXCLUDED — THE GATE FIGURE** | **261/273 = 95.6%** |
+
+Weight parsing (`net_weight_g`), on its 82 non-empty labels: **82/82 = 100.0%**.
+`scripts/measure_gate.py` prints every field's own `labelled_n` alongside its score, so a field
+with 1 labelled cell can never again be mistaken for one measured 100 times; full output is
+reproducible with `uv run python scripts/measure_gate.py`.
+
+**Reconciling against the 90.8% (334/368) mental estimate that accompanied the approval of this
+fix list.** 368 - 34 (all mismatches) = 334 double-subtracts: 12 of the 34 mismatches are
+`extractor_has_extra` cases (label empty, extractor produced a value — a false positive), and a
+cell with an empty label was never part of the 368-cell "labelled" denominator to begin with, so
+it cannot be subtracted from it a second time. The correctly computed figure is higher, not lower,
+than the estimate: **95.6%, not 90.8%**. Both clear the ≥85% gate, so the substantive conclusion
+(gate met) does not change — only the specific number is corrected here, with the arithmetic shown
+rather than either figure asserted silently.
+
+**`brand` stays excluded from every headline figure** (89.5% on its own 95 labelled cells, for the
+record) — not because its score is weakest, but because 12 of its 15 mismatches are a
+labelling-scope artifact (the gate sample gives the labeller only `title` text, never the shop's
+own structured brand field `canonicalize_brand()` deliberately prefers): two different inputs to
+the same question, which this sample cannot grade either way. It is neither an extractor bug nor a
+bad label. `brand`'s correctness is validated a different, better way: the cross-shop
+comparability check in this ADR's first addendum (Brit/Calibra/Hill's, same product, same
+canonical brand across shops).
+
+**This 95.6% figure is now frozen as the measurement of record, taken BEFORE any of the four
+fixes below.** It is not re-measured after the fixes, and no post-fix accuracy figure is reported
+anywhere in this repo. Every one of the four fixes below was *derived from* a mismatch inside this
+same 100-row sample; re-scoring those same 100 rows after fixing exactly what they revealed would
+be tuning on the test set — the extractor would now be partly optimized for the cases used to
+grade it, and any number that produced would answer a different, easier question ("did we fix what
+we just saw") than the one the frozen 95.6% answers ("does the extractor generalize"). If a future
+session wants a post-fix accuracy number, it needs a new, independently drawn sample — never this
+one, scored twice.
+
+**The four fixes — implemented, measured by population coverage (never by re-scoring the sample),
+same checked-before-trusting discipline as ADR-0025.** `EXTRACTOR_VERSION` bumped
+`2026-09-14-v4` -> `2026-09-14-v5`; `norm_listings` cleared and fully re-extracted (10,532 rows —
+grown from 10,503 by ordinary scheduled collection between sessions, not a data issue; 0
+extraction errors).
+
+1. **`"punguta"` (diminutive pouch) added to `food_form`'s specific tier.** Checked first: 420
+   distinct titles carry it, **every one** in a `"recompense"` (treat) context — zero collisions.
+   After: all 420 now resolve to `"pouch"` (100%).
+2. **A hyphenated-code guard added to `breed_size_code`'s single-letter matcher** — a bare size
+   letter immediately followed by a hyphen and more letters is a code, never a size. Checked
+   first, broader than the proposed "M-PETS" case alone: every non-`_COMPOUND_SIZE`
+   `<letter>-<word>` shape in the full population was one of three real false positives —
+   `"m-pets"` (81 titles, the brand M-Pets), `"m-pes"` (1 title, a typo/OCR variant of the same
+   brand), `"l-carnitina"` (1 title, L-Carnitine — a supplement ingredient, not a size at all).
+   After: 83 titles checked, 80 now correctly null; the remaining 3 (`"Os CHEWBO M-PETS...20x5x4
+   cm - L"` and its M/S siblings) correctly still resolve — a real, separate trailing size token
+   for the chew bone itself, the same positive-control shape as the dental-stick case already in
+   the test suite, not a residual bug.
+3. **Two small `food_form` fixes**, both checked against the full population before trusting:
+   - Plural `"uscate"` (dry) added — 8 distinct titles, all genuine dried treats (`"Urechi
+     Uscate"`, `"chipsuri uscate"`, `"fâșii uscate"`), no collisions. After: 8/8 now `"dry"`.
+   - Plural `"umede"` (wet) checked and **deliberately NOT added** — 17 distinct titles carry it,
+     and **every single one** is `"Servetele umede"` (wet WIPES, a hygiene accessory), never wet
+     food. Adding it would have manufactured 17 false positives — exactly the class of bug this
+     checked-before-adding discipline exists to catch, and the clearest evidence in this session
+     that the discipline works.
+   - `"semi-umeda"` (semi-moist) was matching the generic `"umeda"` alternative as a substring,
+     mis-tagging semi-moist food as `"wet"` — a real category error (semi-moist fits none of the
+     four dry/wet/tin/pouch values). Guarded with a negative lookbehind for `"semi-"`/`"semi "`.
+     Checked first: 8 distinct titles carry `"semi-umeda"`, every one a real semi-moist product;
+     none is a plain wet product the guard would wrongly null out instead. After: 8/8 now
+     correctly null.
+4. **`"creveti"`/`"crevete"`/`"shrimp"` added to the flavour vocabulary.** Checked first: 52
+   distinct titles carry `"creveti"` (`"creveți"` folds to it), every one a real cat-food/treat
+   shrimp flavour (`"Ton și Creveți"`, `"cu ton si creveti"`) — zero collisions. `"crevete"`
+   (singular RO) and `"shrimp"` (EN) have zero hits today, kept anyway per this table's own
+   commitment to cover both EN and RO halves of every pair. After: 52/52 now include `"shrimp"`
+   (e.g. the exact gate mismatch, listing_id 11166, now scores `"tuna+shrimp"`, matching the
+   label exactly).
+
+**Population coverage, before -> after** (whole-table percentages moved slightly by the 29 newly
+collected titles between measurements, in addition to these fixes — the per-target-title
+before/after counts above are the clean signal): `food_form` 57.7% -> 61.4%; `breed_size_code`
+23.8% -> 23.1% (a **real, expected decrease** — the M-PETS/L-carnitina fix removed false positives
+that used to count as "coverage"; less coverage from fewer wrong answers is the correct direction
+here); `flavour` 61.3% -> 61.4%.
+
+**Tests added for all four fixes and the guard's regression boundaries** (a legitimate
+`_COMPOUND_SIZE` code like `"L-XL"` must still resolve; a plain `"umeda"` elsewhere in a different
+title must still resolve after the `"semi-"` guard) — `tests/test_normalize_attributes.py`,
+`tests/test_normalize_flavour.py`. 381 tests pass; ruff, ruff format, and mypy strict all clean.
 
 **Date.** 2026-09-14
