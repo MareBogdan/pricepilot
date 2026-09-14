@@ -164,6 +164,19 @@ def main() -> int:
         f"\nsame-content_hash pairs skipped (not testable — see ADR-0028 TASK 1): {same_hash_skipped}"
     )
 
+    # ADR-0028 TASK C: the 2026-09-15 extension to q3_browser_verified is CONTAMINATED — its
+    # query (brand + product_line) shares its core signal with the embedding text TASK 2(a) uses
+    # (also brand + product_line, plus more fields), so it preferentially found pairs the
+    # retriever can already find. Split by `verification` date so the clean, original 26-pair
+    # subset stays the headline, and the extended 31-pair figure is reported separately, never
+    # silently substituted for it.
+    def eval_bucket(row: dict[str, str]) -> str:
+        if row["eval_source"] != "q3_browser_verified":
+            return row["eval_source"]
+        if "2026-09-15" in row.get("verification", ""):
+            return "q3_browser_verified_EXTENDED (2026-09-15, CONTAMINATED — see ADR-0028 TASK C)"
+        return "q3_browser_verified_ORIGINAL (2026-09-13, clean)"
+
     def measure(  # type: ignore[no-untyped-def]
         session, retrieval_fn, label: str
     ) -> list[dict[str, str]]:
@@ -175,14 +188,14 @@ def main() -> int:
         for row in testable_pairs:
             left_hash = row["left_content_hash"]
             right_hash = row["right_content_hash"]
-            eval_source = row["eval_source"]
-            by_source[eval_source] += 1
+            bucket = eval_bucket(row)
+            by_source[bucket] += 1
             left_top20 = retrieval_fn(session, left_hash)
             right_top20 = retrieval_fn(session, right_hash)
             hit = right_hash in left_top20 or left_hash in right_top20
             if hit:
                 hits += 1
-                hits_by_source[eval_source] += 1
+                hits_by_source[bucket] += 1
             else:
                 misses.append(row)
 
@@ -199,10 +212,29 @@ def main() -> int:
             s_n = by_source[source]
             s_hits = hits_by_source[source]
             s_p, s_lo, s_hi = wilson_ci(s_hits, s_n)
-            headline = "  <- HEADLINE" if source == "q3_browser_verified" else ""
+            headline = "  <- HEADLINE" if source.startswith("q3_browser_verified_ORIGINAL") else ""
             print(
-                f"  {source:24s} {s_hits}/{s_n} = {s_p * 100:.1f}%   "
+                f"  {source:55s} {s_hits}/{s_n} = {s_p * 100:.1f}%   "
                 f"95% CI [{s_lo * 100:.1f}%, {s_hi * 100:.1f}%]{headline}"
+            )
+        # Also print the combined (original + extended) q3 figure, explicitly labelled — useful
+        # to see, never to be quoted as "the" recall number.
+        combined_n = by_source.get(
+            "q3_browser_verified_ORIGINAL (2026-09-13, clean)", 0
+        ) + by_source.get(
+            "q3_browser_verified_EXTENDED (2026-09-15, CONTAMINATED — see ADR-0028 TASK C)", 0
+        )
+        if combined_n:
+            combined_hits = hits_by_source.get(
+                "q3_browser_verified_ORIGINAL (2026-09-13, clean)", 0
+            ) + hits_by_source.get(
+                "q3_browser_verified_EXTENDED (2026-09-15, CONTAMINATED — see ADR-0028 TASK C)", 0
+            )
+            c_p, c_lo, c_hi = wilson_ci(combined_hits, combined_n)
+            print(
+                f"  {'q3_browser_verified, ORIGINAL+EXTENDED combined':55s} "
+                f"{combined_hits}/{combined_n} = {c_p * 100:.1f}%   "
+                f"95% CI [{c_lo * 100:.1f}%, {c_hi * 100:.1f}%]  <- NOT the headline, contaminated"
             )
         return misses
 

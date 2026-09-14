@@ -1633,3 +1633,114 @@ annotation run once the guard passed (explicit instruction: stop and report, Bog
 labelling).
 
 **Date.** 2026-09-15 (same-day addendum, architect audit response).
+
+---
+
+## ADR-0028 addendum #2 — second architect audit: 12.5% retracted as a search-method artifact,
+predicted-label forecast replaces "expected positives", eval-set contamination found and
+corrected, pilot-stop built
+
+**Context.** A second architect audit, of the addendum above, verified the guard works correctly
+(reproduced 89.4% against the old queue exactly) but found three problems and asked for a fourth
+capability. Four tasks, addressed in order, no annotation run started at any point.
+
+### TASK A — the 12.5% figure retracted; the Phase 1 gate is not at risk
+
+The audit's arithmetic is correct and was checked, not taken on trust: ADR-0023's gate rests on
+p̂=0.52 (n=50) applied to N=2,329, point estimate 1,211, CI [897, 1,519]; at p=0.125 the same
+arithmetic gives point estimate 292, CI [127, 609] — 400 falls inside, which would make the gate
+undetermined rather than met, IF 12.5% were a valid re-measurement of the same quantity.
+
+**Re-checked 10 of the 35 "not found" rows using a short query (brand root, or brand + core line
+words — not this session's original `brand + product_line`).** Result: **0 of 10 became a newly
+CONFIRMED match** — every one still resolves to `N` under the annotation conventions (a real
+capacity or form difference). But the evidence for WHY the original queries found nothing is
+decisive:
+
+- **Item 39 (Hill's SP Canine Perfect Digestion, 3kg)** — the original full query returned ZERO
+  results on pentruanimale's own search. A shorter query found the almost-exactly-named product on
+  the first try (`HILL'S SP Perfect Digestion Small&Mini Adult, ...`). It still resolves `N`
+  (6kg sold, not 3kg) — but the "not found" verdict itself was a search failure, not a fact about
+  the product.
+- **Item 17 (Advance Sensitive, "& orez"/rice token)** — the original query included a token
+  ("orez") the real product's name does not carry at all; a query without it found the product
+  immediately (resolves `N` on weight: 3kg vs. 7kg, but again the original absence was a query
+  artifact).
+- **7 of 10** turned out to have their brand+line genuinely present once queried more simply — the
+  original full query found NONE of these seven; the short query found all seven (each still
+  resolving `N` on a real, single differing dimension).
+- **3 of 10** (Taste of the Wild, Chicopee, Josera) remained genuinely not found even bare-brand —
+  real absence for those three specifically, not a query problem.
+
+**Conclusion: the 12.5% figure is RETRACTED as an estimate of true market overlap.** It measured
+this session's search-query recall, not the population — demonstrated concretely twice (items 17
+and 39), not inferred. **The Phase 1 gate is NOT at risk**: it was never validly contradicted,
+because the number that appeared to threaten it was never a comparable measurement in the first
+place (a different, more careful method — Q3's own brand-then-scan verification — produced the
+original 52%). Full detail: `docs/learned/q3-verification-extension-2026-09-15.md`'s addendum.
+
+### TASK B — a predicted-label forecast replaces the source-tier "expected positives" claim
+
+`scripts/build_annotation_queue.py` gained `predict_label()`: applies the conventions-v2 ladder
+(rule 1 quantity, rule 2 life-stage — puppy/junior grouped per instruction, rule 3 breed-size,
+rule 4 flavour, then `S` for a one-sided field or an ambiguous brand-only difference, `M` as the
+fall-through) to every pair in the assembled queue. Conservative throughout: an N-rule fires only
+when BOTH sides state the field. **Never used to auto-label anything beyond the pre-existing
+trivial-tier pass** — this is a workload forecast, not a label source.
+
+`blocked_retrieval_positive` renamed to `blocked_retrieval_candidate` throughout (a tier name must
+not assert a label retrieval, at 64.5%/CI-wide recall and unmeasured precision, cannot guarantee).
+
+**Result: M-plausible 31-32% of the queue** (fluctuates slightly run to run — `blocked_retrieval
+_candidate`'s anchor draw uses `ORDER BY random()`, not seeded, a known minor reproducibility gap,
+not fixed this session), comfortably over the 25% floor — **no rebalance needed.** N-by-rule ~55%
+(quantity differs 28%, flavour differs 12%, life-stage differs 10-11%, breed-size differs 4%),
+S-likely ~13%.
+
+### TASK C — the eval-set extension is contaminated; the headline is corrected
+
+All 5 of the 2026-09-15 extension's new pairs were hits: 15/26 (57.7%) became 20/31 (64.5%) — a
+0.577^5 ≈ 6.4% event under the prior rate. **Mechanism, found in this session's own work**: the
+extension's search queries were `brand + product_line`; TASK 2(a) (the addendum above) made the
+embedding text `brand + product_line + quantity + ...` — the same core signal. A pair the
+extension's query finds easily is, by construction, the kind of pair the embedding-based retriever
+also finds easily. The extension is therefore not independent of what it measures — the identical
+pooled-vs-unbiased bias already diagnosed for the proxy-key subset, re-entering through the query
+one task later.
+
+**Correction, in both the extension document and `measure_recall_at_20.py` itself** (not just
+prose — the script now buckets `q3_browser_verified` by its `verification` date and prints both,
+labelled): **57.7% (15/26, 2026-09-13) is the headline.** 64.5% (20/31) is printed separately,
+tagged `EXTENDED ... CONTAMINATED`, never as "the" number. Rule for future extensions, per
+instruction: the query must not share text with the embedding input — Q3's original "brand root +
+weight, then scan by eye" qualifies; `brand + product_line`, however phrased, does not.
+
+### TASK D — a configurable pilot stop, and a real ordering bug found while building it
+
+**`tools/annotate.html` gained a pilot stop** (`PILOT_SIZE`, default 100, `?pilot=N` override):
+the tool now stops cleanly once the first `PILOT_SIZE` positions of the display order are all
+decided, showing observed M/N/S counts, a tally of S-reasons (a new lightweight, optional
+non-blocking capture — five quick-key codes, never free text, so it doesn't cost the 200/hr
+budget), and the pilot slice's median decision time, before a "Continue to full queue" action is
+required to proceed.
+
+**A real bug found while verifying the "first 100 must be representative" requirement, not
+assumed.** `buildOrder()` shuffled WITHIN each tier but then concatenated tiers in plain
+alphabetical order — verified directly against the real queue (`tools/annotate.html`'s own
+`seededShuffle`/`buildOrder` functions extracted and run in Node, same discipline as STEP 5's
+original verification): the first 100 positions were **100% `blocked_retrieval_candidate`** (that
+tier's name sorts first), nothing else, for the ENTIRE pilot. Fixed by giving every item a
+fractional rank within its own shuffled tier — `(position + 0.5) / tier_size` — and sorting the
+whole queue globally by that rank, which spreads every tier's items evenly across the full
+sequence. **Re-verified against the real queue after the fix**: every tier's share of the first
+100 positions is within ±0.5 percentage points of its share of the full 997-pair queue (e.g.
+`proxy_key_collision` 29.0% of the pilot vs. 28.7% of the full queue; `capacity_differs_cross_shop`
+21.0% vs. 21.0%) — genuinely representative, not assumed to be from the seed alone.
+
+**Rejected.** Free-text S-reason capture (would cost real time against the 200/hr target; five
+quick-key codes plus an "other" bucket keep the same information at near-zero cost). Silently
+continuing past the pilot boundary without a report (the whole point of a pilot is to check the
+TASK B forecast against real labels before committing further hours). Assuming the shuffle seed
+alone made the first 100 representative without checking — checked, and it was not, until fixed.
+
+**Date.** 2026-09-15 (same-day addendum #2, second architect audit response).

@@ -284,6 +284,9 @@ number: DECISIONS.md ADR-0028.
 
 **ADR-0028 addendum, same-day architect-audit response (2026-09-15) — corrects STEP 2's
 denominator and rebuilds STEP 6's queue. Full detail: DECISIONS.md.**
+**A second same-day audit found the 12.5% figure below and the "41.0% expected positives" figure
+below were each wrong in a different way — corrected in the addendum #2 block further down. Left
+here as the historical record of what this addendum first reported, not erased.**
 - TASK 1: recall denominator corrected and explained (95/136, not 95/142 — 6 skipped pairs are
   cross-shop listings whose titles collapse to ONE `norm_listings` row, ADR-0026). Found **15**
   such multi-source content_hash rows in the full population — the easiest class of true
@@ -309,6 +312,28 @@ denominator and rebuilds STEP 6's queue. Full detail: DECISIONS.md.**
     the collected catalogue (zero title matches any reformulation marker, checked directly) —
     reported as a finding, not padded with a loosened query. Estimated wall-clock unchanged: 5.0
     hours.
+
+**ADR-0028 addendum #2, second same-day architect audit (2026-09-15). Full detail: DECISIONS.md.**
+- TASK A: the 12.5% "not found" rate above is **RETRACTED** as a market-overlap estimate — it was
+  a search-method artifact (re-checking 10 "not found" rows with a shorter query found 0 new
+  matches but two concrete cases of the original query missing a product that genuinely exists,
+  once even under nearly its exact name). **ADR-0023's Phase 1 overlap gate is confirmed NOT at
+  risk.**
+- TASK B: `build_annotation_queue.py`'s "41.0% expected positives" (a source-tier label, not a
+  prediction) is replaced by a **predicted M/N/S distribution** from a deterministic rules engine
+  applying the annotation conventions to every pair: **M-plausible ~31%** (over the 25% floor),
+  N-by-rule ~55%, S-likely ~13%.
+- TASK C: the eval-set extension (n=26->31) is **CONTAMINATED** — its query shared signal with
+  TASK 2(a)'s new embedding text, so it preferentially found pairs the retriever can already find
+  (all 5 new pairs were hits, ~6.4% probability under the prior rate). **Headline recall@20 is
+  57.7% (15/26, n=26), not 64.5%** — the extended figure is now reported separately and labelled
+  contaminated, in both the docs and `measure_recall_at_20.py`'s own output.
+- TASK D: `tools/annotate.html` gained a configurable 100-pair pilot stop (observed M/N/S,
+  S-reason tally, median decision time, before requiring "continue"). Caught a real bug while
+  building it: the display order concatenated tiers alphabetically, so a pilot's first 100 pairs
+  would have been 100% one tier — fixed (proportional interleaving) and re-verified against the
+  real queue (every tier within ±0.5pp of its full-queue share in the first 100).
+
 [ ] Baseline (classical cross-encoder) — not started.
 [ ] 800-1,000 pairs annotated by Bogdan — queue built, **labelling not started**.
 [ ] Fine-tuned matcher — not started.
@@ -328,6 +353,18 @@ denominator and rebuilds STEP 6's queue. Full detail: DECISIONS.md.**
 5. TASK 4 — rebuilt `build_annotation_queue.py` from named, quota'd sources; added the permanent
    single-feature-dominance guard; validated it against both the old queue (would refuse: 89.4%)
    and the new one (passes: 29.4%/13.5%/5.5%). New queue: 997 pairs, 41.0% expected positives.
+6. (Addendum #2, same day) TASK A — retracted the 12.5% figure as a search-method artifact after
+   re-checking 10 "not found" rows with a shorter query (0 new matches, but two concrete cases of
+   the original query missing a genuinely-existing product). Confirmed the Phase 1 gate is safe.
+7. TASK B — added a deterministic rules-engine forecast (predicted M/N/S) to the queue builder,
+   replacing the source-tier "expected positives" claim; renamed `blocked_retrieval_positive` to
+   `blocked_retrieval_candidate`. M-plausible ~31%, no rebalance needed.
+8. TASK C — found and corrected the eval-set extension's contamination (shared query signal with
+   the new embedding text); headline recall@20 corrected to 57.7% (n=26), extended figure (64.5%,
+   n=31) kept but explicitly labelled contaminated, in both docs and the script's own output.
+9. TASK D — built a configurable pilot stop for `tools/annotate.html`; found and fixed a real
+   ordering bug (tiers concatenated alphabetically, not interleaved) caught while verifying the
+   pilot slice would actually be representative — it was not, until fixed.
 
 ## Last done (2026-09-14 Phase 2 session, in order)
 
@@ -708,14 +745,31 @@ with Phase 3.
 Every Phase 1 gate box is met except 7 consecutive days of history (3/7 as of 2026-09-14), which
 is wall-clock — it closes on its own once the daily cron has run 4 more times, nothing to decide.
 
-Phase 3 prerequisites (STEP 1-6, ADR-0028) are built and committed. An architect audit then found
-the recall denominator's docstring wrong and the queue unusable (894/1000 pairs decided by capacity
-difference alone); both fixed same day (ADR-0028 addendum, 2026-09-15). **Still stopped for review
-before any labelling begins**, per explicit instruction. Bogdan needs to review, in particular:
-recall@20 after the fix is 90.8% pooled but **64.5% on the unbiased headline subset (n=31, CI
-[46.9%, 78.9%])** — better than before (was 26.9%) but still below the >=90% gate target, with a CI
-too wide to call it close-or-not; the eval set extension fell short of its 100-pair target (reached
-31, see `docs/learned/q3-verification-extension-2026-09-15.md` for why); and the rebuilt annotation
-queue (997 pairs, 41% expected positives, guarded against single-feature dominance, guard verified
-against both the old and new queue) is ready but not yet opened for a single decision. Nothing is
-asked of him beyond reviewing before labelling starts — no architecture question is open.
+Phase 3 prerequisites (STEP 1-6, ADR-0028) are built and committed. Two same-day architect audits
+found and fixed real problems (ADR-0028 addendum, then addendum #2, both 2026-09-15) — full detail
+in DECISIONS.md. **Still stopped for review before any labelling begins**, per explicit
+instruction. Bogdan needs to review, in particular:
+
+- **recall@20 headline is 57.7% (15/26, n=26, CI [38.9%, 74.5%])** — the clean, uncontaminated
+  figure, still below the >=90% gate target. A 2026-09-15 extension to n=31 (64.5%) was found to be
+  **contaminated** (its search query shared its core signal with the embedding text TASK 2(a)
+  changed the same day) and is reported separately, never as the headline.
+  `q3-verification-extension-2026-09-15.md` has the full finding, including a second, unrelated
+  correction: this session's own "12.5% match rate" claim (which briefly looked like it might
+  threaten ADR-0023's Phase 1 overlap gate) was **retracted** — re-checking 10 of the 35 "not
+  found" rows with a shorter query found 0 new matches but decisive evidence the original searches
+  themselves were the problem (two concrete cases: a product the search missed entirely under its
+  full name, found immediately under a shorter one). **The Phase 1 gate is not at risk.**
+- The rebuilt annotation queue (997 pairs) now reports a **predicted M/N/S label distribution**
+  (a deterministic rules-engine forecast, `docs/learned/phase3-annotation-conventions.md`
+  revision 2 applied to every pair) instead of a source-tier count that asserted labels it
+  couldn't guarantee: **M-plausible ~31%** (over the 25% floor, no rebalance needed), N-by-rule
+  ~55%, S-likely ~13%.
+- `tools/annotate.html` now supports a configurable 100-pair pilot stop (reports observed M/N/S,
+  S-reasons, median decision time before requiring an explicit "continue"). Building it caught a
+  real bug: the display order concatenated tiers alphabetically rather than interleaving them, so
+  the first 100 pairs would have been 100% one tier — fixed and re-verified against the real queue
+  (every tier now within ±0.5pp of its full-queue share in the first 100).
+
+Nothing is asked of him beyond reviewing before labelling starts — no architecture question is
+open.

@@ -101,6 +101,15 @@
   #done-screen h1 { font-size: 20px; }
   #done-screen p { color: var(--muted); font-size: 13px; }
 
+  #reason-strip { display: flex; gap: 8px; align-items: center; padding: 6px 20px; background: var(--panel-2); border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  #reason-strip button { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  #reason-strip button.active { border-color: var(--skip); color: var(--text); background: rgba(139,147,163,0.15); }
+
+  #pilot-screen { display: none; flex: 1; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 24px; }
+  #pilot-screen h1 { font-size: 20px; }
+  #pilot-screen p { color: var(--muted); font-size: 13px; }
+  #pilot-screen pre { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; font-size: 13px; line-height: 1.6; max-width: 560px; white-space: pre-wrap; }
+
   #resume-note { font-size: 11.5px; color: var(--muted); padding: 4px 20px 0; }
 </style>
 </head>
@@ -173,6 +182,15 @@
       </div>
     </div>
 
+    <div id="reason-strip" hidden>
+      <span>Why skip? (optional, press a number)</span>
+      <button data-reason="1">1 no quantity</button>
+      <button data-reason="2">2 one-sided attr</button>
+      <button data-reason="3">3 uncertain</button>
+      <button data-reason="4">4 data defect</button>
+      <button data-reason="5">5 other</button>
+    </div>
+
     <div id="decision-bar">
       <button class="btn btn-m" data-answer="M"><span class="key">M</span> Match</button>
       <button class="btn btn-n" data-answer="N"><span class="key">N</span> No match</button>
@@ -180,6 +198,13 @@
       <button class="btn btn-undo" id="btn-undo"><span class="key">U</span> Undo</button>
       <button class="btn btn-flag" id="btn-flag"><span class="key">F</span> Flag</button>
     </div>
+  </div>
+
+  <div id="pilot-screen" hidden>
+    <h1>Pilot complete — <span id="pilot-size-label"></span> pairs</h1>
+    <p id="pilot-summary"></p>
+    <pre id="pilot-detail"></pre>
+    <button class="btn btn-m" id="btn-pilot-continue">Continue to full queue</button>
   </div>
 
   <div id="done-screen">
@@ -212,6 +237,31 @@
 
 const STORAGE_KEY = "pricepilot_phase3_annotations_v1";
 const QUEUE_URL = "../docs/learned/phase3-annotation-queue.json";
+
+// TASK D — a configurable pilot size. Default 100 (Bogdan labels a pilot slice before committing
+// to the full run, per instruction). Override with ?pilot=N in the URL; ?pilot=0 disables the
+// pilot stop entirely (goes straight through to the full queue, for a later full run). The pilot
+// boundary is a position in `order` (built by buildOrder(), which spreads every tier evenly
+// across the whole sequence — see its own comment) — the first PILOT_SIZE items are a
+// representative slice of the whole queue's tier mix, not just its first N by insertion order.
+const PILOT_SIZE = (() => {
+  const raw = new URLSearchParams(location.search).get("pilot");
+  if (raw === null) return 100;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 100;
+})();
+let pilotReportShown = false; // shown once per sitting; "Continue" dismisses it for the session
+
+// TASK D — quick S-reason codes. Not free text (keeps 200/hr feasible) — a single digit key
+// right after pressing S. Optional: skipping it just leaves the reason "unspecified", reported
+// as its own bucket, never silently dropped.
+const S_REASONS = {
+  "1": "no_quantity_stated", // rule 6 — one or both sides state no weight/volume at all
+  "2": "one_sided_attribute", // flavour/life_stage/breed_size stated on one side only
+  "3": "genuinely_uncertain", // rule 8 — ladder doesn't resolve it, >~15s, real judgement call
+  "4": "data_defect", // a queue bug: wrong category, unresolved variant grouping, etc.
+  "5": "other",
+};
 
 const ATTR_FIELDS = [
   ["brand", "Brand"],
@@ -377,6 +427,95 @@ function fmtMs(ms) {
   return (ms / 1000).toFixed(1) + "s";
 }
 
+// --- TASK D — the pilot stop -------------------------------------------------------------------
+
+function pilotBoundaryReached() {
+  if (PILOT_SIZE <= 0 || pilotReportShown) return false;
+  if (order.length < PILOT_SIZE) return false; // queue smaller than the configured pilot itself
+  for (let k = 0; k < PILOT_SIZE; k++) {
+    if (!state[queue[order[k]].occurrence_id]) return false;
+  }
+  return true;
+}
+
+function pilotStats() {
+  const slice = order.slice(0, PILOT_SIZE).map((idx) => queue[idx]);
+  const counts = { M: 0, N: 0, S: 0 };
+  const reasons = {};
+  const times = [];
+  for (const item of slice) {
+    const s = state[item.occurrence_id];
+    if (!s) continue;
+    counts[s.answer] = (counts[s.answer] || 0) + 1;
+    if (s.answer === "S") {
+      const r = s.s_reason || "unspecified";
+      reasons[r] = (reasons[r] || 0) + 1;
+    }
+    if (typeof s.ms === "number") times.push(s.ms);
+  }
+  times.sort((a, b) => a - b);
+  const mid = Math.floor(times.length / 2);
+  const median = times.length
+    ? times.length % 2
+      ? times[mid]
+      : (times[mid - 1] + times[mid]) / 2
+    : null;
+
+  // Tier mix of the pilot slice vs. the full queue — reported every time a pilot completes, not
+  // just checked once at build time, so a stale/hand-edited queue file can't silently drift.
+  const sliceTierCounts = {};
+  const fullTierCounts = {};
+  for (const item of slice) sliceTierCounts[item.tier] = (sliceTierCounts[item.tier] || 0) + 1;
+  for (const item of queue) fullTierCounts[item.tier] = (fullTierCounts[item.tier] || 0) + 1;
+
+  return {
+    counts,
+    reasons,
+    median,
+    sliceTierCounts,
+    fullTierCounts,
+    sliceSize: slice.length,
+    fullSize: queue.length,
+  };
+}
+
+function showPilotReport() {
+  pilotReportShown = true;
+  document.getElementById("decision-bar").style.display = "none";
+  document.getElementById("reason-strip").hidden = true;
+  document.getElementById("content").style.display = "none";
+
+  const stats = pilotStats();
+  document.getElementById("pilot-size-label").textContent = PILOT_SIZE;
+  document.getElementById("pilot-summary").textContent =
+    `M ${stats.counts.M || 0} · N ${stats.counts.N || 0} · S ${stats.counts.S || 0} · ` +
+    `median ${fmtMs(stats.median)}/decision`;
+
+  const lines = ["S reasons:"];
+  const reasonKeys = Object.keys(stats.reasons).sort((a, b) => stats.reasons[b] - stats.reasons[a]);
+  if (!reasonKeys.length) lines.push("  (no S decisions in the pilot)");
+  for (const r of reasonKeys) lines.push(`  ${r}: ${stats.reasons[r]}`);
+  lines.push("");
+  lines.push(`Tier mix — pilot slice (n=${stats.sliceSize}) vs. full queue (n=${stats.fullSize}):`);
+  const allTiers = Array.from(
+    new Set([...Object.keys(stats.sliceTierCounts), ...Object.keys(stats.fullTierCounts)])
+  ).sort();
+  for (const t of allTiers) {
+    const sPct = (((stats.sliceTierCounts[t] || 0) / stats.sliceSize) * 100).toFixed(1);
+    const fPct = (((stats.fullTierCounts[t] || 0) / stats.fullSize) * 100).toFixed(1);
+    lines.push(`  ${t}: pilot ${sPct}%  full ${fPct}%`);
+  }
+  document.getElementById("pilot-detail").textContent = lines.join("\n");
+  document.getElementById("pilot-screen").style.display = "flex";
+}
+
+function dismissPilotReport() {
+  document.getElementById("pilot-screen").style.display = "none";
+  document.getElementById("content").style.display = "flex";
+  document.getElementById("decision-bar").style.display = "flex";
+  renderPair();
+}
+
 function fmtDuration(totalMs) {
   const totalSec = Math.floor(totalMs / 1000);
   const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
@@ -443,15 +582,44 @@ function decide(answer) {
   const item = queue[order[cursor]];
   const ms = decisionStart ? Date.now() - decisionStart : null;
   const prevFlag = state[item.occurrence_id]?.flagged || false;
+  const prevReason = state[item.occurrence_id]?.s_reason || null;
   state[item.occurrence_id] = {
     pair_id: item.pair_id,
     answer,
     flagged: prevFlag,
+    s_reason: answer === "S" ? prevReason : null,
     ms,
     decided_at: new Date().toISOString(),
   };
   saveState();
+  if (answer === "S") {
+    showReasonStrip(item.occurrence_id);
+  } else {
+    hideReasonStrip();
+  }
   advance();
+}
+
+// TASK D — S-reason capture. Non-blocking: the strip stays attached to the pair that was just
+// skipped while the annotator has already moved on, so tagging why never slows the M/N/S flow.
+let reasonTargetId = null;
+
+function showReasonStrip(occurrenceId) {
+  reasonTargetId = occurrenceId;
+  document.getElementById("reason-strip").hidden = false;
+}
+
+function hideReasonStrip() {
+  reasonTargetId = null;
+  document.getElementById("reason-strip").hidden = true;
+}
+
+function setReason(code) {
+  if (!reasonTargetId || !state[reasonTargetId]) return;
+  state[reasonTargetId].s_reason = code;
+  saveState();
+  toast(`skip reason: ${code}`);
+  hideReasonStrip();
 }
 
 function advance() {
@@ -463,6 +631,10 @@ function advance() {
     cursor = firstUndone === -1 ? order.length : firstUndone;
   } else {
     cursor = next;
+  }
+  if (pilotBoundaryReached()) {
+    showPilotReport();
+    return;
   }
   renderPair();
 }
@@ -510,18 +682,32 @@ function seededShuffle(arr, seed) {
 }
 
 function buildOrder(seed) {
-  // Shuffle WITHIN each tier (fatigue must not correlate with any class), but keep tiers in a
-  // fixed, deliberate sequence (easiest-first isn't required — the queue file's own tier order
-  // is trusted as-authored by build_annotation_queue.py).
+  // Shuffle WITHIN each tier (fatigue must not correlate with any class), then INTERLEAVE tiers
+  // proportionally across the WHOLE sequence — not concatenated one after another.
+  //
+  // TASK D fix (ADR-0028 architect-audit response #2): the previous version concatenated tiers
+  // in alphabetical order, so the first N pairs shown were entirely from whichever tier name
+  // sorted first (e.g. "blocked_retrieval_candidate") — a pilot run on the first 100 pairs would
+  // have seen almost no capacity_differs/same_capacity_diff_* pairs at all, nothing like the
+  // full queue's mix. Fixed by giving every item a fractional rank WITHIN its own (shuffled)
+  // tier — (position + 0.5) / tier_size, always in (0, 1) — then sorting ALL items globally by
+  // that rank. A tier's items land spread evenly across the whole range regardless of tier size,
+  // so ANY prefix (the first 100, the first 500) approximates the full queue's tier proportions.
+  // Verified against the real queue (not assumed): see docs/learned/ for the reported check.
   const byTier = {};
   queue.forEach((item, idx) => {
     (byTier[item.tier] = byTier[item.tier] || []).push(idx);
   });
-  let out = [];
+  const keyed = [];
   for (const tier of Object.keys(byTier).sort()) {
-    out = out.concat(seededShuffle(byTier[tier], seed + tier.length));
+    const shuffled = seededShuffle(byTier[tier], seed + tier.length);
+    const n = shuffled.length;
+    shuffled.forEach((idx, i) => {
+      keyed.push({ idx, key: (i + 0.5) / n });
+    });
   }
-  return out;
+  keyed.sort((a, b) => a.key - b.key);
+  return keyed.map((k) => k.idx);
 }
 
 async function init() {
@@ -553,11 +739,21 @@ async function init() {
   sessionStartMs = Date.now();
   timerHandle = setInterval(tickTimer, 1000);
 
-  renderPair();
+  // Resuming into an already-completed pilot slice (closed the tab before seeing the report):
+  // show it now, don't silently walk past the pilot boundary into the full queue.
+  if (pilotBoundaryReached()) {
+    showPilotReport();
+  } else {
+    renderPair();
+  }
 }
 
 document.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (!document.getElementById("reason-strip").hidden && S_REASONS[e.key]) {
+    setReason(S_REASONS[e.key]);
+    return;
+  }
   const key = e.key.toLowerCase();
   if (key === "m") decide("M");
   else if (key === "n") decide("N");
@@ -570,6 +766,10 @@ document.querySelectorAll(".btn[data-answer]").forEach((b) => {
 });
 document.getElementById("btn-undo").addEventListener("click", undo);
 document.getElementById("btn-flag").addEventListener("click", toggleFlag);
+document.querySelectorAll("#reason-strip button[data-reason]").forEach((b) => {
+  b.addEventListener("click", () => setReason(S_REASONS[b.dataset.reason]));
+});
+document.getElementById("btn-pilot-continue").addEventListener("click", dismissPilotReport);
 
 init();
 </script>

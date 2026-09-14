@@ -95,3 +95,98 @@ Stopped at 40 of the planned 150 draws — the target was CI width, not draw cou
 per-item cost at this hit rate made the full 150 impractical within one session. The remaining 110
 drawn-but-unchecked candidates are still in `phase3-q3-extension-draw.json` (not committed) if a
 future session wants to continue this exact draw rather than start a new one.
+
+## Addendum, same day — the 12.5% figure is RETRACTED as a market-overlap estimate
+
+**An architect audit flagged that 12.5% (this document, above) contradicts ADR-0023's Phase 1
+overlap gate**, which rests on a hand-verified p̂=0.52 (n=50, seed `20260913`) over the same
+population — applied to N=2,329 keyable listings, point estimate 1,211, 95% CI [897, 1,519], well
+over the 400 threshold. At p=0.125, the same arithmetic gives point estimate 292, CI [127, 609] —
+400 falls inside that interval, which would make the gate's own status undetermined rather than
+met. Re-checked 10 of the 35 "not found" rows using Q3's own SHORT query form (brand root — and
+for a few, brand + core line words — rather than this document's full descriptive
+`brand + product_line` query, which sometimes carries extra flavour/variant tokens the original
+title doesn't use).
+
+**Result: 0 of the 10 became a new CONFIRMED match** (every one still resolves to `N` under the
+annotation conventions' rule 1 — a real weight, pack, or form difference), **but the evidence is
+decisive that the 12.5% figure is a search-method artifact, not a market measurement**, and it is
+retracted on that basis:
+
+- **Item 39 (Hill's SP Canine Adult Perfect Digestion Small and Mini, 3 kg)** — the ORIGINAL full
+  query (`"hill's SP Canine Adult Perfect Digestion Small and Mini"`) returned zero results on
+  pentruanimale.ro's own VTEX search. A shorter query (`"hills sp canine digestion"`) found the
+  EXACT product — `HILL'S SP Perfect Digestion Small&Mini Adult, Pui cu Orez Brun` — on the first
+  try. The product genuinely exists under almost the exact name the original query already used;
+  the search engine simply failed to match it. (It resolves to `N` anyway: pentruanimale sells it
+  at 6kg, not 3kg — a real capacity difference, correctly `N` under rule 1, but the ORIGINAL
+  "not found" verdict for this row was wrong on its own terms.)
+- **Item 17 (Advance Dog Mini Sensitive Somon & Orez, 7 kg)** — the original query included
+  `"& orez"` (rice), a token the real product's name doesn't carry at all
+  (`ADVANCE Sensitive Care Mini, XS-S, Somon...` — no rice mentioned). A query without that token
+  found it immediately. Resolves to `N` (3kg on pentruanimale vs. 7kg on petmax) but is a second,
+  independent, concrete case of the same failure mode.
+- **7 of the 10** re-checked rows (Brit Care Hypoallergenic, Calibra Cat Life, Calibra Dog Life,
+  Hill's SP Feline Sterilised, Hill's SP Canine Perfect Digestion/Weight, Primordial Holistic,
+  Advance Sensitive Care) turned out to have their BRAND AND PRODUCT LINE genuinely present on
+  pentruanimale once the query was shortened — just not the exact flavour/weight/form combination
+  this session's random draw happened to pick from petmax. The original full-descriptive query
+  found NONE of these seven; the shortened query found all seven, differing only on a dimension
+  (weight, form, or a specific flavour) that rule 1 or rule 4 would still correctly call `N`.
+- **3 of the 10** (Taste of the Wild, Chicopee, Josera) remained genuinely not found even with a
+  bare brand-name query — real brand absence, not a query artifact, for those three specifically.
+
+**Conclusion.** My verification method — typing a full, descriptive query into
+pentruanimale.ro's VTEX full-text search and trusting a "not found" result as a negative — has
+demonstrably poor recall for its own reason (over-specific queries miss real products, confirmed
+twice with a product later found under nearly the original query text). A "not found" result from
+this method is not a reliable signal of market absence. **The 12.5% figure is retracted as an
+estimate of true cross-shop overlap** and should not be read as contradicting, threatening, or
+in any way bearing on ADR-0023's Phase 1 overlap gate, which used a different and more careful
+method (Q3's own manual brand-then-scan verification, not a single combined-text search query) and
+stands as measured. **The Phase 1 gate is NOT at risk from this finding** — the number that
+appeared to threaten it was never a valid measurement of the same thing.
+
+The 5 genuine matches this extension DID confirm (Table 1, above) used the exact-name results a
+search returned and were weight-verified on the product page — those remain valid, reliable
+positives and stay in the recall eval set. **Any future extension of this eval set must use a
+query strategy independent of what the retriever being measured is fed** (see the separate
+contamination finding below) — and, per this finding, independent of full descriptive title text
+generally: Q3's original "brand root + weight, then scan the results by eye" method is the one
+with a track record here; a single combined free-text query into this particular site's search is
+not.
+
+## TASK C — the extension is contaminated, and is not the headline number
+
+**Finding.** All 5 new pairs this extension added were hits: 15/26 (57.7%) became 20/31 (64.5%).
+Under the prior rate (57.7%), the probability of 5 independent draws ALL landing as hits is
+0.577^5 ≈ **6.4%** — not impossible, but notably unlikely, and the mechanism for why is directly
+visible in this session's own work, not merely a coincidence to wave away:
+
+- This extension's search queries were built as `brand + product_line` (see the query construction
+  above — `overlap_key`-independent in Task A's sense, but NOT independent of the embedding).
+- TASK 2(a) of the same session changed `build_embeddings.py`'s embedding text to
+  `brand + product_line + quantity + pack_count + life_stage + breed_size_code` — the SAME core
+  signal (`brand + product_line`), with more fields appended, not a different one.
+- **A pair this extension's query finds easily (strong brand+product_line text overlap with the
+  real pentruanimale listing) is, by construction, also the kind of pair the embedding-based
+  retriever finds easily** — both methods are keying off materially the same text. The extension
+  therefore preferentially surfaced pairs the retriever can already find, and its 5 new hits are
+  **not independent of what they were used to measure**. This is the identical pooled-vs-unbiased
+  bias ADR-0028's original session correctly diagnosed for the proxy-key subset (`textually
+  similar by construction`) — re-entering through the query this session used to grow the sample,
+  one task after it was first caught.
+
+**Correction.** **57.7% (15/26) is the headline recall@20 figure** — the eval set as it stood
+before this session's contaminated extension. **64.5% (20/31) is reported separately, explicitly
+labelled as resting on a partly contaminated extension**, not as an improvement to trust at face
+value. Both numbers are real measurements against real, verified positives — the issue is only
+that the *growth* from 26 to 31 cannot be treated as an independent confirmation that recall is
+improving, because the growth mechanism correlates with the thing being measured.
+
+**Rule for future extensions, stated plainly per instruction:** any future eval-set extension must
+use a query strategy that does **not** share text with the embedding input. Q3's original method —
+search by brand root (or brand + weight), then manually scan the results for the matching line —
+qualifies, because it does not depend on `product_line` text overlap the way both the embedding
+and this extension's query do. A query built from `brand + product_line` (this extension's own
+choice) does not qualify, regardless of how it's phrased.

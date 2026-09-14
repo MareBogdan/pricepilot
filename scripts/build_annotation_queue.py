@@ -101,7 +101,7 @@ SINGLE_FEATURE_DOMINANCE_LIMIT = 0.40
 # hard/negative sub-class. Sums to 1.00 over the non-trivial queue.
 QUOTA_SHARES: dict[str, float] = {
     "proxy_key_collision": 0.25,
-    "blocked_retrieval_positive": 0.13,  # positives total: 38% (>=25% floor, margin for shortfall)
+    "blocked_retrieval_candidate": 0.13,  # positives total: 38% (>=25% floor, margin for shortfall)
     "capacity_differs_cross_shop": 0.22,
     "capacity_differs_within_shop": 0.08,  # capacity_differs total: 30% (the cap)
     "same_capacity_diff_flavour": 0.09,
@@ -126,6 +126,7 @@ ATTR_FIELDS = (
     "sample_source",
     "sample_title",
     "brand_blocking_key",
+    "category",
 )
 
 _ATTRS_SQL = text(
@@ -304,6 +305,7 @@ class Listing:
     source: str
     title: str
     brand_blocking_key: str | None
+    category: str | None
 
 
 def _norm_line(s: str | None) -> str | None:
@@ -346,6 +348,7 @@ def _fetch_listings(session, hashes: set[str]) -> dict[str, Listing]:  # type: i
             source=row.sample_source,
             title=row.sample_title,
             brand_blocking_key=row.brand_blocking_key,
+            category=row.category,
         )
         for row in rows
     }
@@ -360,6 +363,111 @@ def _dedup_pairs(rows: list[tuple[str, str]], seen: set[tuple[str, str]]) -> lis
         seen.add(key)
         out.append((a, b))
     return out
+
+
+# --- TASK B (ADR-0028 architect-audit response #2) — a deterministic rules engine that applies
+# `docs/learned/phase3-annotation-conventions.md` revision 2's ladder to every queue pair, so the
+# queue's own headline statistic is a FORECAST of the annotator's actual workload (M-plausible /
+# N-by-rule / S-likely), not a source-tier label that asserts nothing about how a pair will
+# actually be decided. **This forecast is read-only** — it is never written into the pair, never
+# used to auto-label anything beyond the pre-existing trivial-tier pass, and the annotator's own
+# M/N/S decision remains the only ground truth this project trusts. Conservative by design: an
+# N-rule only fires when BOTH sides state the field being compared (matches rule 6/8's own "don't
+# guess on a one-sided field" discipline) — a one-sided field is scored `S`, not guessed either
+# way, even though that under-counts how many pairs the ladder could *in principle* decide.
+
+# Rule 2's life-stage equivalence: our schema's `life_stage` field only ever holds one of these
+# four values (checked against the real population — no separate "kitten" or "7+" value exists,
+# Phase 2's own extraction already folds them in). Grouped per this task's explicit instruction —
+# puppy/junior collapse to one "young" class for this forecast, so the ladder does not fire on a
+# distinction our structured data cannot actually see cleanly, keeping the N-count a defensible
+# floor rather than an inflated one.
+_LIFE_STAGE_GROUP = {"puppy": "young", "junior": "young", "adult": "adult", "senior": "senior"}
+
+_IN_SCOPE_CATEGORIES = frozenset({"food", "litter"})
+
+
+def _quantity_tuple(listing: Listing) -> tuple[int | None, int | None, int, int]:
+    pack = listing.pack_count if listing.pack_count is not None else 1
+    bonus = listing.bonus_weight_g if listing.bonus_weight_g is not None else 0
+    return (listing.net_weight_g, listing.net_volume_ml, pack, bonus)
+
+
+def _has_quantity(listing: Listing) -> bool:
+    return listing.net_weight_g is not None or listing.net_volume_ml is not None
+
+
+def predict_label(left: Listing, right: Listing) -> tuple[str, str]:
+    """Applies the conventions-v2 ladder deterministically. Returns (label, rule) where label is
+    "M" | "N" | "S" and `rule` names which rule decided it (or "default_M" / "ambiguous_brand" for
+    the fall-through cases). Order matches the ladder: the first rule that fires wins."""
+    # Rule 0 — scope. Accessory/toy/unknown listings are out of round 1's scope entirely.
+    if (left.category not in _IN_SCOPE_CATEGORIES) or (right.category not in _IN_SCOPE_CATEGORIES):
+        return "S", "rule0_out_of_scope"
+
+    # Rule 6 — quantity not stated on one side: cannot even test rule 1.
+    if not _has_quantity(left) or not _has_quantity(right):
+        return "S", "rule6_no_quantity_stated"
+
+    # Rule 1 — quantity tuple differs -> N, always, no exceptions.
+    if _quantity_tuple(left) != _quantity_tuple(right):
+        return "N", "rule1_quantity_differs"
+
+    # Rule 2 — life stage (formula-defining qualifier), grouped per this task's instruction.
+    if left.life_stage and right.life_stage:
+        lg = _LIFE_STAGE_GROUP.get(left.life_stage, left.life_stage)
+        rg = _LIFE_STAGE_GROUP.get(right.life_stage, right.life_stage)
+        if lg != rg:
+            return "N", "rule2_lifestage_differs"
+
+    # Rule 3 — breed size differs (both stated).
+    if (
+        left.breed_size_code
+        and right.breed_size_code
+        and left.breed_size_code != right.breed_size_code
+    ):
+        return "N", "rule3_breedsize_differs"
+
+    # Rule 4 — flavour differs (both stated). Cross-language equivalence (Salmon/Somon etc.) is
+    # already resolved upstream by `normalize/flavour.py` before this field is stored, so a plain
+    # string-inequality check here is correct, not naive.
+    if left.flavour and right.flavour and left.flavour != right.flavour:
+        return "N", "rule4_flavour_differs"
+
+    # Everything that forces N has now had its chance. A one-sided flavour/life_stage/breed_size
+    # is a real gap the ladder can't close without a guess — score S, not M, per the "never guess"
+    # discipline (rule 6/8).
+    one_sided = (
+        (left.flavour is None) != (right.flavour is None)
+        or (left.life_stage is None) != (right.life_stage is None)
+        or (left.breed_size_code is None) != (right.breed_size_code is None)
+    )
+    if one_sided:
+        return "S", "one_sided_attribute"
+
+    # Rule 5 — brand string differs. Could be M (distributor-code provenance) or a genuinely
+    # different manufacturer; rule 5 explicitly requires reading the title/packaging to tell them
+    # apart, which this forecast cannot automate. Scored S, not guessed as M.
+    if left.brand != right.brand:
+        return "S", "ambiguous_brand_rule5"
+
+    return "M", "default_M"
+
+
+def forecast_queue(
+    human_pairs: list[tuple[str, str]], listings: dict[str, Listing]
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Returns (label_counts, n_rule_counts) — the three-way M/N/S forecast and, for the N bucket
+    only, which rule fired how often (so the headline print can show the breakdown, not just the
+    total)."""
+    label_counts: dict[str, int] = {"M": 0, "N": 0, "S": 0}
+    n_rule_counts: dict[str, int] = {}
+    for a, b in human_pairs:
+        label, rule = predict_label(listings[a], listings[b])
+        label_counts[label] += 1
+        if label == "N":
+            n_rule_counts[rule] = n_rule_counts.get(rule, 0) + 1
+    return label_counts, n_rule_counts
 
 
 def main() -> int:
@@ -394,7 +502,7 @@ def main() -> int:
                         proxy_pairs.append((h1, h2))
         pools["proxy_key_collision"] = _dedup_pairs(proxy_pairs, seen_pairs)
 
-        # --- blocked_retrieval_positive --------------------------------------------------------
+        # --- blocked_retrieval_candidate --------------------------------------------------------
         anchors = session.execute(_BLOCKED_RETRIEVAL_ANCHOR_SQL, {"n": 600}).all()
         retrieval_pairs: list[tuple[str, str]] = []
         for anchor_hash, brand_key in anchors:
@@ -411,7 +519,7 @@ def main() -> int:
         # category's job to what its name says — a plausible-POSITIVE source — and leaves
         # capacity-differing hard negatives to the dedicated capacity_differs categories, which
         # exist to hold that class deliberately, not have it leak in from every direction.
-        pools["blocked_retrieval_positive_raw"] = _dedup_pairs(retrieval_pairs, seen_pairs)
+        pools["blocked_retrieval_candidate_raw"] = _dedup_pairs(retrieval_pairs, seen_pairs)
 
         # --- capacity_differs (split cross/within shop after fetching Listings) ---------------
         capacity_rows = session.execute(_CAPACITY_DIFFERS_SQL).all()
@@ -472,14 +580,16 @@ def main() -> int:
 
     pools["capacity_differs_cross_shop"] = cross_shop_only(capacity_pairs_all)
     pools["capacity_differs_within_shop"] = within_shop_only(capacity_pairs_all)
-    pools["blocked_retrieval_positive"] = same_capacity(pools.pop("blocked_retrieval_positive_raw"))
+    pools["blocked_retrieval_candidate"] = same_capacity(
+        pools.pop("blocked_retrieval_candidate_raw")
+    )
 
     # All other pools: keep them cross-shop for the positive/hard-negative sub-classes (the
     # matching problem this project targets), except capacity_differs_within_shop above, which
     # exists specifically to cover the within-shop gap the 2026-09-13 diagnostic found.
     for name in (
         "proxy_key_collision",
-        "blocked_retrieval_positive",
+        "blocked_retrieval_candidate",
         "same_capacity_diff_flavour",
         "same_capacity_diff_lifestage",
         "same_capacity_diff_breedsize",
@@ -529,7 +639,7 @@ def main() -> int:
     # up further would undo the whole point of TASK 4).
     fill_priority = [
         "proxy_key_collision",
-        "blocked_retrieval_positive",
+        "blocked_retrieval_candidate",
         "same_capacity_diff_flavour",
         "same_capacity_diff_lifestage",
         "same_capacity_diff_breedsize",
@@ -580,19 +690,49 @@ def main() -> int:
         print(f"  {name:32s} {n:5d} ({pct:5.1f}%){short_note}")
 
     positive_total = counts_by_category.get("proxy_key_collision", 0) + counts_by_category.get(
-        "blocked_retrieval_positive", 0
+        "blocked_retrieval_candidate", 0
     )
     capacity_total = counts_by_category.get(
         "capacity_differs_cross_shop", 0
     ) + counts_by_category.get("capacity_differs_within_shop", 0)
     print(
-        f"\nexpected positives (proxy_key_collision + blocked_retrieval_positive): "
+        f"\nsource-tier totals — NOT a label prediction, see the forecast below "
+        f"(proxy_key_collision + blocked_retrieval_candidate): "
         f"{positive_total} ({positive_total / len(human_pairs) * 100:.1f}% of queue)"
     )
     print(
         f"capacity_differs total (cross + within shop): {capacity_total} "
         f"({capacity_total / len(human_pairs) * 100:.1f}% of queue)"
     )
+
+    # --- TASK B headline: the three-way predicted-label forecast, not a source-tier count -----
+    label_counts, n_rule_counts = forecast_queue(human_pairs, listings)
+    n_total_forecast = len(human_pairs)
+    print("\n" + "=" * 78)
+    print("PREDICTED LABEL DISTRIBUTION (rules-engine forecast, conventions.md revision 2)")
+    print("=" * 78)
+    print(
+        "Applies the deterministic ladder to every pair. NOT used to auto-label anything beyond "
+        "the existing trivial-tier pass — this is a forecast of the annotator's workload, not a "
+        "substitute for the annotator."
+    )
+    for label in ("M", "N", "S"):
+        n = label_counts[label]
+        pct = n / n_total_forecast * 100 if n_total_forecast else 0.0
+        tag = "  <- M-plausible" if label == "M" else ""
+        print(
+            f"  {label}-{'plausible' if label == 'M' else ('by-rule' if label == 'N' else 'likely'):10s} {n:5d} ({pct:5.1f}%){tag}"
+        )
+    print("\n  N, by which rule fired:")
+    for rule, n in sorted(n_rule_counts.items(), key=lambda x: -x[1]):
+        print(f"    {rule:28s} {n:5d} ({n / n_total_forecast * 100:5.1f}% of queue)")
+
+    m_fraction = label_counts["M"] / n_total_forecast if n_total_forecast else 0.0
+    if m_fraction < 0.25:
+        print(
+            f"\nWARNING: M-plausible ({m_fraction * 100:.1f}%) is below the 25% floor. "
+            "See REBALANCE below."
+        )
 
     # --- Guard: single-feature dominance ------------------------------------------------------
     def differs_capacity(left: Listing, right: Listing) -> bool:
