@@ -6,15 +6,32 @@ r"""STEP 3 — Phase 2 gate measurement: score the extractor against the hand-la
 repo or its code**: brand, net_weight_g, net_volume_ml, pack_count, bonus_weight_g,
 breed_size_code, life_stage, flavour, food_form, dosage_band. `product_line` was labelled by the
 architect session against a convention STEP 1 superseded — it carries no accuracy figure here and
-is never read by this script's scoring loop, per the explicit instruction that produced this
-script.
+is never read by this script's scoring loop.
 
-**Per-field breakdown, not just a pass/fail count.** A mismatch is one of three different bugs,
-counted separately: the extractor found nothing where the label says something is stated
-(`extractor_null`); the extractor found something where the label says nothing is stated
-(`extractor_has_extra`); both sides have a value and they disagree (`both_present_different`).
-Collapsing these into one "wrong" bucket would hide which failure mode dominates — exactly the
-information STEP 5's fix-priority list needs.
+**Three different denominators, reported explicitly, none hidden behind the others.** A first
+version of this script reported one number — 966/1000 = 96.6% — scored against all 1,000 cells
+(100 rows x 10 fields). That number is real but inflated: most fields are null on most rows (a
+plain "Royal Canin Mini Adult 8 kg" correctly has no `dosage_band`, no `pack_count`, no
+`bonus_weight_g`), so "both sides correctly produced nothing" dominates the count and drowns out
+the cells that actually test something. `dosage_band` alone contributes 1 labelled cell and 99
+such free points. So this script now reports:
+
+1. **All cells** (1,000) — kept for transparency, never the headline.
+2. **Labelled cells only** (label non-empty) — the real test: can the extractor reproduce a
+   value a human said is actually stated? This is reported both across all ten fields and with
+   `brand` excluded (see below) — the second is the headline.
+3. **Weight parsing** (`net_weight_g`), on its own non-empty-label count, per CLAUDE.md §7.
+
+Every per-field line prints its own labelled-cell count alongside the score, so a field with 1
+labelled cell (`dosage_band`) can never be mistaken for one that was actually measured 100 times.
+
+**`brand` is excluded from every headline figure, deliberately, not just because its score is
+lowest.** 12 of `brand`'s 15 mismatches (2026-09-14 session) come from the labeller seeing only
+`title` text while `canonicalize_brand()` correctly prefers the shop's own structured brand field
+when one exists — two different inputs to the same question, so this sample cannot grade that
+field either way. It is neither an extractor bug nor a bad label. `brand`'s own correctness is
+already checked a different, better way: STEP 1's cross-shop comparability test (same product,
+different shops, same canonical brand — see DECISIONS.md ADR-0027).
 
 **Comparison is case/whitespace-insensitive, decided before any number was computed, not after.**
 The extractor's own documented convention stores every string field in a fixed casing (`"dry"`,
@@ -25,8 +42,22 @@ casing as meaningful. `dosage_band` additionally has the extractor's own space b
 (`"12-25 kg"`) against the label's compact form (`"12-25kg"`); the same whitespace-insensitive
 comparison absorbs that too. Numeric fields are compared as integers, not strings.
 
-**Nothing here adjusts the extractor.** This script only reads `norm_listings` (already
-re-extracted under EXTRACTOR_VERSION 2026-09-14-v4) and the labelled CSV; it changes neither.
+**A mismatch is one of three different bugs, counted separately**, per field: the extractor found
+nothing where the label says something is stated (`extractor_null`); the extractor found
+something where the label says nothing is stated (`extractor_has_extra` — a **false positive**,
+worse than a miss because it writes a wrong value instead of an honest null, and specifically NOT
+included in the "labelled cells" denominator since there is no label to check it against — that
+denominator only ever answers "did the extractor reproduce a stated value", never "did the
+extractor stay silent when it should have"; false positives are caught by population-level checks
+instead, e.g. `scripts/measure_gate.py`'s STEP 5 fix list); both sides have a value and they
+disagree (`both_present_different`).
+
+**Nothing here adjusts the extractor.** This script only reads `norm_listings` and the labelled
+CSV; it changes neither. Per the explicit instruction that produced this script's second version:
+**do not re-run this after implementing gate-derived fixes and report a post-fix accuracy figure**
+— once a fix is derived from a sample mismatch, re-scoring the same 100 rows is tuning on the test
+set, and any number it produces is not comparable to the one that passed the gate. The number this
+script prints is the measurement of record; see DECISIONS.md ADR-0027 for why it stays frozen.
 """
 
 from __future__ import annotations
@@ -66,6 +97,9 @@ GATE_FIELDS: tuple[str, ...] = (
     "food_form",
     "dosage_band",
 )
+# Excluded from every headline figure — see the module docstring for why (two different inputs,
+# not an extractor bug or a bad label).
+HEADLINE_FIELDS: tuple[str, ...] = tuple(f for f in GATE_FIELDS if f != "brand")
 NUMERIC_FIELDS = frozenset({"net_weight_g", "net_volume_ml", "pack_count", "bonus_weight_g"})
 
 
@@ -117,15 +151,17 @@ def main() -> int:
         print(f"WARNING: {len(missing_norm)} listing_ids have no norm_listings row: {missing_norm}")
 
     # Per-field tallies.
-    exact: Counter[str] = Counter()
-    extractor_null: Counter[str] = Counter()
-    extractor_has_extra: Counter[str] = Counter()
-    both_present_different: Counter[str] = Counter()
+    all_cells_exact: Counter[str] = Counter()  # correct among ALL 100 rows (incl. both-empty)
+    labelled_n: Counter[str] = Counter()  # rows where the LABEL is non-empty
+    labelled_correct: Counter[str] = Counter()  # correct among those labelled rows
+    extractor_null: Counter[str] = Counter()  # label present, extractor null (miss)
+    extractor_has_extra: Counter[str] = Counter()  # label empty, extractor non-null (false pos.)
+    both_present_different: Counter[str] = Counter()  # both present, disagree
     scored: Counter[str] = Counter()  # rows actually compared (row present in norm_listings)
 
     mismatches: list[
         tuple[str, int, str, str, str, str]
-    ] = []  # field, id, title, source, expected, got
+    ] = []  # field, id, title, kind, expected, got
 
     for row in labeled_rows:
         listing_id = int(row["listing_id"])
@@ -142,8 +178,12 @@ def main() -> int:
             got = _normalize(field, got_raw)
 
             scored[field] += 1
+            if expected is not None:
+                labelled_n[field] += 1
             if expected == got:
-                exact[field] += 1
+                all_cells_exact[field] += 1
+                if expected is not None:
+                    labelled_correct[field] += 1
                 continue
 
             if expected is not None and got is None:
@@ -167,40 +207,64 @@ def main() -> int:
                 )
             )
 
-    print("\n" + "=" * 78)
-    print("PER-FIELD BREAKDOWN (the ten fields carrying the gate)")
-    print("=" * 78)
-    total_exact = 0
-    total_scored = 0
+    print("\n" + "=" * 88)
+    print("PER-FIELD BREAKDOWN — labelled_n is the count of rows where a human stated a value;")
+    print("the score is correct/labelled_n, NOT correct/100 (see module docstring)")
+    print("=" * 88)
     for field in GATE_FIELDS:
-        n = scored[field]
-        e = exact[field]
-        total_exact += e
-        total_scored += n
-        pct = (e / n * 100) if n else 0.0
+        ln = labelled_n[field]
+        lc = labelled_correct[field]
+        pct = (lc / ln * 100) if ln else float("nan")
+        marker = " (excluded from headline)" if field == "brand" else ""
         print(
-            f"{field:18s} exact={e:3d}/{n:3d} ({pct:5.1f}%)  "
+            f"{field:18s} labelled_n={ln:3d}  correct={lc:3d}  "
+            f"score={pct:5.1f}%  "
+            f"[all-cells exact={all_cells_exact[field]:3d}/{scored[field]:3d}]  "
             f"extractor_null={extractor_null[field]:2d}  "
-            f"extractor_extra={extractor_has_extra[field]:2d}  "
-            f"both_diff={both_present_different[field]:2d}"
+            f"extractor_extra(false pos.)={extractor_has_extra[field]:2d}  "
+            f"both_diff={both_present_different[field]:2d}{marker}"
         )
 
-    overall = total_exact / total_scored * 100 if total_scored else 0.0
-    print("\n" + "=" * 78)
-    print(
-        f"OVERALL ACCURACY across the ten gate fields: {total_exact}/{total_scored} = {overall:.1f}%"
+    # (1) All cells, all ten fields — transparency figure, never the headline.
+    all_cells_total = sum(scored.values())
+    all_cells_correct = sum(all_cells_exact.values())
+    all_cells_pct = all_cells_correct / all_cells_total * 100 if all_cells_total else 0.0
+
+    # (2) Labelled cells only, all ten fields (brand included) — the honest denominator, but
+    # still mixes in the un-gradeable brand field.
+    labelled_all_total = sum(labelled_n.values())
+    labelled_all_correct = sum(labelled_correct.values())
+    labelled_all_pct = (
+        labelled_all_correct / labelled_all_total * 100 if labelled_all_total else 0.0
     )
-    print("=" * 78)
 
-    weight_n = scored["net_weight_g"]
-    weight_e = exact["net_weight_g"]
-    weight_pct = (weight_e / weight_n * 100) if weight_n else 0.0
-    print("\nWEIGHT PARSING (net_weight_g), measured separately per CLAUDE.md §7:")
-    print(f"  {weight_e}/{weight_n} = {weight_pct:.1f}%")
+    # (3) Labelled cells only, brand excluded — THE HEADLINE GATE NUMBER.
+    headline_total = sum(labelled_n[f] for f in HEADLINE_FIELDS)
+    headline_correct = sum(labelled_correct[f] for f in HEADLINE_FIELDS)
+    headline_pct = headline_correct / headline_total * 100 if headline_total else 0.0
 
-    print("\n" + "=" * 78)
-    print(f"EVERY MISMATCH ({len(mismatches)} total)")
-    print("=" * 78)
+    print("\n" + "=" * 88)
+    print("GATE FIGURES")
+    print("=" * 88)
+    print(
+        f"  all cells (10 fields x 100 rows):            {all_cells_correct}/{all_cells_total} = {all_cells_pct:.1f}%  (transparency only — NOT the gate number)"
+    )
+    print(
+        f"  labelled cells only, brand included:         {labelled_all_correct}/{labelled_all_total} = {labelled_all_pct:.1f}%"
+    )
+    print(
+        f"  labelled cells only, brand EXCLUDED (HEADLINE, the gate number): {headline_correct}/{headline_total} = {headline_pct:.1f}%"
+    )
+
+    weight_n = labelled_n["net_weight_g"]
+    weight_c = labelled_correct["net_weight_g"]
+    weight_pct = (weight_c / weight_n * 100) if weight_n else 0.0
+    print("\nWEIGHT PARSING (net_weight_g), measured separately per CLAUDE.md §7,")
+    print(f"on its {weight_n} non-empty labels: {weight_c}/{weight_n} = {weight_pct:.1f}%")
+
+    print("\n" + "=" * 88)
+    print(f"EVERY MISMATCH ({len(mismatches)} total, across all ten fields including brand)")
+    print("=" * 88)
     for field, listing_id, title, kind, expected, got in mismatches:
         print(f"\n[{field}] listing_id={listing_id} ({kind})")
         print(f"  title:    {title}")
