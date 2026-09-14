@@ -3,6 +3,20 @@ known-positive set.
 
     uv run python scripts/measure_recall_at_20.py
 
+**TASK 2 (ADR-0028 addendum).** Reports recall@20 in TWO modes in one run, so (a) and (b) are each
+visible on their own:
+
+- **unblocked** — global top-20 by cosine distance, same query as before. Measures embedding-text
+  change (a) alone, given the embeddings in the database were rebuilt with `--force` after (a).
+- **blocked** — candidates restricted to the query row's own `brand_blocking_key` (STEP 3), ranked
+  by cosine distance inside that block; falls back to the unblocked query when the row's own
+  `brand_blocking_key` is `NULL` or it is flagged `brand_is_distributor_code` (blocking on a code
+  that doesn't identify the real manufacturer would silently exclude the true cross-shop match,
+  not just narrow the search). Measures (a)+(b) together.
+
+Both modes read whatever embeddings are currently in `norm_listings.embedding` — this script never
+recomputes them; run `build_embeddings.py --force` first after any embedding_text() change.
+
 Reads `docs/learned/phase3-retrieval-eval-set.csv` (STEP 1, `scripts/build_retrieval_eval_set.py`
 — built from browser-verified matches and proxy-key collisions, neither of which ever touches an
 embedding) and `norm_listings.embedding` (STEP 2, `scripts/build_embeddings.py`).
@@ -20,10 +34,15 @@ a much larger sample.
 
 **Rows on the same content_hash on both sides of a known-positive pair are skipped**, not
 counted as trivial hits — `norm_listings` is keyed on content_hash globally (ADR-0026), so two
-different-source listings sharing an identical normalized title would trivially "match" without
-testing retrieval at all; this never happens in practice for the two known-positive sources here
-(cross-shop titles differ by construction) but the guard costs nothing and documents the
-assumption rather than leaving it silently relied upon.
+different-source listings sharing an identical normalized title collapse to the SAME
+`norm_listings` row. There is no second row to retrieve, so the pair cannot be tested at all and
+is excluded from the denominator rather than counted either way.
+
+**This is not a hypothetical.** It happens 6 times in the 142-pair eval set (all 6 are cross-shop
+pairs whose normalized titles are byte-identical — see ADR-0028's TASK 1 addendum for the list and
+what it means), which is why the reported recall denominator is 136, not 142. An earlier version
+of this docstring claimed "this never happens in practice" — that claim was wrong and is corrected
+here rather than left standing.
 
 Nothing here writes to the database or tunes anything — pure measurement.
 """
@@ -61,6 +80,25 @@ _TOP_K_SQL = text(
     """
 )
 
+# TASK 2b: candidates restricted to the query row's own brand_blocking_key, ranked by cosine
+# distance inside the block only.
+_TOP_K_BLOCKED_SQL = text(
+    """
+    select content_hash
+    from norm_listings
+    where embedding is not null
+      and content_hash != :self_hash
+      and brand_blocking_key = :brand_key
+    order by embedding <=> (select embedding from norm_listings where content_hash = :self_hash)
+    limit :k
+    """
+)
+
+_BLOCK_INFO_SQL = text(
+    "select brand_blocking_key, brand_is_distributor_code from norm_listings"
+    " where content_hash = :self_hash"
+)
+
 
 def wilson_ci(x: int, n: int, z: float = 1.96) -> tuple[float, float, float]:
     """Wilson score interval — same formula and z as ADR-0023's overlap-gate sample."""
@@ -75,6 +113,26 @@ def wilson_ci(x: int, n: int, z: float = 1.96) -> tuple[float, float, float]:
 
 def top_k_hashes(session, content_hash: str) -> set[str]:  # type: ignore[no-untyped-def]
     return {r[0] for r in session.execute(_TOP_K_SQL, {"self_hash": content_hash, "k": TOP_K})}
+
+
+def top_k_hashes_blocked(session, content_hash: str) -> set[str]:  # type: ignore[no-untyped-def]
+    """TASK 2b: block on the query row's own brand_blocking_key, then rank by embedding distance
+    inside the block. Falls back to the unblocked global search when the row has no usable block
+    key (NULL brand_blocking_key, or flagged brand_is_distributor_code — a distributor/private-
+    label code does not reliably identify the real manufacturer, so blocking on it risks silently
+    excluding the true cross-shop match rather than just narrowing the search, per instruction)."""
+    info = session.execute(_BLOCK_INFO_SQL, {"self_hash": content_hash}).one_or_none()
+    if info is None:
+        return set()
+    brand_key, is_distributor = info
+    if brand_key is None or is_distributor:
+        return top_k_hashes(session, content_hash)
+    return {
+        r[0]
+        for r in session.execute(
+            _TOP_K_BLOCKED_SQL, {"self_hash": content_hash, "brand_key": brand_key, "k": TOP_K}
+        )
+    }
 
 
 def main() -> int:
@@ -100,24 +158,27 @@ def main() -> int:
     ]
     print(f"known-positive pairs loaded: {len(pairs)} (of {len(rows)} rows in the eval set)")
 
-    same_hash_skipped = 0
-    hits = 0
-    misses: list[dict[str, str]] = []
-    by_source: Counter[str] = Counter()
-    hits_by_source: Counter[str] = Counter()
+    same_hash_skipped = sum(1 for r in pairs if r["left_content_hash"] == r["right_content_hash"])
+    testable_pairs = [r for r in pairs if r["left_content_hash"] != r["right_content_hash"]]
+    print(
+        f"\nsame-content_hash pairs skipped (not testable — see ADR-0028 TASK 1): {same_hash_skipped}"
+    )
 
-    with session_scope() as session:
-        for row in pairs:
+    def measure(  # type: ignore[no-untyped-def]
+        session, retrieval_fn, label: str
+    ) -> list[dict[str, str]]:
+        hits = 0
+        misses: list[dict[str, str]] = []
+        by_source: Counter[str] = Counter()
+        hits_by_source: Counter[str] = Counter()
+
+        for row in testable_pairs:
             left_hash = row["left_content_hash"]
             right_hash = row["right_content_hash"]
             eval_source = row["eval_source"]
-            if left_hash == right_hash:
-                same_hash_skipped += 1
-                continue
-
             by_source[eval_source] += 1
-            left_top20 = top_k_hashes(session, left_hash)
-            right_top20 = top_k_hashes(session, right_hash)
+            left_top20 = retrieval_fn(session, left_hash)
+            right_top20 = retrieval_fn(session, right_hash)
             hit = right_hash in left_top20 or left_hash in right_top20
             if hit:
                 hits += 1
@@ -125,27 +186,40 @@ def main() -> int:
             else:
                 misses.append(row)
 
-    n = sum(by_source.values())
-    p_hat, lo, hi = wilson_ci(hits, n)
-
-    print(f"\nsame-content_hash pairs skipped (trivial by construction): {same_hash_skipped}")
-    print("\n" + "=" * 78)
-    print("RECALL@20")
-    print("=" * 78)
-    print(f"  overall: {hits}/{n} = {p_hat * 100:.1f}%   95% CI [{lo * 100:.1f}%, {hi * 100:.1f}%]")
-    for source in sorted(by_source):
-        s_n = by_source[source]
-        s_hits = hits_by_source[source]
-        s_p, s_lo, s_hi = wilson_ci(s_hits, s_n)
+        n = sum(by_source.values())
+        p_hat, lo, hi = wilson_ci(hits, n)
+        print("\n" + "=" * 78)
+        print(f"RECALL@20 — {label}")
+        print("=" * 78)
         print(
-            f"  {source:24s} {s_hits}/{s_n} = {s_p * 100:.1f}%   "
-            f"95% CI [{s_lo * 100:.1f}%, {s_hi * 100:.1f}%]"
+            f"  overall (pooled, biased — never the headline number): {hits}/{n} = "
+            f"{p_hat * 100:.1f}%   95% CI [{lo * 100:.1f}%, {hi * 100:.1f}%]"
+        )
+        for source in sorted(by_source):
+            s_n = by_source[source]
+            s_hits = hits_by_source[source]
+            s_p, s_lo, s_hi = wilson_ci(s_hits, s_n)
+            headline = "  <- HEADLINE" if source == "q3_browser_verified" else ""
+            print(
+                f"  {source:24s} {s_hits}/{s_n} = {s_p * 100:.1f}%   "
+                f"95% CI [{s_lo * 100:.1f}%, {s_hi * 100:.1f}%]{headline}"
+            )
+        return misses
+
+    with session_scope() as session:
+        _ = measure(session, top_k_hashes, "(a) alone — new embedding text, unblocked")
+        misses_blocked = measure(
+            session,
+            top_k_hashes_blocked,
+            "(a)+(b) — new embedding text, blocked by brand_blocking_key",
         )
 
     print("\n" + "=" * 78)
-    print(f"MISSES ({len(misses)} total) — for failure-shape analysis, not tuning")
+    print(
+        f"MISSES, (a)+(b) blocked run ({len(misses_blocked)} total) — for failure-shape analysis, not tuning"
+    )
     print("=" * 78)
-    for row in misses:
+    for row in misses_blocked:
         print(f"\n[{row['eval_source']}]")
         print(f"  L ({row['left_source']}): {row['left_title']}")
         print(f"  R ({row['right_source']}): {row['right_title']}")

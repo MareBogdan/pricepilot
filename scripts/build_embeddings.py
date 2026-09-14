@@ -8,16 +8,23 @@ model itself will eventually need to be small and CPU-servable (CLAUDE.md §6's 
 commitment) — this retrieval step should not depend on a model that could never run on the same
 VPS the final system deploys to.
 
-**Text embedded**: `f"{brand} {product_line or sample_title}"` — `brand` prepended because
-`product_line` (STEP 1, this session's prior work) already had the brand text stripped out of it
-by design, and brand is a strong identity signal an embedding model should not have to infer from
-context alone. Falls back to `sample_title` on the ~0.1% of rows with no `product_line` (STEP 1's
-own reported gap) rather than embedding an empty/near-empty string.
+**Text embedded (TASK 2a, ADR-0028 addendum): `f"{brand} {product_line or sample_title} {tail}"`**
+where `tail` appends the discriminating fields `product_line` deliberately strips —
+`net_weight_g`/`net_volume_ml`, `pack_count`, `life_stage`, `breed_size_code`. Without this,
+same-brand-same-line-different-weight siblings embed at cosine distance 0.0 (the root cause
+ADR-0028 documented for ~49% of STEP 2's misses) because nothing in the original text ever told
+the model two rows were different products. `brand` stays prepended for the same reason as
+before — a strong identity signal the model should not have to infer from context alone. Falls
+back to `sample_title` on the ~0.1% of rows with no `product_line` rather than embedding an
+empty/near-empty string.
 
 **Idempotent, cached like everything else in this pipeline**: only rows with `embedding IS NULL`
-are processed, matching `scripts/normalize.py`'s own `content_hash`-cache discipline. Re-run after
-`norm_listings` gains new rows (re-extraction, new scraped titles) and only the new rows are
-embedded — never a full recompute.
+are processed by default, matching `scripts/normalize.py`'s own `content_hash`-cache discipline.
+Re-run after `norm_listings` gains new rows (re-extraction, new scraped titles) and only the new
+rows are embedded — never a full recompute. **`--force` overrides this** and recomputes every row
+regardless of whether `embedding` is already set — needed exactly once here, because the embedding
+TEXT changed (not just new rows arriving), so the existing vectors are stale, not merely
+incomplete.
 
 Runs `REINDEX INDEX ix_norm_listings_embedding_ivfflat` after a real (non-dry-run, non-empty)
 backfill — IVFFlat's own documentation recommends this: an index built (migration 0006) before
@@ -49,14 +56,38 @@ BATCH_SIZE = 256
 
 
 def embedding_text(row: NormListing) -> str:
+    """`f"{brand} {product_line or sample_title} {tail}"` — see module docstring (TASK 2a). `tail`
+    is built from the fields `product_line` strips out by design, so the embedding still carries
+    them: quantity (weight OR volume — ADR-0026's own mass-XOR-volume invariant, never both),
+    `pack_count` (only when it's a real multipack — `None`/1 are the same purchasable unit per
+    the annotation conventions' rule 1, so plain single-unit rows get no pack token at all, not a
+    noisy "x1" every row would otherwise share), `life_stage`, `breed_size_code`."""
     body = row.product_line or row.sample_title
-    return f"{row.brand or ''} {body}".strip()
+    tail_parts: list[str] = []
+    if row.net_weight_g is not None:
+        tail_parts.append(f"{row.net_weight_g}g")
+    elif row.net_volume_ml is not None:
+        tail_parts.append(f"{row.net_volume_ml}ml")
+    if row.pack_count is not None and row.pack_count != 1:
+        tail_parts.append(f"x{row.pack_count}")
+    if row.life_stage:
+        tail_parts.append(row.life_stage)
+    if row.breed_size_code:
+        tail_parts.append(row.breed_size_code)
+    tail = " ".join(tail_parts)
+    return f"{row.brand or ''} {body} {tail}".strip()
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=None, help="cap rows processed (testing)")
     parser.add_argument("--dry-run", action="store_true", help="compute, don't write")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="recompute every row's embedding, not just embedding IS NULL rows "
+        "(needed after an embedding_text() change, not only for new rows)",
+    )
     args = parser.parse_args(argv)
 
     if not check_database():
@@ -64,7 +95,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     with session_scope() as session:
-        query = select(NormListing).where(NormListing.embedding.is_(None))
+        query = (
+            select(NormListing)
+            if args.force
+            else select(NormListing).where(NormListing.embedding.is_(None))
+        )
         if args.limit:
             query = query.limit(args.limit)
         rows = session.execute(query).scalars().all()

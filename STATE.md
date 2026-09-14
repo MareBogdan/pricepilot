@@ -279,10 +279,55 @@ number: DECISIONS.md ADR-0028.
     (a URL-based variant-resolution bug reused from STEP 1's own fix; a capacity-equality bug in
     the tier classifier that hid nearly every trivial pair) — both caught by tracing one specific
     wrong case, not by inspection. Estimated wall-clock at 200 pairs/hour: **5.0 hours.**
+    **Superseded same day — see the addendum immediately below; STEP 6's own file and numbers
+    stay here as the historical record of what was built and audited, not erased.**
+
+**ADR-0028 addendum, same-day architect-audit response (2026-09-15) — corrects STEP 2's
+denominator and rebuilds STEP 6's queue. Full detail: DECISIONS.md.**
+- TASK 1: recall denominator corrected and explained (95/136, not 95/142 — 6 skipped pairs are
+  cross-shop listings whose titles collapse to ONE `norm_listings` row, ADR-0026). Found **15**
+  such multi-source content_hash rows in the full population — the easiest class of true
+  cross-shop match in the dataset, currently invisible to retrieval and the queue alike. How to
+  surface them: proposed, not implemented (a data-model question).
+- TASK 2: embedding text now carries weight/pack/life_stage/breed_size (a); candidate generation
+  blocks on `brand_blocking_key` before ranking (b). **recall@20, headline (q3_browser_verified):
+  26.9% -> 42.3% (a alone) -> 57.7% (a+b) -> 64.5% on the extended eval set (n=31, CI [46.9%,
+  78.9%]).** Pooled figure clears 90% (90.8%) but the headline stays below the >=90% gate target
+  — reported, not tuned further.
+[ ] STEP 1/2 eval set extension (TASK 3) — grew from n=26 to **n=31** browser-verified positives
+    (target was >=100). 40 of a planned 150 new draws completed this session; 12.5% hit rate (vs.
+    the original 54%) made the full 150 impractical in one session — stopped and reported plainly,
+    not padded. Detail: `docs/learned/q3-verification-extension-2026-09-15.md`.
+[x] STEP 6 rebuilt (TASK 4) — `scripts/build_annotation_queue.py` rewritten, not amended. **997
+    pairs, quota-sourced: 41.0% expected positives (proxy-key collisions + capacity-matched
+    blocked retrieval), capacity_differs capped at 28.6% (was 89.4%), four required negative
+    sub-classes each with their own targeted query, within-shop hard negatives included (0% ->
+    7.6%).** New permanent guard: refuses to write the queue if any single deterministic feature
+    (capacity/flavour/brand equality) decides >40% of it — validated against the OLD queue (would
+    have refused it: capacity_differs = 89.4%, reproducing the audit's own figure exactly) and the
+    new one (passes: 29.4% / 13.5% / 5.5%). `reformulation_approx` found to be genuinely empty in
+    the collected catalogue (zero title matches any reformulation marker, checked directly) —
+    reported as a finding, not padded with a loosened query. Estimated wall-clock unchanged: 5.0
+    hours.
 [ ] Baseline (classical cross-encoder) — not started.
 [ ] 800-1,000 pairs annotated by Bogdan — queue built, **labelling not started**.
 [ ] Fine-tuned matcher — not started.
 [ ] Serving benchmark (CPU-quantized vs. cross-encoder vs. hosted API) — not started.
+
+## Last done (2026-09-15 addendum session, in order)
+
+1. Committed the previous session's uncommitted work as-is (STEP 4/5/6, ADR-0028) plus a
+   mid-session sync of `phase3-annotation-conventions.md` to revision 2 (written externally by an
+   architect session while this one was working — re-read from disk, not reconstructed).
+2. TASK 1 — corrected the recall denominator's docstring, listed and explained the 6 skipped
+   same-content_hash pairs, found and reported the 15-row multi-source content_hash population.
+3. TASK 2 — embedding text now carries weight/pack/life_stage/breed_size; candidate retrieval
+   blocks on `brand_blocking_key`. Headline recall@20 26.9% -> 64.5% (still below the 90% target).
+4. TASK 3 — extended the browser-verified eval set from n=26 to n=31 (target >=100, not reached —
+   reported plainly with the reason: 12.5% hit rate this session vs. 54% originally).
+5. TASK 4 — rebuilt `build_annotation_queue.py` from named, quota'd sources; added the permanent
+   single-feature-dominance guard; validated it against both the old queue (would refuse: 89.4%)
+   and the new one (passes: 29.4%/13.5%/5.5%). New queue: 997 pairs, 41.0% expected positives.
 
 ## Last done (2026-09-14 Phase 2 session, in order)
 
@@ -663,9 +708,14 @@ with Phase 3.
 Every Phase 1 gate box is met except 7 consecutive days of history (3/7 as of 2026-09-14), which
 is wall-clock — it closes on its own once the daily cron has run 4 more times, nothing to decide.
 
-Phase 3 prerequisites (STEP 1-6, ADR-0028) are built and committed but **stopped for review before
-any labelling begins**, per explicit instruction. Bogdan needs to review, in particular: recall@20
-measured below the >=90% gate target (69.9% pooled / 26.9% on the unbiased subset alone) with the
-root cause documented but not yet fixed; and the annotation queue (1,000 pairs) built and ready but
-not yet opened for a single decision. Nothing is asked of him beyond reviewing before labelling
-starts — no architecture question is open.
+Phase 3 prerequisites (STEP 1-6, ADR-0028) are built and committed. An architect audit then found
+the recall denominator's docstring wrong and the queue unusable (894/1000 pairs decided by capacity
+difference alone); both fixed same day (ADR-0028 addendum, 2026-09-15). **Still stopped for review
+before any labelling begins**, per explicit instruction. Bogdan needs to review, in particular:
+recall@20 after the fix is 90.8% pooled but **64.5% on the unbiased headline subset (n=31, CI
+[46.9%, 78.9%])** — better than before (was 26.9%) but still below the >=90% gate target, with a CI
+too wide to call it close-or-not; the eval set extension fell short of its 100-pair target (reached
+31, see `docs/learned/q3-verification-extension-2026-09-15.md` for why); and the rebuilt annotation
+queue (997 pairs, 41% expected positives, guarded against single-feature dominance, guard verified
+against both the old and new queue) is ready but not yet opened for a single decision. Nothing is
+asked of him beyond reviewing before labelling starts — no architecture question is open.

@@ -1453,3 +1453,183 @@ to be resolved from real labelling data the way Phase 2's conventions 6-7 were).
 do not start the annotation run).
 
 **Date.** 2026-09-15
+
+---
+
+## ADR-0028 addendum — architect audit response: corrected denominator, retrieval fix, extended
+eval set, queue rebuilt with a designed class balance and a permanent guard
+
+**Context.** An architect audit of the ADR-0028 session above found two problems: the recall
+denominator's own docstring made a false claim ("this never happens in practice" — it happened 6
+times), and the annotation queue was unusable (894/1000 pairs decided by capacity difference alone,
+zero genuinely-positive sourcing, 100% cross-shop). Four tasks, addressed in order below. No
+annotation run was started at any point, per instruction.
+
+### TASK 1 — recall denominator correction and the multi-source content_hash finding
+
+**The denominator was already 136 in the numbers reported (95/136 = 69.9%), but the docstring's
+claim that the 6 skips "never happens in practice" was false, and the 142 -> 136 change was never
+stated as a change.** Both corrected: `measure_recall_at_20.py`'s docstring now says plainly that
+it happens 6 times and why, and this entry states the change explicitly. The six skipped pairs, all
+cross-shop, all byte-identical normalized titles:
+
+| eval_source | sources | title (identical both sides after normalization) |
+|---|---|---|
+| proxy_key_collision | animax_ro <-> petmax_ro | Hrana semi-umeda pentru caini Devora cu miel si orez 5 kg |
+| proxy_key_collision | animax_ro <-> petmax_ro | Hrana uscata pentru caini Brit Premium by Nature Sport 3 Kg |
+| proxy_key_collision | animax_ro <-> petmax_ro | Hrana uscata pentru caini Brit Premium By Nature Junior L 15 Kg |
+| proxy_key_collision | animax_ro <-> petmax_ro | Hrana semi-umeda pentru caini Petkult adult talie mica curcan caprioara si orez 1.5 kg |
+| proxy_key_collision | animax_ro <-> petmax_ro | Hrana uscata pentru caini Devora Grain Free Mini Adult cu iepure 4 kg |
+| proxy_key_collision | pentruanimale_ro <-> petmax_ro | ROYAL CANIN Medium Sterilised Adult, hrană uscată câini sterilizați, 12kg |
+
+**Why this is a finding, not noise.** Since `norm_listings` is keyed on `content_hash` globally
+(ADR-0026), two cross-shop listings whose titles normalize byte-identically collapse into ONE row —
+there is no second row for either the retriever or the annotation queue to ever present. Queried
+the full population: **15 distinct `content_hash` values in `norm_listings` are backed by
+`raw_listings` rows from two or more different sources** (13 animax_ro<->petmax_ro, 2
+pentruanimale_ro<->petmax_ro; all are food listings, all have identical price-relevant structured
+attributes on both sides, checked by sampling). This is almost certainly the single easiest and
+most certain class of true cross-shop match in the whole dataset — near-zero ambiguity — and it is
+currently **structurally invisible** to `measure_recall_at_20.py`, `build_embeddings.py`, and
+`build_annotation_queue.py` alike, all of which operate on distinct `norm_listings` rows.
+
+**Proposed (not implemented — this is a data-model question, not a queue-composition one).** The
+cleanest fix is a new, cheap query: `raw_listings` grouped by `content_hash` having
+`count(distinct source) >= 2`, surfaced directly to `make status` as its own line ("N products
+already confirmed identical cross-shop by title alone") and optionally auto-labelled `M` the same
+way STEP 6's trivial tier already is, rather than asking a human to re-confirm something the
+database has already proven twice over. Not built this session — flagged for the next Phase 3
+session to decide, since it touches how `norm_listings`' identity model is read elsewhere.
+
+### TASK 2 — retrieval fix, measured in two steps
+
+**(a) Embedding text now carries the discriminating fields `product_line` strips out.**
+`build_embeddings.py`'s `embedding_text()` appends `net_weight_g`/`net_volume_ml`, `pack_count`
+(only when a real multipack — `None`/1 read as equal, matching the annotation conventions' rule 1),
+`life_stage`, `breed_size_code` to `f"{brand} {product_line or sample_title}"`. Re-embedded all
+10,532 rows (`build_embeddings.py --force`, new flag added for exactly this — a full-recompute
+that isn't a new-row backfill).
+
+**(b) Candidate generation now blocks on `brand_blocking_key` before ranking.**
+`measure_recall_at_20.py` gained `top_k_hashes_blocked()`: candidates restricted to the query row's
+own `brand_blocking_key`, ranked by cosine distance inside the block; falls back to the unblocked
+global search when the row has no usable key (`NULL`, or flagged `brand_is_distributor_code` —
+blocking on a code that doesn't identify the real manufacturer would silently exclude the true
+match, not just narrow the search).
+
+**Results, both eval subsets separately, Wilson 95% CI, q3_browser_verified as the headline
+(never the pooled figure — it is biased toward the proxy key's own textually-similar-by-
+construction pairs):**
+
+| stage | pooled (biased) | proxy_key_collision | **q3_browser_verified (headline)** |
+|---|---|---|---|
+| before (ADR-0028 original) | 95/136 = 69.9% | 88/110 = 80.0% | 7/26 = 26.9%, CI [13.7%, 46.1%] |
+| (a) alone | 92/136 = 67.6% | 81/110 = 73.6% | 11/26 = 42.3%, CI [25.5%, 61.1%] |
+| (a)+(b) | 123/136 = 90.4% | 108/110 = 98.2% | 15/26 = 57.7%, CI [38.9%, 74.5%] |
+| (a)+(b), extended eval set (TASK 3) | 128/141 = 90.8% | 108/110 = 98.2% | **20/31 = 64.5%, CI [46.9%, 78.9%]** |
+
+**(a) alone made the pooled figure worse and the headline figure better** — expected, not a bug:
+the embedding text change breaks the false ties among same-line-different-weight siblings (the
+root cause), which helps exactly the hard, unbiased q3 cases and can reshuffle easy proxy-key pairs
+away from their previous (falsely tied) top rank. **(a)+(b) together clear the pooled figure over
+the 90% gate target, but the headline figure — the honest one — is still 64.5%, below 90%,** with a
+CI wide enough (driven by n=31) that it cannot yet distinguish "meaningfully below target" from
+"close, noisy". Not tuned further this session, per the same discipline as the original ADR-0028
+entry — reported and stopped for review.
+
+### TASK 3 — extended eval set
+
+Full detail, method, and the complete verified table: `docs/learned/q3-verification-extension-
+2026-09-15.md`. Same method as the original Q3 (`q3-verification.md`): random draw over the same
+population (petmax food-category keyable listings, now 2,353 at draw time), a new seed (`20260915`)
+excluding the 50 titles already checked, verified by hand via the `claude-in-chrome` browser tool
+against `pentruanimale.ro`'s real VTEX search.
+
+**40 of a planned 150 draws were completed: 5 confirmed matches (12.5%)**, appended to
+`phase3-retrieval-eval-set.csv`, growing the headline subset from n=26 to **n=31**. This is short
+of the "at least 100" target, reported plainly rather than padded: at a 12.5% hit rate (well below
+Q3's original 54% — genuine sample variation or a weaker query-construction choice this session
+made, not resolved), reaching 100 confirmed matches from this population would need on the order of
+800 draws, each costing 2-6 browser tool calls (a follow-up product-page visit is needed for any
+plausible candidate whose weight isn't visible in the search-result card) — not achievable in one
+session's budget. **Never drew candidates from the retriever being measured** — the population is
+petmax's own raw listings, independent of embeddings throughout, so the resulting number stays
+usable for TASK 2's measurement even though it fell short of size.
+
+### TASK 4 — annotation queue rebuilt with a designed class balance and a permanent guard
+
+**`scripts/build_annotation_queue.py` rewritten, not amended** — the audit's arithmetic (894/1000
+capacity-differing, all 444 "hard" pairs negatives by construction, ~36 genuinely uncertain) meant
+the SQL that sourced the queue was the problem, not a tuning parameter within it. The new version
+draws from nine named, quota'd sources instead of one query a tier classifier sorted after the
+fact:
+
+- **Positives** (`proxy_key_collision` — the Phase 1 overlap proxy key, ADR-0023's ~96% precision,
+  recomputed over the current population; `blocked_retrieval_positive` — TASK 2b's blocked
+  candidate retrieval, capacity-tuple-filtered after a checked, not assumed, finding: unfiltered,
+  same-brand different-weight siblings still dominated a block's own nearest neighbours and alone
+  pushed the guard's capacity_differs figure to ~49%).
+- **`capacity_differs`**, capped rather than uncapped — same targeted query as the first version,
+  now split cross-shop / within-shop and bounded to ~30% of the queue instead of taking everything
+  available.
+- **Four required negative/hard sub-classes**, each its own query with its own quota:
+  `same_capacity_diff_flavour`, `same_capacity_diff_lifestage`, `same_capacity_diff_breedsize`,
+  `diff_brand_similar_title`. **A real finding while building these**: requiring exact
+  `product_line` text equality alongside an exact quantity-tuple match returned ZERO rows against
+  the real population for all three same-capacity-diff-X classes — `product_line` strips exactly
+  the qualifier these classes key on, so identical `product_line` plus a differing flavour is
+  nearly a contradiction in the data as extracted today. Relaxed to same `brand_blocking_key` only
+  (checked to confirm real volume: tens of thousands of candidates each) — recorded in the query's
+  own comment, not silently loosened.
+- **`reformulation_approx`** — searched `sample_title` for reformulation/generation marker phrases
+  (`"noua formula"`, `"reformulat"`, `"new formula"`, etc.). **Result: zero matches in the entire
+  collected catalogue** — none of these markers appear in any title. A genuine, checked finding
+  (not a query bug — verified with a direct `LIKE` count per marker), reported as such rather than
+  invented a synthetic substitute; this sub-class's quota (4%) was redistributed to
+  `proxy_key_collision`, which had ample surplus (374 available in the population).
+- **`capacity_differs_within_shop`**, its own quota (was 0% of the first version — 100% cross-shop
+  — against the 2026-09-13 diagnostic's ~1,919 within-shop hard negatives that existed the whole
+  time).
+
+**The guard, implemented as specified.** For the whole assembled queue, computes the raw fraction
+where `capacity_differs` (unconditional — the same computation that produces "894 of 1,000" for the
+first version), `flavour_differs` (both sides stated), and `brand_differs` (canonical `brand`
+field) each hold. **Refuses to write the file if any exceeds 40%**, printing which feature and by
+how much. **Validated against both queues**: re-run against the first (committed) version's JSON,
+the guard reproduces the audit's own figure exactly — capacity_differs 894/1000 = **89.4%**,
+comfortably over the limit, confirming it would have refused that queue. Against the rebuilt
+version: capacity_differs 29.4%, flavour_differs 13.5%, brand_differs 5.5% — **all under the
+limit**, queue written.
+
+**Final composition, 997 of the 1,000-pair target (reformulation_approx's 0-count is the only
+shortfall not fully absorbed by redistribution):**
+
+| category | count | % of queue |
+|---|---:|---:|
+| proxy_key_collision | 286 | 28.7% |
+| blocked_retrieval_positive | 123 | 12.3% |
+| **expected positives, combined** | **409** | **41.0%** (target: >=25%) |
+| capacity_differs_cross_shop | 209 | 21.0% |
+| capacity_differs_within_shop | 76 | 7.6% |
+| **capacity_differs, combined** | **285** | **28.6%** (cap: ~30%) |
+| same_capacity_diff_flavour | 85 | 8.5% |
+| same_capacity_diff_lifestage | 66 | 6.6% |
+| same_capacity_diff_breedsize | 47 | 4.7% |
+| diff_brand_similar_title | 55 | 5.5% (short of its 66-pair quota — only 55 exist under the capacity-tuple-matched query) |
+| reformulation_approx | 0 | 0.0% (population has none — see above) |
+| trivial_spot_check (auto-labelled M elsewhere, re-shown for self-agreement) | 50 | 5.0% |
+
+Estimated wall-clock at 200 pairs/hour: **5.0 hours** (up from the first version's 5.0 hours —
+materially the same total size and rate, but now a queue that can actually teach the fine-tune
+something beyond weight comparison).
+
+**Rejected.** Padding `reformulation_approx` with a loosened query once the marker search returned
+zero, which would have manufactured a sub-class the data does not actually contain. Requiring exact
+`product_line` equality for the three same-capacity-diff-X classes once it returned zero rows,
+rather than relaxing to `brand_blocking_key` and checking the real volume first. Continuing TASK 3's
+browser verification past 40 items to chase the letter of "at least 100" once the achievable rate
+made that arithmetic clear, rather than stopping and reporting the shortfall plainly. Starting the
+annotation run once the guard passed (explicit instruction: stop and report, Bogdan reviews before
+labelling).
+
+**Date.** 2026-09-15 (same-day addendum, architect audit response).
