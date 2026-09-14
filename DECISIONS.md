@@ -971,4 +971,120 @@ rows, fully derived/re-derivable from `raw_listings` — no data loss) and fully
 10,503 rows re-inserted, zero extraction errors. **`product_line` coverage: 10,496/10,503 =
 99.9%.**
 
+**Gate measurement (STEP 3, `scripts/measure_gate.py`, new).** Scores exactly the ten fields an
+external, code-blind model labelled in `docs/learned/phase2-gate-sample-labeled.csv` (committed
+this session, unmodified, same 100 ids/order/titles as the frozen `phase2-gate-sample.csv`):
+brand, net_weight_g, net_volume_ml, pack_count, bonus_weight_g, breed_size_code, life_stage,
+flavour, food_form, dosage_band. `product_line` was labelled separately, by the architect session,
+against a convention STEP 1 superseded — it carries **no accuracy figure**, per CLAUDE.md's
+explicit instruction, and nothing was tuned against it. Comparison is case/whitespace-insensitive
+(decided before scoring, not after — the extractor's own convention stores a fixed casing, e.g.
+`"dry"`/`"adult"`, the external labeller wrote human-readable capitals for the same values; scoring
+case-sensitively would count a spelling convention as an extraction bug, which it structurally
+cannot be). Nothing was changed to improve this number.
+
+**Result: 966/1000 = 96.6% overall, clearing the 85% gate.** Weight parsing (`net_weight_g`),
+measured separately per CLAUDE.md §7: **100/100 = 100.0%**. Per field: net_weight_g 100%,
+net_volume_ml 100%, pack_count 100%, bonus_weight_g 100%, dosage_band 100%, life_stage 98%,
+breed_size_code 95%, flavour 94%, food_form 94%, **brand 85%** (the weakest field, entirely
+explained below — not a coincidence that it lands exactly on the gate floor).
+
+**The dominant failure shape (12 of 34 total mismatches, all in `brand`) is a labelling-scope
+artifact, not an extractor bug — argued plainly, not worked around.** `scripts/draw_gate_sample.py`
+gives the labeller only `listing_id`/`source`/`title` — never the shop's own structured brand
+field. `canonicalize_brand()` deliberately prefers that field over parsing the title (STEP 3's own
+documented design). For a real generic cat toy (`raw_payload.brand = "Opti"`, nothing resembling
+that in the title), for `TRIXIE`-branded accessories with a purely descriptive title, for
+`Record`-manufactured `"Premiao"`-branded treats, for `Ipts`-supplied `"Beeztees"`-branded items,
+for `Inaba`-manufactured `"Ciao"`/`"Churu"`-branded food, and for a `PURINA`-brand-fielded
+`"Pro Plan..."` title — the label, working from title text alone, wrote what a human reading only
+the title would reasonably write, and the extractor wrote what the shop's own structured field
+says. Both are defensible answers to *different* questions ("what does the title say" vs "what
+does the shop's own catalogue say"); the gate sample's own labelling scope cannot distinguish them.
+This is not dismissed as noise — it is a real, named methodology gap in the gate sample itself
+(worth fixing in a future sample: expose `raw_payload.brand` to the labeller, or score brand
+against title-only extraction as a separate, explicitly scoped measurement).
+
+Three further brand mismatches are smaller, genuine disagreements, not bugs: one canonicalization-
+granularity call already made deliberately in ADR-0026 (`"Pro Plan"` -> `"purina"`, sub-brand to
+parent manufacturer — arguable either way, not wrong); two hyphen-vs-space spelling variants on
+Julius K-9 (`"julius k9"` vs the alias table's `"julius-k9"`) that this session's whitespace-only
+normalization doesn't absorb (a hyphen-insensitive comparison would have, but that's a scoring
+choice made after seeing the mismatch, so it stays scored as-is here, per the "change nothing to
+improve it" instruction).
+
+**Cache proof (STEP 4).** `scripts/normalize.py` run twice over the full population, no code
+change between runs:
+
+```
+# first run (after norm_listings was cleared for the re-extraction above):
+in-scope rows: 18,585 | distinct content_hash: 10,503
+already in norm_listings (cached, skipped): 0 | new to extract: 10,503
+APPLIED: 10503 rows inserted.
+
+# second run, immediately after, same population:
+in-scope rows: 18,585 | distinct content_hash: 10,503
+already in norm_listings (cached, skipped): 10,503 | new to extract: 0
+APPLIED: 0 rows inserted.
+```
+
+The second pass did zero extraction work for every one of the 10,503 unchanged content hashes —
+the cache holds, with real command output as evidence, not a claim.
+
+**STEP 5 — failure shapes and a priority-ordered fix list (proposed, not implemented; approval
+pending).** Every one of the 34 mismatches, grouped and counted, each population-wide count a
+fresh query run this session (never assumed from the 100-row sample alone):
+
+| # | Shape | Field | Sample count | Population count | Kind |
+|---|---|---|---|---|---|
+| 1 | Structured brand field differs from title-only label | brand | 12 | n/a — scope gap, see above | **label/methodology, not a bug** |
+| 2 | `"punguta"`/`"punguță"` (diminutive pouch) not in the food_form vocabulary | food_form | 3 | 418 titles carry it; 386 still null | **extractor bug — highest real-world impact** |
+| 3 | `"M-PETS"` (and likely other hyphenated brand codes) false-positives a bare `"M"` as breed_size_code | breed_size_code | 2 | 81 titles carry `"M-PETS"`; 73 currently mis-tagged `"M"` | **extractor bug** |
+| 4 | Label appears to have missed an obviously-present flavour word, or under-reports a compound flavour the extractor correctly found in full | flavour | 4 | n/a — label errors, not extractor | **label disagreement** |
+| 5 | Plural generic food-form words (`"uscate"`, `"umede"`) not matched (`_GENERIC_FORM` only covers singular `uscat[aă]?`/`umed[aă]?`) | food_form | 1 | 8 + 17 = 25 titles | extractor bug, low volume |
+| 6 | `"semi-umeda"` (semi-moist) wrongly matched as plain `"umeda"` -> `"wet"` | food_form | 1 | 8 titles | extractor bug, low volume, but a real category error (semi-moist isn't wet) |
+| 7 | Known, already-documented EN `"Small"`/`"Large"`/etc. breed-size gap (ADR-0027 STEP B) | breed_size_code | 2 | 119 (previously measured) | **known gap, deliberately deferred, not new** |
+| 8 | Known, already-documented `"kitten"` life-stage gap (ADR-0027 STEP B) | life_stage | 1 | 175 (previously measured) | **known gap, deliberately deferred, not new** |
+| 9 | Word-form breed-size (`"Mini"`) false-positives a product-line name (`"Sheba Mini"`) | breed_size_code | 1 | 7 (Sheba Mini specifically; the general word-form risk is broader and unmeasured) | extractor bug, same class as the already-guarded Royal Canin case but for `_WORD_SIZE` |
+| 10 | `"vanat"` (generic "game") vs `"venison"` (specific "deer") — the label may be more semantically correct than the extractor's own canonical mapping | flavour | 1 | unmeasured | **genuine definitional ambiguity — argued, not silently accepted** |
+| 11 | Julius K-9 hyphen/space spelling variant | brand | 2 | unmeasured | minor, scoring-normalization edge, not a real semantic bug |
+| 12 | Canonicalization granularity (`"Pro Plan"` -> `"purina"`) | brand | 1 | n/a — deliberate ADR-0026 choice | definitional, not a bug |
+| 13 | `"jerky"` -> `"dry"` (STEP C's deliberate choice) vs. label leaving it null | food_form | 1 | unmeasured | definitional disagreement, not clearly wrong either way |
+| 14 | `"crevete"`/`"shrimp"` missing from the flavour vocabulary | flavour | 1 | 52 titles | extractor bug, moderate volume |
+| 15 | Multiple life-stage words in one title (`"junior"` and `"Puppy"` both present); `.search()` returns the leftmost, not necessarily the more specific one | life_stage | 1 | unmeasured | genuine precedence-order question |
+
+**Proposed priority order**, evidence-based (population impact first, real bugs before
+definitional debates, known-and-already-deferred gaps last):
+
+1. **#2 — add `"punguta"`/`"punguță"` to `_SPECIFIC_FORM`.** Single-word regex addition, 386
+   titles currently null, zero collision risk expected (same discipline as every other word in
+   that table — would be checked in context before trusting, per this codebase's standing rule).
+2. **#3 — guard `_SINGLE_LETTER_SIZE` against a hyphenated brand code** (`"M-PETS"`, and any
+   other `<letter>-<word>` brand pattern found on a real check). 73 titles currently mis-tagged.
+   Same shape as the existing apostrophe guard (`_PRECEDED_BY_APOSTROPHE`) — a hyphen immediately
+   after the letter, followed by more letters, is a code, not a size.
+3. **#6 — exclude `"semi-"` from `_GENERIC_FORM`'s `"umeda"` match.** Small volume (8) but a clean
+   category error every time it fires.
+4. **#5 — extend `_GENERIC_FORM` to the plural forms** (`uscate`/`umede`). Small volume (25) but
+   trivial to add alongside #6 in the same regex.
+5. **#14 — add `"crevete"`/`"shrimp"` to the flavour vocabulary.** 52 titles, same checked-before-
+   adding discipline as every other STEP C word.
+6. **#9 — investigate `_WORD_SIZE`'s false-positive rate beyond "Sheba Mini" specifically**
+   (unmeasured population-wide) before deciding whether a guard is worth the complexity, or
+   whether 7 known cases is small enough to leave as a documented gap like #7/#8.
+7. **#1, #4, #10, #11, #12, #13, #15 — no extractor change proposed.** #1 is a gate-sample scope
+   gap (a future sample should expose the structured brand field, or score brand separately);
+   #4 looks like labeller error, not something to chase in code; #10, #12, #13, #15 are genuine
+   definitional questions worth a deliberate decision, not a quiet extractor tweak; #11 is a
+   scoring-normalization choice, not an extractor issue. #7/#8 stay exactly what STEP B already
+   called them: known, measured, deliberately deferred.
+
+**Not implemented.** Per the explicit instruction that produced this addendum, every item above is
+a proposal awaiting approval — nothing in this fix list has been coded. No Phase 1 or Phase 2 gate
+box is ticked by this session; STEP 3's 96.6% clears the >=85% accuracy threshold, but CLAUDE.md
+§7's Phase 2 gate is a conjunction (accuracy **and** the cache proof **and** weight-parsing-
+measured-separately) — all three are satisfied by the evidence above, and that satisfaction is
+recorded here as a fact, not as a checked box in STATE.md, which this session does not edit beyond
+what's already true.
+
 **Date.** 2026-09-14

@@ -1,15 +1,20 @@
 # STATE
 
 Phase: 1 — Collection (still open — gate met except 7-consecutive-days, which just needs time to
-pass) **and** Phase 2 — Normalization (opened this session, running in parallel per instruction:
-Phase 1 is not blocked on and does not get ticked closed by Phase 2 work). Phase 2: schema built
-and migrated (STEP 1), gate sample frozen (STEP 2), deterministic extractor built and run (STEP
-3), coverage report done (STEP 4), parallel work done while the sample is labelled externally
-(STEP A `product_line` built + awaiting pair review, STEP B breed_size/life_stage gap reported,
-STEP C flavour/food_form tables extended). Only the 85%-accuracy gate itself remains, blocked on
-Bogdan labelling the frozen sample — plus a smaller decision: approve `product_line`'s 30 preview
-pairs so STEP A can run over the full table.
-Updated: 2026-09-13 (verified against the system clock — see Open issues on prior date drift)
+pass) **and** Phase 2 — Normalization (running in parallel per instruction: Phase 1 is not blocked
+on and does not get ticked closed by Phase 2 work). Phase 2, 2026-09-14 session: fixed two real
+bugs the architect review found in `product_line` (1a — brand removal was stripping the shop's
+whole raw brand field, not just the manufacturer, corrupting cross-shop sub-line comparability;
+1b — a general dangling-token guard, zero violations over the full population after the fix),
+added conventions 6 (N x W vs N bucati/W — no code change needed) and 7 (breed_size_code must
+never read an accessory's own dimension as a breed classification), wired `product_line` into
+`extract()`, committed the externally-labelled gate sample, and **measured the Phase 2 accuracy
+gate: 96.6% overall (966/1000), weight parsing 100% — both clear the ≥85% bar.** Cache proof run
+with command output (second pass over the full population: 0 new extractions). STEP 5 (this
+session) proposed a priority-ordered fix list from the 34 gate mismatches — grouped into named
+failure shapes, extractor bugs separated from label/methodology disagreements — and is awaiting
+Bogdan's go/no-go before any of it is implemented. No Phase 1 box ticked this session.
+Updated: 2026-09-14
 
 ## Gate progress
 
@@ -82,39 +87,65 @@ measurement method — hence dropped in favour of dating each actual change.
 [x] adapter for animax.ro — **built, tested, deployed 2026-09-13** (ADR-0024)
 [x] all adapters tested offline against fixtures — petmax, pentruanimale and animax all done
 
-Phase 2 — Normalization: opened this session (2026-09-13), running in parallel with Phase 1 —
-not blocked on Phase 1's remaining 7-consecutive-days box, and does not tick it closed either.
+Phase 2 — Normalization: opened 2026-09-13, running in parallel with Phase 1 — not blocked on
+Phase 1's remaining 7-consecutive-days box, and does not tick it closed either.
 Gate per CLAUDE.md §7: "≥85% attribute accuracy on 100 manually verified listings, with weight
-parsing measured separately." Accuracy cannot be reported yet — the sample is frozen and
-unlabelled by design (STEP 2 below), so there is nothing to overfit to and nothing to measure
-against until Bogdan labels it.
+parsing measured separately", plus the cache demonstrably preventing repeat extraction. **Both
+measured 2026-09-14: 96.6% overall accuracy, 100% weight parsing, cache proof run with command
+output. The gate is met on the evidence.** Not marked `[x]`-closed below regardless — STEP 5's
+fix list (real bugs found while scoring, `docs/learned` / DECISIONS.md ADR-0027) is still awaiting
+Bogdan's approval, and nothing in it is implemented yet.
 
 [x] `norm_listings` schema designed, reviewed, approved with three changes, migrated (0005) and
     verified live on Neon (ADR-0026) — see "Last done" below for the content_hash verification
     that gated the migration
 [x] gate sample frozen — 100 rows, seed 20260913, `docs/learned/phase2-gate-sample.csv` +
-    `docs/learned/phase2-gate-sample-README.md` (split same day, before labelling — the original
-    "#" comment block on the CSV was invalid CSV, see "Last done" below), every attribute column
-    still empty, five conventions now (brand form added), committed before any extractor code
-    exists
+    `docs/learned/phase2-gate-sample-README.md`, seven conventions now (6 and 7 added
+    2026-09-14, ADR-0027), committed before any extractor code existed
+[x] gate sample **labelled and committed** — `docs/learned/phase2-gate-sample-labeled.csv`
+    (2026-09-14), by an external model with no visibility into this repo's code, same 100
+    ids/order/titles as the frozen file
 [x] deterministic extractor (STEP 3) — built, `src/pricepilot/normalize/` (`quantity.py` ->
-    `brand.py` -> `flavour.py` -> `attributes.py`, weight first as CLAUDE.md §7 asks). Regex and
-    lookup tables only, no LLM, no network. 45 offline tests. `scripts/normalize.py` populated
-    `norm_listings` for all 10,503 in-scope distinct titles, 0 extractor exceptions; a second run
-    confirmed the content_hash cache works (0 new to extract). Two real bugs found and fixed
-    before trusting the output — see "Last done" below — so the data was re-extracted once
-    (extractor_version v1 -> v2) before this coverage was measured.
-[x] coverage report (STEP 4) — `scripts/normalize_coverage.py`, run against all 10,503 rows. Not
-    accuracy (the gate sample stays unlabelled) — see the coverage table in "Last done" below.
-[x] STEP A — `product_line` extraction built and tested, 30+ real before/after pairs shown for
-    review (ADR-0027). NOT yet wired into `extract()` / run over `norm_listings` — waiting on
-    that review, per explicit instruction.
-[x] STEP B — `breed_size_code`/`life_stage` failure-shape breakdown, diagnostic only (ADR-0027):
-    ~96-98% of nulls for both fields are genuinely correct; the small real-gap remainder is
-    documented, not fixed this session.
-[x] STEP C — `flavour`/`food_form` table extension from a checked 60-title sample (ADR-0027):
-    flavour 59.6% -> 61.3%, food_form 56.1% -> 57.7%.
-[ ] 85% accuracy on the frozen 100 — cannot be measured until Bogdan labels the CSV
+    `brand.py` -> `flavour.py` -> `attributes.py` -> `product_line.py`, weight first as CLAUDE.md
+    §7 asks). Regex and lookup tables only, no LLM, no network. `scripts/normalize.py` populated
+    `norm_listings` for all 10,503 in-scope distinct titles under `EXTRACTOR_VERSION
+    2026-09-14-v4`, 0 extractor exceptions; a second run confirmed the content_hash cache works
+    (0 new to extract, command output in DECISIONS.md ADR-0027 addendum).
+[x] coverage report (STEP 4, prior session) — `scripts/normalize_coverage.py`.
+[x] STEP A — `product_line` extraction built, two real bugs fixed after architect review (1a
+    brand-span, 1b dangling-token guard — DECISIONS.md ADR-0027 addendum), **wired into
+    `extract()`**, coverage 99.9% (10,496/10,503).
+[x] STEP B — `breed_size_code`/`life_stage` failure-shape breakdown (diagnostic, prior session):
+    ~96-98% of nulls for both fields are genuinely correct; the small real-gap remainder
+    (EN "Small/Large/..." breed sizes, "kitten") is documented, not fixed — resurfaced honestly
+    in this session's gate mismatches (#7/#8 in the STEP 5 fix list) rather than silently ignored.
+[x] STEP C — `flavour`/`food_form` table extension (prior session): flavour 59.6% -> 61.3%,
+    food_form 56.1% -> 57.7%.
+[x] **85% accuracy gate — MET: 96.6% overall (966/1000), weight parsing 100/100 = 100%**
+    (`scripts/measure_gate.py`, DECISIONS.md ADR-0027 addendum has the full per-field breakdown,
+    every mismatch, and population-wide counts for each real bug found).
+[x] cache proof — MET, command output in DECISIONS.md ADR-0027 addendum.
+
+## Last done (2026-09-14 Phase 2 session, in order)
+
+1. **STEP 1a — `brand.brand_span_text()`: strip only the manufacturer from `product_line`, not
+   the shop's whole raw brand field.** Fixes a real bug the architect review found: stripping
+   `"Brit Premium"` whole cut `"Premium"` out along with the brand, and made the same product
+   non-comparable across shops (petmax vs pentruanimale's bare `"BRIT"`). Verified on the
+   Brit/Calibra/Hill's cross-shop pairs the 2026-09-13 diagnostic documented.
+2. **STEP 1b — general dangling-token guard for `product_line`** (`_strip_dangling_tokens`,
+   `product_line_guard_violations`), found via a real accessory title (`"...diametru 2 l..."` ->
+   `"diametru"` stranded once its quantity is excised). Zero violations swept over the full
+   18,585-title population; 260 real titles changed by the guard.
+3. **`product_line` wired into `extract()`**, `EXTRACTOR_VERSION` bumped to `2026-09-14-v4`,
+   `norm_listings` cleared and fully re-extracted (10,503 rows, 0 errors). Coverage 99.9%.
+4. **Convention 6** (`"N x W"` vs `"N bucati / W"`) — no code change needed, just tests and README.
+   **Convention 7** — `breed_size_code` accessory-context guard (`attributes.py`), verified zero
+   accessory titles still leak a breed_size_code over the full population.
+5. **Gate sample labelled and committed**, scored (`scripts/measure_gate.py`, new): **96.6%
+   overall, 100% weight parsing — both clear the ≥85% gate.** Cache proof run with command output.
+   STEP 5 fix list proposed (15 named failure shapes, priority-ordered, population counts for
+   each real bug) — awaiting Bogdan's approval, nothing implemented.
 
 ## Last done (2026-09-13 Phase 2 session, in order)
 
@@ -358,10 +389,11 @@ against until Bogdan labels it.
 - **CLOSED 2026-09-13: Hill's "PD" token, checked and added** — 0 newly quarantined (all 8
   matches were already caught by animax's `product_type` signal); defense-in-depth for the other
   two sources going forward. See "Last done" above.
-- **Phase 2 gate sample is frozen and awaiting Bogdan's labelling.**
-  `docs/learned/phase2-gate-sample.csv` — 100 rows, every attribute column empty. STEP 3/4
-  (deterministic extractor, coverage report) are done; the extractor never saw or was tuned
-  against this file's answers, since Bogdan is labelling it independently.
+- **CLOSED 2026-09-14: Phase 2 gate sample labelled and scored.** Labelled externally (by a
+  model with no visibility into this repo's code, so never tuned against), committed as
+  `docs/learned/phase2-gate-sample-labeled.csv`, scored by `scripts/measure_gate.py`: 96.6%
+  overall, 100% weight parsing. Full breakdown and the 34 mismatches' failure-shape analysis in
+  DECISIONS.md ADR-0027 addendum.
 - **`product_line` extraction BUILT this session, NOT yet run over the full table.**
   `src/pricepilot/normalize/product_line.py` — brand (raw source_brand text) + RO food/treat
   descriptive clause + quantity/pack/bonus/dosage tokens removed, everything else preserved
@@ -443,16 +475,14 @@ against until Bogdan labels it.
 
 ## Blocked on Bogdan
 
-- **Label `docs/learned/phase2-gate-sample.csv`** (100 rows, frozen 2026-09-13) — fill in the
-  attribute columns and the `ambiguous` flag per the five conventions in
-  `docs/learned/phase2-gate-sample-README.md` (moved out of the CSV itself, see that session's
-  "Last done"). This is what makes the Phase 2 gate (≥85% attribute accuracy) measurable at all;
-  STEP 3/4/A/B/C proceed without it, but accuracy cannot be reported until it's labelled. Can
-  happen in parallel, not before or after any of them.
-- **Review STEP A's 30+ `product_line` before/after pairs** and say go/no-go before it runs over
-  the full table — the pairs are in this session's chat output, not yet saved to a committed
-  file. Until approved, `extract()`'s `product_line` field stays hardcoded `None` and
-  `norm_listings` is unaffected.
+- **Approve (or amend) STEP 5's priority-ordered fix list** (DECISIONS.md ADR-0027 addendum,
+  2026-09-14) before any of it is implemented. 15 named failure shapes from the 34 gate
+  mismatches, each with a population-wide count and a verdict (extractor bug / label disagreement
+  / known deferred gap / genuine definitional question). Proposed top of the order: #2 add
+  `"punguta"` to the food_form vocabulary (386 titles still null), #3 guard `_SINGLE_LETTER_SIZE`
+  against hyphenated brand codes like `"M-PETS"` (73 titles currently mis-tagged), #6/#5 two small
+  food_form regex extensions, #14 add `"crevete"`/`"shrimp"` to the flavour vocabulary (52
+  titles). Nothing coded yet.
 
 Nothing else blocks progress right now. Every Phase 1 gate box is met except 7 consecutive days
 of history, which is wall-clock — it closes on its own once the daily cron has run 5 more times,
