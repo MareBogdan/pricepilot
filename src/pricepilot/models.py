@@ -15,6 +15,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -238,6 +239,23 @@ class NormListing(Base):
     extracted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # Phase 3 STEP 2 (candidate retrieval), migration 0006. 384-dim
+    # paraphrase-multilingual-MiniLM-L12-v2, computed by `scripts/build_embeddings.py` from
+    # `f"{brand} {product_line or sample_title}"` — never inline in `extract()`, which stays
+    # LLM/network-free. NULL until that batch job runs on a row.
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
+
+    # Phase 3 STEP 3 signals (migration 0007) — `scripts/backfill_phase3_signals.py` populates
+    # all three from `raw_listings`/`brand`, never `extract()` (needs `url`/`raw_payload`, which
+    # the title-only deterministic pipeline deliberately never reads).
+    # "food" | "accessory" | "litter" | "toy" | NULL (`normalize.category.categorize_listing`).
+    category: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    # Hyphen/space/punctuation-insensitive form of `brand`, for candidate BLOCKING — never for
+    # display (`normalize.brand.brand_blocking_key`).
+    brand_blocking_key: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    # True only for the small, hand-verified list in `normalize.brand.is_suspected_distributor_code`
+    # — never a statistical threshold (see that function's own docstring for why one was rejected).
+    brand_is_distributor_code: Mapped[bool] = mapped_column(Boolean, default=False)
 
     @validates("net_weight_g", "net_volume_ml")
     def _validate_weight_xor_volume(self, key: str, value: int | None) -> int | None:

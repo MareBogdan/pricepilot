@@ -17,6 +17,7 @@ dependencies = [
     "selectolax>=0.3.21",
     "structlog>=24.4",
     "python-dotenv>=1.0",
+    "sentence-transformers>=6.0.1",
 ]
 
 [project.optional-dependencies]
