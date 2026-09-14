@@ -5,7 +5,11 @@ from __future__ import annotations
 
 import pytest
 
-from pricepilot.normalize.brand import canonicalize_brand
+from pricepilot.normalize.brand import (
+    brand_blocking_key,
+    canonicalize_brand,
+    is_suspected_distributor_code,
+)
 
 
 @pytest.mark.parametrize(
@@ -67,3 +71,55 @@ def test_suffix_stripping_never_empties_a_brand() -> None:
     stripper ran on it directly it would try to remove the whole string and leave nothing."""
     assert canonicalize_brand("t", "Dog Chow") == "purina"
     assert canonicalize_brand("t", "Cat Chow") == "purina"
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 STEP 3 — brand_blocking_key. Real collisions found this session among today's own
+# canonical brand values, none of them merged by canonicalize_brand()'s own aliasing.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("brand_a", "brand_b"),
+    [
+        ("club 4 paws", "club4paws"),
+        ("cat's best", "cat`s best"),
+        ("my love", "mylove"),
+        ("lolopets", "lolo pets"),
+        ("dr. clauder's", "dr. clauder`s"),
+    ],
+)
+def test_blocking_key_unifies_real_hyphen_space_collisions(brand_a: str, brand_b: str) -> None:
+    assert brand_blocking_key(brand_a) == brand_blocking_key(brand_b)
+
+
+def test_blocking_key_none_in_none_out() -> None:
+    assert brand_blocking_key(None) is None
+
+
+def test_blocking_key_distinct_brands_stay_distinct() -> None:
+    assert brand_blocking_key("royal canin") != brand_blocking_key("purina")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 STEP 3 — is_suspected_distributor_code. A small, hand-verified list, not a statistical
+# threshold (see brand.py's own docstring for the automated approach that was tried and rejected).
+# ---------------------------------------------------------------------------
+
+
+def test_confirmed_distributor_codes_are_flagged() -> None:
+    assert is_suspected_distributor_code("opti") is True
+    assert is_suspected_distributor_code("ipts") is True
+
+
+def test_real_manufacturers_are_not_flagged() -> None:
+    """ "record" was checked closely this session (most of its titles carry "Record"/"BiscoRe"
+    visibly) and confirmed real — an earlier, hastier read of the same data had called it a
+    distributor code without checking title context; not repeated here."""
+    assert is_suspected_distributor_code("record") is False
+    assert is_suspected_distributor_code("royal canin") is False
+    assert is_suspected_distributor_code("essential foods") is False
+
+
+def test_none_brand_is_not_flagged() -> None:
+    assert is_suspected_distributor_code(None) is False

@@ -40,6 +40,8 @@ not a claim of completeness made here.
 
 from __future__ import annotations
 
+import re
+
 _QUOTE_FOLD = str.maketrans(
     {
         "’": "'",  # curly right single quote  # noqa: RUF001
@@ -146,4 +148,76 @@ def canonicalize_brand(title: str, source_brand: str | None) -> str | None:
     return _strip_marketing_suffix(normalized)
 
 
-__all__ = ["brand_span_text", "canonicalize_brand"]
+# Phase 3 STEP 3: a hyphen/space/punctuation-insensitive key for candidate BLOCKING, never for
+# display. `canonicalize_brand()`'s own output is still the right thing to show a human or store
+# as `brand` — this exists only so an exact-match blocking step doesn't silently miss two
+# spellings of the same manufacturer. Grounded in real, checked collisions among today's own
+# canonical brand values (not a hypothetical): `"club 4 paws"`/`"club4paws"`,
+# `"cat's best"`/`` "cat`s best" `` (straight vs curly-backtick apostrophe — `_normalize_case`
+# folds curly *quotes* but not this particular backtick-as-apostrophe variant), `"my love"`/
+# `"mylove"`, `"lolopets"`/`"lolo pets"`, `` "dr. clauder's" ``/`` "dr. clauder`s" `` — five
+# distinct manufacturers, found by stripping every non-alphanumeric character from every current
+# canonical brand and grouping by what collides. Julius K-9's two real spellings
+# (`"Julius k-9"`/`"Julius-K9"`) were checked too and turned out to already canonicalize
+# identically via the existing alias — not every hyphen variant needs this key, but relying on
+# hand-maintained aliases catching every future one is exactly the fragility this key exists to
+# remove.
+_NON_ALNUM = re.compile(r"[^a-z0-9]+")
+
+
+def brand_blocking_key(canonical_brand: str | None) -> str | None:
+    """Lowercased, every non-alphanumeric character removed. `None` in, `None` out."""
+    if not canonical_brand:
+        return None
+    key = _NON_ALNUM.sub("", canonical_brand.lower())
+    return key or None
+
+
+# Phase 3 STEP 3: brand-trustworthiness. **An automated per-brand classifier was attempted and
+# rejected as unreliable, not shipped.** The first approach tried — flag a canonical brand as
+# suspicious when its own text rarely appears inside the titles of its own listings — fails
+# badly in practice: checked against the full population, `"essential foods"`, `"chicoppe"`,
+# `"dr seidel"` and `"dolina"` (all real, verifiable manufacturers — Chicopee is a genuine Polish
+# pet-food maker, Dolina Noteci owns the "Piper" house brand its titles show instead of its own
+# name) all score 0% title-overlap, identical to confirmed-suspicious values — the statistic
+# cannot tell "a real manufacturer whose name a generic-category title just doesn't repeat" from
+# "a distributor code with no real brand identity" at all. No threshold on this statistic
+# separates the two classes; shipping one anyway would present an unreliable signal as a
+# trustworthy one, which is worse than shipping nothing.
+#
+# What ships instead: a small, hand-verified list, built by actually reading a sample of each
+# candidate's real titles (same discipline as ADR-0025's token checks) rather than trusting the
+# statistic that flagged them as candidates in the first place.
+#
+# - `"opti"` (165 listings) — CONFIRMED. Every sampled title is a generic, colour-varying cat
+#   scratching-post/play-set description ("Ansamblu de joaca... culoare bej/gri/mov...") with no
+#   brand-identity word anywhere, consistent with an unbranded OEM product line the shop labels
+#   internally, not a real consumer-facing manufacturer.
+# - `"ipts"` (33 listings) — WEAKER EVIDENCE, flagged anyway. Spans disjoint product types (a
+#   dental chew, a frisbee, latex toys) under one name that reads as a supplier code rather than
+#   an established brand, but roughly half its titles DO carry "Ipts" visibly (`"Jucarie...Ipts
+#   Curcan"`) — a real (if minor) brand would look like this too. Kept in the list with this
+#   caveat recorded, not silently upgraded to "confirmed" the way `"opti"` is.
+#
+# Checked and explicitly NOT added: `"record"` — real, identifiable Italian pet-accessories
+# manufacturer (est. 1969); most of its titles do carry recognizable "Record"/"BiscoRe"/"Cat&Rina
+# Record" text, unlike a true distributor code. An earlier, hastier read of this same data
+# (2026-09-14 gate-fix session) called it a distributor code without checking title context this
+# closely — corrected here, not left standing.
+_SUSPECTED_DISTRIBUTOR_CODES = frozenset({"opti", "ipts"})
+
+
+def is_suspected_distributor_code(canonical_brand: str | None) -> bool:
+    """`True` only for the small, hand-verified list above — never a statistical threshold. See
+    the module docstring above this function for why an automated version was rejected."""
+    if not canonical_brand:
+        return False
+    return canonical_brand.lower() in _SUSPECTED_DISTRIBUTOR_CODES
+
+
+__all__ = [
+    "brand_blocking_key",
+    "brand_span_text",
+    "canonicalize_brand",
+    "is_suspected_distributor_code",
+]
