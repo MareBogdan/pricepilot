@@ -8,22 +8,38 @@ breed_size_code, life_stage, flavour, food_form, dosage_band. `product_line` was
 architect session against a convention STEP 1 superseded — it carries no accuracy figure here and
 is never read by this script's scoring loop.
 
-**Three different denominators, reported explicitly, none hidden behind the others.** A first
+**Four different denominators, reported explicitly, none hidden behind the others.** A first
 version of this script reported one number — 966/1000 = 96.6% — scored against all 1,000 cells
 (100 rows x 10 fields). That number is real but inflated: most fields are null on most rows (a
 plain "Royal Canin Mini Adult 8 kg" correctly has no `dosage_band`, no `pack_count`, no
 `bonus_weight_g`), so "both sides correctly produced nothing" dominates the count and drowns out
 the cells that actually test something. `dosage_band` alone contributes 1 labelled cell and 99
-such free points. So this script now reports:
+such free points. A second version then scored only labelled cells (label non-empty) — closer,
+but that denominator **cannot penalise a false positive** (the extractor inventing a value where
+the label is empty): there is no label to compare against, so the cell is simply excluded from
+both numerator and denominator, and the extractor gets no penalty for having been wrong. Two real
+titles in this exact sample show why that matters: `"Hrana semi-umeda ... Semi-moist ..."`
+(listing_id 28159, label empty, extractor said `"wet"`) and `"... Turkey Jerky ..."` (listing_id
+28860, label empty, extractor said `"dry"`) — both real category errors, both invisible to a
+labelled-cells-only score, and the first was gate-derived fix #3 in this same session. A
+denominator that cannot see the error class a fix was written for is not measuring what matters.
+So this script now reports four figures, in increasing order of how much they penalise a
+mismatch:
 
-1. **All cells** (1,000) — kept for transparency, never the headline.
-2. **Labelled cells only** (label non-empty) — the real test: can the extractor reproduce a
-   value a human said is actually stated? This is reported both across all ten fields and with
-   `brand` excluded (see below) — the second is the headline.
-3. **Weight parsing** (`net_weight_g`), on its own non-empty-label count, per CLAUDE.md §7.
+1. **All cells** (1,000) — transparency only, never the headline.
+2. **Labelled cells only** (label non-empty) — "recall on stated values": can the extractor
+   reproduce a value a human said is actually stated? Cannot penalise a false positive (see
+   above). Reported both across all ten fields and with `brand` excluded.
+3. **Symmetric** (label non-empty OR extractor non-empty) — **the gate figure**: every cell where
+   either side claims something is stated counts in the denominator, so a false positive lowers
+   the score exactly as a miss does. Same numerator as (2) — a false-positive cell was never
+   "correct" — larger denominator. Reported both across all ten fields and with `brand` excluded
+   (the second is the headline).
+4. **Weight parsing** (`net_weight_g`), on its own non-empty-label count, per CLAUDE.md §7.
 
-Every per-field line prints its own labelled-cell count alongside the score, so a field with 1
-labelled cell (`dosage_band`) can never be mistaken for one that was actually measured 100 times.
+Every per-field line prints its own labelled-cell count and symmetric-cell count alongside the
+score, so a field with 1 labelled cell (`dosage_band`) can never be mistaken for one that was
+actually measured 100 times.
 
 **`brand` is excluded from every headline figure, deliberately, not just because its score is
 lowest.** 12 of `brand`'s 15 mismatches (2026-09-14 session) come from the labeller seeing only
@@ -45,12 +61,11 @@ comparison absorbs that too. Numeric fields are compared as integers, not string
 **A mismatch is one of three different bugs, counted separately**, per field: the extractor found
 nothing where the label says something is stated (`extractor_null`); the extractor found
 something where the label says nothing is stated (`extractor_has_extra` — a **false positive**,
-worse than a miss because it writes a wrong value instead of an honest null, and specifically NOT
-included in the "labelled cells" denominator since there is no label to check it against — that
-denominator only ever answers "did the extractor reproduce a stated value", never "did the
-extractor stay silent when it should have"; false positives are caught by population-level checks
-instead, e.g. `scripts/measure_gate.py`'s STEP 5 fix list); both sides have a value and they
-disagree (`both_present_different`).
+worse than a miss because it writes a wrong value instead of an honest null); both sides have a
+value and they disagree (`both_present_different`). `extractor_has_extra` cells are excluded from
+the "labelled cells" (recall) denominator — there is no label to check them against — but they
+ARE included in the "symmetric" denominator (the gate figure, see above), which is precisely why
+that denominator exists: a metric that can never see a false positive can never penalise one.
 
 **Nothing here adjusts the extractor.** This script only reads `norm_listings` and the labelled
 CSV; it changes neither. Per the explicit instruction that produced this script's second version:
@@ -214,11 +229,13 @@ def main() -> int:
     for field in GATE_FIELDS:
         ln = labelled_n[field]
         lc = labelled_correct[field]
+        sn = ln + extractor_has_extra[field]  # symmetric denominator: either side non-empty
         pct = (lc / ln * 100) if ln else float("nan")
+        sym_pct = (lc / sn * 100) if sn else float("nan")
         marker = " (excluded from headline)" if field == "brand" else ""
         print(
             f"{field:18s} labelled_n={ln:3d}  correct={lc:3d}  "
-            f"score={pct:5.1f}%  "
+            f"recall={pct:5.1f}%  symmetric_n={sn:3d}  symmetric={sym_pct:5.1f}%  "
             f"[all-cells exact={all_cells_exact[field]:3d}/{scored[field]:3d}]  "
             f"extractor_null={extractor_null[field]:2d}  "
             f"extractor_extra(false pos.)={extractor_has_extra[field]:2d}  "
@@ -230,30 +247,49 @@ def main() -> int:
     all_cells_correct = sum(all_cells_exact.values())
     all_cells_pct = all_cells_correct / all_cells_total * 100 if all_cells_total else 0.0
 
-    # (2) Labelled cells only, all ten fields (brand included) — the honest denominator, but
-    # still mixes in the un-gradeable brand field.
+    # (2) Labelled cells only ("recall on stated values") — cannot penalise a false positive;
+    # see the module docstring for why that matters. Reported both with brand included and
+    # excluded, but neither is the gate figure any more.
     labelled_all_total = sum(labelled_n.values())
     labelled_all_correct = sum(labelled_correct.values())
     labelled_all_pct = (
         labelled_all_correct / labelled_all_total * 100 if labelled_all_total else 0.0
     )
-
-    # (3) Labelled cells only, brand excluded — THE HEADLINE GATE NUMBER.
     headline_total = sum(labelled_n[f] for f in HEADLINE_FIELDS)
     headline_correct = sum(labelled_correct[f] for f in HEADLINE_FIELDS)
     headline_pct = headline_correct / headline_total * 100 if headline_total else 0.0
+
+    # (3) Symmetric (labelled cells + false-positive cells) — THE GATE FIGURE. Same numerator as
+    # (2); a false-positive cell adds to the denominator without ever being "correct", so it
+    # lowers the score exactly as a miss does.
+    all_false_positives = sum(extractor_has_extra.values())
+    symmetric_all_total = labelled_all_total + all_false_positives
+    symmetric_all_pct = (
+        labelled_all_correct / symmetric_all_total * 100 if symmetric_all_total else 0.0
+    )
+    headline_false_positives = sum(extractor_has_extra[f] for f in HEADLINE_FIELDS)
+    symmetric_headline_total = headline_total + headline_false_positives
+    symmetric_headline_pct = (
+        headline_correct / symmetric_headline_total * 100 if symmetric_headline_total else 0.0
+    )
 
     print("\n" + "=" * 88)
     print("GATE FIGURES")
     print("=" * 88)
     print(
-        f"  all cells (10 fields x 100 rows):            {all_cells_correct}/{all_cells_total} = {all_cells_pct:.1f}%  (transparency only — NOT the gate number)"
+        f"  all cells (10 fields x 100 rows):                     {all_cells_correct}/{all_cells_total} = {all_cells_pct:.1f}%  (transparency only)"
     )
     print(
-        f"  labelled cells only, brand included:         {labelled_all_correct}/{labelled_all_total} = {labelled_all_pct:.1f}%"
+        f"  recall on stated values, brand included:              {labelled_all_correct}/{labelled_all_total} = {labelled_all_pct:.1f}%  (cannot penalise false positives)"
     )
     print(
-        f"  labelled cells only, brand EXCLUDED (HEADLINE, the gate number): {headline_correct}/{headline_total} = {headline_pct:.1f}%"
+        f"  recall on stated values, brand excluded:              {headline_correct}/{headline_total} = {headline_pct:.1f}%  (cannot penalise false positives)"
+    )
+    print(
+        f"  symmetric (labelled + false positives), brand incl.:  {labelled_all_correct}/{symmetric_all_total} = {symmetric_all_pct:.1f}%"
+    )
+    print(
+        f"  symmetric, brand EXCLUDED — THE GATE FIGURE:          {headline_correct}/{symmetric_headline_total} = {symmetric_headline_pct:.1f}%"
     )
 
     weight_n = labelled_n["net_weight_g"]
