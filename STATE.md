@@ -319,6 +319,38 @@ here as the historical record of what this addendum first reported, not erased.*
   matches but two concrete cases of the original query missing a product that genuinely exists,
   once even under nearly its exact name). **ADR-0023's Phase 1 overlap gate is confirmed NOT at
   risk.**
+  **Reopened and re-closed, third session, same day (2026-09-15) — full SKU-list enumeration
+  overturns 6 of the 7 "brand+line found, weight mismatched" rows.** The 10-row recheck above
+  never enumerated each product's *complete* variant list, only the default/shown one — the exact
+  `_resolve_variant` failure mode this project already hit once. Re-checked all 7 rows where the
+  short query found brand+line, this time via pentruanimale's own public VTEX Catalog API (full
+  SKU list per product, not scraping infra — Chrome extension unavailable this session). **6 of 7
+  have the petmax weight in their full SKU list and are genuine confirmed matches**, missed by both
+  prior passes (Brit Care Hypoallergenic L-XL 3kg, Advance Sensitive Mini 7kg, Calibra Cat Life
+  Herring 1.5kg, Primordial Holistic Ton&Miel 12kg, Calibra Dog Life Senior Small Breed Miel 1.5kg,
+  Hill's SP Perfect Digestion Small&Mini 3kg). Only 1 of 7 (Hill's SP Feline Sterilised Salmon,
+  dry) is a genuine non-match — dry Salmon doesn't exist on pentruanimale at any weight, only as a
+  wet 85g pouch. **Recount: 11/40 = 27.5%** (up from 12.5%), Wilson CI [16.1%, 42.8%]. Applied to
+  N=2,334 with the same simplified arithmetic as before: point 642, CI [376, 1,000] (vs. 12.5%'s
+  point 292, CI [127, 609]).
+  **Conclusion — form (a), at its real strength: 27.5% is a FLOOR, and the true rate is bounded,
+  not pinned.** Only 10 of the 35 "not found" rows have ever been rechecked against a full SKU
+  list, and 6 of those 10 flipped to confirmed — a 60% recovery rate on that rechecked subsample.
+  **The true rate plausibly lies between 27.5% (the floor, everything actually measured) and
+  ~65% (26/40 — if the 60% recovery rate held across the 25 still-unrechecked rows: 25×0.60≈15,
+  +5 original +6 already confirmed = 26).** That extrapolation is optimistic, not a second
+  measurement — the 10 rechecked rows were not a random draw from the 35, so projecting their
+  rate onto the other 25 is an assumption, stated as one. **Q3's original 54% sits comfortably
+  inside that [27.5%, 65%] band**, which is the actual resolution: the acute, specific
+  contradiction (12.5%, whose CI included a point below the 400 threshold) is retracted for
+  cause and replaced by a band that contains Q3's estimate rather than conflicting with it.
+  **What would close this completely**: rechecking the remaining 25 "not found" rows the same
+  way — mechanical and fast now (the VTEX Catalog API lookup used for the 7 confirmed rows took
+  seconds per product, not the multi-call browser navigation the original checks used), not done
+  this session because it wasn't asked for.
+  **The Phase 1 gate is genuinely unaffected** — it was never re-measured by this exercise; it
+  remains ADR-0023's own p̂=0.52 (n=50), point 1,214, CI [899, 1,522], untouched. Full detail:
+  `docs/learned/q3-verification-extension-2026-09-15.md` addendum #2.
 - TASK B: `build_annotation_queue.py`'s "41.0% expected positives" (a source-tier label, not a
   prediction) is replaced by a **predicted M/N/S distribution** from a deterministic rules engine
   applying the annotation conventions to every pair: **M-plausible ~31%** (over the 25% floor),
@@ -338,6 +370,92 @@ here as the historical record of what this addendum first reported, not erased.*
 [ ] 800-1,000 pairs annotated by Bogdan — queue built, **labelling not started**.
 [ ] Fine-tuned matcher — not started.
 [ ] Serving benchmark (CPU-quantized vs. cross-encoder vs. hosted API) — not started.
+
+**ADR-0028 addendum #4 (2026-09-15, fourth same-day session) — response to a 100-pair AI
+reference labelling pass (`docs/learned/phase3-pilot100-ai-reference-pass.json`, NOT human
+labels — see the record-keeping note below). Observed M 36 / N 62 / S 2 vs. the forecast's M 33 /
+N 53 / S 14, agreement 80/100. Full detail:
+`docs/learned/phase3-reference-pass-response-2026-09-15.md`. No annotation run started.**
+
+- **Finding 4 — species (dog/cat) signal, built.** `normalize/species.py`, backfilled into a new
+  `norm_listings.species` column (migration 0008). Structured signal (petmax URL segment, animax
+  `product_type`) + checked title-keyword fallback + a checked structural default (this
+  catalogue's litter is exclusively cat litter). In-scope population: dog 4,888 (55.5%), cat
+  3,791 (43.1%), unknown 124 (1.4%, two honest checked classes — species-word-less dog dental
+  chews, and genuine dual-species products). New `predict_label()` rule: species differs (both
+  known) -> N, ahead of quantity. **Cross-species pairs were NOT removed from the queue — kept
+  deliberately as a small, cheap easy-negative class, same reasoning as `trivial_spot_check`'s
+  50-pair (5.0%) self-agreement slice.** Current count: **49/997 (4.9%)**, against a proposed
+  quota of **~2% (≈20 pairs)** — lower than the other required hard-negative sub-classes (4.7%-
+  6.6% each) because species is cheaper/more certain to decide than any of them. 4.9% sits above
+  the proposed 2% cap — reported for a future queue rebuild's quota tuning, not acted on.
+- **Finding 5 — breed-size vocabulary canonicalised.** Full census printed first (18 distinct
+  `breed_size_code` values). Equivalence built two independent ways (pentruanimale's own
+  word+code co-occurring in one title; a cross-shop same-product join), not assumed from the
+  task's own two examples. Modelled as a rank interval (`breed_size_rank`/`breed_size_class`/
+  `breed_size_overlaps`, `attributes.py`), not a flat bucket — resolves "Medium"="M" (pilot 12)
+  and "Mini"="XS-S" (pilot 55) by rank overlap, not string equality. `predict_label()` rule 3
+  updated to use it.
+- **Finding 6 — "XS-XL" nulled.** Checked, not assumed: 100% of 985 in-scope occurrences are
+  pentruanimale_ro (0 from the other two sources), the single largest `breed_size_code` value in
+  the population — a boilerplate "fits any size" default, not a real claim. `extract_breed_size`
+  now returns `None` for it; 985 rows changed on re-extraction.
+- **Finding 7 — age qualifiers ("(5+)"/"7+"/"8+") now reach `life_stage`.** Checked against all 97
+  in-scope titles carrying a bare `\d+\+` token before trusting the pattern — a real
+  false-positive class (bonus-weight phrases, "10+2kg GRATUIT") excluded by requiring the `+` NOT
+  be followed by another digit. 38 rows gained a qualifier (`"adult"` -> `"adult+7"`) on
+  re-extraction; a bare qualifier with no life-stage word to attach to stays `None`, an honest
+  open gap.
+- **Finding 8 — Rule 0 leak, root cause found and fixed at the source.** Pilot 86's `category`
+  was correctly `"accessory"` all along — the bug was that none of the 9 source SQL queries in
+  `build_annotation_queue.py` ever filtered on `category`; rule 0 caught it downstream (scored
+  `S`), which is why it read as a forecast label, not a visible defect. Fixed: `main()` now
+  applies `in_scope_only()` (category in food/litter, both sides) to every pool before the
+  cross/within-shop split. **Verified against the rebuilt queue: 0 of 1,157 distinct listings
+  carry a non-food category** (was previously unverified/leaking).
+- **Re-run forecast vs. observed — corrected after a same-day review found the first comparison
+  invalid.** The rebuilt queue is substantially a DIFFERENT DRAW from the queue the 100-pair pilot
+  was drawn from (the fixes above change which rows the source SQL joins match) — measured
+  directly: **only 44 of the pilot's 100 pair_ids still exist in the rebuilt queue.** Comparing
+  the rebuilt queue's whole-queue forecast (n=997) against the pilot's observed distribution
+  (n=100) was therefore comparing two different populations; that comparison, and its "gap
+  narrowed to ~4.2pp" claim, is retracted. **Corrected comparison, on the n=44 intersection only,
+  before vs. after this session's fixes, same 44 pairs both times:**
+
+  | | BEFORE (n=44) | **AFTER (n=44)** | OBSERVED (n=44) |
+  |---|---:|---:|---:|
+  | M | 27 (61.4%) | **23 (52.3%)** | 26 (59.1%) |
+  | N | 10 (22.7%) | **14 (31.8%)** | 17 (38.6%) |
+  | S | 7 (15.9%) | **7 (15.9%)** | 1 (2.3%) |
+  | agreement | 34/44 = 77.3% | **35/44 = 79.5%** | — |
+
+  n=44 is small — directional, not precise. N moved toward observed (gap 15.9pp -> 6.8pp). **M
+  moved slightly away** (gap 2.3pp -> 6.8pp, opposite the naive whole-queue read, possibly noise
+  at this n). **S did not move at all** (7 pairs both times) **vs. observed 1** — finding 6's
+  hypothesis is confirmed only partial: XS-XL nulling removed the one-sidedness IT was
+  manufacturing, but `one_sided_attribute` (81 of the whole queue's 120 S pairs) is still
+  dominated by other one-sided flavour/life-stage cases plus 39 `ambiguous_brand_rule6` pairs the
+  ladder deliberately never auto-resolves — a structural property of the ladder's conservatism,
+  not fixed by loosening a rule to chase observed 2% (forbidden by instruction). The whole-queue
+  forecast (M 30.2-30.3% / N 57.8-58.0% / S 11.7-12.0%, n=997) remains a legitimate description of
+  the current queue's own composition, just not comparable to the pilot's 100 pairs.
+- **Species promoted to Rule 1 of the annotation conventions (revision 3).** A follow-up review
+  asked for the species check to be named in `phase3-annotation-conventions.md`'s ladder, not
+  only in code — added as the new Rule 1 (ahead of quantity), revision 2's rules 1-8 renumbered to
+  2-9. `predict_label()`'s rule tags renamed to match (a pure rename, no logic change — the M/N/S
+  totals shift by 1-3 pairs run-to-run regardless, from Python's default per-process string-hash
+  randomisation affecting `set`/`dict` iteration order upstream of the seeded shuffle; a minor,
+  unfixed reproducibility gap, not a behaviour change from this rename).
+- **Record-keeping (Block 3, this session):** the planned human blind-subset pass was **NOT
+  run** — the 100-pair pilot distribution above is AI-labelled only. Two things remain genuinely
+  unmeasured: the annotator's real throughput (CLAUDE.md §7 assumes 200 pairs/hour; untested —
+  the full run may take 5 hours or 12) and the human S rate. CLAUDE.md §7's requirement — "the
+  user annotates 800-1,000 pairs manually... it is not generated, it is labelled" — is **still
+  unmet**. **No AI-labelled pair may enter the train/val/test split.** The M/N/S forecast now
+  lives inside `phase3-annotation-queue.json` itself (`predicted_label_forecast`), not only in
+  console output, and `blocked_retrieval_candidate`'s anchor draw is now seeded (`setseed()`,
+  derived from `RNG_SEED`) — the queue is reproducible byte-for-byte from its seed, which it was
+  not before this session.
 
 ## Last done (2026-09-15 addendum session, in order)
 
