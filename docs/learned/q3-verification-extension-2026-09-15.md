@@ -299,3 +299,54 @@ metric to begin with, and does not need to become one.
 **Date.** 2026-09-15 (third session, no Chrome extension available — verified via pentruanimale's
 own public VTEX Catalog API instead of the browser tool, same product pages, structured JSON
 instead of rendered HTML).
+
+## Addendum #3, 2026-09-16 — the remaining 25 "not found" rows rechecked; TASK A closed completely
+
+The 10-row recheck above (addendum #2) covered 10 of the 35 "not found" rows in Table 2. **The
+remaining 25 were rechecked this session**, same method as addendum #2 (pentruanimale's VTEX
+Catalog API, full SKU list per product, query = brand root + 1-2 distinguishing words).
+
+**12 of 25 are genuine confirmed matches, missed by the original full-descriptive query:**
+
+| # | petmax_title | petmax_weight | confirmed at |
+|---:|---|---:|---|
+| 0 | Recompense pentru caini Agility, piele de rata, 450g | 450 | 450g (only SKU) |
+| 1 | Hrana umeda pentru caini, RAW PALEO Puppy, carne de curcan, 400 g | 400 | 400g ("Raw Paleo Puppy Curcan si Cartofi 400 g" — same weight, brand, line; pentruanimale's title states an ingredient petmax's doesn't) |
+| 4 | ACANA Dog Grasslands, hrană uscată fără cereale câini, 11.4kg | 11400 | 11.4kg (the DOG variant — the original query surfaced only the CAT variant, a query-construction miss as suspected) |
+| 5 | Hrana umeda caini, Fresh Farm Smooth pate with pork 400 gr | 400 | 400g (the dog "XS-XL" line's Porc SKU, distinct from the Sterilised CAT line also named "Smooth" this catalogue carries) |
+| 8 | Royal Canin British Shorthair Kitten, 10 Kg | 10000 | 10kg (listed, qty=0 — a real SKU, not just the 2kg one previously recorded) |
+| 18 | Hrana uscata pentru caini Unica Classe mini, puppy development, cu pui, 7,5 kg | 7500 | 7.5kg exact |
+| 21 | Acana Free-Run Duck - Rata si pere, 11,4 kg | 11400 | 11.4kg (only SKU, qty=0) |
+| 22 | Pro Plan Optiderma Adult Small & Mini Sensitive Somon, 3 kg | 3000 | 3kg, via "PURINA Pro Plan Sensitive Skin Adult S, Somon" — a retailer-specific line-name divergence (Optiderma vs. Sensitive Skin), same product |
+| 31 | Sheba Mini, Selectii de pasare 6x50g | 50 | 50g x 6buc exact — the ORIGINAL check found the wrong brand (Whiskas); the real Sheba SKU exists and was missed by that query, not absent |
+| 32 | Pro Plan Large Athletic Adult, pui, 14kg | 14000 | 14kg exact — the original check hit a page-render glitch; resolved cleanly via the API |
+| 35 | Recompense pentru pisici Mr. Bandit CAT Creamy Mousse, pui, 60 g | 60 | 60g exact |
+| 37 | Hrana umeda pisici, Calibra Cat Pouch Premium Line Adult Trout & Salmon 100 g | 100 | 100g exact (the single-pouch "în suc propriu" SKU, not the 12-pack "în sos" variant found in an earlier, looser query) |
+
+**13 remain genuine non-matches or absences**, each checked, not assumed: rows 2, 11, 12, 14, 25,
+30, 33 not found even under a shortened/varied query (brand genuinely absent from this catalogue,
+or — row 33 — the specific line not carried at all despite the brand being very common); rows 23
+and 29 confirmed absent at the target weight via the FULL SKU list (real weight mismatch, not a
+checking artefact); row 19 has the brand+line but the exact 3-flavour combination petmax names
+does not exist as a single SKU (2-flavour variants exist instead — a genuine composition
+mismatch); row 36 resolves to a wrong-form, wrong-life-stage product (a junior wet pouch, not the
+adult wet can petmax names) and is a genuine non-match, not an unfound one.
+
+**Recount, all 40 rows now checked against a full SKU list: 5 (Table 1) + 6 (addendum #2's 10-row
+recheck) + 12 (this addendum) = 23/40 = 57.5%, Wilson 95% CI [42.2%, 71.5%].**
+
+**This reconciles with Q3's original 54%.** The point estimate now essentially matches Q3's own
+figure, and 54% sits comfortably inside the CI — closing, not merely bounding, the contradiction
+addendum #1 first found between 12.5% and 54%. **TASK A is closed.** No further rechecking of this
+40-row sample is planned; a genuinely tighter number would require a fresh, larger random draw,
+not more scrutiny of this one.
+
+8 of these 12 newly-confirmed pairs were added to `phase3-retrieval-eval-set.csv`'s unbiased
+headline subset (rows 0, 5, 8, 31 excluded — real-world confirmed, but the matching pentruanimale
+SKU was never collected by our own scraper, so there is no `norm_listings` row to test retrieval
+against), alongside 5 of addendum #2's earlier 6-row recheck that are also DB-usable (Hill's SP
+Perfect Digestion's 3kg row is the one exclusion there, same reason). 13 pairs total. See
+`docs/learned/phase3-retrieval-improvement-2026-09-16.md` for what that eval-set growth was for
+(candidate-retrieval recall@20) and the resulting measurements.
+
+**Date.** 2026-09-16 (fourth session, same method as addendum #2).
