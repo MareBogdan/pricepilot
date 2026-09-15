@@ -167,15 +167,28 @@ def main() -> int:
     # ADR-0028 TASK C: the 2026-09-15 extension to q3_browser_verified is CONTAMINATED — its
     # query (brand + product_line) shares its core signal with the embedding text TASK 2(a) uses
     # (also brand + product_line, plus more fields), so it preferentially found pairs the
-    # retriever can already find. Split by `verification` date so the clean, original 26-pair
-    # subset stays the headline, and the extended 31-pair figure is reported separately, never
-    # silently substituted for it.
+    # retriever can already find. Split by `verification` tag so the clean subset stays the
+    # headline, and the contaminated extension is reported separately, never silently
+    # substituted for it.
+    #
+    # 2026-09-16 addendum (Phase 3 item 1, BLOCK 1): a second growth pass added 24 more pairs
+    # tagged `api_verified_2026-09-16_brand_weight_query` — verified via pentruanimale's public
+    # VTEX Catalog API (full SKU list per product), queried by BRAND ROOT (+ weight for a few),
+    # never brand+product_line. This query strategy does not share text with the embedding input
+    # (`brand + product_line + quantity + ...`) the same way the 2026-09-15 extension's did, so
+    # it joins the ORIGINAL 2026-09-13 subset as "clean", not the contaminated one.
+    _CLEAN_TAGS = (
+        "human_browser_verified_2026-09-13",
+        "api_verified_2026-09-16_brand_weight_query",
+    )
+
     def eval_bucket(row: dict[str, str]) -> str:
         if row["eval_source"] != "q3_browser_verified":
             return row["eval_source"]
-        if "2026-09-15" in row.get("verification", ""):
-            return "q3_browser_verified_EXTENDED (2026-09-15, CONTAMINATED — see ADR-0028 TASK C)"
-        return "q3_browser_verified_ORIGINAL (2026-09-13, clean)"
+        verification = row.get("verification", "")
+        if any(tag in verification for tag in _CLEAN_TAGS):
+            return "q3_browser_verified_ORIGINAL (2026-09-13 + 2026-09-16, clean)"
+        return "q3_browser_verified_EXTENDED (2026-09-15, CONTAMINATED — see ADR-0028 TASK C)"
 
     def measure(  # type: ignore[no-untyped-def]
         session, retrieval_fn, label: str
@@ -220,13 +233,13 @@ def main() -> int:
         # Also print the combined (original + extended) q3 figure, explicitly labelled — useful
         # to see, never to be quoted as "the" recall number.
         combined_n = by_source.get(
-            "q3_browser_verified_ORIGINAL (2026-09-13, clean)", 0
+            "q3_browser_verified_ORIGINAL (2026-09-13 + 2026-09-16, clean)", 0
         ) + by_source.get(
             "q3_browser_verified_EXTENDED (2026-09-15, CONTAMINATED — see ADR-0028 TASK C)", 0
         )
         if combined_n:
             combined_hits = hits_by_source.get(
-                "q3_browser_verified_ORIGINAL (2026-09-13, clean)", 0
+                "q3_browser_verified_ORIGINAL (2026-09-13 + 2026-09-16, clean)", 0
             ) + hits_by_source.get(
                 "q3_browser_verified_EXTENDED (2026-09-15, CONTAMINATED — see ADR-0028 TASK C)", 0
             )
