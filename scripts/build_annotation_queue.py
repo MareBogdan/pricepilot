@@ -85,6 +85,7 @@ for _stream in (sys.stdout, sys.stderr):
 from sqlalchemy import text  # noqa: E402
 
 from pricepilot.db import check_database, session_scope  # noqa: E402
+from pricepilot.normalize.attributes import breed_size_overlaps  # noqa: E402
 from pricepilot.overlap import overlap_key  # noqa: E402
 
 OUTPUT_JSON = ROOT / "docs" / "learned" / "phase3-annotation-queue.json"
@@ -127,6 +128,8 @@ ATTR_FIELDS = (
     "sample_title",
     "brand_blocking_key",
     "category",
+    "species",
+    "breed_size_class",
 )
 
 _ATTRS_SQL = text(
@@ -306,6 +309,8 @@ class Listing:
     title: str
     brand_blocking_key: str | None
     category: str | None
+    species: str | None
+    breed_size_class: str | None
 
 
 def _norm_line(s: str | None) -> str | None:
@@ -349,6 +354,8 @@ def _fetch_listings(session, hashes: set[str]) -> dict[str, Listing]:  # type: i
             title=row.sample_title,
             brand_blocking_key=row.brand_blocking_key,
             category=row.category,
+            species=row.species,
+            breed_size_class=row.breed_size_class,
         )
         for row in rows
     }
@@ -398,45 +405,66 @@ def _has_quantity(listing: Listing) -> bool:
 
 
 def predict_label(left: Listing, right: Listing) -> tuple[str, str]:
-    """Applies the conventions-v2 ladder deterministically. Returns (label, rule) where label is
-    "M" | "N" | "S" and `rule` names which rule decided it (or "default_M" / "ambiguous_brand" for
-    the fall-through cases). Order matches the ladder: the first rule that fires wins."""
-    # Rule 0 — scope. Accessory/toy/unknown listings are out of round 1's scope entirely.
+    """Applies the conventions-v3 ladder deterministically (`phase3-annotation-conventions.md`,
+    revision 3 — species inserted as Rule 1, revision 2's rules 1-8 renumbered to 2-9). Returns
+    (label, rule) where label is "M" | "N" | "S" and `rule` names which rule decided it (or
+    "default_M" / "ambiguous_brand_rule6" for the fall-through cases). Order matches the ladder:
+    the first rule that fires wins."""
+    # Rule 0 — scope. Accessory/toy/unknown listings are out of round 1's scope entirely. As of
+    # finding 8 (2026-09-15 reference labelling pass), the SOURCE SQL queries now filter to
+    # category in ('food', 'litter') directly (main(), `in_scope_only()`) — this rule stays as a
+    # forecast-only backstop for any row a source query somehow still let through, not the only
+    # thing standing between an accessory and the queue the way it was before.
     if (left.category not in _IN_SCOPE_CATEGORIES) or (right.category not in _IN_SCOPE_CATEGORIES):
         return "S", "rule0_out_of_scope"
 
-    # Rule 6 — quantity not stated on one side: cannot even test rule 1.
+    # Rule 1 — species (revision 3, finding 4, 2026-09-15 session). Dog food and cat food are
+    # never the same product, and this is the single most certain, cheapest N-rule available once
+    # both sides state a species (`normalize.species.classify_species`) — ahead of quantity
+    # because a species mismatch makes the quantity comparison moot, and it's what the
+    # conventions doc's own revision-3 ladder now says explicitly. Conservative like every other
+    # rule here: fires only when BOTH sides resolve to a species; a one-sided/unknown species
+    # falls through untouched (may still land on `S` via rule 7 below if quantity is also
+    # missing, or ride an otherwise-M pair through unaffected).
+    if left.species and right.species and left.species != right.species:
+        return "N", "rule1_species_differs"
+
+    # Rule 7 — quantity not stated on one side: cannot even test rule 2. Checked here, ahead of
+    # rule 2 in execution order, for the same reason it always was: you cannot compare a tuple
+    # against a missing one. (The conventions doc lists it at ladder position 7, for a human
+    # reading the rules in priority order — its necessary execution position doesn't move.)
     if not _has_quantity(left) or not _has_quantity(right):
-        return "S", "rule6_no_quantity_stated"
+        return "S", "rule7_no_quantity_stated"
 
-    # Rule 1 — quantity tuple differs -> N, always, no exceptions.
+    # Rule 2 — quantity tuple differs -> N, always, no exceptions.
     if _quantity_tuple(left) != _quantity_tuple(right):
-        return "N", "rule1_quantity_differs"
+        return "N", "rule2_quantity_differs"
 
-    # Rule 2 — life stage (formula-defining qualifier), grouped per this task's instruction.
+    # Rule 3 — life stage (formula-defining qualifier), grouped per this task's instruction.
     if left.life_stage and right.life_stage:
         lg = _LIFE_STAGE_GROUP.get(left.life_stage, left.life_stage)
         rg = _LIFE_STAGE_GROUP.get(right.life_stage, right.life_stage)
         if lg != rg:
-            return "N", "rule2_lifestage_differs"
+            return "N", "rule3_lifestage_differs"
 
-    # Rule 3 — breed size differs (both stated).
-    if (
-        left.breed_size_code
-        and right.breed_size_code
-        and left.breed_size_code != right.breed_size_code
-    ):
-        return "N", "rule3_breedsize_differs"
+    # Rule 4 — breed size differs. Finding 5 (2026-09-15 session): compares the CANONICAL rank
+    # interval (`breed_size_class`/`breed_size_overlaps`), not the raw string — "Medium" and "M"
+    # are the same size (a real cross-shop match, pilot 12) and a raw-string check would wrongly
+    # force this pair N. `breed_size_overlaps()` returns `False` only when both sides map to a
+    # rank interval AND those intervals share no rank at all (confidently different sizes);
+    # `None` (one/both unmapped) falls through to the one-sided check below, same as before.
+    if breed_size_overlaps(left.breed_size_code, right.breed_size_code) is False:
+        return "N", "rule4_breedsize_differs"
 
-    # Rule 4 — flavour differs (both stated). Cross-language equivalence (Salmon/Somon etc.) is
+    # Rule 5 — flavour differs (both stated). Cross-language equivalence (Salmon/Somon etc.) is
     # already resolved upstream by `normalize/flavour.py` before this field is stored, so a plain
     # string-inequality check here is correct, not naive.
     if left.flavour and right.flavour and left.flavour != right.flavour:
-        return "N", "rule4_flavour_differs"
+        return "N", "rule5_flavour_differs"
 
     # Everything that forces N has now had its chance. A one-sided flavour/life_stage/breed_size
     # is a real gap the ladder can't close without a guess — score S, not M, per the "never guess"
-    # discipline (rule 6/8).
+    # discipline (rule 7/9).
     one_sided = (
         (left.flavour is None) != (right.flavour is None)
         or (left.life_stage is None) != (right.life_stage is None)
@@ -445,11 +473,11 @@ def predict_label(left: Listing, right: Listing) -> tuple[str, str]:
     if one_sided:
         return "S", "one_sided_attribute"
 
-    # Rule 5 — brand string differs. Could be M (distributor-code provenance) or a genuinely
-    # different manufacturer; rule 5 explicitly requires reading the title/packaging to tell them
+    # Rule 6 — brand string differs. Could be M (distributor-code provenance) or a genuinely
+    # different manufacturer; rule 6 explicitly requires reading the title/packaging to tell them
     # apart, which this forecast cannot automate. Scored S, not guessed as M.
     if left.brand != right.brand:
-        return "S", "ambiguous_brand_rule5"
+        return "S", "ambiguous_brand_rule6"
 
     return "M", "default_M"
 
@@ -503,6 +531,15 @@ def main() -> int:
         pools["proxy_key_collision"] = _dedup_pairs(proxy_pairs, seen_pairs)
 
         # --- blocked_retrieval_candidate --------------------------------------------------------
+        # Block 3 item 10 (2026-09-15 session): this draw was flagged, by this same session, as
+        # the one unseeded piece of an otherwise fully-seeded queue build (`SHUFFLE_SEED`/
+        # `RNG_SEED` control everything downstream in Python, but this `ORDER BY random()` runs
+        # inside Postgres, outside Python's `random.Random` entirely). `setseed()` takes a float
+        # in [-1, 1] — RNG_SEED folded into that range deterministically, not a fresh literal, so
+        # changing RNG_SEED still changes this draw too. A queue that cannot be re-derived byte-
+        # for-byte from its seed is not reproducible, and reproducibility is part of what this
+        # project demonstrates.
+        session.execute(text("select setseed(:s)"), {"s": (RNG_SEED % 2_000_000) / 1_000_000 - 1})
         anchors = session.execute(_BLOCKED_RETRIEVAL_ANCHOR_SQL, {"n": 600}).all()
         retrieval_pairs: list[tuple[str, str]] = []
         for anchor_hash, brand_key in anchors:
@@ -559,6 +596,27 @@ def main() -> int:
                 needed_hashes.add(a)
                 needed_hashes.add(b)
         listings = _fetch_listings(session, needed_hashes)
+
+    # Finding 8 (2026-09-15 reference labelling pass, pilot 86: "Covor absorbant pentru caini
+    # figaro" — an accessory that reached the queue). Root cause checked, not assumed: `category`
+    # was correctly "accessory" for that row all along — none of the 9 source queries above ever
+    # filtered on it, so any pair a query's other join conditions (brand_blocking_key,
+    # product_line, quantity tuple) happened to match could carry an out-of-scope category
+    # straight into the queue. `predict_label`'s rule 0 caught it downstream (scored `S`), which
+    # is why it only ever showed up as a forecast label and not as a visible bug — but scoring it
+    # `S` after the fact is not the same as never sourcing it. Filtered here, once, for every
+    # pool, rather than duplicating a `category` predicate into all 9 queries above.
+    def in_scope_only(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
+        return [
+            (a, b)
+            for a, b in pairs
+            if listings[a].category in _IN_SCOPE_CATEGORIES
+            and listings[b].category in _IN_SCOPE_CATEGORIES
+        ]
+
+    capacity_pairs_all = in_scope_only(capacity_pairs_all)
+    for _name in list(pools):
+        pools[_name] = in_scope_only(pools[_name])
 
     def cross_shop_only(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
         return [(a, b) for a, b in pairs if listings[a].source != listings[b].source]
@@ -797,6 +855,8 @@ def main() -> int:
             "life_stage": listing.life_stage,
             "flavour": listing.flavour,
             "food_form": listing.food_form,
+            "species": listing.species,
+            "breed_size_class": listing.breed_size_class,
         }
 
     pairs_out = []
@@ -818,6 +878,13 @@ def main() -> int:
         "built_from": "scripts/build_annotation_queue.py (ADR-0028 TASK 4 rebuild)",
         "auto_labelled_count": len(auto_labelled),
         "category_quotas": quota_counts,
+        # Block 3 item 10 (2026-09-15 session): the forecast now lives in the artifact itself,
+        # not only in this script's transient console output, so the queue's own headline
+        # statistic is re-derivable from the committed file.
+        "predicted_label_forecast": {
+            "labels": label_counts,
+            "n_by_rule": n_rule_counts,
+        },
         "pairs": pairs_out,
     }
 

@@ -14,6 +14,16 @@ with its reasoning, *before* any labelling starts. Rules 1–3 of revision 1 are
 into a single quantity rule, because they were three statements of one idea and the gap between
 them is exactly where case 1 fell through.
 
+**Revision 3, 2026-09-15 (fourth same-day session, response to the 100-pair AI reference
+labelling pass).** Written before the field existed in revision 2: `norm_listings` now carries a
+`species` signal (`normalize/species.py`, dog/cat, structured-signal-then-title-keyword, checked
+against the full population — `docs/learned/phase3-reference-pass-response-2026-09-15.md`). A
+cross-species pair is the cheapest, most decisive check available — one field settles it, no
+research needed — so it becomes the new **Rule 1**, ahead of the quantity rule, and everything
+after it shifts down by one. `predict_label()` in `scripts/build_annotation_queue.py` gained the
+matching rule at the same ladder position. Revision 2's text is otherwise unchanged below, only
+renumbered.
+
 ## The operational question
 
 > **Are these the same purchasable unit, such that a price-comparison engine should compare
@@ -54,7 +64,16 @@ first annotation round deliberately covers food/treat/litter only, and the queue
 supposed to have filtered these out. One that reaches you is a queue bug, not a hard case; the
 `S` rate on rule 0 is the measurement of that bug.
 
-### Rule 1 — the quantity tuple differs → `N`, always
+### Rule 1 — different species (dog vs cat) → `N`
+
+Read the title: `caini` / `caine` / `catei` / `dog` vs `pisici` / `pisica` / `kitten` / `felin*`.
+A dog food and a cat food are never the same purchasable unit, and this is cheaper to check than
+the quantity tuple — most titles state it in the first two or three words. **If one title states
+no species, decide on the other rules; do not guess.** (`normalize/species.py`'s own title
+fallback is deliberately conservative the same way: a title with no species word, or with both a
+dog word and a cat word — a genuine dual-species product — resolves to unknown, never guessed.)
+
+### Rule 2 — the quantity tuple differs → `N`, always
 
 The purchasable unit is defined by this tuple:
 
@@ -87,7 +106,7 @@ exists to find.
 > tuple but the titles use these two different forms, press `S` with a note. This is a Phase 2
 > representation gap resurfacing, not a judgement you should make in 18 seconds.
 
-### Rule 2 — the formula qualifier differs → `N`
+### Rule 3 — the formula qualifier differs → `N`
 
 A *formula-defining* qualifier names a distinct SKU. The manufacturer puts it in the product
 name and no shop drops it, so a difference — including present on one side and absent on the
@@ -112,7 +131,7 @@ Treating their presence as a product difference would manufacture false negative
 
 If a qualifier is not on either list and you cannot place it in five seconds, press `S`.
 
-### Rule 3 — the breed size differs → `N`
+### Rule 4 — the breed size differs → `N`
 
 `Mini` vs `Maxi` at the identical bag weight are different formulas (different kibble size,
 different nutrient profile), not the same purchasable unit.
@@ -123,10 +142,10 @@ is the ANIMAL's weight, never the product's (Phase 2 convention 4):
 - **Both sides state a band and the bands differ → `N`.** A dental stick for 12–25 kg dogs is a
   physically different stick from one for 5–10 kg dogs.
 - **One side states a band, the other states none → ignore it entirely.** Absence is a shop's
-  title-verbosity difference, not a product difference — the same reasoning as rule 5's brand
+  title-verbosity difference, not a product difference — the same reasoning as rule 6's brand
   provenance.
 
-### Rule 4 — the flavour differs → `N`
+### Rule 5 — the flavour differs → `N`
 
 `Chicken` and `Salmon` of the identical line, quantity and life stage are different purchasable
 units.
@@ -145,7 +164,7 @@ read its flavour as `MIXED`:
 **Flavour stated on one side only, neither being a variety pack → `S`.** Do not read a missing
 flavour as "matches anything."
 
-### Rule 5 — same product, different brand string → `M`
+### Rule 6 — same product, different brand string → `M`
 
 When the shops' brand fields differ only because one shows the real manufacturer and the other a
 distributor or private-label code for the identical physical product (`"Dolina Noteci"` vs the
@@ -156,19 +175,19 @@ Judge this from the **title and packaging description**, not the structured fiel
 title text, quantity, flavour and line name all point to the same physical product, a disagreeing
 brand field does not change the answer.
 
-### Rule 6 — no quantity stated on one side → `S`
+### Rule 7 — no quantity stated on one side → `S`
 
-If either title gives no parseable net weight or volume, the pair cannot be tested against rule 1.
+If either title gives no parseable net weight or volume, the pair cannot be tested against rule 2.
 Do not guess that "no weight stated" means either "assume it matches" or "assume it doesn't."
 
-### Rule 7 — reformulation, same line and same quantity → `M`, flagged
+### Rule 8 — reformulation, same line and same quantity → `M`, flagged
 
 A line that has visibly been reformulated (a "New Formula" marker, a generation number) but keeps
 the same line name and quantity tuple is still `M` — a price-comparison engine should still
 compare them — but press the flag key so Phase 3's error analysis can count this shape separately
 from a clean match.
 
-### Rule 8 — uncertain for more than ~15 seconds → `S`
+### Rule 9 — uncertain for more than ~15 seconds → `S`
 
 If the ladder doesn't resolve it and a confident answer isn't reachable quickly, skip. A guess
 recorded as `M` or `N` is worse than an honest `S`: it corrupts the dataset silently, where an `S`
@@ -192,14 +211,14 @@ were never written down.
 
 By the STEP 3 category signal, this scopes the queue to **food 8,601 + litter 202 = 8,803 of the
 10,532 rows (83.6%)**, and drops accessory 1,550 + toy 177 + unknown 2. Litter stays in because a
-litter bag has real mass semantics and behaves exactly like food under rule 1.
+litter bag has real mass semantics and behaves exactly like food under rule 2.
 
 This is a deliberate, recorded scoping decision, not a silent omission. If accessory matching is
 wanted later it gets its own conventions file and its own annotation round — it does not get
 folded into this one.
 
 **Accessory bundles** (a 2-bowl set vs 1 bowl, a leash+collar set vs a leash) therefore fall out
-of scope with the rest of case 3. Within food and treats, a "bundle" is a multipack and rule 1's
+of scope with the rest of case 3. Within food and treats, a "bundle" is a multipack and rule 2's
 `pack_count` already decides it.
 
 ## Data defects are not hard cases
@@ -219,22 +238,29 @@ do not diagnose it at the keyboard.
 | Left | Right | Answer | Rule |
 |---|---|---|---|
 | `Brit Premium by Nature Adult L 15 kg` | `BRIT Premium By Nature Adult Large Breed, L, ... 15kg` | M | tuple equal, qualifiers equal, breed size equal |
-| `Royal Canin Medium Adult 4 kg` | `ROYAL CANIN Medium Adult 7+, ... senior, 4kg` | N | rule 2 — `7+` qualifier |
-| `Royal Canin Medium Adult 15 kg` | `Royal Canin Medium Adult 4 kg` | N | rule 1 — weight |
-| `Royal Canin Medium Adult 4 kg` | `ROYAL CANIN Medium Sterilised Adult, 4 kg` | N | rule 2 — Sterilised |
-| `Calibra Cat Life Pouch Sterilised Multipack 12x85 g` | `Calibra Cat Life Pouch Sterilised 85 g` | N | rule 1 — pack_count 12 vs 1 |
-| `Churu Chicken 4x14 g` | `Churu Chicken 6x14 g` | N | rule 1 — pack_count 4 vs 6 |
-| `Churu Variety Pack 20x14 g` | `Churu Chicken 20x14 g` | N | rule 4 — MIXED vs single flavour |
-| `Orijen Original Dog Adult Mini 1.8 kg` | `Orijen Original Dog Adult Mini fara cereale 1,8 kg` | M | rule 2 — "fara cereale" is descriptive |
-| `Bete dentare pentru caini 12-25 kg, 7 buc` | `Bete dentare pentru caini 5-10 kg, 7 buc` | N | rule 3 — dosage bands both stated, differ |
-| `Bete dentare Medium 7 buc` | `Bete dentare pentru caini talie medie 12-25 kg, 7 buc` | M | rule 3 — band on one side only, ignored |
-| `Hrana umeda caini Dolina Noteci Premium Vanat 800 g` | same product, shop shows `Piper` as brand | M | rule 5 — brand provenance |
+| `Royal Canin Medium Adult 4 kg` | `ROYAL CANIN Medium Adult 7+, ... senior, 4kg` | N | rule 3 — `7+` qualifier |
+| `Royal Canin Medium Adult 15 kg` | `Royal Canin Medium Adult 4 kg` | N | rule 2 — weight |
+| `Royal Canin Medium Adult 4 kg` | `ROYAL CANIN Medium Sterilised Adult, 4 kg` | N | rule 3 — Sterilised |
+| `Calibra Cat Life Pouch Sterilised Multipack 12x85 g` | `Calibra Cat Life Pouch Sterilised 85 g` | N | rule 2 — pack_count 12 vs 1 |
+| `Churu Chicken 4x14 g` | `Churu Chicken 6x14 g` | N | rule 2 — pack_count 4 vs 6 |
+| `Churu Variety Pack 20x14 g` | `Churu Chicken 20x14 g` | N | rule 5 — MIXED vs single flavour |
+| `Orijen Original Dog Adult Mini 1.8 kg` | `Orijen Original Dog Adult Mini fara cereale 1,8 kg` | M | rule 3 — "fara cereale" is descriptive |
+| `Bete dentare pentru caini 12-25 kg, 7 buc` | `Bete dentare pentru caini 5-10 kg, 7 buc` | N | rule 4 — dosage bands both stated, differ |
+| `Bete dentare Medium 7 buc` | `Bete dentare pentru caini talie medie 12-25 kg, 7 buc` | M | rule 4 — band on one side only, ignored |
+| `Hrana umeda caini Dolina Noteci Premium Vanat 800 g` | same product, shop shows `Piper` as brand | M | rule 6 — brand provenance |
+| `Advance Dog Adult Sensitive 12 kg` | `ROYAL CANIN Digestive Care Adult, hrana uscata pisici, 10kg` | N | rule 1 — dog vs cat |
 
 ## Status
 
 Revision 2, 2026-09-15 — written by the architect session before any labelling, replacing
 revision 1's six deferred `S` defaults with decisions and consolidating revision 1's rules 1–3
 into a single quantity-tuple rule.
+
+**Revision 3, 2026-09-15 (fourth same-day session)** — added species as the new Rule 1 (ahead of
+the quantity rule), renumbering rules 1–8 to 2–9. Prompted by the 100-pair AI reference labelling
+pass finding 4 of its 100 pairs cross-species, and `normalize/species.py` existing to detect it as
+of this session. No other rule's text changed — this is purely an insertion and renumbering, not
+a re-decision of anything revision 2 already settled.
 
 Revise this file, not the tool's code, when real labelling surfaces a case these rules don't
 resolve — the same discipline Phase 2's conventions followed (ADR-0026 → ADR-0027 added
