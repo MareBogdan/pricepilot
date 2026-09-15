@@ -190,3 +190,112 @@ search by brand root (or brand + weight), then manually scan the results for the
 qualifies, because it does not depend on `product_line` text overlap the way both the embedding
 and this extension's query do. A query built from `brand + product_line` (this extension's own
 choice) does not qualify, regardless of how it's phrased.
+
+## Addendum #2, 2026-09-15 (third session) — full SKU-list enumeration overturns the retraction:
+6 of 7 re-checked rows are confirmed matches, not N
+
+**Context.** A third-session audit challenged the retraction directly: the 10-row recheck above
+(addendum #1) found brand+product line for 7 of 10 rows using a shortened query, called all 7 `N`
+on weight, but never enumerated each product's *complete* variant list — only the default/shown
+variant, the exact failure mode `_resolve_variant` was already built to fix once (pentruanimale
+groups size variants under one product; a naive lookup had previously resolved a Hill's 6kg pair
+to its own 1.5kg sibling). Q3's original 54% sample, by contrast, explicitly enumerated variant
+lists for at least one of its confirmed matches (Table 1: "Royal Canin Mother & Babycat... variant
+list: 2kg/4kg/10kg") — a methodological difference between the two sessions that was never
+checked, only asserted.
+
+**Method.** The Chrome browser extension was not connected this session, so hand-scanning the
+storefront UI was not available. Instead, each of the 7 products' **complete SKU list** was pulled
+from pentruanimale's own VTEX Catalog System API
+(`https://www.pentruanimale.ro/api/catalog_system/pub/products/search?ft=<query>` — the same
+public, unauthenticated JSON endpoint the storefront's own search UI calls; not scraping
+infrastructure, a single read per product, well under any rate concern). This returns every SKU
+(`items[].nameComplete`) with live price and stock, independent of which variant the storefront UI
+happens to show by default — a strictly more complete source than either the original query or the
+addendum #1 recheck used, and not subject to the "only the default variant renders" failure mode.
+
+**Result: 6 of 7 rows have the petmax weight in their full SKU list — confirmed matches, missed by
+both the original query and the addendum #1 recheck.**
+
+| # | petmax_title (weight) | pentruanimale product | full SKU/variant list | petmax weight present? |
+|---:|---|---|---|:---:|
+| 15 | Brit Care Dog Hypoallergenic Adult Large Breed (3kg) | BRIT Care Hypoallergenic Adult Large Breed, L-XL, Miel (productId 1442) | 1kg, 3kg, 12kg, 12kg+2kg gratuit | **YES — CONFIRMED** |
+| 17 | Advance Dog Mini Sensitive Somon & Orez (7kg) | ADVANCE Sensitive Care Mini, XS-S, Somon (productId 6097) | 3kg, 7kg | **YES — CONFIRMED** |
+| 26 | Calibra Cat Life Adult Herring (1.5kg) | CALIBRA Life, Hering, hrană uscată pisici (productId 7938) | 1.5kg, 6kg | **YES — CONFIRMED** |
+| 28 | Primordial Holistic Dog Tuna&Lamb Super Premium (12kg) | PRIMORDIAL Holistic, XS-XL, Ton și Miel (productId 8831) | 2kg, 12kg | **YES — CONFIRMED** |
+| 34 | Calibra Dog Life Senior Small Breed Lamb (1.5kg) | CALIBRA Life Senior Small Breed, XS-S, Miel (productId 802) | 1.5kg, 6kg | **YES — CONFIRMED** |
+| 38 | Hill's SP Feline Adult Sterilised Salmon, dry (1.5kg) | — checked every Hill's SP Feline Sterilised product on the site | dry line exists ONLY in Pui/chicken (1.5kg, 3kg); Salmon/Somon exists only as an 85g WET pouch | **NO — genuine non-match** (flavour and food_form both differ; not a checking artefact) |
+| 39 | Hill's SP Canine Adult Perfect Digestion Small and Mini (3kg) | HILL'S SP Perfect Digestion Small&Mini Adult (productId 921) | 1.5kg, 3kg (out of stock, qty=0, but a real listed SKU), 6kg | **YES — CONFIRMED** |
+
+Row 38 is the one genuinely checked-and-absent case in this set — dry Salmon SP Feline Sterilised
+does not exist on pentruanimale at any weight, only as a wet pouch, a real food_form+flavour
+mismatch, correctly `N`. The other 6 were misclassified `N` on weight by both prior passes because
+neither looked past the one variant the page or search snippet happened to surface.
+
+**Recount.** 5 originally confirmed (Table 1, main extension) + 6 newly confirmed above = **11 of
+40 = 27.5%** (up from 12.5%, more than double). Wilson 95% CI for 11/40: **[16.1%, 42.8%]**.
+Applied to the same N=2,334 keyable population, using the identical simplified arithmetic addendum
+#1 used for 12.5% (point = N·p̂, CI = N·[lower, upper]): **point estimate 642, CI [376, 1,000]**
+(vs. 12.5%'s point 292, CI [127, 609]).
+
+**This resolves the acute contradiction, but not with a clean margin, and that has to be said
+plainly.** 642 is comfortably over 400; the CI's lower bound, 376, is not — it sits just under the
+400 threshold, closer to it than the 12.5% figure's own upper bound (609) suggested this method
+could ever get without the fix. Two things temper that residual gap rather than erase it:
+
+1. **This is a floor, not a ceiling, the same way 12.5% was called a floor.** Only 10 of the 35
+   "not found" rows were rechecked at all, and only those 10 got the shortened-query treatment;
+   none of the other 25, nor the original 50-item Q3 draw's own 23 "no match" rows, have been
+   re-examined against the full SKU list this method now shows is necessary. If the same ~86% (6/7)
+   recovery rate found here held across the rest of the "not found" pool, the true rate would be far
+   higher — but that is not measured, only suggested, and is not claimed as a number.
+2. **The mechanism is now directly demonstrated, not inferred.** Six concrete, named products exist
+   on pentruanimale at exactly the petmax weight, discoverable only by reading the full SKU list
+   instead of the one variant a page or search result shows by default — the identical shape of bug
+   `_resolve_variant` was built to catch the first time. That is a checking-method explanation with
+   evidence, not a hopeful reinterpretation of an unchanged number.
+
+**Conclusion — form (a), stated at its real strength: 27.5% is a FLOOR, not the estimate.** Only
+10 of the 35 "not found" rows have ever been rechecked against a full SKU list, and 6 of those 10
+flipped to confirmed — a 60% recovery rate on the rechecked subsample. **27.5% is the number
+actually measured; the true rate plausibly lies between 27.5% and roughly 65%:**
+
+- **Floor: 27.5% (11/40)** — every row not yet rechecked this way is still carried as "not found,"
+  which is known, demonstrated in this same session (6 of 7 cases), to understate the true count.
+- **Ceiling estimate: ~65% (26/40)** — if the 60% recovery rate held across the 25 "not found" rows
+  that have NOT yet been rechecked (25 × 0.60 ≈ 15, plus the 5 original + 6 already confirmed = 26,
+  26/40 = 65%), which is arithmetic, not a new measurement.
+- **This extrapolation is optimistic, and that has to be said plainly, not buried in a caveat.**
+  The 10 rechecked rows were not a random draw from the 35 — they were whichever 10 the addendum
+  #1 session happened to pick for its short-query recheck, with no documented randomisation. A
+  60% rate measured on an unrandomised subsample of 10 is a weak basis for projecting onto the
+  other 25; the true rate could sit anywhere in [27.5%, 65%], including near either end, and this
+  session does not know where.
+- **Q3's original 54% sits comfortably inside that band**, which is exactly the resolution: the
+  acute, specific contradiction (12.5%, CI including a point below the 400 threshold) is retracted
+  for cause and replaced with a wide band that contains, rather than conflicts with, Q3's own
+  estimate.
+
+**What would close this completely: rechecking the remaining 25 "not found" rows against each
+product's full SKU list, the same way the 10 (and the 7 this session) were checked.** The method
+is now fast and mechanical — the VTEX Catalog API lookup used for all 7 rows above took seconds
+per product, not the multi-call browser navigation the original checks used — so this is a small,
+well-defined follow-up, not a new research problem. It was not done this session (not asked for,
+and it would have meant continuing past the specific 7-row verification requested).
+
+The Phase 1 gate itself was never re-measured by this exercise — it remains ADR-0023's own
+hand-verified estimate (p̂=0.52, n=50, point 1,214, CI [899, 1,522]), untouched throughout. What
+this addendum resolves is narrower and specific: the 12.5% figure that appeared to statistically
+threaten that gate (CI [127, 609] including 400) is retracted for cause, demonstrated concretely
+(6 of 7 rows), and its replacement is not a single corrected number but a band (27.5%-65%) that
+sits in the same direction and order of magnitude as Q3's original 52-54%, comfortably containing
+it. **The Phase 1 gate is not at risk from this line of investigation.** The one honest residual
+is procedural, not statistical: a full re-check of the remaining 25 "not found" rows against each
+product's complete SKU list, not just the shown variant, has not been done and would be needed
+before this specific extension sample could be called a settled measurement in its own right —
+it was never the gate
+metric to begin with, and does not need to become one.
+
+**Date.** 2026-09-15 (third session, no Chrome extension available — verified via pentruanimale's
+own public VTEX Catalog API instead of the browser tool, same product pages, structured JSON
+instead of rendered HTML).
