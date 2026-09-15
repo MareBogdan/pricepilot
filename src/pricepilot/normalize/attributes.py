@@ -92,12 +92,27 @@ _FOLLOWED_BY_DIMENSION = re.compile(
 _FOLLOWED_BY_HYPHEN_WORD = re.compile(r"^-[A-Za-z]")
 
 
+# Phase 3 finding 6 (2026-09-15 session, pilot positions 28/69/88/94): "XS-XL" is
+# pentruanimale_ro's own "fits any breed size" marker, not a real breed-size claim — checked
+# against the full population before trusting (not assumed): of 985 in-scope rows carrying this
+# literal code, **100% are pentruanimale_ro** (0 from petmax_ro, 0 from animax_ro), and it is by
+# far the single largest breed_size_code value in the whole population (985, ahead of "Mini"'s
+# 400) — consistent with it being a boilerplate default stamped on most of that shop's product
+# pages rather than a size the product is actually restricted to. Storing it as a real code made
+# the field falsely "stated" on the pentruanimale side of a pair whose other side (petmax/animax)
+# states nothing, which the annotation-queue forecast's rule 6 (one-sided field -> S) then
+# over-counted as an ambiguous case. Treated as "no breed-size stated", same as if the title had
+# never mentioned a size at all.
+_ALL_SIZES_MARKER = "XS-XL"
+
+
 def extract_breed_size(title: str) -> str | None:
     folded = strip_diacritics(title.lower())
     if _ACCESSORY_CONTEXT.search(folded) is not None or _HARNESS_PREFIX.match(folded) is not None:
         return None
     if (match := _COMPOUND_SIZE.search(title)) is not None:
-        return match.group(1).upper()
+        code = match.group(1).upper()
+        return None if code == _ALL_SIZES_MARKER else code
     if (match := _WORD_SIZE.search(title)) is not None:
         return match.group(1).capitalize()
     for match in _SINGLE_LETTER_SIZE.finditer(title):
@@ -109,6 +124,73 @@ def extract_breed_size(title: str) -> str | None:
             continue
         return match.group(1).upper()
     return None
+
+
+# Phase 3 finding 5 (2026-09-15 session): a canonical breed-size code alongside the raw token,
+# same idea as `brand_blocking_key` — the raw string alone makes "Medium" and "M" (a real
+# cross-shop match, pilot position 12) or "Mini" and "XS-S" (pilot 55) look like a mismatch when
+# they name the same size. Checked against the real population before building the mapping, not
+# assumed complete from the two examples the finding named (`docs/learned/` census + a
+# same-real-product cross-shop join, both this session): every distinct `breed_size_code` value
+# was printed with its count first, then pentruanimale_ro's OWN titles were mined for cases where
+# a word form ("Large Breed", "Small & Medium Breed", ...) and a compact code ("L-XL", "XS-M", ...)
+# appear together in the SAME title — self-consistent, single-source evidence, no cross-shop
+# noise. Dominant, unambiguous pairings found this way: Mini/Small <-> XS-S (170+ titles), Small &
+# Mini <-> XS-S, Large <-> L-XL (63), bare Maxi <-> L-XL (18), "Medium & Maxi"/"Medium and Maxi"
+# (a distinct compound WORD phrase, not bare Maxi) <-> M-XL (27), Giant <-> XL (4). Word "Medium"
+# alone maps to letter "M" per the task's own confirmed cross-shop case (pilot 12); internal
+# evidence for this specific pairing was thin (n=2) but did not contradict it.
+#
+# Modelled as a RANK INTERVAL, not a flat bucket string, because the real relationship is a
+# continuum (XS < S < M < L < XL) that shops chunk differently, and several compact codes
+# genuinely SPAN more than one rank (e.g. "M-XL" legitimately means "fits Medium through
+# Extra-Large" — collapsing it into one flat bucket would silently pick a side). Two codes are
+# then compared by RANK OVERLAP (any shared rank = compatible, not forced N), not string
+# equality — Medium(3,3) overlaps M-XL(3,5) at rank 3, which is exactly the real cross-shop match
+# found while building this table (`REMI PREMIUM Junior Medium&Large, M-XL` = `Remi Premium
+# Junior Medium&Large`, animax tagging it "Medium" because its own extractor only ever catches a
+# single word). Stored as a compact `"lo-hi"` string (e.g. `"3-3"`, `"1-2"`) — same shape as
+# `brand_blocking_key`, a derived lookup column, not a new raw field.
+_RANK = {"XS": 1, "S": 2, "M": 3, "L": 4, "XL": 5}
+_WORD_RANK: dict[str, tuple[int, int]] = {
+    "Mini": (1, 2),
+    "Medium": (3, 3),
+    "Maxi": (4, 5),
+}
+
+
+def breed_size_rank(code: str | None) -> tuple[int, int] | None:
+    """The canonical (lo, hi) rank interval for a raw `breed_size_code` value, or `None` when the
+    code is unmapped (should not happen for any value this module itself produces, since every
+    value `extract_breed_size` can return is covered below) or the input is `None`."""
+    if code is None:
+        return None
+    if code in _RANK:
+        return (_RANK[code], _RANK[code])
+    if code in _WORD_RANK:
+        return _WORD_RANK[code]
+    if "-" in code:
+        lo_s, _, hi_s = code.partition("-")
+        lo, hi = _RANK.get(lo_s), _RANK.get(hi_s)
+        if lo is not None and hi is not None:
+            return (lo, hi)
+    return None
+
+
+def breed_size_class(code: str | None) -> str | None:
+    """`breed_size_rank()` packed as a compact `"lo-hi"` string for storage/lookup."""
+    rank = breed_size_rank(code)
+    return None if rank is None else f"{rank[0]}-{rank[1]}"
+
+
+def breed_size_overlaps(left: str | None, right: str | None) -> bool | None:
+    """`True` if both sides have a mapped rank interval and they share at least one rank (same
+    real size, however each shop wrote it). `False` if both are mapped and DISJOINT (confidently
+    different sizes). `None` if either side is unmapped/unstated — not a guess either way."""
+    lr, rr = breed_size_rank(left), breed_size_rank(right)
+    if lr is None or rr is None:
+        return None
+    return lr[0] <= rr[1] and rr[0] <= lr[1]
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +205,20 @@ def extract_breed_size(title: str) -> str | None:
 # diacritic-folded title, so "adulți"/"adulti" both fold to "adulti" before this ever runs.
 _LIFE_STAGE = re.compile(r"\b(puppy|junior|adulti|adult|senior)\b")
 
+# Phase 3 finding 7 (2026-09-15 session, pilot 15: "RC Maxi Adult" vs "RC Maxi Adult (5+)"; pilot
+# 30: "RC Medium Adult" vs "RC Medium Adult 7+" — both real N, both scored M because the ladder
+# only ever saw "adult" on both sides). Royal Canin (and a few others) qualify "Adult"/"Senior"
+# with a minimum-age band — "(5+)", "7+", "8+", "11+" — that names a genuinely different formula,
+# not a synonym for plain Adult. Checked against the full population before trusting this pattern
+# (not assumed): 97 in-scope titles carry a bare `\d+\+` token; the overwhelming majority are this
+# age-qualifier shape, but a real false-positive class exists too — BONUS-WEIGHT phrases like
+# "10+2kg GRATUIT" / "12+2 kg" / "8+1kg GRATUIT" (quantity.py's own bonus_weight_g pattern) also
+# match a bare `\d+` immediately followed by `+`. Distinguished the same way quantity.py already
+# tells the two apart: a bonus-weight `+` is always immediately followed by ANOTHER digit (the
+# bonus amount); a genuine age qualifier never is (it's followed by `)`, `,`, a space, or the
+# string's end) — verified against every one of the 97 titles, not just the pattern's shape.
+_AGE_QUALIFIER = re.compile(r"\((\d{1,2})\+\)|\b(\d{1,2})\+(?!\d)")
+
 
 def extract_life_stage(title: str) -> str | None:
     folded = strip_diacritics(title.lower())
@@ -130,7 +226,15 @@ def extract_life_stage(title: str) -> str | None:
     if match is None:
         return None
     word = match.group(1)
-    return "adult" if word.startswith("adult") else word
+    stage = "adult" if word.startswith("adult") else word
+    # Only appends the qualifier when a life-stage word was already found — a bare age qualifier
+    # with no life-stage word at all ("Royal Canin Sterilised 7+") is left as a separate, still-
+    # open gap (no life-stage word to attach it to), not guessed into a new category.
+    age_match = _AGE_QUALIFIER.search(title)
+    if age_match is not None:
+        n = age_match.group(1) or age_match.group(2)
+        stage = f"{stage}+{n}"
+    return stage
 
 
 # ---------------------------------------------------------------------------
@@ -208,4 +312,11 @@ def extract_food_form(title: str) -> str | None:
     return _FOOD_FORM_CANONICAL.get(word)
 
 
-__all__ = ["extract_breed_size", "extract_food_form", "extract_life_stage"]
+__all__ = [
+    "breed_size_class",
+    "breed_size_overlaps",
+    "breed_size_rank",
+    "extract_breed_size",
+    "extract_food_form",
+    "extract_life_stage",
+]

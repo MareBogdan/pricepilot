@@ -5,6 +5,9 @@ from __future__ import annotations
 import pytest
 
 from pricepilot.normalize.attributes import (
+    breed_size_class,
+    breed_size_overlaps,
+    breed_size_rank,
     extract_breed_size,
     extract_food_form,
     extract_life_stage,
@@ -19,14 +22,62 @@ from pricepilot.normalize.attributes import (
     ("title", "expected"),
     [
         ("SAM'S FIELD Junior Large Breed, L-XL, Miel, hrana uscata", "L-XL"),
-        ("PET'S DESSERT Stick, XS-XL, Miel, punguta recompense", "XS-XL"),
+        # Phase 3 finding 6 (2026-09-15 session): "XS-XL" is pentruanimale_ro's own "fits any
+        # breed size" marker, checked against the full population (100% of 985 in-scope
+        # occurrences are pentruanimale_ro, 0 from petmax_ro/animax_ro) — no longer stored as a
+        # real breed-size claim.
+        ("PET'S DESSERT Stick, XS-XL, Miel, punguta recompense", None),
         ("RAW PALEO Mini Adult, XS-S, Vita, tavita hrana umeda", "XS-S"),
         ("Orijen Original Dog Adult Mini 1.8 kg", "Mini"),
         ("Hrana uscata pentru caini Brit Premium by Nature Junior XL 15 kg", "XL"),
     ],
 )
-def test_breed_size(title: str, expected: str) -> None:
+def test_breed_size(title: str, expected: str | None) -> None:
     assert extract_breed_size(title) == expected
+
+
+# ---------------------------------------------------------------------------
+# Breed-size canonicalisation (finding 5, 2026-09-15 session)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        (None, None),
+        ("M", (3, 3)),
+        ("Medium", (3, 3)),
+        ("Mini", (1, 2)),
+        ("XS-S", (1, 2)),
+        ("Maxi", (4, 5)),
+        ("L-XL", (4, 5)),
+        ("M-XL", (3, 5)),
+    ],
+)
+def test_breed_size_rank(code: str | None, expected: tuple[int, int] | None) -> None:
+    assert breed_size_rank(code) == expected
+
+
+def test_breed_size_class_packs_rank_as_string() -> None:
+    assert breed_size_class("Medium") == "3-3"
+    assert breed_size_class("Mini") == "1-2"
+    assert breed_size_class(None) is None
+
+
+@pytest.mark.parametrize(
+    ("left", "right", "expected"),
+    [
+        ("Medium", "M", True),  # pilot 12: real cross-shop match, word vs. single letter
+        ("Mini", "XS-S", True),  # pilot 55: real cross-shop match, word vs. compound range
+        ("Medium", "M-XL", True),  # overlap at rank 3, not identical strings
+        ("Mini", "Maxi", False),  # disjoint ranges: confidently different sizes
+        ("L-XL", "XS-S", False),
+        (None, "M", None),  # one side unstated -- not a guess either way
+        (None, None, None),
+    ],
+)
+def test_breed_size_overlaps(left: str | None, right: str | None, expected: bool | None) -> None:
+    assert breed_size_overlaps(left, right) is expected
 
 
 def test_word_form_breed_size_case_insensitive() -> None:
@@ -192,6 +243,29 @@ def test_chicken_pui_is_not_mistaken_for_puppy_life_stage() -> None:
 
 def test_no_life_stage_is_none() -> None:
     assert extract_life_stage("Jucarie pentru pisici Kong Cat Bila plutitoare") is None
+
+
+# Phase 3 finding 7 (2026-09-15 session, pilot 15/30): an age-qualifier ("(5+)", "7+", "8+")
+# names a genuinely different formula from plain Adult/Senior, not a synonym for it.
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("Royal Canin Maxi Adult (5+), 15 Kg", "adult+5"),
+        ("Royal Canin Medium Adult 7+, hrana uscata caini, 4kg", "adult+7"),
+        ("HILL'S SCIENCE PLAN Senior Vitality 7+, M, Pui, hrana uscata caini senior", "senior+7"),
+        # Bonus-weight phrases ("10+2kg GRATUIT") must NOT be read as an age qualifier — the "+"
+        # here is immediately followed by another digit (the bonus amount), which a genuine age
+        # qualifier never is. Checked against all 97 in-scope titles carrying a bare `\d+\+`
+        # token before trusting this guard, not assumed from these two cases alone.
+        ("Hrana uscata caini, Calibra Dog Life Adult Medium Breed Chicken 12+2 kg", "adult"),
+        ("ROYAL CANIN Mini Adult, hrana uscata caini, 8+1kg GRATUIT", "adult"),
+        # No life-stage word at all -- the age qualifier has nothing to attach to and is left as
+        # a still-open gap, not guessed into a new category.
+        ("Royal Canin Sterilised 7+ hrana uscata pisica sterilizata, 10 kg", None),
+    ],
+)
+def test_life_stage_age_qualifier(title: str, expected: str | None) -> None:
+    assert extract_life_stage(title) == expected
 
 
 # ---------------------------------------------------------------------------

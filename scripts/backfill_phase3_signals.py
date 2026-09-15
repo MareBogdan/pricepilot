@@ -1,11 +1,14 @@
-r"""Phase 3 STEP 3 — backfill `category`, `brand_blocking_key`, `brand_is_distributor_code`.
+r"""Phase 3 STEP 3 — backfill `category`, `brand_blocking_key`, `brand_is_distributor_code`,
+`species`, `breed_size_class` (the last two: finding 4/5, 2026-09-15 session, migration 0008).
 
     uv run python scripts/backfill_phase3_signals.py [--dry-run]
 
-Separate from `scripts/normalize.py` deliberately: `category` needs `url` and `raw_payload`,
-which the deterministic `extract()` pipeline never reads (title-only, ADR-0026). Joins each
-`norm_listings` row back to one representative `raw_listings` row by `content_hash` to get those
-two fields.
+Separate from `scripts/normalize.py` deliberately: `category`/`species` need `url` and
+`raw_payload`, which the deterministic `extract()` pipeline never reads (title-only, ADR-0026).
+`breed_size_class` doesn't need either (it's a pure function of `breed_size_code`, itself
+title-only) but is backfilled here anyway, for one consistent run instead of two. Joins each
+`norm_listings` row back to one representative `raw_listings` row by `content_hash` to get the
+two fields the title-only pipeline never sees.
 
 Idempotent, not cached by content_hash the way `extract()` is: these three signals are cheap
 lookups/regexes, not LLM calls, so re-running to pick up a rule change costs nothing worth
@@ -30,11 +33,13 @@ from sqlalchemy import select  # noqa: E402
 
 from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.models import NormListing, RawListing  # noqa: E402
+from pricepilot.normalize.attributes import breed_size_class  # noqa: E402
 from pricepilot.normalize.brand import (  # noqa: E402
     brand_blocking_key,
     is_suspected_distributor_code,
 )
 from pricepilot.normalize.category import categorize_listing  # noqa: E402
+from pricepilot.normalize.species import classify_species  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -66,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
             raw_by_hash.setdefault(content_hash, (source, url, raw_payload))
 
         category_counts: dict[str | None, int] = {}
+        species_counts: dict[str | None, int] = {}
         distributor_count = 0
         missing_raw = 0
 
@@ -78,17 +84,22 @@ def main(argv: list[str] | None = None) -> int:
             payload = raw_payload if isinstance(raw_payload, dict) else None
 
             category = categorize_listing(source, url, payload, row.sample_title)
+            species = classify_species(source, url, payload, row.sample_title, category)
             key = brand_blocking_key(row.brand)
             is_distributor = is_suspected_distributor_code(row.brand)
+            size_class = breed_size_class(row.breed_size_code)
 
             category_counts[category] = category_counts.get(category, 0) + 1
+            species_counts[species] = species_counts.get(species, 0) + 1
             if is_distributor:
                 distributor_count += 1
 
             if not args.dry_run:
                 row.category = category
+                row.species = species
                 row.brand_blocking_key = key
                 row.brand_is_distributor_code = is_distributor
+                row.breed_size_class = size_class
 
         if not args.dry_run:
             session.flush()
@@ -97,6 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     print("\ncategory distribution:")
     for cat, n in sorted(category_counts.items(), key=lambda x: -x[1]):
         print(f"  {cat!r}: {n}")
+    print("\nspecies distribution:")
+    for sp, n in sorted(species_counts.items(), key=lambda x: -x[1]):
+        print(f"  {sp!r}: {n}")
     print(f"\nbrand_is_distributor_code = True: {distributor_count}")
 
     if args.dry_run:

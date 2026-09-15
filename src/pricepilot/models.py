@@ -257,6 +257,18 @@ class NormListing(Base):
     # — never a statistical threshold (see that function's own docstring for why one was rejected).
     brand_is_distributor_code: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Phase 3 finding 4 (2026-09-15 session, reference labelling pass), migration 0008 — same
+    # backfill pattern as the three signals above (`normalize.species.classify_species`, needs
+    # `url`/`raw_payload`/`category`, never `extract()`). "dog" | "cat" | NULL.
+    species: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
+    # Phase 3 finding 5 (same session), migration 0008 — `normalize.attributes.breed_size_class`,
+    # a rank-interval canonicalisation of `breed_size_code` packed as `"lo-hi"` (e.g. `"3-3"` for
+    # "M"/"Medium", `"1-2"` for "Mini"/"XS-S"), same shape/purpose as `brand_blocking_key`: a
+    # derived lookup column for candidate blocking, never a replacement for the raw token.
+    # Computed from `breed_size_code` alone (title-only lineage), so this one IS safe to compute
+    # in `extract()` — but is backfilled alongside the other three for one consistent script.
+    breed_size_class: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
+
     @validates("net_weight_g", "net_volume_ml")
     def _validate_weight_xor_volume(self, key: str, value: int | None) -> int | None:
         """Same invariant as `ck_norm_listings_weight_xor_volume`, enforced in-process so a
