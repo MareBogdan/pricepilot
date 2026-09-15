@@ -18,6 +18,26 @@ before — a strong identity signal the model should not have to infer from cont
 back to `sample_title` on the ~0.1% of rows with no `product_line` rather than embedding an
 empty/near-empty string.
 
+**2026-09-17 addendum — canonical-field audit (Phase 3 item 1) and two real gaps closed.** Every
+field feeding `embedding_text()` was audited for raw-token-vs-canonical-value before this session;
+results below. Two gaps found and fixed:
+
+| field | in text before this session? | raw or canonical |
+|---|---|---|
+| `brand` | yes | **canonical** (`normalize.brand.canonicalize_brand()` output — already deduplicated across spelling) but NOT the further hyphen/space-insensitive `brand_blocking_key`; left as-is, see note below |
+| `product_line` | yes | **canonical** (brand-stripped extraction, not raw title text) |
+| `net_weight_g`/`net_volume_ml` | yes | **canonical** (parsed structured numeric, not the raw `"1,5 kg"` string) |
+| `pack_count` | yes | **canonical** (structured numeric) |
+| `life_stage` | yes | **canonical** (extractor output, includes the 2026-09-15 age-qualifier extension) |
+| `breed_size_code` | yes | **RAW TOKEN** — "Medium" and "M" stayed different strings in the embedding even though `attributes.py::breed_size_class()` (built 2026-09-15) already unifies them to the same canonical rank interval. **Fixed: swapped for `breed_size_class`.** |
+| `flavour` | **not present at all** | N/A — `normalize.flavour.extract_flavour()` already canonicalises Salmon/Somon, Lamb/Miel, Turkey/Curcan etc. to one EN value on both sides, but the embedding never saw it. **Fixed: added.** |
+
+`brand` vs. `brand_blocking_key`: left as canonical `brand`, not swapped. `brand_blocking_key`
+only differs from `brand` for the ~5 known hyphen/space-punctuation collisions found when it was
+built (`club4paws`, `cat's best`, etc.) — real but narrow; `brand` itself is already deduplicated
+text, not a raw title token, so this is a much smaller gap than the two fixed above and was not
+touched this session.
+
 **Idempotent, cached like everything else in this pipeline**: only rows with `embedding IS NULL`
 are processed by default, matching `scripts/normalize.py`'s own `content_hash`-cache discipline.
 Re-run after `norm_listings` gains new rows (re-extraction, new scraped titles) and only the new
@@ -50,6 +70,7 @@ from sqlalchemy import select  # noqa: E402
 
 from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.models import NormListing  # noqa: E402
+from pricepilot.normalize.attributes import breed_size_class  # noqa: E402
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 BATCH_SIZE = 256
@@ -61,7 +82,12 @@ def embedding_text(row: NormListing) -> str:
     them: quantity (weight OR volume — ADR-0026's own mass-XOR-volume invariant, never both),
     `pack_count` (only when it's a real multipack — `None`/1 are the same purchasable unit per
     the annotation conventions' rule 1, so plain single-unit rows get no pack token at all, not a
-    noisy "x1" every row would otherwise share), `life_stage`, `breed_size_code`."""
+    noisy "x1" every row would otherwise share), `life_stage`, `flavour`, and the CANONICAL
+    `breed_size_class` (not the raw `breed_size_code` — 2026-09-17 audit: "Medium" and "M" are the
+    same size but were two different strings in the embedding text even after `breed_size_class`
+    already unified them; `flavour` was missing from this text entirely even though
+    `normalize.flavour.extract_flavour()` already canonicalises Salmon/Somon, Lamb/Miel etc. to
+    one EN value on both sides — see module docstring for the full per-field audit)."""
     body = row.product_line or row.sample_title
     tail_parts: list[str] = []
     if row.net_weight_g is not None:
@@ -72,8 +98,10 @@ def embedding_text(row: NormListing) -> str:
         tail_parts.append(f"x{row.pack_count}")
     if row.life_stage:
         tail_parts.append(row.life_stage)
-    if row.breed_size_code:
-        tail_parts.append(row.breed_size_code)
+    if row.flavour:
+        tail_parts.append(row.flavour)
+    if (bsc := breed_size_class(row.breed_size_code)) is not None:
+        tail_parts.append(bsc)
     tail = " ".join(tail_parts)
     return f"{row.brand or ''} {body} {tail}".strip()
 
