@@ -98,8 +98,16 @@ measurement method — hence dropped in favour of dating each actual change.
     scrape_runs group by 1,2,3 order by 1,2` shows a successful (`status='ok'`) run for every
     in-scope source on each of the three dates — petmax/pentruanimale on 09-12, all three sources
     from 09-13 onward, matching animax's 09-13 addition, ADR-0024)
-[x] **≥400 products on two or more shops — MET by hand-verified sample estimate: point 1,214,
-    95% CI [899, 1,522]** (ADR-0023, population corrected by ADR-0025). The proxy key itself now
+[x] **≥400 products on two or more shops — MET, now confirmed by TWO independent verification
+    passes, not one.** ADR-0023's own hand-verified sample: point **1,214**, 95% CI **[899,
+    1,522]**. A second, independent pass (2026-09-15/16, TASK A — pentruanimale's VTEX Catalog
+    API, full SKU-list checks, a different session and a different query method than Q3's manual
+    brand-then-scan): corrected rate **23/40 = 57.5%, CI [42.2%, 71.5%]**, applied to the same
+    2,334 keyable population — point **1,342**, CI **[985, 1,669]**. **The two estimates
+    substantially overlap** (1,214 sits inside the second CI, 1,342 sits inside the first) —
+    this is now the best-evidenced gate in the repo, two sessions and two methods agreeing, not
+    one measurement standing alone. Full detail: DECISIONS.md ADR-0028 addendum #7 item 4.
+    The proxy key itself now
     reports 241 with all three sources live (up from 94 with two) and is a known floor at ~8%
     measured recall — kept in `make status` as a daily indicator, not as the gate metric. The
     sample itself (n=50, seed 20260913, p̂=0.52 unchanged) covered petmax food listings vs
@@ -757,6 +765,16 @@ N 53 / S 14, agreement 80/100. Full detail:
 
 ## Open issues
 
+- **Flagged 2026-09-17: `sentence-transformers` is the second library this machine's Windows
+  Application Control policy blocks outright (after `psycopg`, flagged earlier).** Worked around
+  for a plain embedding forward pass this session (`transformers` directly + a `sklearn` stub —
+  see DECISIONS.md ADR-0028 addendum #7 item 1). **That workaround does not extend to Phase 3 item
+  6 (LoRA/QLoRA fine-tuning)** — training needs the real, full `torch` + `transformers` + `peft`
+  dependency chain (optimizers, schedulers, mixed precision), most of which routes through the
+  same blocked compiled extensions somewhere a `sys.modules` stub can't reach. `torch` and
+  `transformers` import cleanly here (checked); `peft` not yet checked. **The fine-tuning step is
+  planned for a hosted GPU notebook, not this local environment — flagged now, before the week-5
+  fine-tuning decision, not discovered on the day.**
 - **CLOSED 2026-09-13: Hill's "PD" token, checked and added** — 0 newly quarantined (all 8
   matches were already caught by animax's `product_type` signal); defense-in-depth for the other
   two sources going forward. See "Last done" above.
@@ -868,22 +886,37 @@ found and fixed real problems (ADR-0028 addendum, then addendum #2, both 2026-09
 in DECISIONS.md. **Still stopped for review before any labelling begins**, per explicit
 instruction. Bogdan needs to review, in particular:
 
-- **recall@20 headline (2026-09-16 session): 72.0% (36/50, CI [58.3%, 82.5%])** — grown from
-  57.7% (15/26) via a larger unbiased eval set (n=50, all confirmed via pentruanimale's VTEX
-  Catalog API, query independent of the embedding input — brand root, never brand+product_line)
-  and a hybrid dense+lexical (RRF-fused) retrieval channel, blocked by `brand_blocking_key`. Still
-  below the >=90% gate target. A K-sweep (20/50/100) found blocked recall reaches 94% by K=100 —
-  most remaining misses are present just outside the top-20, not absent from the ranking, pointing
-  at within-block re-ranking (not a bigger embedding model, not a wider net) as the highest-
-  leverage next step. Failure shapes re-grouped on the larger set: EN/RO flavour-word crossing
-  (29% of misses) and retailer-specific line-naming divergence (24%) are now the two largest
-  categories. A stronger embedding model was ruled out as infeasible THIS session, not by choice —
-  `sentence-transformers` cannot even be imported in this sandboxed environment (a scikit-learn
-  compiled-extension DLL is blocked by the same Windows Application Control policy that blocked
-  `psycopg` previously). Full detail: `docs/learned/phase3-retrieval-improvement-2026-09-16.md`.
-  TASK A (the Q3-vs-12.5%-vs-27.5% question) is now fully closed: all 35 "not found" rows from the
+- **recall@20 headline (2026-09-17 session): 88.0% (44/50, CI [76.2%, 94.4%]) — still MISSED
+  against CLAUDE.md §7's >=90% target.** Grown/improved across three same-week sessions:
+  57.7% (15/26) -> 66.0%/72.0% dense/fused (n=50, eval set grown via pentruanimale's VTEX Catalog
+  API, query independent of the embedding input) -> **74.0%/88.0% dense/fused** after a per-field
+  audit of the embedding text found `breed_size_code` was still the RAW token (not the canonical
+  `breed_size_class` built two sessions ago) and `flavour` — already EN/RO-canonicalised by Phase
+  2 — was missing from the embedding text entirely. Both fixed, all 10,532 rows re-embedded
+  (worked around `sentence-transformers` still being blocked in this sandbox, via `transformers`
+  directly + a `sklearn` stub — the real model, real weights, confined to a scratch script, same
+  discipline as the `pg8000` workaround; `build_embeddings.py` itself untouched). **The predicted
+  shrink in EN/RO-flavour-crossing misses mostly did NOT happen (5/17 -> 4/13)** even though the
+  underlying data-level fix demonstrably worked (flavour matches on both sides of all 4 remaining
+  cases, checked directly) — those 4 pairs now miss for a different reason (general `product_line`
+  phrasing divergence in large crowded brand families), reported as a finding, not smoothed into a
+  round success number. K-sweep still shows blocked recall reaching 96% by K=100 (up from 94%) —
+  **a within-block re-ranking fix (the Phase 3 matching model itself) is written up as a PROPOSED
+  ADR (DECISIONS.md ADR-0028 addendum #7 item 3) for Bogdan to approve — not applied.** This gate
+  stays MISSED in this file until he decides.
+  **Structural limitation of the eval set, recorded (not previously written down): all 50 pairs
+  were found by a brand-root query, and blocked retrieval blocks on brand.** Checked directly: 0
+  of the 50 pairs' listings are flagged `brand_is_distributor_code` or have a null
+  `brand_blocking_key` — every recall figure above (66% through 88%) is **recall on brand-aligned
+  pairs only**; the fallback path blocked retrieval uses for brand-misaligned/distributor-code
+  listings has never been exercised by any measurement in this project. Not a defect introduced
+  this session — Q3's own original method was brand-anchored too, so every pair inherits it.
+  Full detail on all of the above: `docs/learned/phase3-retrieval-improvement-2026-09-16.md`,
+  DECISIONS.md ADR-0028 addendum #7.
+  TASK A (the Q3-vs-12.5%-vs-27.5% question) is fully closed: all 35 "not found" rows from the
   extension have been rechecked against a full SKU list, giving a corrected 40-row rate of
-  **57.5% (23/40), CI [42.2%, 71.5%] — reconciles cleanly with Q3's original 54%.**
+  **57.5% (23/40), CI [42.2%, 71.5%] — reconciles cleanly with Q3's original 54%**, and now serves
+  as the Phase 1 overlap gate's second independent confirmation (see the gate checklist above).
 - The rebuilt annotation queue (997 pairs) now reports a **predicted M/N/S label distribution**
   (a deterministic rules-engine forecast, `docs/learned/phase3-annotation-conventions.md`
   revision 2 applied to every pair) instead of a source-tier count that asserted labels it

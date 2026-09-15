@@ -2038,3 +2038,138 @@ past a clearly impractical per-item cost to chase n>=100. Attempting (f) by disa
 the sandbox restriction rather than reporting it as a real environment limitation.
 
 **Date.** 2026-09-16 (candidate retrieval focus session).
+
+---
+
+## ADR-0028 addendum #7 — canonical fields in the embedding text; eval-set brand-anchoring bias
+recorded; K=20-vs-K=100 re-ranking PROPOSED for Bogdan; Phase 1 gate confirmed twice
+
+**STATUS OF THIS ENTRY: mixed.** Items 1, 2 and 4 below are DONE, measured, and committed. **Item
+3 is PROPOSED ONLY — not applied, not decided.** It is recorded here, in the same log as every
+other decision, specifically so it is visible and awaits Bogdan's approval rather than living only
+in a session transcript nobody reads twice.
+
+### Item 1 — the cheapest untried fix: canonical fields, done and measured
+
+Per-field audit of `build_embeddings.py::embedding_text()` (full table in that file's own
+docstring and in `docs/learned/phase3-retrieval-improvement-2026-09-16.md`): `brand`,
+`product_line`, quantity, `pack_count`, `life_stage` were already canonical values, not raw title
+tokens. Two real gaps: `breed_size_code` was the RAW token (so "Medium" and "M" still differed in
+the embedding even though last session's `breed_size_class()` already unifies them), and
+`flavour` was **absent from the text entirely**, even though `extract_flavour()` already
+canonicalises Salmon/Somon, Lamb/Miel, Turkey/Curcan etc. to one EN value on both sides. Both
+fixed.
+
+Re-embedded all 10,532 rows despite `sentence-transformers` still being blocked in this sandbox
+(confirmed again this session) — worked around it one level lower, via `transformers`'
+`AutoModel`/`AutoTokenizer` directly (the documented standard recipe: mean-pooling + L2-normalize,
+exactly what `SentenceTransformer.encode()` does internally), stubbing `sklearn` in `sys.modules`
+before import since `transformers` also transitively imports it for an unrelated, unused feature.
+Runs the real model with its real weights; confined to a scratch script, same discipline as the
+`pg8000` workaround — `build_embeddings.py` itself is untouched and still imports
+`sentence_transformers` normally for any environment where that works. 134s for the full catalog.
+
+**Recall@20, headline (n=50), before -> after:** dense blocked 66.0% (33/50) -> **74.0% (37/50)**;
+RRF-fused blocked 72.0% (36/50) -> **88.0% (44/50), CI [76.2%, 94.4%]**. A +22pp combined
+improvement from a text change plus the existing hybrid fusion, no new model.
+
+**Did the EN/RO flavour-crossing shape shrink, as predicted? Checked, not assumed — mostly no,
+and that is reported as a finding.** All 4 pairs still readable as EN/RO crossing after the fix
+were queried directly: `flavour` extracts correctly and MATCHES on both sides for every one
+(salmon=salmon, lamb=lamb, turkey=turkey, chicken=chicken). The shape's raw count barely moved (5
+of 17 misses -> 4 of 13). **The mechanism this fix targeted IS fixed at the data level** — these
+pairs no longer fail on flavour misalignment, because there no longer is any — but they still miss
+because of separate, substantial `product_line` phrasing divergence inside large, crowded brand
+families (Brit Premium by Nature, Brit Care) that the embedding still doesn't collapse even with
+brand+flavour+weight+breed-size all aligned. One of the five original EN/RO misses (Calibra Cat
+Pouch Trout & Salmon) WAS resolved. The fix works; it is not sufficient alone for titles that also
+diverge this much elsewhere.
+
+### Item 2 — eval set structural limitation, recorded
+
+Every one of the 50 headline pairs was found by a brand-root query; blocked retrieval blocks on
+`brand_blocking_key`. Checked directly: **0 of the 50 pairs' 100 listings have
+`brand_is_distributor_code = true` or a null `brand_blocking_key`.** The fallback path inside
+blocked retrieval (the one that matters for the distributor-code class ADR-0028 already named —
+`"Ipts"`, `"opti"`) has never been exercised by any recall measurement in this project. Every
+blocked/fused figure reported (66.0% through 88.0%) is **recall on brand-aligned pairs
+specifically**; recall on brand-misaligned pairs is unmeasured. Not a defect introduced this
+session — Q3's own original method was brand-anchored too, so all 50 pairs inherit it from the
+eval set's very first row. Full detail, including what an unbiased draw would require (a
+verification method that ignores brand strings entirely — slower, no anchor to search by, a
+separate session's work): `docs/learned/phase3-retrieval-improvement-2026-09-16.md`.
+
+### Item 3 — PROPOSED: widen candidate generation to K=100 and let the matching model re-rank
+
+**Not applied. Recall@20 stands as measured: 88.0% (44/50), CI [76.2%, 94.4%] — MISSED against
+CLAUDE.md §7's >=90% target.** That figure is not being reframed by what follows.
+
+**The argument.** The K-sweep (this session and last) is consistent: blocked recall climbs from
+74.0% at K=20 to 96.0% at K=100. For the pairs recall@20 currently misses, **the true match is
+usually IN the candidate pool already — just ranked 21st to 100th, not absent.** Re-ranking a
+wider pool is a different problem than retrieving a wider pool, and CLAUDE.md's own Phase 3 plan
+already assigns exactly that job to a component: **the fine-tuned matching model itself**, which
+was always going to read a candidate list and decide M/N/S — it does not need to be a NEW
+component, only fed 100 candidates instead of 20.
+
+**Option A — accept the K=20 gate as the candidate-generation gate, unchanged.** Recall@20 stays
+the measured, missed gate. Whatever the matching model can't see at position 21+ is invisible to
+it, permanently, for that pair. Zero additional serving cost. Simple, and already what the repo
+currently does.
+
+**Option B — generate K=100 candidates, let the matching model score and re-rank all 100 per
+query.** Recovers the ~22pp gap the K-sweep shows is sitting at ranks 21-100. Cost, stated
+precisely as a multiplier since the section-7 serving benchmark itself has not been run yet (Phase
+3 has not reached fine-tuning):
+
+- **5x more matching-model scorings per query** (100 vs. 20 candidates).
+- **Over the current 10,532-row population**, a full one-time candidate-generation sweep (one
+  query per row) would need **10,532 × 100 = 1,053,200 scorings at K=100**, vs. **10,532 × 20 =
+  210,640 at K=20** — +842,560 scorings, a real number for THIS population, not an estimate; it
+  will grow as the catalogue grows (Phase 1's scrapers add rows daily).
+- **This is the one-time/batch sweep cost, not the live per-listing cost.** Matching one NEW
+  listing against the catalogue (the everyday production case, `docs/learned/` Phase 6's
+  eventual `update_price` flow) costs 100 vs. 20 scorings regardless of catalogue size — cheap
+  either way. The 5x multiplier matters for whichever process re-scores the WHOLE candidate pool
+  at once (rebuilding `blocked_retrieval_candidate` for the annotation queue, or a full nightly
+  re-match), not for interactive use.
+- **Directly multiplies whatever CLAUDE.md §7's "cost per 1,000 comparisons" serving benchmark
+  measures**, once it exists: if the quantized model costs $X (or Yms p95) per 1,000 comparisons
+  at K=20, a full-population K=100 sweep costs 5X (or 5Y) for the same population, all else equal.
+  **This is exactly the number that benchmark is supposed to produce — the K decision should be
+  made WITH that number in hand, not before it, which is the concrete reason this stays PROPOSED
+  rather than decided now.**
+
+**Recommendation, not a decision**: Option B, once the serving benchmark exists to price it
+properly — the K-sweep's own evidence (74% -> 96% between K=20 and K=100) is strong enough that
+paying a bounded, quantifiable re-ranking cost looks likely to close most of the remaining recall
+gap. **Awaiting Bogdan's decision.** STATE.md's gate line stays MISSED either way until he
+chooses.
+
+### Item 4 — Phase 1 overlap gate: confirmed twice, and a second blocked-library flag
+
+The corrected TASK A rate (23/40 = 57.5%, CI [42.2%, 71.5%]) and ADR-0023's own hand-verified
+estimate (p̂=0.52, n=50) are **two independent verification passes — different sessions, different
+query methods (Q3's manual brand-then-scan vs. this project's VTEX Catalog API full-SKU checks) —
+agreeing.** Applied to the current N=2,334 keyable population: **point estimate 1,342, CI [985,
+1,669]** (vs. ADR-0023's own point 1,214, CI [899, 1,522]) — both comfortably clear the 400
+threshold and substantially overlap each other. STATE.md's overlap bullet updated to cite both
+measurements, not ADR-0023 alone — this is now the best-evidenced gate in the repo.
+
+**Second blocked-library flag, for the record before it's needed**: `sentence-transformers`
+joins `psycopg` as a library this sandboxed environment's Application Control policy blocks
+outright. Phase 3's fine-tuning step (item 6, LoRA/QLoRA) needs `torch` + `transformers` (both
+import cleanly here, confirmed this session) **+ `peft`**, not yet checked, and training itself —
+unlike a forward pass for embeddings — cannot be worked around with a `sys.modules` stub the way
+this session's re-embedding was, since training needs the real, full dependency chain (optimizers,
+schedulers, mixed precision) most of which routes through the same blocked compiled extensions at
+some point. **The fine-tuning step is planned for a hosted GPU notebook, not this local
+environment, and this is flagged now rather than discovered on the day**, per instruction.
+
+**Rejected.** Treating item 1's partial (not full) shrinkage of the EN/RO shape as if the fix had
+failed, when the data-level mechanism demonstrably succeeded for all 4 remaining cases and one of
+five previously-failing pairs was resolved. Deciding item 3 unilaterally because the K-sweep
+evidence is strong — it is a real architectural/cost trade-off with a number CLAUDE.md's own
+process will produce soon, and the instruction was explicit: propose, do not apply.
+
+**Date.** 2026-09-17 (fourth candidate-retrieval session).
