@@ -1956,3 +1956,85 @@ any other invalidated number. Removing cross-species pairs from the queue when o
 proposal was asked for.
 
 **Date.** 2026-09-15 (fifth same-day session, follow-up review of addenda #3 and #4).
+
+---
+
+## ADR-0028 addendum #6 — candidate retrieval: eval set grown to n=50, hybrid retrieval, TASK A
+closed completely
+
+**Context.** Candidate retrieval recall@20 is the only measured Phase 3 gate currently missed
+(57.7%, n=26, vs. the >=90% target). Full detail, every number, all failure-shape examples:
+`docs/learned/phase3-retrieval-improvement-2026-09-16.md`.
+
+**BLOCK 1(a) — TASK A closed.** The remaining 25 of the extension's 35 "not found" rows were
+rechecked via pentruanimale's VTEX Catalog API (full SKU list, brand-root query). **12 of 25 are
+genuine confirmed matches** missed by the original full-descriptive query. **Corrected 40-row
+rate: 23/40 = 57.5%, CI [42.2%, 71.5%] — reconciles with Q3's original 54%** (previously 12.5%,
+then 27.5% as a floor with a [27.5%, ~65%] band; now closed, every one of the 35 rows checked
+against a full SKU list). 4 of the 12 confirmed matches (plus 1 from the prior session's 6) are
+real-world confirmed but not usable for the retrieval eval set — the exact matching pentruanimale
+SKU was never collected by our own scraper (out of stock at every scrape, or missed by the VTEX
+variant expansion) — a confirmed market match and a retrieval-testable pair are different claims.
+
+**BLOCK 1(b) — eval set grown to n=50.** New random draw (seed `20260916`, 300 items, population
+excludes all previously-checked titles), verified by brand-root query (never brand+product_line,
+per the contamination finding TASK C already established) via the same API. Automated weight+brand
+matching alone produces real false positives (checked, not assumed — a coincidental same-
+brand/weight match with zero title-token overlap); tightened with flavour-canonical agreement or
+token-overlap scoring, and **every surviving candidate still read by eye** before counting —
+caught a Pro-Plan-vs-Cat-Chow retail-tier mismatch, a Calibra dog-vs-cat species mismatch, and a
+Julius-K9 formula (Hypoallergenic vs. Vital Essentials) mismatch the automated score alone would
+have accepted. Of 300 drawn, 226 successfully queried (74 hit an unrecoverable fetch failure this
+session, reported not padded past), yielding **11 usable confirmed pairs** after review. Eval set
+headline subset: 26 (original) + 13 (this session's TASK A recheck, both sessions) + 11 (new
+draw) = **50**. Per-item cost: ≈27 draws per usable pair at this rate; reaching 100 would need
+~1,600 more draws, not attempted — reported honestly as impractical this session, per instruction.
+
+**New pre-Block-2 baseline, before any retrieval change: 66.0% (33/50), CI [52.2%, 77.6%]**
+(dense, blocked by `brand_blocking_key` — same config as before, just measured on the larger set;
+higher than 57.7% because the new pairs skew easier on average, a composition effect, not a
+retrieval change).
+
+**BLOCK 2(c) — failure shapes re-grouped from scratch** (the old ADR-0028 grouping is stale: embedding
+text, blocking, XS-XL, breed-size and life_stage all changed since). New top shapes on the 17
+current misses: EN/RO flavour-word crossing (Salmon/Somon, Lamb/Miel, Turkey/Curcan — 29%),
+retailer-specific line-naming divergence (Optiderma vs. Sensitive Skin, no shared vocabulary at
+all — 24%), one-sided extra descriptive text (24%), near-identical-text crowding (18%), packaging
+variant (6%).
+
+**BLOCK 2(d) — hybrid retrieval, built.** `scripts/measure_recall_hybrid.py`: a Postgres
+full-text lexical channel over the SAME text the embedding uses (isolates ranking method, not a
+text change), fused via Reciprocal Rank Fusion (k=60). Lexical alone is much weaker than dense
+alone (12.0% vs 38.0% unblocked) — cannot bridge EN/RO flavour pairs at all — but fusing still
+lifts blocked recall **66.0% -> 72.0% (+6pp)**. Adding the canonical `flavour` field to the
+lexical text (targeting the #1 failure shape directly) was tried and measured: no material change
+(still 72.0%) — reported as a checked dead end, not silently dropped.
+
+**BLOCK 2(e) — K-sweep, the key diagnostic.** Unblocked recall is nearly flat past K=20 (38% ->
+42% by K=100) — most unblocked misses are absent from the ranking entirely. **Blocked recall
+climbs to 94% by K=100** — most blocked misses are present, just ranked 21-100. Conclusion:
+blocking (candidate generation) already does nearly all the real work; **the open problem is
+within-block re-ranking, not a wider net or a stronger embedding model.**
+
+**BLOCK 2(f) — a stronger embedding model: infeasible this session, not a judgement call.**
+`import sentence_transformers` fails outright in this session's sandboxed environment —
+`ImportError: DLL load failed while importing _argkmin: An Application Control policy has blocked
+this file` (a scikit-learn compiled extension, transitive dependency), the same class of Windows
+sandbox restriction that blocked `psycopg`'s binary wheel previously. No pure-Python workaround
+exists for a transformer forward pass the way `pg8000` substituted for `psycopg`. Every
+measurement this session read pre-computed embeddings via `pgvector`'s `<=>` operator in raw SQL —
+none were recomputed. (e)'s own finding also argues this would not have been the highest-leverage
+fix even if available — ranking, not embedding quality, is the dominant remaining gap.
+
+**Final figure against the gate: 72.0% (36/50), CI [58.3%, 82.5%] — below >=90%, reported as
+final, not tuned further, not reframed.** What would close it: a small within-block re-ranker
+(cross-encoder or similar) over the top-100 blocked candidates — CLAUDE.md's own Phase 3
+architecture already calls for a small, CPU-servable matching model at this exact position, which
+could double as this re-ranker rather than needing a separate one.
+
+**Rejected.** Treating the automated weight+brand scorer's output as confirmed without an eye
+review pass, once it demonstrably produced real false positives. Continuing the BLOCK 1(b) draw
+past a clearly impractical per-item cost to chase n>=100. Attempting (f) by disabling or bypassing
+the sandbox restriction rather than reporting it as a real environment limitation.
+
+**Date.** 2026-09-16 (candidate retrieval focus session).

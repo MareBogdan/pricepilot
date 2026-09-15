@@ -868,16 +868,22 @@ found and fixed real problems (ADR-0028 addendum, then addendum #2, both 2026-09
 in DECISIONS.md. **Still stopped for review before any labelling begins**, per explicit
 instruction. Bogdan needs to review, in particular:
 
-- **recall@20 headline is 57.7% (15/26, n=26, CI [38.9%, 74.5%])** — the clean, uncontaminated
-  figure, still below the >=90% gate target. A 2026-09-15 extension to n=31 (64.5%) was found to be
-  **contaminated** (its search query shared its core signal with the embedding text TASK 2(a)
-  changed the same day) and is reported separately, never as the headline.
-  `q3-verification-extension-2026-09-15.md` has the full finding, including a second, unrelated
-  correction: this session's own "12.5% match rate" claim (which briefly looked like it might
-  threaten ADR-0023's Phase 1 overlap gate) was **retracted** — re-checking 10 of the 35 "not
-  found" rows with a shorter query found 0 new matches but decisive evidence the original searches
-  themselves were the problem (two concrete cases: a product the search missed entirely under its
-  full name, found immediately under a shorter one). **The Phase 1 gate is not at risk.**
+- **recall@20 headline (2026-09-16 session): 72.0% (36/50, CI [58.3%, 82.5%])** — grown from
+  57.7% (15/26) via a larger unbiased eval set (n=50, all confirmed via pentruanimale's VTEX
+  Catalog API, query independent of the embedding input — brand root, never brand+product_line)
+  and a hybrid dense+lexical (RRF-fused) retrieval channel, blocked by `brand_blocking_key`. Still
+  below the >=90% gate target. A K-sweep (20/50/100) found blocked recall reaches 94% by K=100 —
+  most remaining misses are present just outside the top-20, not absent from the ranking, pointing
+  at within-block re-ranking (not a bigger embedding model, not a wider net) as the highest-
+  leverage next step. Failure shapes re-grouped on the larger set: EN/RO flavour-word crossing
+  (29% of misses) and retailer-specific line-naming divergence (24%) are now the two largest
+  categories. A stronger embedding model was ruled out as infeasible THIS session, not by choice —
+  `sentence-transformers` cannot even be imported in this sandboxed environment (a scikit-learn
+  compiled-extension DLL is blocked by the same Windows Application Control policy that blocked
+  `psycopg` previously). Full detail: `docs/learned/phase3-retrieval-improvement-2026-09-16.md`.
+  TASK A (the Q3-vs-12.5%-vs-27.5% question) is now fully closed: all 35 "not found" rows from the
+  extension have been rechecked against a full SKU list, giving a corrected 40-row rate of
+  **57.5% (23/40), CI [42.2%, 71.5%] — reconciles cleanly with Q3's original 54%.**
 - The rebuilt annotation queue (997 pairs) now reports a **predicted M/N/S label distribution**
   (a deterministic rules-engine forecast, `docs/learned/phase3-annotation-conventions.md`
   revision 2 applied to every pair) instead of a source-tier count that asserted labels it
