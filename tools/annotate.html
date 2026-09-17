@@ -170,6 +170,9 @@
       <div class="stat">⏱ <b id="stat-timer">00:00</b></div>
       <div class="stat">median <b id="stat-median">—</b>/decision</div>
       <div id="split-badge-wrap"><span class="split-badge" id="split-badge"></span></div>
+      <button class="btn" id="btn-export" title="Export labels (key: E)"><span class="key">E</span> Export</button>
+      <button class="btn" id="btn-import" title="Import labels (key: I)"><span class="key">I</span> Import</button>
+      <input type="file" id="file-import" accept="application/json" hidden>
       <div id="tiers"></div>
     </div>
     <div id="resume-note"></div>
@@ -307,6 +310,96 @@ let cursor = 0;       // position in `order`
 let decisionStart = null;
 let timerHandle = null;
 let sessionStartMs = null;
+let queueSha256 = null;  // FIX 3 -- SHA-256 of the fetched queue file's raw text, set in init()
+let splitSha256 = null;  // FIX 3 -- SHA-256 of the fetched split file's raw text, set in init()
+
+// FIX 3 -- label export/import. crypto.subtle.digest is available on http://localhost and
+// https://, not on a bare file:// origin, matching this tool's existing http-server requirement.
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+// Pure-ish (reads only the module-level `state`/`queueSha256`/`splitSha256`) so it can be
+// exercised directly by a DOM-free Node test, same style as addendum #10's assistedFlowReport().
+function buildExportPayload() {
+  return {
+    queue_sha256: queueSha256,
+    split_sha256: splitSha256,
+    decision_count: Object.keys(state).length,
+    exported_at: new Date().toISOString(),
+    state,
+  };
+}
+
+// Returns {ok: true} on success (and REPLACES `state`, saving it), or {ok: false, error} on a
+// hash mismatch -- refuses rather than silently importing labels recorded against a different
+// queue/split file. Does not touch localStorage on failure.
+function applyImportPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return { ok: false, error: "not a valid label export file" };
+  }
+  if (payload.queue_sha256 !== queueSha256 || payload.split_sha256 !== splitSha256) {
+    return {
+      ok: false,
+      error:
+        "SHA-256 mismatch -- this export was recorded against a different queue and/or split " +
+        "file than the one currently loaded. Refusing to import.",
+    };
+  }
+  state = payload.state || {};
+  saveState();
+  return { ok: true };
+}
+
+function exportLabels() {
+  const payload = buildExportPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const now = new Date();
+  const stamp =
+    `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}-` +
+    `${pad2(now.getHours())}${pad2(now.getMinutes())}`;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `phase3-labels-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast(`exported ${payload.decision_count} decisions`);
+}
+
+function importLabelsFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let payload;
+    try {
+      payload = JSON.parse(reader.result);
+    } catch (e) {
+      toast("import failed: not valid JSON");
+      return;
+    }
+    const result = applyImportPayload(payload);
+    if (!result.ok) {
+      toast(`import REFUSED: ${result.error}`);
+      alert(`Import refused:\n\n${result.error}`);
+      return;
+    }
+    toast(`imported ${payload.decision_count} decisions`);
+    // Reload rather than re-render in place: state, order and cursor all derive from a fresh
+    // init() pass, and re-deriving them by hand here would duplicate that logic and risk drift.
+    location.reload();
+  };
+  reader.readAsText(file);
+}
 
 function loadState() {
   try {
@@ -885,11 +978,13 @@ function buildOrder(seed) {
 }
 
 async function init() {
-  let data, splitData;
+  let data, splitData, queueText, splitText;
   try {
     const [res, splitRes] = await Promise.all([fetch(QUEUE_URL), fetch(SPLIT_URL)]);
-    data = await res.json();
-    splitData = await splitRes.json();
+    queueText = await res.text();
+    splitText = await splitRes.text();
+    data = JSON.parse(queueText);
+    splitData = JSON.parse(splitText);
   } catch (e) {
     document.getElementById("content").innerHTML =
       `<div class="card">Could not load <code>${QUEUE_URL}</code> and/or <code>${SPLIT_URL}</code>.
@@ -900,6 +995,10 @@ async function init() {
       <code>scripts/split_annotation_queue.py</code> first if either file doesn't exist yet.</div>`;
     return;
   }
+
+  // FIX 3 -- hashes recorded now, exported with every label file, checked on import.
+  queueSha256 = await sha256Hex(queueText);
+  splitSha256 = await sha256Hex(splitText);
 
   queue = data.pairs;
   // FIX 1 -- derive occurrence_id from row order BEFORE merging the split file, never trust the
@@ -973,6 +1072,8 @@ document.addEventListener("keydown", (e) => {
   else if (key === "c") confirmSuggestion();
   else if (key === "u") undo();
   else if (key === "f") toggleFlag();
+  else if (key === "e") exportLabels();
+  else if (key === "i") document.getElementById("file-import").click();
 });
 document.querySelectorAll(".btn[data-answer]").forEach((b) => {
   b.addEventListener("click", () => {
@@ -987,6 +1088,15 @@ document.querySelectorAll("#reason-strip button[data-reason]").forEach((b) => {
   b.addEventListener("click", () => setReason(S_REASONS[b.dataset.reason]));
 });
 document.getElementById("btn-pilot-continue").addEventListener("click", dismissPilotReport);
+document.getElementById("btn-export").addEventListener("click", exportLabels);
+document.getElementById("btn-import").addEventListener("click", () => {
+  document.getElementById("file-import").click();
+});
+document.getElementById("file-import").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) importLabelsFromFile(file);
+  e.target.value = ""; // allow re-selecting the same filename later
+});
 
 init();
 </script>
