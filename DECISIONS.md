@@ -2392,3 +2392,136 @@ to match the suggestion" as a confirmation (would undercount how often the annot
 exercising independent judgement, the opposite of what the correction-rate report needs to show).
 
 **Date.** 2026-09-17 (fifth candidate-retrieval session, STEP 7).
+
+## ADR-0028 addendum #11 — three defects found and fixed before annotation starts: occurrence_id
+collisions, an unstratified TEST split, and no label export
+
+**Context.** A short verification session (same-week, before any labelling began) reviewed
+addendum #10's split/assisted-flow build and found two real defects, plus a missing capability
+CLAUDE.md §5's "never report a number without the command behind it" discipline extends to: with
+no export, every recorded decision would live only in one browser's `localStorage`, unrecoverable
+if that browser profile is ever cleared. All three fixed here, denominators corrected to 997 rows
+(addendum #10's "959 keys" framing implicitly treated the file as if it had 959 rows; it has 997,
+959 is the DISTINCT `pair_id` count, and the two numbers being conflated is exactly what caused
+defect 1 below).
+
+**Defect 1 — occurrence_id collisions, verified before fixing.** The frozen queue has 997 rows but
+only 959 distinct `occurrence_id` values. `build_annotation_queue.py` hardcodes
+`occurrence_id = f"{pair_id}_0"`; 38 `pair_id`s appear TWICE in the frozen file, always as one
+`proxy_key_collision` row and one `trivial_spot_check` row (the trivial-tier pass scans
+already-selected pairs for byte-identical attributes and can re-select one a category query
+already placed elsewhere — a real gap in the frozen queue builder, not touched, since the queue
+is frozen). Both rows collide on `occurrence_id`. Two real consequences, not hypothetical: (a) a
+split file keyed by `occurrence_id` can only ever have 959 keys, 38 short of the 997 it needs;
+(b) `tools/annotate.html`'s `state` dict is ALSO keyed by `occurrence_id`, so the moment the first
+occurrence of a collided pair is decided, `findNextUndone()` treats the second as already done and
+never shows it — the self-agreement check these 38 double-drawn pairs exist to provide would
+silently never have run.
+
+**Fix.** `occurrence_id = f"{pair_id}_{k}"`, `k` = 0-based ordinal of that `pair_id` in FROZEN-FILE
+ROW ORDER — computed identically in three independent places, deliberately not shared code across
+languages: `scripts/split_annotation_queue.py::derive_occurrence_ids()` (Python),
+`tools/annotate.html::deriveOccurrenceIds()` (JS, mutates `queue` items before merging the split
+file), and `tests/test_annotation_split.py::_derive_occurrence_ids()` (Python, re-derived from the
+rule's own description rather than imported, so a bug shared between the first two would still be
+caught). All three verified to agree: 997 distinct derived ids, 0 missing assignments.
+
+**A silent default was also removed, not just the collision.** The first build of
+`tools/annotate.html` defaulted a queue item with no split-file assignment to `"test"` — a "safe"
+default that is exactly the kind of silent fallback that hid the collision in the first place.
+Replaced with a visible, blocking error: if any queue item has no assignment, the tool refuses to
+start and names the missing occurrence_ids, rather than guessing.
+
+**A second, related fix — repeat spacing.** Even with unique ids, showing a collided pair's two
+occurrences close together in the DISPLAY order would let short-term memory answer the second one,
+defeating its purpose as a self-agreement check. `enforceRepeatSpacing(order, queue, 100)` is a
+deterministic post-pass on `buildOrder()`'s output: for each of the 38 repeated `pair_id`s, if its
+second occurrence is currently shown fewer than 100 positions after its first, it is moved later
+(never earlier) to close the gap. Verified by running the REAL `buildOrder()` in Node against the
+real frozen queue and its real `shuffle_seed`: **all 38 gaps are >=100 (min 100, median 314, max
+849)**, and the resulting order is still a valid permutation of all 997 rows.
+
+**Defect 2 — the first split was filled by raw component size, with no tier balance, and CLAUDE.md
+§7 needs per-category results.** Measured before fixing: `capacity_differs_within_shop` landed at
+3/300 (1.0%) in TEST vs. 73/697 (10.5%) in TRAIN_VAL — an 9.5pp gap — and
+`same_capacity_diff_flavour` at 12/300 (4.0%) vs. 73/697 (10.5%), a 6.5pp gap. A per-category F1
+computed on 3 TEST examples for one tier is not a usable number.
+
+**Fix.** Replaced the best-fit-decreasing walk with a seeded local-search optimizer minimising
+`sum_t (test_t - target_t)^2` across the 9 active tiers, `target_t = 300 * (rows of tier t in all
+997) / 997` — a HARD constraint that `sum(test_t) == 300` exactly, and the existing 90-row
+component cap unchanged (the 281-row component still routes to TRAIN_VAL — checked again this
+session: it holds 123 of `capacity_differs_cross_shop`'s 209 rows, 58.9% of that whole tier, the
+single tightest structural constraint of any tier, since only 86 of its rows are even ELIGIBLE for
+TEST once the giant component is excluded, against a target of 62.9). Balances ONLY on `tier` —
+`engine_prediction` is never a balancing input, exactly as instructed; it is reported afterward as
+a diagnostic (TEST: M 103/N 164/S 33; TRAIN_VAL: M 203/N 390/S 104 — this run's numbers, not fixed
+across reruns since the optimizer's exact component choice is one of several equally-optimal sets;
+see the reproducibility note below).
+
+**Result — every tier's gap collapsed to <=0.3pp** (from as much as 9.5pp): blocked_retrieval
+0.0pp, capacity_differs_cross_shop 0.1pp, capacity_differs_within_shop 0.1pp,
+diff_brand_similar_title 0.3pp, proxy_key_collision 0.0pp, same_capacity_diff_breedsize 0.1pp,
+same_capacity_diff_flavour 0.2pp, same_capacity_diff_lifestage 0.1pp, trivial_spot_check 0.0pp —
+every tier comfortably inside the 4.5pp acceptance limit, every TEST count (14-86) above the
+14-row minimum. **5-seed objective range: [0.556, 0.611]** (`SPLIT_SEED` through `SPLIT_SEED+4`) —
+tight, confirming the committed seed's result (0.556) is not a lucky outlier; the committed split
+always uses `SPLIT_SEED` specifically, never whichever of the 5 scored best (that would be tuning
+the split to a result, not measuring one). Acceptance gate — checked and enforced, script exits
+non-zero on failure — PASSED on every criterion: all tier gaps <=4.5pp, all TEST counts >=14, 0
+`content_hash` overlap, exactly 997 assignment keys, no `engine_prediction` on any TEST entry.
+
+**A reproducibility gap was found and fixed while building this**: the optimizer's hill-climbing
+loop called `rng.choice(list(selected))` where `selected` is a Python `set` — `set` iteration order
+depends on per-process string-hash randomization, so the exact set of components chosen (though
+not the resulting tier-count vector or objective) differed between two runs with the IDENTICAL
+seed. Fixed by sorting before choosing (`rng.choice(sorted(selected))`) — verified by running the
+script twice in a row and diffing the output file byte-for-byte: identical. This is the same class
+of gap STATE.md already flagged once for `build_annotation_queue.py`'s own Python-hash-order
+sensitivity; fixed here rather than left as a second instance of a known issue.
+
+**Defect 3 (a missing capability, not a bug) — no way to get labels out of the browser.**
+`tools/annotate.html` persisted every decision to `localStorage` only, with no export — a cleared
+browser profile would silently destroy hours of labelling with no recovery path.
+
+**Fix.** `E` (Export) downloads `phase3-labels-YYYYMMDD-HHMM.json`: the full `state` object plus
+`queue_sha256`/`split_sha256` (computed in-browser via `crypto.subtle.digest`, over the fetched
+files' raw text, at load time) and a decision count/timestamp. `I` (Import) reads a file, and
+`applyImportPayload()` REFUSES — leaving current `state` untouched — unless both hashes match the
+currently-loaded queue and split files exactly. Verified with the same DOM-free Node harness style
+as addendum #10 (stub `document`/`localStorage`/`fetch`/`crypto`, the real extracted functions):
+export -> clear -> import round-trips `state` byte-for-byte identical; a payload with a deliberately
+wrong `queue_sha256` is refused, with `state` left untouched.
+
+**Verification summary, all done without opening a browser (same constraint as addenda #9/#10).**
+`node --check` on the extracted `<script>` (syntax clean). A Node harness loading the REAL frozen
+queue and REAL split file confirmed: 997 distinct derived occurrence_ids; all 38 repeat groups
+correctly `_0`/`_1`; `buildOrder()` + `enforceRepeatSpacing()` both produce valid 997-item
+permutations; all 38 repeat gaps >=100 (min 100, median 314, max 849); 0 queue items missing a
+split assignment against the current files; export/import round-trip exact; mismatched-hash import
+refused. `uv run mypy` (45 files, clean), `uv run ruff check .` / `ruff format --check .` (clean),
+`uv run pytest` (all tests green, 12 new in `tests/test_annotation_split.py`).
+
+**The frozen queue file itself was never touched.** SHA-256
+`696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`, verified identical before this
+session's first edit and after its last — `scripts/split_annotation_queue.py` now also checks this
+hash itself, every run, and refuses to proceed if it ever disagrees.
+
+**Rejected.**
+- **Pair-level rebalancing** (relaxing the connected-component constraint to hit tier targets more
+  easily) — would reopen exactly the CLAUDE.md §7 item 4 leak the product-level split exists to
+  close, to make an optimizer's job marginally easier. Not considered once the component-based
+  approach was shown to reach <=0.3pp gaps anyway.
+- **Editing the frozen queue** to remove or renumber the 38 collided rows — the queue is frozen by
+  its own rule (addendum #9); the fix belongs in how `occurrence_id` is DERIVED downstream, not in
+  rewriting data that rule already protects.
+- **Balancing the TEST selection on `engine_prediction`** (M/N/S forecast) instead of only `tier` —
+  explicitly forbidden by instruction, and would make the TEST set's label distribution partially
+  an artifact of the same deterministic rules ladder the fine-tune is later compared against,
+  contaminating the comparison it's supposed to be neutral for.
+- **Treating a same-size-only swap as sufficient** for the local search — tried first, converged
+  to a visibly worse objective on early testing; the general remove-one/add-one-plus-singleton-
+  rebalance move was added because pure same-size swaps could get stuck whenever no unselected
+  component of exactly the needed size existed.
+
+**Date.** 2026-09-17 (sixth session, pre-annotation verification pass).

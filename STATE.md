@@ -10,11 +10,25 @@ built and **closed at recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%]** 
 measurement-power finding, neither "met" nor "missed": the >=90% target sits inside the interval
 and separating 88% from 90% would need ~1,000 verified positive pairs (~27,000 draws at this
 project's observed rate), which is out of reach. No further retrieval tuning. The annotation
-queue is **FROZEN** (997 pairs / 959 distinct pair_ids, single-feature guard passed at 29.4% /
+queue is **FROZEN** (997 rows / 959 distinct pair_ids, single-feature guard passed at 29.4% /
 11.4% / 5.7%, forecast M 30.7% / N 55.6% / S 13.7% persisted in the JSON) and split
-product-level into **TEST 300 pairs (blind — no rules-engine suggestion is ever shown) and
-TRAIN_VAL 697 pairs (assisted — suggestion shown, `C` confirms, `M`/`N`/`S` override)**. The
-assisted annotation tool is built and verified without a browser.
+product-level into **TEST 300 rows (blind — no rules-engine suggestion is ever shown) and
+TRAIN_VAL 697 rows (assisted — suggestion shown, `C` confirms, `M`/`N`/`S` override)**.
+**A same-week verification pass (ADR-0028 addendum #11) found and fixed three real defects before
+labelling started**: (1) 38 `pair_id`s appear twice in the frozen queue under a colliding
+hardcoded `occurrence_id`, which would have silently hidden the second occurrence from the
+annotator — fixed by deriving `occurrence_id` from row order in three independent places
+(Python split script, JS tool, Python test) and spacing each pair's two showings >=100 positions
+apart (verified against the real files: min 100, median 314, max 849); (2) the first TEST split
+was filled by raw component size with no tier balance (one tier's TEST/TRAIN_VAL gap was 9.5pp) —
+replaced with a seeded stratified optimizer, now every tier's gap is <=0.3pp, an acceptance gate
+(<=4.5pp per tier, >=14 TEST rows per tier, 0 listing overlap, 997 keys, no leaked predictions)
+is checked and enforced by the script itself, and a 5-seed range [0.556, 0.611] confirms the
+committed seed's result isn't a lucky outlier; (3) the tool had no way to get labels out of
+`localStorage` — added `E`/Export and `I`/Import, refusing an import whose queue/split SHA-256
+doesn't match what's currently loaded. The frozen queue file itself was never touched (SHA-256
+verified identical before and after). The assisted annotation tool is built and verified without
+a browser (`node --check` plus a DOM-free harness against the real files).
 
 **The next action in this project is Bogdan labelling.** Nothing is blocked on architecture, on
 retrieval, or on Claude Code. CLAUDE.md §7 item 3 — "the user annotates 800-1,000 pairs manually
