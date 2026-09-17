@@ -1,12 +1,17 @@
-r"""Phase 3 STEP 7 — product-level TEST / TRAIN_VAL split of the FROZEN annotation queue, plus the
-deterministic-engine predictions the assisted flow shows for TRAIN_VAL pairs only.
+r"""Phase 3 STEP 7 (rewritten, ADR-0028 addendum #11) — product-level TEST/TRAIN_VAL split of the
+FROZEN annotation queue, tier-STRATIFIED this time, plus the deterministic-engine predictions the
+assisted flow shows for TRAIN_VAL pairs only.
 
     uv run python scripts/split_annotation_queue.py
 
 **Why a separate script, not a rebuild of the queue itself.** `docs/learned/phase3-annotation-
 queue.json` is FROZEN (DECISIONS.md ADR-0028 addendum #9) — no further rebuild without a stated
-reason recorded in STATE.md first. Splitting it into TEST/TRAIN_VAL is a read-only, additive step:
-this script reads the frozen queue and writes two NEW files, never touching the queue itself.
+reason recorded in STATE.md first. This script reads the frozen queue READ-ONLY and writes two
+files; it never touches the queue itself. Every run SHA-256s the queue file first and refuses to
+proceed if it doesn't match `FROZEN_QUEUE_SHA256` below (the value recorded the moment the queue
+was frozen), so a future accidental edit to the "frozen" file is caught immediately rather than
+silently producing a split of different data than this script's own docstring and the ADR entries
+describe.
 
 **FIX 1 — occurrence_id collisions (ADR-0028 addendum #11).** The frozen queue has 997 rows but
 only 959 distinct `occurrence_id` values: `build_annotation_queue.py` hardcodes
@@ -35,39 +40,57 @@ is hard); a connected component of the queue's own pairs is the strongest defens
 available, since two listings connected by any queue pair are, by construction, being compared as
 candidates for the same product identity.
 
-**One-component-dominates guard.** The real component-size distribution has one component of 281
-pairs (28.2% of the 997-pair queue) — almost certainly one popular, many-variant product family
-chained together through several capacity_differs/proxy_key comparisons. Assigning it whole to a
-~300-pair TEST split would make ~94% of the headline test set describe ONE product family, which
-defeats the purpose of a product-level split (avoiding any one product dominating a metric).
-**Policy, applied uniformly, not hand-picked for this one case**: a component may not contribute
-more than 30% of the TEST target size (target 300 -> cap 90 pairs) to TEST; anything larger is
-routed to TRAIN_VAL instead, where it is one of many pairs among ~700 rather than the entire
-signal.
+**One-component-dominates guard, unchanged from the first version.** One component has 281 of the
+997 rows (28.2%) — checked directly, not assumed: 123 of its rows are `capacity_differs_cross_shop`
+(123/209 = 58.9% of that WHOLE tier), the rest split across proxy_key_collision (83),
+diff_brand_similar_title (23), trivial_spot_check (18), same_capacity_diff_lifestage (13),
+same_capacity_diff_breedsize (11), capacity_differs_within_shop (9), blocked_retrieval_candidate
+(1). Assigning it whole to a ~300-pair TEST split would make ~94% of the headline test set describe
+one product family. Policy, applied uniformly: a component may not supply more than 30% of the
+TEST target (target 300 -> cap 90 rows) to TEST; the 281-row component is the only one that
+exceeds this and is routed to TRAIN_VAL. **Direct, measured consequence for
+`capacity_differs_cross_shop` specifically**: only 209-123=86 of its 209 rows are even ELIGIBLE for
+TEST once the giant component is excluded, against a target of 62.9 — feasible (86 >= 63), but the
+tightest margin of any tier, and reported explicitly below rather than left to be discovered from
+the output table alone.
 
-**Filling TEST to ~300.** After removing the one over-cap component, a seeded shuffle + best-fit
-walk over the remaining components (382 total, most of them singletons or pairs — see the size
-histogram this script prints) assembles TEST as close to the 300 target as the available component
-sizes allow, without any single remaining component exceeding the 90-pair cap.
+**FIX 2 — TEST composition is now TIER-STRATIFIED, not filled by raw component size (ADR-0028
+addendum #11).** The prior version's best-fit-decreasing walk optimized only for hitting the
+300-row total, with no regard for per-tier balance, and produced a badly skewed TEST split
+(e.g. capacity_differs_within_shop 3/300 in TEST vs. 73/697 in TRAIN_VAL) — unusable for CLAUDE.md
+§7's required per-category results. Replaced with a seeded local-search optimizer: minimise
+`sum_t (test_t - target_t)^2` over the 9 active tiers (`target_t = 300 * tier_totals_997[t] / 997`,
+counted over the full 997 ROWS so a collided pair counts once per tier it actually appears under),
+subject to the hard constraint `sum(test_t) == 300` and the component-cap exclusion above. Balances
+ONLY on `tier` — `engine_prediction` is never a balancing input, reported afterward purely as a
+diagnostic. Search: seeded best-fit-decreasing initial fill + exact-gap closing via singleton
+components, then hill-climbing local search (equal-size swaps, and general remove-one/add-one
+swaps rebalanced with singleton components to keep the row total exactly 300), many random
+restarts per seed, best objective kept. Run under 5 different seeds
+(`SPLIT_SEED, SPLIT_SEED+1..+4`) purely to report the objective's range across seeds — the
+COMMITTED split always uses `SPLIT_SEED` specifically, never "whichever seed scored best" (that
+would be tuning the split to a result, not measuring one).
 
-**TRAIN_VAL predictions.** For every TRAIN_VAL pair, this script also computes the deterministic
-rules engine's prediction (`predict_label()`, ported from `build_annotation_queue.py` — same
-ladder, same conventions.md revision 3) and writes it into the split file next to that pair's
-`occurrence_id`. **TEST pairs get NO prediction field in this file, full stop** — not `null`, not
-present at all — so `tools/annotate.html` has no field to accidentally render even by a future bug.
-A second, separate file (`phase3-test-split-reference-predictions.json`) holds the TEST pairs'
-predictions for later offline evaluation ONLY; it is never fetched by `tools/annotate.html` and is
-named to make that obvious.
+**Acceptance gate, checked and enforced — the script exits non-zero if any of these fail:**
+every active tier's `|TEST share - TRAIN_VAL share| <= 4.5` percentage points AND `TEST count >=
+14`; 0 `content_hash` overlap between splits; exactly 997 assignment keys; no `engine_prediction`
+key on any TEST entry.
+
+**FIX 3 note (not this script).** Label export/import lives in `tools/annotate.html` — unrelated
+to the split itself, listed here only so a reader of this docstring knows where the third fix in
+this addendum landed.
 
 Writes nothing to the database. Does not touch the frozen queue file. Starts no annotation.
 """
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import random
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -84,9 +107,20 @@ QUEUE_JSON = ROOT / "docs" / "learned" / "phase3-annotation-queue.json"
 SPLIT_JSON = ROOT / "docs" / "learned" / "phase3-annotation-split.json"
 TEST_REFERENCE_JSON = ROOT / "docs" / "learned" / "phase3-test-split-reference-predictions.json"
 
+# The frozen queue's own hash, recorded here the moment it was frozen (ADR-0028 addendum #9). If
+# this ever disagrees with the file on disk, something edited the "frozen" file -- refuse to
+# proceed rather than silently split different data than the one this script's own docstring and
+# ADR entries describe.
+FROZEN_QUEUE_SHA256 = "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011"
+
 TEST_TARGET = 300
 COMPONENT_CAP_FRACTION = 0.30  # a component may not supply more than this share of TEST_TARGET
 SPLIT_SEED = 20260917
+REPORT_SEEDS = [SPLIT_SEED, SPLIT_SEED + 1, SPLIT_SEED + 2, SPLIT_SEED + 3, SPLIT_SEED + 4]
+RESTARTS_PER_SEED = 12
+ITERATIONS_PER_RESTART = 4000
+TIER_GAP_LIMIT_PP = 4.5
+TEST_MIN_PER_TIER = 14
 
 _LIFE_STAGE_GROUP = {"puppy": "young", "junior": "young", "adult": "adult", "senior": "senior"}
 
@@ -146,20 +180,6 @@ def predict_label(left: dict[str, Any], right: dict[str, Any]) -> tuple[str, str
     return "M", "default_M"
 
 
-def derive_occurrence_ids(pairs: list[dict[str, Any]]) -> list[str]:
-    """FIX 1 — `occurrence_id = f"{pair_id}_{k}"`, k = 0-based ordinal of that pair_id among the
-    frozen file's rows, IN FILE ORDER. Never reads the file's own (colliding) `occurrence_id`
-    field. `tools/annotate.html` derives the identical id from the identical rule."""
-    counts: dict[str, int] = {}
-    ids = []
-    for p in pairs:
-        pid = p["pair_id"]
-        k = counts.get(pid, 0)
-        ids.append(f"{pid}_{k}")
-        counts[pid] = k + 1
-    return ids
-
-
 # --- union-find over content_hash, edges = the frozen queue's own pairs ---
 class UnionFind:
     def __init__(self) -> None:
@@ -178,81 +198,285 @@ class UnionFind:
             self.parent[ra] = rb
 
 
+def derive_occurrence_ids(pairs: list[dict[str, Any]]) -> list[str]:
+    """FIX 1 — `occurrence_id = f"{pair_id}_{k}"`, k = 0-based ordinal of that pair_id among the
+    frozen file's rows, IN FILE ORDER. Never reads the file's own (colliding) `occurrence_id`
+    field. `tools/annotate.html` derives the identical id from the identical rule."""
+    counts: dict[str, int] = {}
+    ids = []
+    for p in pairs:
+        pid = p["pair_id"]
+        k = counts.get(pid, 0)
+        ids.append(f"{pid}_{k}")
+        counts[pid] = k + 1
+    return ids
+
+
+class Component:
+    __slots__ = ("indices", "root", "size", "tier_counts")
+
+    def __init__(self, root: str, indices: list[int], row_tiers: list[str]) -> None:
+        self.root = root
+        self.indices = indices
+        self.size = len(indices)
+        self.tier_counts: Counter[str] = Counter(row_tiers[i] for i in indices)
+
+
+def objective(selected_tier_counts: Counter[str], targets: dict[str, float]) -> float:
+    return sum((selected_tier_counts.get(t, 0) - target) ** 2 for t, target in targets.items())
+
+
+def _sum_tier_counts(components: list[Component]) -> Counter[str]:
+    total: Counter[str] = Counter()
+    for c in components:
+        total.update(c.tier_counts)
+    return total
+
+
+def _initial_solution(eligible: list[Component], rng: random.Random, target_total: int) -> set[str]:
+    """Seeded best-fit-decreasing fill, then close the exact remaining gap with singleton
+    components (there are 286 of them in this population -- always enough headroom)."""
+    order = eligible[:]
+    rng.shuffle(order)
+    order.sort(key=lambda c: -c.size)  # best-fit-decreasing on top of the shuffle
+    selected: set[str] = set()
+    total = 0
+    for c in order:
+        if total + c.size <= target_total:
+            selected.add(c.root)
+            total += c.size
+        if total >= target_total:
+            break
+    if total < target_total:
+        remaining = target_total - total
+        singles = [c for c in order if c.size == 1 and c.root not in selected]
+        rng.shuffle(singles)
+        for c in singles[:remaining]:
+            selected.add(c.root)
+            total += 1
+    assert total == target_total, f"initial fill reached {total}, not {target_total}"
+    return selected
+
+
+def _local_search(
+    eligible: list[Component],
+    targets: dict[str, float],
+    seed: int,
+    restarts: int,
+    iterations: int,
+) -> tuple[set[str], float]:
+    rng = random.Random(seed)
+    by_root = {c.root: c for c in eligible}
+    singles = [c.root for c in eligible if c.size == 1]
+
+    best_selected: set[str] = set()
+    best_obj = float("inf")
+
+    for _restart in range(restarts):
+        selected = _initial_solution(eligible, rng, TEST_TARGET)
+        cur_counts = _sum_tier_counts([by_root[r] for r in selected])
+        cur_obj = objective(cur_counts, targets)
+
+        for _it in range(iterations):
+            move = rng.random()
+            unselected_pool = [c.root for c in eligible if c.root not in selected]
+            if not unselected_pool:
+                break
+            if move < 0.6:
+                # Equal-size swap: preserves the row total exactly, no rebalancing needed.
+                out_root = rng.choice(sorted(selected))
+                out_size = by_root[out_root].size
+                candidates = [r for r in unselected_pool if by_root[r].size == out_size]
+                if not candidates:
+                    continue
+                in_root = rng.choice(candidates)
+            else:
+                # General swap: remove one, add one of a DIFFERENT size, then rebalance the
+                # row-count difference using singleton components so the total stays exactly
+                # TEST_TARGET. Abandoned (skip this iteration) if not enough spare singles exist
+                # in the needed direction.
+                out_root = rng.choice(sorted(selected))
+                out_size = by_root[out_root].size
+                in_root = rng.choice(unselected_pool)
+                in_size = by_root[in_root].size
+                diff = out_size - in_size  # >0: need to add `diff` more rows; <0: remove `-diff`
+                trial_selected = (selected - {out_root}) | {in_root}
+                if diff > 0:
+                    spare_singles = [r for r in singles if r not in trial_selected and r != in_root]
+                    if len(spare_singles) < diff:
+                        continue
+                    rng.shuffle(spare_singles)
+                    extra_add = spare_singles[:diff]
+                    trial_selected |= set(extra_add)
+                elif diff < 0:
+                    removable_singles = [r for r in singles if r in trial_selected and r != in_root]
+                    if len(removable_singles) < -diff:
+                        continue
+                    rng.shuffle(removable_singles)
+                    extra_remove = removable_singles[:-diff]
+                    trial_selected -= set(extra_remove)
+                new_counts = _sum_tier_counts([by_root[r] for r in trial_selected])
+                new_obj = objective(new_counts, targets)
+                if new_obj <= cur_obj:
+                    selected = trial_selected
+                    cur_obj = new_obj
+                continue
+
+            trial_counts = cur_counts.copy()
+            trial_counts.subtract(by_root[out_root].tier_counts)
+            trial_counts.update(by_root[in_root].tier_counts)
+            new_obj = objective(trial_counts, targets)
+            if new_obj <= cur_obj:
+                selected = (selected - {out_root}) | {in_root}
+                cur_counts = trial_counts
+                cur_obj = new_obj
+
+        if cur_obj < best_obj:
+            best_obj = cur_obj
+            best_selected = set(selected)
+
+    return best_selected, best_obj
+
+
 def main() -> int:
     if not QUEUE_JSON.exists():
         print(f"frozen queue not found: {QUEUE_JSON}", file=sys.stderr)
         return 2
 
-    queue = json.loads(QUEUE_JSON.read_text(encoding="utf-8"))
+    raw_bytes = QUEUE_JSON.read_bytes()
+    actual_hash = hashlib.sha256(raw_bytes).hexdigest()
+    print(f"frozen queue SHA-256: {actual_hash}")
+    if actual_hash != FROZEN_QUEUE_SHA256:
+        print(
+            f"REFUSING TO RUN: frozen queue hash does not match the recorded value "
+            f"({FROZEN_QUEUE_SHA256}). The 'frozen' file has changed -- investigate before "
+            f"splitting data this script was not written against.",
+            file=sys.stderr,
+        )
+        return 1
+
+    queue = json.loads(raw_bytes.decode("utf-8"))
     pairs = queue["pairs"]
-    print(f"frozen queue: {len(pairs)} pairs (read-only, not modified by this script)")
+    print(f"frozen queue: {len(pairs)} rows (read-only, not modified by this script)")
 
     # FIX 1 — derive occurrence_ids from row order, never trust the file's own field.
     occurrence_ids = derive_occurrence_ids(pairs)
     distinct_pair_ids = len({p["pair_id"] for p in pairs})
+    collided = len(pairs) - distinct_pair_ids
     print(
-        f"distinct pair_ids: {distinct_pair_ids}, rows with a repeated pair_id: "
-        f"{len(pairs) - distinct_pair_ids} (each now gets a unique derived occurrence_id)"
+        f"distinct pair_ids: {distinct_pair_ids}, rows with a repeated pair_id: {collided} "
+        f"(each now gets a unique derived occurrence_id: _0, _1, ...)"
     )
     assert len(set(occurrence_ids)) == len(pairs), "derived occurrence_ids are not all unique!"
+
+    row_tiers = [p["tier"] for p in pairs]
+    tier_totals_997 = Counter(row_tiers)
+    active_tiers = [t for t, n in tier_totals_997.items() if n > 0]
+    targets = {t: TEST_TARGET * tier_totals_997[t] / len(pairs) for t in active_tiers}
 
     uf = UnionFind()
     for p in pairs:
         uf.union(p["left"]["content_hash"], p["right"]["content_hash"])
 
-    component_pairs: dict[str, list[int]] = {}
+    component_indices: dict[str, list[int]] = {}
     for i, p in enumerate(pairs):
         root = uf.find(p["left"]["content_hash"])
-        component_pairs.setdefault(root, []).append(i)
+        component_indices.setdefault(root, []).append(i)
 
-    sizes = sorted((len(v) for v in component_pairs.values()), reverse=True)
-    print(f"connected components: {len(component_pairs)}")
-    print(f"largest 10 component sizes (pairs): {sizes[:10]}")
+    components = [Component(root, idxs, row_tiers) for root, idxs in component_indices.items()]
+    sizes = sorted((c.size for c in components), reverse=True)
+    print(f"connected components: {len(components)}")
+    print(f"largest 10 component sizes (rows): {sizes[:10]}")
 
     cap = int(TEST_TARGET * COMPONENT_CAP_FRACTION)
-    eligible = {root: idxs for root, idxs in component_pairs.items() if len(idxs) <= cap}
-    excluded = {root: idxs for root, idxs in component_pairs.items() if len(idxs) > cap}
+    eligible = [c for c in components if c.size <= cap]
+    excluded = [c for c in components if c.size > cap]
     if excluded:
         print(
-            f"\n{len(excluded)} component(s) exceed the {cap}-pair TEST cap "
+            f"\n{len(excluded)} component(s) exceed the {cap}-row TEST cap "
             f"({COMPONENT_CAP_FRACTION * 100:.0f}% of target {TEST_TARGET}) and are routed "
-            f"straight to TRAIN_VAL: sizes {sorted((len(v) for v in excluded.values()), reverse=True)}"
+            f"straight to TRAIN_VAL: sizes {sorted((c.size for c in excluded), reverse=True)}"
         )
+        for c in excluded:
+            print(f"  component {c.root[:8]}... tier composition: {dict(c.tier_counts)}")
+            for tier, n in c.tier_counts.items():
+                print(
+                    f"    -> {n}/{tier_totals_997[tier]} of ALL '{tier}' rows sit in this "
+                    f"excluded component (structural limit on how close TEST can get to its "
+                    f"target for that tier)"
+                )
 
-    # Seeded shuffle + best-fit walk to assemble TEST as close to TEST_TARGET as the available
-    # component sizes allow, never exceeding the per-component cap (already enforced above by
-    # exclusion) and never exceeding TEST_TARGET by more than one component's worth.
-    rng = random.Random(SPLIT_SEED)
-    eligible_roots = list(eligible.keys())
-    rng.shuffle(eligible_roots)
-    eligible_roots.sort(
-        key=lambda r: -len(eligible[r])
-    )  # best-fit-decreasing on top of the shuffle
+    # --- FIX 2: seeded stratified optimization, 5 seeds for the range report, SPLIT_SEED is the
+    # one actually committed. --------------------------------------------------------------------
+    seed_objectives: dict[int, float] = {}
+    canonical_selected: set[str] | None = None
+    for seed in REPORT_SEEDS:
+        selected, obj = _local_search(
+            eligible, targets, seed, RESTARTS_PER_SEED, ITERATIONS_PER_RESTART
+        )
+        seed_objectives[seed] = obj
+        print(f"seed {seed}: best objective (sum of squared tier-count deviations) = {obj:.3f}")
+        if seed == SPLIT_SEED:
+            canonical_selected = selected
 
-    test_roots: set[str] = set()
-    test_count = 0
-    for root in eligible_roots:
-        size = len(eligible[root])
-        if test_count + size <= TEST_TARGET:
-            test_roots.add(root)
-            test_count += size
-        if test_count >= TEST_TARGET:
-            break
+    assert canonical_selected is not None
+    obj_values = list(seed_objectives.values())
+    print(
+        f"\n5-seed objective range: min={min(obj_values):.3f}, max={max(obj_values):.3f} "
+        f"(committed split uses seed {SPLIT_SEED}, objective={seed_objectives[SPLIT_SEED]:.3f} "
+        f"-- NOT necessarily the best of the 5, by design: the seed is fixed, not cherry-picked)"
+    )
 
-    train_val_roots = set(component_pairs.keys()) - test_roots
+    test_roots = canonical_selected
+    train_val_roots = {c.root for c in components} - test_roots
 
-    test_indices = sorted(i for r in test_roots for i in component_pairs[r])
-    train_val_indices = sorted(i for r in train_val_roots for i in component_pairs[r])
+    test_indices = sorted(i for r in test_roots for i in component_indices[r])
+    train_val_indices = sorted(i for r in train_val_roots for i in component_indices[r])
 
     print(
-        f"\nTEST split: {len(test_indices)} pairs (target {TEST_TARGET}), "
+        f"\nTEST split: {len(test_indices)} rows (target {TEST_TARGET}), "
         f"from {len(test_roots)} components"
     )
+    print(f"TRAIN_VAL split: {len(train_val_indices)} rows, from {len(train_val_roots)} components")
+
+    # --- acceptance gate ---------------------------------------------------------------------
+    test_tier_counts = Counter(row_tiers[i] for i in test_indices)
+    train_val_tier_counts = Counter(row_tiers[i] for i in train_val_indices)
+
+    print("\n" + "=" * 96)
     print(
-        f"TRAIN_VAL split: {len(train_val_indices)} pairs, from {len(train_val_roots)} components"
+        f"{'tier':32s} {'TEST rows':>10s} {'TEST %':>8s} {'TRAINVAL rows':>14s} "
+        f"{'TRAINVAL %':>11s} {'gap pp':>8s}"
+    )
+    print("=" * 96)
+    gate_failures: list[str] = []
+    for tier in sorted(active_tiers):
+        t_n = test_tier_counts.get(tier, 0)
+        tv_n = train_val_tier_counts.get(tier, 0)
+        t_pct = t_n / len(test_indices) * 100 if test_indices else 0.0
+        tv_pct = tv_n / len(train_val_indices) * 100 if train_val_indices else 0.0
+        gap = abs(t_pct - tv_pct)
+        flag = ""
+        if gap > TIER_GAP_LIMIT_PP:
+            flag += f"  GAP>{TIER_GAP_LIMIT_PP}pp"
+            gate_failures.append(f"{tier}: gap {gap:.1f}pp exceeds {TIER_GAP_LIMIT_PP}pp")
+        if t_n < TEST_MIN_PER_TIER:
+            flag += f"  TEST<{TEST_MIN_PER_TIER}"
+            gate_failures.append(f"{tier}: TEST count {t_n} below minimum {TEST_MIN_PER_TIER}")
+        print(f"{tier:32s} {t_n:10d} {t_pct:7.1f}% {tv_n:14d} {tv_pct:10.1f}% {gap:7.1f}pp{flag}")
+    print("=" * 96)
+
+    # Distinct pair_ids per split, reported separately (evaluation note: TEST metrics must be
+    # computed over DISTINCT pair_ids -- the repeat is for self-agreement, not a second test
+    # point).
+    test_pair_ids = {pairs[i]["pair_id"] for i in test_indices}
+    train_val_pair_ids = {pairs[i]["pair_id"] for i in train_val_indices}
+    print(
+        f"\ndistinct pair_ids -- TEST: {len(test_pair_ids)} (of {len(test_indices)} rows), "
+        f"TRAIN_VAL: {len(train_val_pair_ids)} (of {len(train_val_indices)} rows)"
     )
 
-    # Product-level integrity check, not just assumed from the construction.
+    # --- integrity checks (unchanged from the first version, still enforced) -------------------
     test_hashes = {
         h
         for i in test_indices
@@ -265,17 +489,17 @@ def main() -> int:
     }
     overlap = test_hashes & train_val_hashes
     if overlap:
-        print(f"INTEGRITY FAILURE: {len(overlap)} content_hash values appear in BOTH splits!")
-        return 1
+        gate_failures.append(f"{len(overlap)} content_hash values appear in BOTH splits")
     print(
         f"integrity check: {len(test_hashes)} distinct listings in TEST, "
-        f"{len(train_val_hashes)} in TRAIN_VAL, 0 overlap (verified, not assumed)"
+        f"{len(train_val_hashes)} in TRAIN_VAL, {len(overlap)} overlap (verified, not assumed)"
     )
+
+    if len(test_indices) + len(train_val_indices) != len(pairs):
+        gate_failures.append("TEST + TRAIN_VAL row count does not equal the queue's row count")
 
     # --- predictions: TRAIN_VAL only, in the split file the tool actually loads ---
     assignments: dict[str, dict[str, Any]] = {}
-    tier_counts_test: dict[str, int] = {}
-    tier_counts_trainval: dict[str, int] = {}
     label_forecast_trainval: dict[str, int] = {"M": 0, "N": 0, "S": 0}
     label_forecast_test_hidden: dict[str, int] = {"M": 0, "N": 0, "S": 0}
     test_reference: dict[str, dict[str, Any]] = {}
@@ -283,8 +507,7 @@ def main() -> int:
     for i in test_indices:
         p = pairs[i]
         occ_id = occurrence_ids[i]
-        assignments[occ_id] = {"split": "test", "tier": p["tier"]}
-        tier_counts_test[p["tier"]] = tier_counts_test.get(p["tier"], 0) + 1
+        assignments[occ_id] = {"split": "test", "tier": p["tier"], "pair_id": p["pair_id"]}
         label, rule = predict_label(p["left"], p["right"])
         label_forecast_test_hidden[label] += 1
         test_reference[occ_id] = {
@@ -299,22 +522,23 @@ def main() -> int:
         assignments[occ_id] = {
             "split": "train_val",
             "tier": p["tier"],
+            "pair_id": p["pair_id"],
             "engine_prediction": {"label": label, "rule": rule},
         }
-        tier_counts_trainval[p["tier"]] = tier_counts_trainval.get(p["tier"], 0) + 1
         label_forecast_trainval[label] += 1
 
-    assert len(assignments) == len(pairs), (
-        f"assignments has {len(assignments)} keys, expected {len(pairs)} "
-        "(occurrence_id derivation produced a collision)"
-    )
-
-    print("\nTEST tier composition:")
-    for tier, n in sorted(tier_counts_test.items(), key=lambda x: -x[1]):
-        print(f"  {tier:32s} {n:4d} ({n / len(test_indices) * 100:5.1f}%)")
-    print("\nTRAIN_VAL tier composition:")
-    for tier, n in sorted(tier_counts_trainval.items(), key=lambda x: -x[1]):
-        print(f"  {tier:32s} {n:4d} ({n / len(train_val_indices) * 100:5.1f}%)")
+    if len(assignments) != len(pairs):
+        gate_failures.append(
+            f"assignments has {len(assignments)} keys, expected {len(pairs)} "
+            "(occurrence_id derivation produced a collision)"
+        )
+    test_entries_with_prediction = [
+        k for k, v in assignments.items() if v["split"] == "test" and "engine_prediction" in v
+    ]
+    if test_entries_with_prediction:
+        gate_failures.append(
+            f"{len(test_entries_with_prediction)} TEST entries carry an engine_prediction key"
+        )
 
     print(
         f"\nTEST predicted-label forecast (hidden from the tool, reference file only): "
@@ -322,19 +546,58 @@ def main() -> int:
     )
     print(f"TRAIN_VAL predicted-label forecast (shown as suggestions): {label_forecast_trainval}")
 
+    print("\n" + "=" * 78)
+    if gate_failures:
+        print("ACCEPTANCE GATE: FAILED")
+        for f in gate_failures:
+            print(f"  - {f}")
+    else:
+        print(
+            "ACCEPTANCE GATE: PASSED (all tier gaps <=4.5pp, all TEST counts >=14, "
+            "0 overlap, 997 keys, no TEST predictions)"
+        )
+    print("=" * 78)
+
     split_json = {
-        "built_from": "scripts/split_annotation_queue.py, reading the FROZEN "
-        "phase3-annotation-queue.json (never modifies it)",
+        "built_from": "scripts/split_annotation_queue.py (ADR-0028 addendum #11 rewrite), "
+        "reading the FROZEN phase3-annotation-queue.json (never modifies it)",
+        "frozen_queue_sha256": actual_hash,
         "split_seed": SPLIT_SEED,
-        "queue_source_pair_count": len(pairs),
+        "report_seeds": REPORT_SEEDS,
+        "seed_objectives": {str(s): o for s, o in seed_objectives.items()},
+        "queue_source_row_count": len(pairs),
         "test_target": TEST_TARGET,
         "component_cap_fraction": COMPONENT_CAP_FRACTION,
-        "component_cap_pairs": cap,
-        "excluded_oversized_components": sorted((len(v) for v in excluded.values()), reverse=True),
-        "test_pair_count": len(test_indices),
-        "train_val_pair_count": len(train_val_indices),
+        "component_cap_rows": cap,
+        "excluded_oversized_components": sorted((c.size for c in excluded), reverse=True),
+        "test_row_count": len(test_indices),
+        "train_val_row_count": len(train_val_indices),
+        "test_distinct_pair_ids": len(test_pair_ids),
+        "train_val_distinct_pair_ids": len(train_val_pair_ids),
         "test_distinct_listings": len(test_hashes),
         "train_val_distinct_listings": len(train_val_hashes),
+        "acceptance_thresholds": {
+            "tier_gap_limit_pp": TIER_GAP_LIMIT_PP,
+            "test_min_per_tier": TEST_MIN_PER_TIER,
+        },
+        "acceptance_gate_passed": not gate_failures,
+        "acceptance_gate_failures": gate_failures,
+        "per_tier_counts": {
+            tier: {
+                "test_rows": test_tier_counts.get(tier, 0),
+                "train_val_rows": train_val_tier_counts.get(tier, 0),
+                "test_pair_ids": len(
+                    {pairs[i]["pair_id"] for i in test_indices if row_tiers[i] == tier}
+                ),
+                "train_val_pair_ids": len(
+                    {pairs[i]["pair_id"] for i in train_val_indices if row_tiers[i] == tier}
+                ),
+            }
+            for tier in sorted(active_tiers)
+        },
+        "evaluation_note": "TEST metrics must be computed over DISTINCT pair_ids -- the repeat "
+        "occurrence of a pair_id (proxy_key_collision + trivial_spot_check, same underlying "
+        "pair) is for self-agreement measurement, not a second independent test point.",
         # Deliberately NOT included: any per-pair prediction for TEST occurrence_ids. Only
         # TRAIN_VAL entries in `assignments` carry an "engine_prediction" key.
         "assignments": assignments,
@@ -357,7 +620,7 @@ def main() -> int:
     )
     print(f"written: {TEST_REFERENCE_JSON.relative_to(ROOT)} (NOT loaded by the annotation tool)")
 
-    return 0
+    return 1 if gate_failures else 0
 
 
 if __name__ == "__main__":

@@ -8,6 +8,13 @@
     "rule": "default_M"
    }
   },
+  "07014717d472_b3a7c37ff84f_0": {
+   "pair_id": "07014717d472_b3a7c37ff84f",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "7dfe0693709e_d7e51a8b7ba2_0": {
    "pair_id": "7dfe0693709e_d7e51a8b7ba2",
    "engine_prediction": {
@@ -43,18 +50,18 @@
     "rule": "default_M"
    }
   },
-  "61edaef48537_66ced1826432_0": {
-   "pair_id": "61edaef48537_66ced1826432",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
-   }
-  },
   "3b38269de622_da2907bb100e_0": {
    "pair_id": "3b38269de622_da2907bb100e",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "0d52f8f5bc32_c537121d2733_0": {
+   "pair_id": "0d52f8f5bc32_c537121d2733",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "c309854e7403_c61cb52acc34_0": {
@@ -78,22 +85,22 @@
     "rule": "rule3_lifestage_differs"
    }
   },
-  "0d1b18f0a21e_1d71ae73298c_0": {
-   "pair_id": "0d1b18f0a21e_1d71ae73298c",
+  "03c89d94a8c8_c919165d92e3_0": {
+   "pair_id": "03c89d94a8c8_c919165d92e3",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
    }
   },
-  "0b9df5e81782_15d4ac2e73f7_0": {
-   "pair_id": "0b9df5e81782_15d4ac2e73f7",
+  "34c3ca18a10b_8a863350ba8b_0": {
+   "pair_id": "34c3ca18a10b_8a863350ba8b",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
    }
   },
-  "34c3ca18a10b_8a863350ba8b_0": {
-   "pair_id": "34c3ca18a10b_8a863350ba8b",
+  "4336d7cc20c5_ab90b7283788_0": {
+   "pair_id": "4336d7cc20c5_ab90b7283788",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
@@ -104,6 +111,13 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "226b1e598156_516126b433d3_0": {
+   "pair_id": "226b1e598156_516126b433d3",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "27ee07f5e367_bd73470574eb_0": {
@@ -141,18 +155,18 @@
     "rule": "rule3_lifestage_differs"
    }
   },
-  "98c80d9de89b_a938d0c2142d_0": {
-   "pair_id": "98c80d9de89b_a938d0c2142d",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
   "0aa64e7141e9_29f2bc3b9efb_0": {
    "pair_id": "0aa64e7141e9_29f2bc3b9efb",
    "engine_prediction": {
     "label": "N",
     "rule": "rule1_species_differs"
+   }
+  },
+  "d6762681f478_b360bd415ab6_0": {
+   "pair_id": "d6762681f478_b360bd415ab6",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "2155b541d27e_8a63ed923ac9_0": {
@@ -176,13 +190,6 @@
     "rule": "default_M"
    }
   },
-  "0b9df5e81782_6475e64e7766_0": {
-   "pair_id": "0b9df5e81782_6475e64e7766",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "d65d8a447463_fd5fbfb64fd6_0": {
    "pair_id": "d65d8a447463_fd5fbfb64fd6",
    "engine_prediction": {
@@ -197,13 +204,6 @@
     "rule": "default_M"
    }
   },
-  "1c4376ec2835_e4efdd3f271b_0": {
-   "pair_id": "1c4376ec2835_e4efdd3f271b",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
   "65e9aff77e81_a73e323f9787_0": {
    "pair_id": "65e9aff77e81_a73e323f9787",
    "engine_prediction": {
@@ -211,18 +211,11 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "615bddaa6122_71cd1ff7aa79_0": {
-   "pair_id": "615bddaa6122_71cd1ff7aa79",
+  "687e29e4280d_a746795258cd_0": {
+   "pair_id": "687e29e4280d_a746795258cd",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "2f2567c30121_744ea37f6068_0": {
-   "pair_id": "2f2567c30121_744ea37f6068",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule3_lifestage_differs"
    }
   },
   "4d9abdd1155a_93c12e9aee45_0": {
@@ -232,11 +225,39 @@
     "rule": "rule3_lifestage_differs"
    }
   },
+  "3747121b25de_fce550933ea1_0": {
+   "pair_id": "3747121b25de_fce550933ea1",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
+  "21e8ccac7f62_c919165d92e3_0": {
+   "pair_id": "21e8ccac7f62_c919165d92e3",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
+  "ad4dbcc1a913_9a8b2207ee41_0": {
+   "pair_id": "ad4dbcc1a913_9a8b2207ee41",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "39b24e4f4cbf_523714647355_0": {
    "pair_id": "39b24e4f4cbf_523714647355",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
+   }
+  },
+  "f7073b1708fc_fed65fee5316_0": {
+   "pair_id": "f7073b1708fc_fed65fee5316",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule4_breedsize_differs"
    }
   },
   "523714647355_bcdb2ca98b17_0": {
@@ -246,6 +267,13 @@
     "rule": "default_M"
    }
   },
+  "228bac86aa61_f75e11bc28ed_0": {
+   "pair_id": "228bac86aa61_f75e11bc28ed",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule3_lifestage_differs"
+   }
+  },
   "5e1296b9a5e1_65e9aff77e81_0": {
    "pair_id": "5e1296b9a5e1_65e9aff77e81",
    "engine_prediction": {
@@ -253,11 +281,11 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "304a6013cb52_f446deb472b7_0": {
-   "pair_id": "304a6013cb52_f446deb472b7",
+  "77de3ab88bf1_bbe7b649cf73_0": {
+   "pair_id": "77de3ab88bf1_bbe7b649cf73",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "S",
+    "rule": "one_sided_attribute"
    }
   },
   "8faf2a4c707f_4b87cb304758_0": {
@@ -267,8 +295,36 @@
     "rule": "default_M"
    }
   },
+  "b525800f07cc_7da46dd4087c_0": {
+   "pair_id": "b525800f07cc_7da46dd4087c",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "c55327a4a4cb_ecc599237076_0": {
+   "pair_id": "c55327a4a4cb_ecc599237076",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
+  "130fa96aef73_cb14f9d88f05_0": {
+   "pair_id": "130fa96aef73_cb14f9d88f05",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule3_lifestage_differs"
+   }
+  },
   "1d038c382b87_947c7308aba7_0": {
    "pair_id": "1d038c382b87_947c7308aba7",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule3_lifestage_differs"
+   }
+  },
+  "3747121b25de_fad0975e7321_0": {
+   "pair_id": "3747121b25de_fad0975e7321",
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
@@ -279,13 +335,6 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
-   }
-  },
-  "6a1acb0b15b0_98bff2af651c_0": {
-   "pair_id": "6a1acb0b15b0_98bff2af651c",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
    }
   },
   "3a902c0ebf84_72b31032505e_0": {
@@ -300,6 +349,13 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "0f1bbd9e204c_b0574edec4df_0": {
+   "pair_id": "0f1bbd9e204c_b0574edec4df",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "31b7920d544b_f52bd9a80e5d_0": {
@@ -344,11 +400,18 @@
     "rule": "default_M"
    }
   },
-  "7dd67591e9d9_a6b5762426cd_0": {
-   "pair_id": "7dd67591e9d9_a6b5762426cd",
+  "cab4155eab2d_bbc5641f277a_0": {
+   "pair_id": "cab4155eab2d_bbc5641f277a",
    "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "2e660fe85dcf_5edaf3cd0f46_0": {
+   "pair_id": "2e660fe85dcf_5edaf3cd0f46",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "6b2f34b37bdc_7ee41572ef18_0": {
@@ -358,11 +421,11 @@
     "rule": "default_M"
    }
   },
-  "1e4c883c24ac_7154e030b9be_0": {
-   "pair_id": "1e4c883c24ac_7154e030b9be",
+  "0d1b95628ed0_8253b75f84d4_0": {
+   "pair_id": "0d1b95628ed0_8253b75f84d4",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule5_flavour_differs"
+    "rule": "rule3_lifestage_differs"
    }
   },
   "794cdac35490_f451658b69fe_0": {
@@ -372,27 +435,6 @@
     "rule": "default_M"
    }
   },
-  "61edaef48537_654e9478b215_0": {
-   "pair_id": "61edaef48537_654e9478b215",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule1_species_differs"
-   }
-  },
-  "1210b7f5a16d_20fc096fdbc3_0": {
-   "pair_id": "1210b7f5a16d_20fc096fdbc3",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "1d71ae73298c_d84df75bbf5f_0": {
-   "pair_id": "1d71ae73298c_d84df75bbf5f",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "4b2cb18cab99_a61c68fd9e11_0": {
    "pair_id": "4b2cb18cab99_a61c68fd9e11",
    "engine_prediction": {
@@ -400,11 +442,11 @@
     "rule": "default_M"
    }
   },
-  "9d0e4c3b4caf_b0ef3ccd8d36_0": {
-   "pair_id": "9d0e4c3b4caf_b0ef3ccd8d36",
+  "090ea847e079_7da252bf664d_0": {
+   "pair_id": "090ea847e079_7da252bf664d",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "45d78c52ceb8_e78f8525c049_0": {
@@ -414,11 +456,11 @@
     "rule": "default_M"
    }
   },
-  "8d373d9b98c7_c9438c8f7a8c_0": {
-   "pair_id": "8d373d9b98c7_c9438c8f7a8c",
+  "07014717d472_c943ec95fe66_0": {
+   "pair_id": "07014717d472_c943ec95fe66",
    "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "0430382e0b69_dbf6599cd527_0": {
@@ -426,6 +468,13 @@
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
+   }
+  },
+  "6940e55da9b7_aac55e6c4ff7_0": {
+   "pair_id": "6940e55da9b7_aac55e6c4ff7",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule4_breedsize_differs"
    }
   },
   "6a815f68ac81_a777ff4041ae_0": {
@@ -442,11 +491,32 @@
     "rule": "rule3_lifestage_differs"
    }
   },
+  "af9c46b9524a_bcfe44adfdf1_0": {
+   "pair_id": "af9c46b9524a_bcfe44adfdf1",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule1_species_differs"
+   }
+  },
   "b277fbd57ceb_f1f58ea34bc9_0": {
    "pair_id": "b277fbd57ceb_f1f58ea34bc9",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
+   }
+  },
+  "9e0b554a5d40_b804fde74c13_0": {
+   "pair_id": "9e0b554a5d40_b804fde74c13",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "9e0b554a5d40_e1428ab7d54b_0": {
+   "pair_id": "9e0b554a5d40_e1428ab7d54b",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "697cc96830a6_b4ed4378826f_0": {
@@ -463,15 +533,15 @@
     "rule": "default_M"
    }
   },
-  "09ff7c94ad04_a8391a7250f9_0": {
-   "pair_id": "09ff7c94ad04_a8391a7250f9",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
   "849c8c66908e_aa62fb0b3653_0": {
    "pair_id": "849c8c66908e_aa62fb0b3653",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
+  "8eec308f7a7b_dc2add6543f4_0": {
+   "pair_id": "8eec308f7a7b_dc2add6543f4",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
@@ -484,13 +554,6 @@
     "rule": "rule3_lifestage_differs"
    }
   },
-  "0ce14e895477_615bddaa6122_0": {
-   "pair_id": "0ce14e895477_615bddaa6122",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "d7e51a8b7ba2_dc2765730536_1": {
    "pair_id": "d7e51a8b7ba2_dc2765730536",
    "engine_prediction": {
@@ -498,18 +561,11 @@
     "rule": "default_M"
    }
   },
-  "d01f3e239423_e74fd2ce0e55_0": {
-   "pair_id": "d01f3e239423_e74fd2ce0e55",
+  "3a91b36a71c1_48c70b7d8577_0": {
+   "pair_id": "3a91b36a71c1_48c70b7d8577",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "f079a7f064e0_c015631e977c_0": {
-   "pair_id": "f079a7f064e0_c015631e977c",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "0d008008050b_cfcc39876672_0": {
@@ -540,18 +596,11 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "ca63076678b9_e66e6faff6c4_0": {
-   "pair_id": "ca63076678b9_e66e6faff6c4",
+  "0f8590e47e76_4ec3fa06971b_0": {
+   "pair_id": "0f8590e47e76_4ec3fa06971b",
    "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
-  "71cd1ff7aa79_e853be22014d_0": {
-   "pair_id": "71cd1ff7aa79_e853be22014d",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "4a9ee8d65177_6b2f34b37bdc_0": {
@@ -568,6 +617,20 @@
     "rule": "rule2_quantity_differs"
    }
   },
+  "1a712f712e96_b9192a88311c_0": {
+   "pair_id": "1a712f712e96_b9192a88311c",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "3f3a8d1d2b69_96aa964f7dc7_0": {
+   "pair_id": "3f3a8d1d2b69_96aa964f7dc7",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
   "849c8c66908e_97a5d666acd4_0": {
    "pair_id": "849c8c66908e_97a5d666acd4",
    "engine_prediction": {
@@ -575,18 +638,18 @@
     "rule": "default_M"
    }
   },
+  "938ee3410c9c_da3e5da57152_0": {
+   "pair_id": "938ee3410c9c_da3e5da57152",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
   "3b55967781dd_ac3b2ff9c5a0_0": {
    "pair_id": "3b55967781dd_ac3b2ff9c5a0",
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
-   }
-  },
-  "b173b5fd3a05_d2564590ec5f_0": {
-   "pair_id": "b173b5fd3a05_d2564590ec5f",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
    }
   },
   "8c80b96b7fac_b15b553754f1_0": {
@@ -601,13 +664,6 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
-   }
-  },
-  "0c49b44ddebc_c6d086673354_0": {
-   "pair_id": "0c49b44ddebc_c6d086673354",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
    }
   },
   "65e9aff77e81_bcdb2ca98b17_0": {
@@ -631,8 +687,8 @@
     "rule": "default_M"
    }
   },
-  "1c4376ec2835_af09fe488ef1_0": {
-   "pair_id": "1c4376ec2835_af09fe488ef1",
+  "bedf3e4ede5a_cbbf5af9323c_0": {
+   "pair_id": "bedf3e4ede5a_cbbf5af9323c",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -659,6 +715,13 @@
     "rule": "default_M"
    }
   },
+  "87f9beff8287_f57d49bb1013_0": {
+   "pair_id": "87f9beff8287_f57d49bb1013",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "ambiguous_brand_rule6"
+   }
+  },
   "4a9ee8d65177_65e9aff77e81_0": {
    "pair_id": "4a9ee8d65177_65e9aff77e81",
    "engine_prediction": {
@@ -673,18 +736,11 @@
     "rule": "rule1_species_differs"
    }
   },
-  "044ee1ecb78d_3df7a1df49ee_0": {
-   "pair_id": "044ee1ecb78d_3df7a1df49ee",
+  "f0fdd271103f_f4cfa20a83d1_0": {
+   "pair_id": "f0fdd271103f_f4cfa20a83d1",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "e383ade6a43d_e66e6faff6c4_0": {
-   "pair_id": "e383ade6a43d_e66e6faff6c4",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "30ec46eeb06d_d5fcb235eb23_0": {
@@ -694,11 +750,11 @@
     "rule": "default_M"
    }
   },
-  "ad524e4cefd7_d2a2dcd4fe04_0": {
-   "pair_id": "ad524e4cefd7_d2a2dcd4fe04",
+  "407dd18a36ba_bfdb4786c774_0": {
+   "pair_id": "407dd18a36ba_bfdb4786c774",
    "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
+    "label": "N",
+    "rule": "rule1_species_differs"
    }
   },
   "bd73470574eb_d41015ad7eb0_0": {
@@ -722,29 +778,22 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "594e037d36b1_b14b3c62fe99_0": {
-   "pair_id": "594e037d36b1_b14b3c62fe99",
+  "204386d38023_9e9ed57fd44e_0": {
+   "pair_id": "204386d38023_9e9ed57fd44e",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
    }
   },
-  "1c4376ec2835_d2564590ec5f_0": {
-   "pair_id": "1c4376ec2835_d2564590ec5f",
+  "30e5ced89544_771efcc0aaee_0": {
+   "pair_id": "30e5ced89544_771efcc0aaee",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "5e9256132754_8a863350ba8b_0": {
    "pair_id": "5e9256132754_8a863350ba8b",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
-  "787fc9df6e2f_941127cf2788_0": {
-   "pair_id": "787fc9df6e2f_941127cf2788",
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
@@ -764,18 +813,25 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "0c49b44ddebc_a5886a006227_0": {
-   "pair_id": "0c49b44ddebc_a5886a006227",
+  "4ad034f3660c_9d932a3d47a5_0": {
+   "pair_id": "4ad034f3660c_9d932a3d47a5",
    "engine_prediction": {
     "label": "S",
-    "rule": "one_sided_attribute"
+    "rule": "ambiguous_brand_rule6"
    }
   },
-  "89e2901f53a4_af09fe488ef1_0": {
-   "pair_id": "89e2901f53a4_af09fe488ef1",
+  "9a450c8fd848_bb42dbb736d2_0": {
+   "pair_id": "9a450c8fd848_bb42dbb736d2",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule1_species_differs"
+   }
+  },
+  "993ee7484d4e_9d932a3d47a5_0": {
+   "pair_id": "993ee7484d4e_9d932a3d47a5",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "ambiguous_brand_rule6"
    }
   },
   "4a9ee8d65177_a479d20bd164_0": {
@@ -785,25 +841,11 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "b9e07208e34f_d2a2dcd4fe04_0": {
-   "pair_id": "b9e07208e34f_d2a2dcd4fe04",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
-   }
-  },
   "4d212d12259f_6e17d458cc36_0": {
    "pair_id": "4d212d12259f_6e17d458cc36",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
-   }
-  },
-  "24ddf49ad519_e4efdd3f271b_0": {
-   "pair_id": "24ddf49ad519_e4efdd3f271b",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
    }
   },
   "6e17d458cc36_7dfe0693709e_0": {
@@ -827,29 +869,15 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "6cbeab253384_ec90a71db921_0": {
-   "pair_id": "6cbeab253384_ec90a71db921",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
-  "2916abbd0af8_43bb543a4d3c_0": {
-   "pair_id": "2916abbd0af8_43bb543a4d3c",
+  "4e1ca2174875_5a45c3b12e50_0": {
+   "pair_id": "4e1ca2174875_5a45c3b12e50",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
    }
   },
-  "381ad6bf4e5c_98bff2af651c_0": {
-   "pair_id": "381ad6bf4e5c_98bff2af651c",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
-   }
-  },
-  "c88ca6b3ac3e_d2564590ec5f_0": {
-   "pair_id": "c88ca6b3ac3e_d2564590ec5f",
+  "2916abbd0af8_43bb543a4d3c_0": {
+   "pair_id": "2916abbd0af8_43bb543a4d3c",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
@@ -876,18 +904,18 @@
     "rule": "default_M"
    }
   },
-  "a34a1f1d8475_b173b5fd3a05_0": {
-   "pair_id": "a34a1f1d8475_b173b5fd3a05",
+  "00f775f25237_6a81b0d8429b_0": {
+   "pair_id": "00f775f25237_6a81b0d8429b",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
    }
   },
-  "8d373d9b98c7_f0d65a9e2613_0": {
-   "pair_id": "8d373d9b98c7_f0d65a9e2613",
+  "58585fa7ff32_aa029a8b23ae_0": {
+   "pair_id": "58585fa7ff32_aa029a8b23ae",
    "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "7151ce30247c_bae7a3ec2db1_0": {
@@ -897,8 +925,22 @@
     "rule": "one_sided_attribute"
    }
   },
+  "82c9c4aea9e7_9a66cd082c57_0": {
+   "pair_id": "82c9c4aea9e7_9a66cd082c57",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
+   }
+  },
   "b018d42abb15_b68e841d6273_0": {
    "pair_id": "b018d42abb15_b68e841d6273",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "4231a550c308_7312f3ed2f4f_0": {
+   "pair_id": "4231a550c308_7312f3ed2f4f",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -918,25 +960,18 @@
     "rule": "rule3_lifestage_differs"
    }
   },
-  "c55961beed26_dcf77a9bcbca_0": {
-   "pair_id": "c55961beed26_dcf77a9bcbca",
+  "515f3cfb46cc_e4fe2b3e6b68_0": {
+   "pair_id": "515f3cfb46cc_e4fe2b3e6b68",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule4_breedsize_differs"
+    "rule": "rule5_flavour_differs"
    }
   },
-  "381ad6bf4e5c_6a1acb0b15b0_0": {
-   "pair_id": "381ad6bf4e5c_6a1acb0b15b0",
+  "5a9deaf4af24_e0c36b8023a7_0": {
+   "pair_id": "5a9deaf4af24_e0c36b8023a7",
    "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
-   }
-  },
-  "272473d519f1_3229ea47d96d_0": {
-   "pair_id": "272473d519f1_3229ea47d96d",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "79e1835fe2b5_b00b309bd8c4_0": {
@@ -960,11 +995,11 @@
     "rule": "one_sided_attribute"
    }
   },
-  "97885c30e13b_d01f3e239423_0": {
-   "pair_id": "97885c30e13b_d01f3e239423",
+  "61de676f91af_e695c2666030_0": {
+   "pair_id": "61de676f91af_e695c2666030",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule5_flavour_differs"
+    "rule": "rule2_quantity_differs"
    }
   },
   "34d4a8e06ecc_ff26d2f8936e_0": {
@@ -972,20 +1007,6 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule5_flavour_differs"
-   }
-  },
-  "f079a7f064e0_6ee58b9cc78a_0": {
-   "pair_id": "f079a7f064e0_6ee58b9cc78a",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
-   }
-  },
-  "979db675dc53_a0c41c8b18ca_0": {
-   "pair_id": "979db675dc53_a0c41c8b18ca",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule4_breedsize_differs"
    }
   },
   "61dca7be02ee_fd501d04e6f2_0": {
@@ -1002,11 +1023,32 @@
     "rule": "default_M"
    }
   },
+  "153c7e549d19_c054e709fc27_0": {
+   "pair_id": "153c7e549d19_c054e709fc27",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
+   }
+  },
+  "4ebc3a6e6210_31cc6248c1de_0": {
+   "pair_id": "4ebc3a6e6210_31cc6248c1de",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule1_species_differs"
+   }
+  },
   "c68cb489e95f_e6d623aa0e58_0": {
    "pair_id": "c68cb489e95f_e6d623aa0e58",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "20821d976fc9_4d7caf8c8c84_0": {
+   "pair_id": "20821d976fc9_4d7caf8c8c84",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
    }
   },
   "428d4ae778aa_dc2765730536_0": {
@@ -1016,29 +1058,8 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "66ced1826432_c96d506c9025_0": {
-   "pair_id": "66ced1826432_c96d506c9025",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
-  "1c4376ec2835_24ddf49ad519_0": {
-   "pair_id": "1c4376ec2835_24ddf49ad519",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
   "d2215849da87_140bb948d9df_0": {
    "pair_id": "d2215849da87_140bb948d9df",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "304a6013cb52_d4c1e47318b5_0": {
-   "pair_id": "304a6013cb52_d4c1e47318b5",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1049,6 +1070,13 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "20beb02854e4_cdc4b814d283_0": {
+   "pair_id": "20beb02854e4_cdc4b814d283",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule1_species_differs"
    }
   },
   "4d63c226009b_ecb98201aba3_0": {
@@ -1065,15 +1093,22 @@
     "rule": "default_M"
    }
   },
-  "941127cf2788_af09fe488ef1_0": {
-   "pair_id": "941127cf2788_af09fe488ef1",
+  "4d44162593c0_4bb1a1e929f3_0": {
+   "pair_id": "4d44162593c0_4bb1a1e929f3",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
+  "3e9da6f6ccff_be33d2321c1b_0": {
+   "pair_id": "3e9da6f6ccff_be33d2321c1b",
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
    }
   },
-  "366b7f2665c2_a960a4aea31a_0": {
-   "pair_id": "366b7f2665c2_a960a4aea31a",
+  "768f97537860_55e8e0a4a0e5_0": {
+   "pair_id": "768f97537860_55e8e0a4a0e5",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1100,13 +1135,6 @@
     "rule": "default_M"
    }
   },
-  "a960a4aea31a_cf3c9566947c_0": {
-   "pair_id": "a960a4aea31a_cf3c9566947c",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "39b24e4f4cbf_a479d20bd164_0": {
    "pair_id": "39b24e4f4cbf_a479d20bd164",
    "engine_prediction": {
@@ -1126,6 +1154,20 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
+   }
+  },
+  "186acfe83eee_28eac5244107_0": {
+   "pair_id": "186acfe83eee_28eac5244107",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "ambiguous_brand_rule6"
+   }
+  },
+  "011d2aef1c51_9525e9cb55fc_0": {
+   "pair_id": "011d2aef1c51_9525e9cb55fc",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "2d38db442675_617618c67b89_0": {
@@ -1170,6 +1212,34 @@
     "rule": "rule3_lifestage_differs"
    }
   },
+  "2f17cd43ea4f_9c36accdc5d0_0": {
+   "pair_id": "2f17cd43ea4f_9c36accdc5d0",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
+  "165644fdbbdf_49adb0828774_0": {
+   "pair_id": "165644fdbbdf_49adb0828774",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule4_breedsize_differs"
+   }
+  },
+  "7e2fba88fb24_d29c06a82155_0": {
+   "pair_id": "7e2fba88fb24_d29c06a82155",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
+   }
+  },
+  "61de676f91af_8a720ce00243_0": {
+   "pair_id": "61de676f91af_8a720ce00243",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
+   }
+  },
   "a36fec17b546_ff26d2f8936e_0": {
    "pair_id": "a36fec17b546_ff26d2f8936e",
    "engine_prediction": {
@@ -1177,18 +1247,11 @@
     "rule": "ambiguous_brand_rule6"
    }
   },
-  "15e05b968693_787fc9df6e2f_0": {
-   "pair_id": "15e05b968693_787fc9df6e2f",
+  "d01092db7431_f09b11683581_0": {
+   "pair_id": "d01092db7431_f09b11683581",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "177083f02933_d4c1e47318b5_0": {
-   "pair_id": "177083f02933_d4c1e47318b5",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "b7963fadcc64_bae7a3ec2db1_0": {
@@ -1205,11 +1268,18 @@
     "rule": "default_M"
    }
   },
-  "09aeddc5955c_ad5ae50fd254_0": {
-   "pair_id": "09aeddc5955c_ad5ae50fd254",
+  "ecc2bc5ca5cf_fa9671cb4e54_0": {
+   "pair_id": "ecc2bc5ca5cf_fa9671cb4e54",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule4_breedsize_differs"
+   }
+  },
+  "9a79c2d699f8_8473189f6091_0": {
+   "pair_id": "9a79c2d699f8_8473189f6091",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "1dcefe610f0d_3b38269de622_0": {
@@ -1226,13 +1296,6 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "0b9df5e81782_1d71ae73298c_0": {
-   "pair_id": "0b9df5e81782_1d71ae73298c",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "29640c7c5b3d_cce0cd3382cd_0": {
    "pair_id": "29640c7c5b3d_cce0cd3382cd",
    "engine_prediction": {
@@ -1240,18 +1303,11 @@
     "rule": "default_M"
    }
   },
-  "366b7f2665c2_a960a4aea31a_1": {
-   "pair_id": "366b7f2665c2_a960a4aea31a",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "4b716da37ec2_7445dc20376f_0": {
-   "pair_id": "4b716da37ec2_7445dc20376f",
+  "170832c4732b_684f59a026e0_0": {
+   "pair_id": "170832c4732b_684f59a026e0",
    "engine_prediction": {
     "label": "S",
-    "rule": "one_sided_attribute"
+    "rule": "ambiguous_brand_rule6"
    }
   },
   "70ec8132ff2b_79e1835fe2b5_0": {
@@ -1268,11 +1324,32 @@
     "rule": "default_M"
    }
   },
+  "d6cd5233ad9a_f50a0d14b3ca_0": {
+   "pair_id": "d6cd5233ad9a_f50a0d14b3ca",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "ambiguous_brand_rule6"
+   }
+  },
+  "5b0b9957aaa8_a7b371362305_0": {
+   "pair_id": "5b0b9957aaa8_a7b371362305",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
   "1dcefe610f0d_8c80b96b7fac_0": {
    "pair_id": "1dcefe610f0d_8c80b96b7fac",
    "engine_prediction": {
     "label": "N",
     "rule": "rule1_species_differs"
+   }
+  },
+  "82c9c4aea9e7_4a8e164f43f2_0": {
+   "pair_id": "82c9c4aea9e7_4a8e164f43f2",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "4d63c226009b_ff26d2f8936e_0": {
@@ -1289,32 +1366,32 @@
     "rule": "rule3_lifestage_differs"
    }
   },
-  "7151ce30247c_d8e6ed17437c_0": {
-   "pair_id": "7151ce30247c_d8e6ed17437c",
+  "98e1e4ade522_e489c2dabc23_0": {
+   "pair_id": "98e1e4ade522_e489c2dabc23",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
    }
   },
-  "38f93047fa27_fcebb06c2a34_0": {
-   "pair_id": "38f93047fa27_fcebb06c2a34",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "4b716da37ec2_fcebb06c2a34_0": {
-   "pair_id": "4b716da37ec2_fcebb06c2a34",
+  "186acfe83eee_1eb54b02498d_0": {
+   "pair_id": "186acfe83eee_1eb54b02498d",
    "engine_prediction": {
     "label": "S",
-    "rule": "one_sided_attribute"
+    "rule": "ambiguous_brand_rule6"
    }
   },
-  "044ee1ecb78d_18118aeaeaaa_0": {
-   "pair_id": "044ee1ecb78d_18118aeaeaaa",
+  "3f574dad8b6e_b52acad20816_0": {
+   "pair_id": "3f574dad8b6e_b52acad20816",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule4_breedsize_differs"
+    "rule": "rule1_species_differs"
+   }
+  },
+  "7151ce30247c_d8e6ed17437c_0": {
+   "pair_id": "7151ce30247c_d8e6ed17437c",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "b00b309bd8c4_b277fbd57ceb_0": {
@@ -1324,25 +1401,11 @@
     "rule": "default_M"
    }
   },
-  "366b7f2665c2_d3f01787a140_0": {
-   "pair_id": "366b7f2665c2_d3f01787a140",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "5e1296b9a5e1_d421baa2c85c_1": {
    "pair_id": "5e1296b9a5e1_d421baa2c85c",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
-   }
-  },
-  "a472ace6672b_60a3c410247d_0": {
-   "pair_id": "a472ace6672b_60a3c410247d",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule5_flavour_differs"
    }
   },
   "615c7c2c86e0_f2ecca53770b_0": {
@@ -1366,13 +1429,6 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "09ff7c94ad04_2ed57bcc51d8_0": {
-   "pair_id": "09ff7c94ad04_2ed57bcc51d8",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
   "2916abbd0af8_82f447dcf4a0_0": {
    "pair_id": "2916abbd0af8_82f447dcf4a0",
    "engine_prediction": {
@@ -1380,18 +1436,11 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "09aeddc5955c_d01f3e239423_0": {
-   "pair_id": "09aeddc5955c_d01f3e239423",
+  "86b15ef26d9b_f1f39f06d1e7_0": {
+   "pair_id": "86b15ef26d9b_f1f39f06d1e7",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "a34a1f1d8475_b173b5fd3a05_1": {
-   "pair_id": "a34a1f1d8475_b173b5fd3a05",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "d5fcb235eb23_cd575374833a_0": {
@@ -1401,11 +1450,11 @@
     "rule": "rule5_flavour_differs"
    }
   },
-  "685a7b710161_71cd1ff7aa79_0": {
-   "pair_id": "685a7b710161_71cd1ff7aa79",
+  "650c49fab3b1_c47f64422b5e_0": {
+   "pair_id": "650c49fab3b1_c47f64422b5e",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule2_quantity_differs"
+    "rule": "rule5_flavour_differs"
    }
   },
   "1f25d9a8f6a1_9cad53a38e85_0": {
@@ -1417,13 +1466,6 @@
   },
   "80bb9135e4f2_b4ed4378826f_0": {
    "pair_id": "80bb9135e4f2_b4ed4378826f",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "15d4ac2e73f7_d84df75bbf5f_0": {
-   "pair_id": "15d4ac2e73f7_d84df75bbf5f",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1443,13 +1485,6 @@
     "rule": "default_M"
    }
   },
-  "15d4ac2e73f7_3229ea47d96d_0": {
-   "pair_id": "15d4ac2e73f7_3229ea47d96d",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "3b6dd195dd27_f3bd21dcedcb_0": {
    "pair_id": "3b6dd195dd27_f3bd21dcedcb",
    "engine_prediction": {
@@ -1462,6 +1497,13 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "eccfb2f4adbb_fa9671cb4e54_0": {
+   "pair_id": "eccfb2f4adbb_fa9671cb4e54",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule4_breedsize_differs"
    }
   },
   "30ec46eeb06d_9cad53a38e85_0": {
@@ -1499,11 +1541,25 @@
     "rule": "rule3_lifestage_differs"
    }
   },
-  "1901f9b561d4_2ed57bcc51d8_0": {
-   "pair_id": "1901f9b561d4_2ed57bcc51d8",
+  "1391ee855f85_82bb1af96736_0": {
+   "pair_id": "1391ee855f85_82bb1af96736",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule5_flavour_differs"
+   }
+  },
+  "986bff00505f_f00288840814_0": {
+   "pair_id": "986bff00505f_f00288840814",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
+  "d6785efbc5df_e5592bd4d1e7_0": {
+   "pair_id": "d6785efbc5df_e5592bd4d1e7",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
    }
   },
   "8a863350ba8b_acf8ff85a6ce_1": {
@@ -1520,39 +1576,11 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "594e037d36b1_a938d0c2142d_0": {
-   "pair_id": "594e037d36b1_a938d0c2142d",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule2_quantity_differs"
-   }
-  },
   "d2215849da87_dde289e42199_0": {
    "pair_id": "d2215849da87_dde289e42199",
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
-   }
-  },
-  "6b6833baf993_85cdc8e62bc8_0": {
-   "pair_id": "6b6833baf993_85cdc8e62bc8",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
-   }
-  },
-  "0d1b18f0a21e_1d71ae73298c_1": {
-   "pair_id": "0d1b18f0a21e_1d71ae73298c",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "cf3c9566947c_d3f01787a140_0": {
-   "pair_id": "cf3c9566947c_d3f01787a140",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
    }
   },
   "0430382e0b69_be66fdf59608_0": {
@@ -1576,11 +1604,18 @@
     "rule": "default_M"
    }
   },
-  "85cdc8e62bc8_d2a2dcd4fe04_0": {
-   "pair_id": "85cdc8e62bc8_d2a2dcd4fe04",
+  "4d5402862de9_ac83c1eefb6f_0": {
+   "pair_id": "4d5402862de9_ac83c1eefb6f",
    "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
+  "2e13ca5f4269_6356d8c97fe4_0": {
+   "pair_id": "2e13ca5f4269_6356d8c97fe4",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "697cc96830a6_8a863350ba8b_0": {
@@ -1592,13 +1627,6 @@
   },
   "d6c3250eceec_f3bd21dcedcb_0": {
    "pair_id": "d6c3250eceec_f3bd21dcedcb",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "0229d6ebd261_09ff7c94ad04_0": {
-   "pair_id": "0229d6ebd261_09ff7c94ad04",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1618,11 +1646,18 @@
     "rule": "default_M"
    }
   },
-  "085fe137cdf2_c55961beed26_0": {
-   "pair_id": "085fe137cdf2_c55961beed26",
+  "27aa20bf14ce_c45e799122f8_0": {
+   "pair_id": "27aa20bf14ce_c45e799122f8",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule2_quantity_differs"
+   }
+  },
+  "458190b7d79e_8b7d069a7266_0": {
+   "pair_id": "458190b7d79e_8b7d069a7266",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "4d9abdd1155a_3b6dd195dd27_0": {
@@ -1630,6 +1665,20 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule4_breedsize_differs"
+   }
+  },
+  "6776ceceb41a_ccd11a228a5d_0": {
+   "pair_id": "6776ceceb41a_ccd11a228a5d",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "81cbd42e637d_d43346bd2ad0_0": {
+   "pair_id": "81cbd42e637d_d43346bd2ad0",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule1_species_differs"
    }
   },
   "39b24e4f4cbf_7ee41572ef18_0": {
@@ -1660,13 +1709,6 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "1f6c7d1e3176_9d0e4c3b4caf_0": {
-   "pair_id": "1f6c7d1e3176_9d0e4c3b4caf",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
   "1ecde7890f3e_31b7920d544b_0": {
    "pair_id": "1ecde7890f3e_31b7920d544b",
    "engine_prediction": {
@@ -1688,15 +1730,36 @@
     "rule": "default_M"
    }
   },
-  "b173b5fd3a05_c88ca6b3ac3e_0": {
-   "pair_id": "b173b5fd3a05_c88ca6b3ac3e",
+  "4bb1bc562761_c943ec95fe66_0": {
+   "pair_id": "4bb1bc562761_c943ec95fe66",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "3841e4ee73ef_70710182dac0_0": {
+   "pair_id": "3841e4ee73ef_70710182dac0",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "5b55bde984ba_a85dc11b2d22_0": {
+   "pair_id": "5b55bde984ba_a85dc11b2d22",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
+  "49bc3dd1f42b_a7c257d80d9f_0": {
+   "pair_id": "49bc3dd1f42b_a7c257d80d9f",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
    }
   },
-  "3841e4ee73ef_70710182dac0_0": {
-   "pair_id": "3841e4ee73ef_70710182dac0",
+  "05dec600a825_63f43c145df9_0": {
+   "pair_id": "05dec600a825_63f43c145df9",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1709,22 +1772,15 @@
     "rule": "one_sided_attribute"
    }
   },
-  "085fe137cdf2_3df7a1df49ee_0": {
-   "pair_id": "085fe137cdf2_3df7a1df49ee",
+  "9ab0f0162689_bf00f54f7de7_0": {
+   "pair_id": "9ab0f0162689_bf00f54f7de7",
    "engine_prediction": {
-    "label": "N",
-    "rule": "rule4_breedsize_differs"
+    "label": "M",
+    "rule": "default_M"
    }
   },
-  "a0c41c8b18ca_ec90a71db921_0": {
-   "pair_id": "a0c41c8b18ca_ec90a71db921",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
-  "a34a1f1d8475_d2564590ec5f_0": {
-   "pair_id": "a34a1f1d8475_d2564590ec5f",
+  "0e45d9b997f8_153c7e549d19_0": {
+   "pair_id": "0e45d9b997f8_153c7e549d19",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
@@ -1737,22 +1793,22 @@
     "rule": "default_M"
    }
   },
-  "3841e4ee73ef_57beb5e9e5ad_0": {
-   "pair_id": "3841e4ee73ef_57beb5e9e5ad",
+  "53a3242d6fc1_93ba2a2443f0_0": {
+   "pair_id": "53a3242d6fc1_93ba2a2443f0",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
    }
   },
-  "654e9478b215_bb82a255c1a8_0": {
-   "pair_id": "654e9478b215_bb82a255c1a8",
+  "ea4980f0e293_f64c6c82fd0a_0": {
+   "pair_id": "ea4980f0e293_f64c6c82fd0a",
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
    }
   },
-  "20fc096fdbc3_744ea37f6068_0": {
-   "pair_id": "20fc096fdbc3_744ea37f6068",
+  "3841e4ee73ef_57beb5e9e5ad_0": {
+   "pair_id": "3841e4ee73ef_57beb5e9e5ad",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
@@ -1765,25 +1821,11 @@
     "rule": "default_M"
    }
   },
-  "1e4c883c24ac_2a59e25a6593_0": {
-   "pair_id": "1e4c883c24ac_2a59e25a6593",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule5_flavour_differs"
-   }
-  },
   "b018d42abb15_d65d8a447463_0": {
    "pair_id": "b018d42abb15_d65d8a447463",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
-   }
-  },
-  "d1a2cd3c420b_fcebb06c2a34_0": {
-   "pair_id": "d1a2cd3c420b_fcebb06c2a34",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
    }
   },
   "2155b541d27e_30ec46eeb06d_0": {
@@ -1807,13 +1849,6 @@
     "rule": "one_sided_attribute"
    }
   },
-  "2a59e25a6593_9815b25e85cb_0": {
-   "pair_id": "2a59e25a6593_9815b25e85cb",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule5_flavour_differs"
-   }
-  },
   "a73e323f9787_d421baa2c85c_0": {
    "pair_id": "a73e323f9787_d421baa2c85c",
    "engine_prediction": {
@@ -1821,22 +1856,8 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "a472ace6672b_01d7b8d31ae0_0": {
-   "pair_id": "a472ace6672b_01d7b8d31ae0",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule5_flavour_differs"
-   }
-  },
-  "15d4ac2e73f7_d84df75bbf5f_1": {
-   "pair_id": "15d4ac2e73f7_d84df75bbf5f",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "941127cf2788_950c3dc6c2ff_0": {
-   "pair_id": "941127cf2788_950c3dc6c2ff",
+  "226b1e598156_8adae21099ab_0": {
+   "pair_id": "226b1e598156_8adae21099ab",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1849,15 +1870,8 @@
     "rule": "default_M"
    }
   },
-  "3372ce324afe_f0d65a9e2613_0": {
-   "pair_id": "3372ce324afe_f0d65a9e2613",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "one_sided_attribute"
-   }
-  },
-  "a5886a006227_c6d086673354_0": {
-   "pair_id": "a5886a006227_c6d086673354",
+  "e1edbfd3d7da_fb3367b0ef58_0": {
+   "pair_id": "e1edbfd3d7da_fb3367b0ef58",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1875,6 +1889,13 @@
    "engine_prediction": {
     "label": "S",
     "rule": "ambiguous_brand_rule6"
+   }
+  },
+  "caa5a29d77e0_ddb884a54b14_0": {
+   "pair_id": "caa5a29d77e0_ddb884a54b14",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
    }
   },
   "61dca7be02ee_d342a4cc5dbe_0": {
@@ -1896,6 +1917,13 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "42fee5310ce7_8a720ce00243_0": {
+   "pair_id": "42fee5310ce7_8a720ce00243",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule2_quantity_differs"
    }
   },
   "1f25d9a8f6a1_9cad53a38e85_1": {
@@ -1926,11 +1954,11 @@
     "rule": "rule5_flavour_differs"
    }
   },
-  "6b6833baf993_b9e07208e34f_0": {
-   "pair_id": "6b6833baf993_b9e07208e34f",
+  "cc7f2bf2a4eb_e87a6f89855f_0": {
+   "pair_id": "cc7f2bf2a4eb_e87a6f89855f",
    "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "57beb5e9e5ad_70710182dac0_0": {
@@ -1947,11 +1975,11 @@
     "rule": "rule3_lifestage_differs"
    }
   },
-  "85cdc8e62bc8_ad524e4cefd7_0": {
-   "pair_id": "85cdc8e62bc8_ad524e4cefd7",
+  "321417089290_9ebc80a63852_0": {
+   "pair_id": "321417089290_9ebc80a63852",
    "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
+    "label": "N",
+    "rule": "rule3_lifestage_differs"
    }
   },
   "d8e6ed17437c_e78f8525c049_0": {
@@ -1968,43 +1996,22 @@
     "rule": "default_M"
    }
   },
-  "a472ace6672b_f2da92ef3bb7_0": {
-   "pair_id": "a472ace6672b_f2da92ef3bb7",
+  "098a65eb345c_b9192a88311c_0": {
+   "pair_id": "098a65eb345c_b9192a88311c",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule1_species_differs"
+    "rule": "rule2_quantity_differs"
    }
   },
-  "ca63076678b9_ec90a71db921_0": {
-   "pair_id": "ca63076678b9_ec90a71db921",
+  "2478fb25ffc4_ba7697639014_0": {
+   "pair_id": "2478fb25ffc4_ba7697639014",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule4_breedsize_differs"
+    "rule": "rule2_quantity_differs"
    }
   },
   "4a9ee8d65177_4e9366eee48f_0": {
    "pair_id": "4a9ee8d65177_4e9366eee48f",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "7dd67591e9d9_ec90a71db921_0": {
-   "pair_id": "7dd67591e9d9_ec90a71db921",
-   "engine_prediction": {
-    "label": "N",
-    "rule": "rule3_lifestage_differs"
-   }
-  },
-  "85cdc8e62bc8_b9e07208e34f_0": {
-   "pair_id": "85cdc8e62bc8_b9e07208e34f",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
-   }
-  },
-  "89e2901f53a4_af09fe488ef1_1": {
-   "pair_id": "89e2901f53a4_af09fe488ef1",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -2015,13 +2022,6 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
-   }
-  },
-  "1f6c7d1e3176_9d0e4c3b4caf_1": {
-   "pair_id": "1f6c7d1e3176_9d0e4c3b4caf",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
    }
   },
   "5e1296b9a5e1_6b2f34b37bdc_0": {
@@ -2038,6 +2038,13 @@
     "rule": "default_M"
    }
   },
+  "56f41ed6c281_61a37e1a8397_0": {
+   "pair_id": "56f41ed6c281_61a37e1a8397",
+   "engine_prediction": {
+    "label": "N",
+    "rule": "rule5_flavour_differs"
+   }
+  },
   "006fb9eb7e29_dde289e42199_0": {
    "pair_id": "006fb9eb7e29_dde289e42199",
    "engine_prediction": {
@@ -2045,8 +2052,8 @@
     "rule": "one_sided_attribute"
    }
   },
-  "272473d519f1_d84df75bbf5f_0": {
-   "pair_id": "272473d519f1_d84df75bbf5f",
+  "9a0119a2b53d_c8456dc455ea_0": {
+   "pair_id": "9a0119a2b53d_c8456dc455ea",
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
@@ -2059,6 +2066,13 @@
     "rule": "rule3_lifestage_differs"
    }
   },
+  "fb8333d8a5f8_c9c0cff27594_0": {
+   "pair_id": "fb8333d8a5f8_c9c0cff27594",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "3841e4ee73ef_acf8ff85a6ce_0": {
    "pair_id": "3841e4ee73ef_acf8ff85a6ce",
    "engine_prediction": {
@@ -2066,11 +2080,11 @@
     "rule": "rule2_quantity_differs"
    }
   },
-  "a472ace6672b_3c64c33d040e_0": {
-   "pair_id": "a472ace6672b_3c64c33d040e",
+  "3cf5a12a0219_bf9a904d27fa_0": {
+   "pair_id": "3cf5a12a0219_bf9a904d27fa",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule1_species_differs"
+    "rule": "rule2_quantity_differs"
    }
   },
   "8a63ed923ac9_9cad53a38e85_0": {
@@ -2078,20 +2092,6 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
-   }
-  },
-  "0b9df5e81782_272473d519f1_0": {
-   "pair_id": "0b9df5e81782_272473d519f1",
-   "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
-   }
-  },
-  "6b6833baf993_ad524e4cefd7_0": {
-   "pair_id": "6b6833baf993_ad524e4cefd7",
-   "engine_prediction": {
-    "label": "S",
-    "rule": "ambiguous_brand_rule6"
    }
   },
   "39b24e4f4cbf_7ee41572ef18_1": {

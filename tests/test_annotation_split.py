@@ -1,0 +1,199 @@
+"""Phase 3 STEP 7 (ADR-0028 addendum #11) — structural checks on the COMMITTED annotation split
+artifacts (`phase3-annotation-queue.json`, FROZEN, plus the derived
+`phase3-annotation-split.json`/`phase3-test-split-reference-predictions.json`), read directly from
+disk. No database, no re-running the optimizer — these tests exist to catch the file drifting out
+of sync with itself or with the frozen queue, not to re-derive the split.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+QUEUE_JSON = ROOT / "docs" / "learned" / "phase3-annotation-queue.json"
+SPLIT_JSON = ROOT / "docs" / "learned" / "phase3-annotation-split.json"
+TEST_REFERENCE_JSON = ROOT / "docs" / "learned" / "phase3-test-split-reference-predictions.json"
+
+# Recorded the moment the queue was frozen (ADR-0028 addendum #9). If this ever fails, the
+# "frozen" file has been edited -- CLAUDE.md §7's own discipline (never re-score a frozen gate
+# figure against edited data) applies here just as much as it did to the Phase 2 gate sample.
+FROZEN_QUEUE_SHA256 = "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011"
+
+TIER_GAP_LIMIT_PP = 4.5
+TEST_MIN_PER_TIER = 14
+
+
+def _derive_occurrence_ids(pairs: list[dict]) -> list[str]:
+    """Same rule as `scripts/split_annotation_queue.py::derive_occurrence_ids()` and
+    `tools/annotate.html::deriveOccurrenceIds()` -- duplicated here deliberately (not imported)
+    so this test does not depend on either implementation to prove they agree; it recomputes the
+    rule from CLAUDE.md/ADR-0028's own description of it (pair_id + 0-based ordinal, in file
+    order) independently."""
+    counts: dict[str, int] = {}
+    ids = []
+    for p in pairs:
+        pid = p["pair_id"]
+        k = counts.get(pid, 0)
+        ids.append(f"{pid}_{k}")
+        counts[pid] = k + 1
+    return ids
+
+
+def _load_queue() -> dict:
+    return json.loads(QUEUE_JSON.read_text(encoding="utf-8"))
+
+
+def _load_split() -> dict:
+    return json.loads(SPLIT_JSON.read_text(encoding="utf-8"))
+
+
+def test_frozen_queue_hash_unchanged() -> None:
+    actual = hashlib.sha256(QUEUE_JSON.read_bytes()).hexdigest()
+    assert actual == FROZEN_QUEUE_SHA256, (
+        "the FROZEN annotation queue file has changed since it was frozen (ADR-0028 addendum "
+        "#9) -- any change needs a stated reason in STATE.md first, and this constant must be "
+        "updated deliberately, not silently"
+    )
+
+
+def test_queue_row_count_is_997() -> None:
+    queue = _load_queue()
+    assert len(queue["pairs"]) == 997
+
+
+def test_split_has_exactly_997_assignment_keys() -> None:
+    split = _load_split()
+    assert len(split["assignments"]) == 997
+
+
+def test_every_derived_occurrence_id_has_an_assignment() -> None:
+    queue = _load_queue()
+    split = _load_split()
+    derived_ids = _derive_occurrence_ids(queue["pairs"])
+    assert len(derived_ids) == len(set(derived_ids)), "derived occurrence_ids are not all unique"
+    missing = [occ_id for occ_id in derived_ids if occ_id not in split["assignments"]]
+    assert not missing, f"{len(missing)} derived occurrence_id(s) missing from split assignments"
+
+
+def test_derived_ids_resolve_the_38_known_collisions() -> None:
+    """Facts this test pins down, verified against the frozen file's own pair_id field (not
+    against occurrence_id, which is exactly the field that collides): 997 rows, 959 distinct
+    pair_ids, 38 pair_ids appearing exactly twice."""
+    queue = _load_queue()
+    pair_ids = [p["pair_id"] for p in queue["pairs"]]
+    distinct = set(pair_ids)
+    assert len(pair_ids) == 997
+    assert len(distinct) == 959
+    counts: dict[str, int] = {}
+    for pid in pair_ids:
+        counts[pid] = counts.get(pid, 0) + 1
+    repeated = [pid for pid, n in counts.items() if n > 1]
+    assert len(repeated) == 38
+    assert all(counts[pid] == 2 for pid in repeated)
+
+
+def test_no_test_entry_carries_an_engine_prediction() -> None:
+    split = _load_split()
+    leaks = [
+        occ_id
+        for occ_id, entry in split["assignments"].items()
+        if entry["split"] == "test" and "engine_prediction" in entry
+    ]
+    assert not leaks, f"{len(leaks)} TEST entries carry an engine_prediction key: {leaks[:5]}"
+
+
+def test_every_train_val_entry_carries_an_engine_prediction() -> None:
+    split = _load_split()
+    missing = [
+        occ_id
+        for occ_id, entry in split["assignments"].items()
+        if entry["split"] == "train_val" and "engine_prediction" not in entry
+    ]
+    assert not missing
+
+
+def test_test_reference_file_never_overlaps_train_val_occurrence_ids() -> None:
+    """The held-out reference-prediction file (never fetched by tools/annotate.html) must only
+    ever name TEST occurrence_ids -- if a TRAIN_VAL id leaked in, that would be harmless on its
+    own, but it would signal the two files were built from different splits."""
+    split = _load_split()
+    reference = json.loads(TEST_REFERENCE_JSON.read_text(encoding="utf-8"))
+    test_ids = {
+        occ_id for occ_id, entry in split["assignments"].items() if entry["split"] == "test"
+    }
+    reference_ids = set(reference["predictions"].keys())
+    assert reference_ids == test_ids
+
+
+def test_test_row_count_and_target() -> None:
+    split = _load_split()
+    assert split["test_row_count"] == 300
+
+
+def test_zero_listing_overlap_between_splits() -> None:
+    queue = _load_queue()
+    split = _load_split()
+    test_ids = {
+        occ_id for occ_id, entry in split["assignments"].items() if entry["split"] == "test"
+    }
+    train_val_ids = {
+        occ_id for occ_id, entry in split["assignments"].items() if entry["split"] == "train_val"
+    }
+    derived_ids = _derive_occurrence_ids(queue["pairs"])
+    id_to_row = dict(zip(derived_ids, queue["pairs"], strict=True))
+
+    test_hashes = {
+        h
+        for occ_id in test_ids
+        for h in (
+            id_to_row[occ_id]["left"]["content_hash"],
+            id_to_row[occ_id]["right"]["content_hash"],
+        )
+    }
+    train_val_hashes = {
+        h
+        for occ_id in train_val_ids
+        for h in (
+            id_to_row[occ_id]["left"]["content_hash"],
+            id_to_row[occ_id]["right"]["content_hash"],
+        )
+    }
+    assert not (test_hashes & train_val_hashes)
+
+
+def test_acceptance_gate_recorded_as_passed() -> None:
+    split = _load_split()
+    assert split["acceptance_gate_passed"] is True
+    assert split["acceptance_gate_failures"] == []
+
+
+def test_per_tier_gap_within_threshold() -> None:
+    """Recomputed independently from `assignments`, not read from the split file's own
+    `per_tier_counts` summary -- this is the test that would catch the summary itself being
+    stale or wrong, not just echo it back."""
+    split = _load_split()
+    test_tier_counts: dict[str, int] = {}
+    train_val_tier_counts: dict[str, int] = {}
+    for entry in split["assignments"].values():
+        bucket = test_tier_counts if entry["split"] == "test" else train_val_tier_counts
+        bucket[entry["tier"]] = bucket.get(entry["tier"], 0) + 1
+
+    test_total = sum(test_tier_counts.values())
+    train_val_total = sum(train_val_tier_counts.values())
+    all_tiers = set(test_tier_counts) | set(train_val_tier_counts)
+    assert all_tiers, "no tiers found in the split assignments"
+
+    for tier in all_tiers:
+        t_n = test_tier_counts.get(tier, 0)
+        tv_n = train_val_tier_counts.get(tier, 0)
+        t_pct = t_n / test_total * 100 if test_total else 0.0
+        tv_pct = tv_n / train_val_total * 100 if train_val_total else 0.0
+        gap = abs(t_pct - tv_pct)
+        assert gap <= TIER_GAP_LIMIT_PP, (
+            f"tier {tier!r}: gap {gap:.1f}pp exceeds {TIER_GAP_LIMIT_PP}pp"
+        )
+        assert t_n >= TEST_MIN_PER_TIER, (
+            f"tier {tier!r}: TEST count {t_n} below {TEST_MIN_PER_TIER}"
+        )
