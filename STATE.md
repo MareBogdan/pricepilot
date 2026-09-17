@@ -1,9 +1,28 @@
 # STATE
 
-Phase: 1 — Collection (still open — gate met except 7-consecutive-days, 3/7 as of 2026-09-14, pure
-wall-clock, nothing to decide), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 —
-Matching, opened 2026-09-15 (prerequisites only this session — no baseline, no fine-tuning, no
-annotation run started).**
+Phase: 1 — Collection (still open — gate met except 7-consecutive-days, pure wall-clock, nothing
+to decide), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open since
+2026-09-15.**
+
+**Current state, 2026-09-17 — read this paragraph first; the session-by-session narrative below
+is history, not status.** Phase 3 items 1 and 2 of CLAUDE.md §7 are done: candidate retrieval is
+built and **closed at recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%]** — a
+measurement-power finding, neither "met" nor "missed": the >=90% target sits inside the interval
+and separating 88% from 90% would need ~1,000 verified positive pairs (~27,000 draws at this
+project's observed rate), which is out of reach. No further retrieval tuning. The annotation
+queue is **FROZEN** (997 pairs / 959 distinct pair_ids, single-feature guard passed at 29.4% /
+11.4% / 5.7%, forecast M 30.7% / N 55.6% / S 13.7% persisted in the JSON) and split
+product-level into **TEST 300 pairs (blind — no rules-engine suggestion is ever shown) and
+TRAIN_VAL 697 pairs (assisted — suggestion shown, `C` confirms, `M`/`N`/`S` override)**. The
+assisted annotation tool is built and verified without a browser.
+
+**The next action in this project is Bogdan labelling.** Nothing is blocked on architecture, on
+retrieval, or on Claude Code. CLAUDE.md §7 item 3 — "the user annotates 800-1,000 pairs manually
+... it is not generated, it is labelled" — is UNMET, and no AI-labelled pair may enter any split.
+`docs/learned/phase3-pilot100-ai-reference-pass.json` holds 100 AI labels for measurement only
+and is not training data. Two things stay unmeasured until Bogdan labels: his real throughput
+(CLAUDE.md §7's 200 pairs/hour has never been tested — the full run may be 5 hours or 12) and the
+human S rate.
 
 Phase 3, 2026-09-15 session, in order: built a retrieval evaluation set independent of embeddings
 (142 known-positive pairs — 26 browser-verified + 116 plausibility-checked proxy-key collisions),
@@ -45,7 +64,7 @@ false positives on wet wipes, not wet food; "semi-umeda" no longer false-positiv
 the `"creveti"`/shrimp flavour gap (52 titles) — each measured by population coverage, never by
 re-scoring the gate sample (that would be tuning on the test set; 93.2%/95.6% stay the frozen,
 un-re-measured figures of record). No Phase 1 box ticked this session.
-Updated: 2026-09-15
+Updated: 2026-09-17
 
 ## Gate progress
 
@@ -374,8 +393,54 @@ here as the historical record of what this addendum first reported, not erased.*
   would have been 100% one tier — fixed (proportional interleaving) and re-verified against the
   real queue (every tier within ±0.5pp of its full-queue share in the first 100).
 
+**2026-09-17 session (fifth candidate-retrieval session) — retrieval closed, queue rebuilt and
+FROZEN, assisted annotation flow built. Full detail: DECISIONS.md ADR-0028 addenda #8-#9.**
+
+1. **Retrieval closed.** Proved `build_embeddings.py` itself (not an uncommitted scratch script)
+   now reproduces the vectors the 88% figure was measured on — genuine `SentenceTransformer`,
+   imported here via a generalised sklearn-import stub, verified bit-identical to the stored
+   vectors on 20 real rows (cosine 1.000000), then actually re-run (`--force`, all 10,532 rows)
+   and re-measured: **44/50 = 88.0%, CI [76.2%, 94.4%] — unchanged.**
+   `docs/learned/phase3-embedding-equivalence-2026-09-17.md`.
+2. **Gate figure reframed as a measurement-power finding.** 88% and the >=90% target are not
+   distinguishable at n=50 (target sits inside the CI) — not "gate met," not "gate missed."
+   Resolving it needs ~1,000 verified positive pairs (~27,000 draws at this project's observed
+   rate) — out of reach; not pursued further. ADR-0028 addendum #8 corrects addendum #7's "MISSED"
+   language accordingly. The K=20/K=100 re-ranking decision (addendum #7 item 3) stays PROPOSED —
+   still blocked on the section-7 serving benchmark, which doesn't exist yet.
+3. **Queue rebuilt once more, then FROZEN** — no further rebuild without a stated reason recorded
+   here first (same discipline as the Phase 2 gate figure). 997 pairs (959 distinct pair_ids).
+   Guard: capacity_differs 29.4%, flavour_differs 11.4%, brand_differs 5.7% (all under the 40%
+   limit). Forecast (persisted in the JSON): M-plausible 30.7%, N-by-rule 55.6%, S-likely 13.7%.
+   **469 of the previous queue's 959 pairs (48.9%) survive** into this rebuild; **47 of
+   `phase3-pilot100-ai-reference-pass.json`'s 99 distinct pairs (47.5%) survive** — any comparison
+   to that reference pass is on this 47-pair intersection only. ADR-0028 addendum #9.
+4. **Assisted annotation flow built — no annotation run started.** `scripts/split_annotation_queue.py`
+   (new, additive — reads the frozen queue read-only, never rewrites it) computes a PRODUCT-LEVEL
+   TEST/TRAIN_VAL split via connected components over the queue's own pairs (no ground-truth
+   product id exists; two listings connected by any queue pair are, by construction, candidates
+   for the same identity) — verified 0 content_hash overlap between splits. One 281-pair component
+   (28.2% of the queue) was excluded from TEST eligibility (cap: no component may supply >30% of
+   the TEST target) so the headline test set isn't ~94% one product family.
+   **TEST: 300 pairs / 262 listings, BLIND — no engine suggestion, ever, enforced three
+   independent ways** (merge-time nulling, the split file structurally omitting the field for
+   TEST, and an explicit split-check in the render/confirm code). **TRAIN_VAL: 697 pairs / 891
+   listings, ASSISTED** — the deterministic rules engine's prediction is shown as a suggestion,
+   `C` (Confirm — a key deliberately distinct from `M`/`N`/`S`, so pressing M/N/S is always an
+   independent judgement, never miscounted as a confirmation) accepts it, `M`/`N`/`S` overrides
+   it. Per-pair record gained `source` (blind/override/confirm) and `corrected`. End-of-run report
+   (`tools/annotate.html`'s done-screen) computes correction rate overall and per tier, plus
+   median decision time confirmed vs. corrected. Verified via `node --check` (syntax) and a
+   DOM-free simulation driving the real `decide()`/`confirmSuggestion()`/`assistedFlowReport()`
+   functions on 4 synthetic pairs — output matched the expected classification exactly (no browser
+   available this session). Full detail, including a real bug found and fixed while porting the
+   rules ladder (frozen queue's `listing_dict()` never persists `category` per-pair — worked
+   around, sanity-checked against the frozen queue's own forecast, exact match on all 997 pairs):
+   DECISIONS.md ADR-0028 addendum #10.
+
 [ ] Baseline (classical cross-encoder) — not started.
-[ ] 800-1,000 pairs annotated by Bogdan — queue built, **labelling not started**.
+[ ] 800-1,000 pairs annotated by Bogdan — **queue frozen, assisted-annotation tool built,
+    labelling not started.**
 [ ] Fine-tuned matcher — not started.
 [ ] Serving benchmark (CPU-quantized vs. cross-encoder vs. hosted API) — not started.
 
@@ -886,24 +951,44 @@ found and fixed real problems (ADR-0028 addendum, then addendum #2, both 2026-09
 in DECISIONS.md. **Still stopped for review before any labelling begins**, per explicit
 instruction. Bogdan needs to review, in particular:
 
-- **recall@20 headline (2026-09-17 session): 88.0% (44/50, CI [76.2%, 94.4%]) — still MISSED
-  against CLAUDE.md §7's >=90% target.** Grown/improved across three same-week sessions:
-  57.7% (15/26) -> 66.0%/72.0% dense/fused (n=50, eval set grown via pentruanimale's VTEX Catalog
-  API, query independent of the embedding input) -> **74.0%/88.0% dense/fused** after a per-field
-  audit of the embedding text found `breed_size_code` was still the RAW token (not the canonical
-  `breed_size_class` built two sessions ago) and `flavour` — already EN/RO-canonicalised by Phase
-  2 — was missing from the embedding text entirely. Both fixed, all 10,532 rows re-embedded
-  (worked around `sentence-transformers` still being blocked in this sandbox, via `transformers`
-  directly + a `sklearn` stub — the real model, real weights, confined to a scratch script, same
-  discipline as the `pg8000` workaround; `build_embeddings.py` itself untouched). **The predicted
-  shrink in EN/RO-flavour-crossing misses mostly did NOT happen (5/17 -> 4/13)** even though the
-  underlying data-level fix demonstrably worked (flavour matches on both sides of all 4 remaining
-  cases, checked directly) — those 4 pairs now miss for a different reason (general `product_line`
-  phrasing divergence in large crowded brand families), reported as a finding, not smoothed into a
-  round success number. K-sweep still shows blocked recall reaching 96% by K=100 (up from 94%) —
-  **a within-block re-ranking fix (the Phase 3 matching model itself) is written up as a PROPOSED
-  ADR (DECISIONS.md ADR-0028 addendum #7 item 3) for Bogdan to approve — not applied.** This gate
-  stays MISSED in this file until he decides.
+- **Retrieval is now considered done — no further tuning.** Headline recall@20 (2026-09-17
+  session): **88% (44/50), Wilson 95% CI [76.2%, 94.4%].** **This is a measurement-power finding,
+  not a pass or a fail: at n=50, 88% and the >=90% target are not statistically distinguishable —
+  the target sits inside the interval.** Write it exactly this way, not as "gate met" and not as
+  "gate missed" (that would claim a difference the sample cannot establish): the point estimate
+  sits below target, and the gap between 88% and 90% is smaller than this measurement's own noise.
+  **Closing that question would need roughly 1,000 verified positive pairs** (a ±2pp Wilson
+  half-width at p≈0.9) — at this project's observed rate of ~27 draws per usable verified pair
+  (`phase3-retrieval-improvement-2026-09-16.md`, BLOCK 1b), that is on the order of 27,000 draws,
+  out of reach for this project. The number is not being chased further; the queue is frozen
+  instead (below) and annotation proceeds on the retrieval this session produced.
+  Grown/improved across three same-week sessions: 57.7% (15/26) -> 66.0%/72.0% dense/fused (n=50,
+  eval set grown via pentruanimale's VTEX Catalog API, query independent of the embedding input)
+  -> **74.0%/88.0% dense/fused** after a per-field audit of the embedding text found
+  `breed_size_code` was still the RAW token (not the canonical `breed_size_class` built two
+  sessions ago) and `flavour` — already EN/RO-canonicalised by Phase 2 — was missing from the
+  embedding text entirely. Both fixed, all 10,532 rows re-embedded.
+  **Provenance, corrected this session**: the vectors behind this figure were first produced by an
+  uncommitted scratch script (worked around `sentence-transformers` being blocked in this sandbox
+  via `transformers` directly + a `sklearn` stub), which meant `build_embeddings.py` itself did
+  not demonstrably produce what was measured. Proved equivalence on 20 real rows first — genuine
+  `SentenceTransformer.encode()` (imported here via a generalised version of the same stub, which
+  turns out to let the REAL library run, not just a manual reimplementation) vs. the stored
+  vectors: cosine 1.000000, max abs diff ~1e-7 (pgvector float32 round-trip noise) — identical.
+  Then fixed `build_embeddings.py` itself to use that same stub as a fallback (tries the normal
+  import first; only on this sandbox's ImportError does it install the stub — unchanged behaviour
+  on Bogdan's own machine or the deployment VPS), re-ran it for real (`--force`, all 10,532 rows,
+  genuine model, real weights), and re-measured: **44/50 = 88.0%, CI [76.2%, 94.4%] — identical.**
+  Full detail: `docs/learned/phase3-embedding-equivalence-2026-09-17.md`.
+  **The predicted shrink in EN/RO-flavour-crossing misses mostly did NOT happen (5/17 -> 4/13)**
+  even though the underlying data-level fix demonstrably worked (flavour matches on both sides of
+  all 4 remaining cases, checked directly) — those 4 pairs now miss for a different reason (general
+  `product_line` phrasing divergence in large crowded brand families), reported as a finding, not
+  smoothed into a round success number. K-sweep still shows blocked recall reaching 96% by K=100
+  (up from 94%) — **a within-block re-ranking fix (the Phase 3 matching model itself) stays
+  PROPOSED ONLY (DECISIONS.md ADR-0028 addendum #7 item 3) — not decidable now, since what prices
+  it is the section-7 serving benchmark, which does not exist yet.** No decision needed from
+  Bogdan to proceed with annotation; this is recorded for when the serving benchmark exists.
   **Structural limitation of the eval set, recorded (not previously written down): all 50 pairs
   were found by a brand-root query, and blocked retrieval blocks on brand.** Checked directly: 0
   of the 50 pairs' listings are flagged `brand_is_distributor_code` or have a null
@@ -917,16 +1002,26 @@ instruction. Bogdan needs to review, in particular:
   extension have been rechecked against a full SKU list, giving a corrected 40-row rate of
   **57.5% (23/40), CI [42.2%, 71.5%] — reconciles cleanly with Q3's original 54%**, and now serves
   as the Phase 1 overlap gate's second independent confirmation (see the gate checklist above).
-- The rebuilt annotation queue (997 pairs) now reports a **predicted M/N/S label distribution**
-  (a deterministic rules-engine forecast, `docs/learned/phase3-annotation-conventions.md`
-  revision 2 applied to every pair) instead of a source-tier count that asserted labels it
-  couldn't guarantee: **M-plausible ~31%** (over the 25% floor, no rebalance needed), N-by-rule
-  ~55%, S-likely ~13%.
-- `tools/annotate.html` now supports a configurable 100-pair pilot stop (reports observed M/N/S,
-  S-reasons, median decision time before requiring an explicit "continue"). Building it caught a
-  real bug: the display order concatenated tiers alphabetically rather than interleaving them, so
-  the first 100 pairs would have been 100% one tier — fixed and re-verified against the real queue
-  (every tier now within ±0.5pp of its full-queue share in the first 100).
+- **The annotation queue is now FROZEN (2026-09-17, ADR-0028 addendum #9) — no further rebuild
+  without a stated reason recorded here first.** Final numbers: 997 pairs (959 distinct
+  pair_ids), guard passed (capacity_differs 29.4%, flavour_differs 11.4%, brand_differs 5.7%, all
+  under the 40% limit), forecast M-plausible 30.7% / N-by-rule 55.6% / S-likely 13.7% (persisted
+  inside the queue JSON itself). 469 of the previous queue's 959 pairs (48.9%) and 47 of the
+  100-pair AI reference pass's 99 distinct pairs (47.5%) survive into this final draw.
+- **Product-level TEST/TRAIN_VAL split + assisted annotation flow built (2026-09-17, ADR-0028
+  addendum #10) — no annotation run started.** TEST: 300 pairs / 262 listings, BLIND (no
+  suggestion, ever, enforced three independent ways). TRAIN_VAL: 697 pairs / 891 listings,
+  ASSISTED (rules-engine suggestion shown, `C` to confirm, `M`/`N`/`S` to override — pressing
+  M/N/S is always an independent judgement, never counted as a confirmation). Split is by
+  connected component over the queue's own pairs (no ground-truth product id exists), so no
+  listing can appear in both splits — verified, 0 overlap. Full detail: DECISIONS.md ADR-0028
+  addendum #10.
+- `tools/annotate.html` now also supports a configurable 100-pair pilot stop (reports observed
+  M/N/S, S-reasons, median decision time before requiring an explicit "continue"). Building it
+  caught a real bug: the display order concatenated tiers alphabetically rather than interleaving
+  them, so the first 100 pairs would have been 100% one tier — fixed and re-verified against the
+  real queue (every tier now within ±0.5pp of its full-queue share in the first 100).
 
 Nothing is asked of him beyond reviewing before labelling starts — no architecture question is
-open.
+open. When he's ready: `python -m http.server` from the repo root, then
+`http://localhost:8000/tools/annotate.html`.

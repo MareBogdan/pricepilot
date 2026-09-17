@@ -111,6 +111,16 @@
   #pilot-screen pre { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; font-size: 13px; line-height: 1.6; max-width: 560px; white-space: pre-wrap; }
 
   #resume-note { font-size: 11.5px; color: var(--muted); padding: 4px 20px 0; }
+
+  /* Assisted flow (TRAIN_VAL only, never TEST — see JS) */
+  .split-badge { border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; }
+  .split-badge.test { background: rgba(240,75,75,0.14); color: var(--nomatch); border: 1px solid var(--nomatch); }
+  .split-badge.train_val { background: rgba(79,140,255,0.14); color: var(--accent); border: 1px solid var(--accent); }
+  #suggestion-pill { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-right: 8px; }
+  #suggestion-pill b { color: var(--accent); }
+  .btn-confirm { display: none; border-color: var(--accent); }
+  .btn-confirm:hover, .btn-confirm.active { color: var(--accent); }
+  #done-report { text-align: left; max-width: 640px; font-size: 12.5px; line-height: 1.6; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -125,6 +135,7 @@
       <li><span class="key">S</span> skip / uncertain — a real answer, not a failure</li>
       <li><span class="key">U</span> undo last decision</li>
       <li><span class="key">F</span> flag (add to any answer — e.g. reformulation, worth a second look)</li>
+      <li><span class="key">C</span> confirm the suggested label (TRAIN/VAL pairs only — never shown on TEST pairs)</li>
     </ul>
 
     <h2>N — always</h2>
@@ -158,6 +169,7 @@
       <div class="stat"><b id="stat-done">0</b> / <span id="stat-total">0</span> done</div>
       <div class="stat">⏱ <b id="stat-timer">00:00</b></div>
       <div class="stat">median <b id="stat-median">—</b>/decision</div>
+      <div id="split-badge-wrap"><span class="split-badge" id="split-badge"></span></div>
       <div id="tiers"></div>
     </div>
     <div id="resume-note"></div>
@@ -192,9 +204,11 @@
     </div>
 
     <div id="decision-bar">
+      <div id="suggestion-pill">Suggested: <b id="suggestion-label"></b></div>
       <button class="btn btn-m" data-answer="M"><span class="key">M</span> Match</button>
       <button class="btn btn-n" data-answer="N"><span class="key">N</span> No match</button>
       <button class="btn btn-s" data-answer="S"><span class="key">S</span> Skip</button>
+      <button class="btn btn-confirm" id="btn-confirm"><span class="key">C</span> Confirm</button>
       <button class="btn btn-undo" id="btn-undo"><span class="key">U</span> Undo</button>
       <button class="btn btn-flag" id="btn-flag"><span class="key">F</span> Flag</button>
     </div>
@@ -210,6 +224,7 @@
   <div id="done-screen">
     <h1>Queue complete.</h1>
     <p id="done-summary"></p>
+    <pre id="done-report"></pre>
   </div>
 </div>
 <div id="toast"></div>
@@ -237,6 +252,15 @@
 
 const STORAGE_KEY = "pricepilot_phase3_annotations_v1";
 const QUEUE_URL = "../docs/learned/phase3-annotation-queue.json";
+
+// STEP 7 (product-level TEST/TRAIN_VAL split, DECISIONS.md ADR-0028 addendum #9/#10) — a SEPARATE
+// file from the frozen queue, built by scripts/split_annotation_queue.py. Maps occurrence_id ->
+// {split, tier, engine_prediction?}. TEST entries NEVER carry `engine_prediction` -- that key is
+// simply absent from the file for them (checked in split_annotation_queue.py's own output), not
+// merely hidden by this page's rendering logic. This page never reads
+// phase3-test-split-reference-predictions.json (the held-out file with TEST's own predictions,
+// for later offline evaluation only) -- there is no fetch() call to it anywhere in this file.
+const SPLIT_URL = "../docs/learned/phase3-annotation-split.json";
 
 // TASK D — a configurable pilot size. Default 100 (Bogdan labels a pilot slice before committing
 // to the full run, per instruction). Override with ?pilot=N in the URL; ?pilot=0 disables the
@@ -557,15 +581,81 @@ function renderPair() {
   renderTokens(document.getElementById("right-title"), db);
   renderAttrs(item.left, item.right);
 
+  // STEP 7 -- split badge always visible (transparency: which mode this pair is in), suggestion
+  // pill + confirm button visible ONLY for split === "train_val" with a prediction present.
+  // A TEST-split item has item.engine_prediction === null by construction (see init()'s merge),
+  // so the `item.split === "train_val" && item.engine_prediction` guard alone would already be
+  // enough -- the explicit split check is kept as a second, redundant guard on purpose.
+  const badge = document.getElementById("split-badge");
+  badge.textContent = item.split === "test" ? "TEST (blind)" : "TRAIN/VAL (assisted)";
+  badge.className = "split-badge " + item.split;
+
+  const showSuggestion = item.split === "train_val" && !!item.engine_prediction;
+  document.getElementById("suggestion-pill").style.display = showSuggestion ? "flex" : "none";
+  document.getElementById("btn-confirm").style.display = showSuggestion ? "flex" : "none";
+  if (showSuggestion) {
+    document.getElementById("suggestion-label").textContent = item.engine_prediction.label;
+  }
+
   document.querySelectorAll(".btn[data-answer]").forEach((b) => b.classList.remove("active"));
   document.getElementById("btn-flag").classList.remove("active");
+  document.getElementById("btn-confirm").classList.remove("active");
   const existing = state[item.occurrence_id];
   if (existing) {
     document.querySelector(`.btn[data-answer="${existing.answer}"]`)?.classList.add("active");
+    if (existing.source === "confirm") document.getElementById("btn-confirm").classList.add("active");
     if (existing.flagged) document.getElementById("btn-flag").classList.add("active");
   }
   decisionStart = Date.now();
   updateTopbar();
+}
+
+// STEP 7 -- assisted-flow report: correction rate (overall + per tier) and median decision time,
+// confirmed vs. corrected. TEST-split ("blind") decisions are excluded from this report entirely
+// -- they never had a suggestion, so "corrected"/"confirmed" doesn't apply to them.
+function median(values) {
+  if (!values.length) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function assistedFlowReport() {
+  const decided = Object.values(state).filter((s) => s.split === "train_val");
+  const confirmed = decided.filter((s) => s.source === "confirm");
+  const corrected = decided.filter((s) => s.corrected);
+  const overrideAgreed = decided.filter((s) => s.source === "override" && !s.corrected);
+
+  const byTierTotal = {}, byTierCorrected = {};
+  for (const s of decided) {
+    byTierTotal[s.tier] = (byTierTotal[s.tier] || 0) + 1;
+    if (s.corrected) byTierCorrected[s.tier] = (byTierCorrected[s.tier] || 0) + 1;
+  }
+
+  const lines = [];
+  lines.push(`TRAIN/VAL decisions: ${decided.length}`);
+  lines.push(`  confirmed (pressed C):            ${confirmed.length}`);
+  lines.push(`  corrected (overrode, differs):    ${corrected.length}`);
+  lines.push(`  overrode but agreed w/ suggestion: ${overrideAgreed.length}`);
+  const rate = decided.length ? (corrected.length / decided.length) * 100 : 0;
+  lines.push(`  correction rate (overall): ${rate.toFixed(1)}%`);
+  lines.push("");
+  lines.push("  correction rate per tier:");
+  for (const tier of Object.keys(byTierTotal).sort()) {
+    const n = byTierTotal[tier], c = byTierCorrected[tier] || 0;
+    lines.push(`    ${tier}: ${c}/${n} = ${((c / n) * 100).toFixed(1)}%`);
+  }
+  lines.push("");
+  const mConfirmed = median(confirmed.map((s) => s.ms).filter((ms) => typeof ms === "number"));
+  const mCorrected = median(corrected.map((s) => s.ms).filter((ms) => typeof ms === "number"));
+  lines.push(`  median decision time, confirmed: ${fmtMs(mConfirmed)}`);
+  lines.push(`  median decision time, corrected: ${fmtMs(mCorrected)}`);
+
+  const blind = Object.values(state).filter((s) => s.split === "test");
+  lines.push("");
+  lines.push(`TEST (blind) decisions: ${blind.length} -- no suggestion was ever shown for these.`);
+
+  return lines.join("\n");
 }
 
 function showDone() {
@@ -575,17 +665,31 @@ function showDone() {
   const { totals, done } = tierCounts();
   const lines = Object.keys(totals).sort().map((t) => `${t}: ${done[t] || 0}/${totals[t]}`).join(" · ");
   document.getElementById("done-summary").textContent = `${Object.keys(state).length}/${queue.length} decisions recorded. ${lines}`;
+  document.getElementById("done-report").textContent = assistedFlowReport();
 }
 
-function decide(answer) {
+// STEP 7 -- `source` names HOW the label was produced, never guessed after the fact:
+//   "blind"    -- TEST-split pair, no suggestion existed to accept or reject
+//   "override" -- TRAIN_VAL pair, the annotator pressed M/N/S directly (their own judgement,
+//                 even in the rare case where it happens to match the suggestion -- pressing
+//                 M/N/S is never recorded as a confirmation, per instruction)
+//   "confirm"  -- TRAIN_VAL pair, the annotator pressed C to accept the suggested label as-is
+function decide(answer, source) {
   if (cursor < 0 || cursor >= order.length) return;
   const item = queue[order[cursor]];
   const ms = decisionStart ? Date.now() - decisionStart : null;
   const prevFlag = state[item.occurrence_id]?.flagged || false;
   const prevReason = state[item.occurrence_id]?.s_reason || null;
+  const prediction = item.engine_prediction || null;
+  const corrected = source === "override" && !!prediction && prediction.label !== answer;
   state[item.occurrence_id] = {
     pair_id: item.pair_id,
+    tier: item.tier,
+    split: item.split,
     answer,
+    source,
+    engine_prediction: prediction,
+    corrected,
     flagged: prevFlag,
     s_reason: answer === "S" ? prevReason : null,
     ms,
@@ -598,6 +702,18 @@ function decide(answer) {
     hideReasonStrip();
   }
   advance();
+}
+
+function confirmSuggestion() {
+  if (cursor < 0 || cursor >= order.length) return;
+  const item = queue[order[cursor]];
+  // Belt-and-braces: confirm is a no-op on a TEST pair or a TRAIN_VAL pair with no suggestion --
+  // there must never be a code path where pressing C invents or reveals a label on a TEST pair.
+  if (item.split !== "train_val" || !item.engine_prediction) {
+    toast(item.split === "test" ? "TEST pairs are blind — no suggestion to confirm" : "no suggestion for this pair");
+    return;
+  }
+  decide(item.engine_prediction.label, "confirm");
 }
 
 // TASK D — S-reason capture. Non-blocking: the strip stays attached to the pair that was just
@@ -711,21 +827,35 @@ function buildOrder(seed) {
 }
 
 async function init() {
-  let data;
+  let data, splitData;
   try {
-    const res = await fetch(QUEUE_URL);
+    const [res, splitRes] = await Promise.all([fetch(QUEUE_URL), fetch(SPLIT_URL)]);
     data = await res.json();
+    splitData = await splitRes.json();
   } catch (e) {
     document.getElementById("content").innerHTML =
-      `<div class="card">Could not load <code>${QUEUE_URL}</code>. This page must be served over
-      http:// (not opened as a file:// double-click) — run <code>python -m http.server</code>
-      from the repo root and open <code>http://localhost:8000/tools/annotate.html</code>.
-      Also run <code>scripts/build_annotation_queue.py</code> first if the queue file doesn't
-      exist yet.</div>`;
+      `<div class="card">Could not load <code>${QUEUE_URL}</code> and/or <code>${SPLIT_URL}</code>.
+      This page must be served over http:// (not opened as a file:// double-click) — run
+      <code>python -m http.server</code> from the repo root and open
+      <code>http://localhost:8000/tools/annotate.html</code>. Also run
+      <code>scripts/build_annotation_queue.py</code> then
+      <code>scripts/split_annotation_queue.py</code> first if either file doesn't exist yet.</div>`;
     return;
   }
 
   queue = data.pairs;
+  // STEP 7 merge: attach split/tier/engine_prediction from the separate split file. A pair with
+  // no assignment entry (should never happen against a matching pair count, but not assumed) is
+  // treated as TEST -- the SAFE default, since a missing assignment must never accidentally
+  // surface a prediction that was never vetted for that pair.
+  for (const item of queue) {
+    const a = splitData.assignments && splitData.assignments[item.occurrence_id];
+    item.split = a ? a.split : "test";
+    // Explicit, redundant-by-design guard: engine_prediction is only ever attached for
+    // split === "train_val". Even if the split file's shape changes upstream, a "test" item
+    // here can never carry a prediction field.
+    item.engine_prediction = a && a.split === "train_val" ? a.engine_prediction || null : null;
+  }
   state = loadState();
   order = buildOrder(data.shuffle_seed || 20260915);
 
@@ -755,15 +885,21 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   const key = e.key.toLowerCase();
-  if (key === "m") decide("M");
-  else if (key === "n") decide("N");
-  else if (key === "s") decide("S");
+  const item = cursor >= 0 && cursor < order.length ? queue[order[cursor]] : null;
+  if (key === "m") decide("M", item && item.split === "test" ? "blind" : "override");
+  else if (key === "n") decide("N", item && item.split === "test" ? "blind" : "override");
+  else if (key === "s") decide("S", item && item.split === "test" ? "blind" : "override");
+  else if (key === "c") confirmSuggestion();
   else if (key === "u") undo();
   else if (key === "f") toggleFlag();
 });
 document.querySelectorAll(".btn[data-answer]").forEach((b) => {
-  b.addEventListener("click", () => decide(b.dataset.answer));
+  b.addEventListener("click", () => {
+    const item = cursor >= 0 && cursor < order.length ? queue[order[cursor]] : null;
+    decide(b.dataset.answer, item && item.split === "test" ? "blind" : "override");
+  });
 });
+document.getElementById("btn-confirm").addEventListener("click", confirmSuggestion);
 document.getElementById("btn-undo").addEventListener("click", undo);
 document.getElementById("btn-flag").addEventListener("click", toggleFlag);
 document.querySelectorAll("#reason-strip button[data-reason]").forEach((b) => {

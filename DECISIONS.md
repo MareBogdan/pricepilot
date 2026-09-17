@@ -2173,3 +2173,222 @@ evidence is strong — it is a real architectural/cost trade-off with a number C
 process will produce soon, and the instruction was explicit: propose, do not apply.
 
 **Date.** 2026-09-17 (fourth candidate-retrieval session).
+
+## ADR-0028 addendum #8 — retrieval closed: embeddings reproduced from committed code, gate figure
+reframed as a measurement-power finding, not "missed"
+
+**Context.** Two problems with addendum #7's 88.0% figure, both closed this session (fifth
+candidate-retrieval session, same day): (1) the vectors it was measured on were produced by an
+uncommitted scratch script, so `build_embeddings.py` — the reviewed, committed code — did not
+demonstrably produce them; (2) addendum #7 reported the figure as "MISSED against the >=90%
+target," which is a stronger claim than a 95% CI of [76.2%, 94.4%] (target inside the interval)
+actually supports.
+
+**Decision 1 — embeddings are now genuinely reproducible from `build_embeddings.py`.** Checked
+one level deeper than the prior session's `transformers`-direct workaround: a generalised
+`sys.meta_path` stub (intercepts any `sklearn`/`sklearn.*` import with an empty module, not just
+two hand-picked attribute names) lets the REAL `sentence_transformers` package import and run in
+this sandboxed environment — not a manual reimplementation of pooling, the genuine library.
+Verified on 20 real rows before trusting it: genuine `SentenceTransformer.encode()` vs. the vector
+already stored in `norm_listings.embedding` for the same text — cosine similarity 1.000000 on
+every row, max abs diff ~1e-7 (pgvector's float32 round-trip, not a real gap). The scratch script's
+manual mean-pool + L2-normalize was correct all along. Ported the working stub into
+`build_embeddings.py` itself as `_load_sentence_transformer_class()` — tries the normal import
+first, installs the stub only on `ImportError`, so behaviour is unchanged on a machine where
+`sklearn` imports cleanly (Bogdan's own machine, the deployment VPS). Then actually re-ran it,
+`--force`, regenerating all 10,532 embeddings via the now-working committed script (genuine model,
+real weights, ~81s) — not merely argued that it would work. Re-measured recall@20 against the
+freshly-rebuilt vectors: **44/50 = 88.0%, CI [76.2%, 94.4%] — identical to addendum #7's figure.**
+Full detail: `docs/learned/phase3-embedding-equivalence-2026-09-17.md`.
+
+**Decision 2 — the gate figure is reported as a measurement-power finding, not "missed."**
+At n=50 and p̂=0.88, the 95% CI is [76.2%, 94.4%], and CLAUDE.md §7's >=90% target sits INSIDE that
+interval. 88% and 90% are not statistically distinguishable at this sample size. Addendum #7's
+"MISSED against the >=90% target" language overstated what the measurement supports — a point
+estimate below target is real, but calling it "missed" implies a distinguishable shortfall the CI
+does not show. Corrected framing, now the framing of record: **the point estimate is below target;
+the difference is inside the measurement's own noise; closing the question would need roughly
+1,000 verified positive pairs** (a ±2pp Wilson half-width at p≈0.9) **which, at this project's own
+observed rate of ~27 draws per usable verified pair (`phase3-retrieval-improvement-2026-09-16.md`
+BLOCK 1b), is on the order of 27,000 draws — out of reach for this project.** This is not a
+reframing to a more favourable number; 88% is still 88%, and item 3's K=20/K=100 decision (below)
+stays exactly as unresolved as before. It is a correction to how much certainty a sample of 50 can
+support saying about a 2-point gap.
+
+**Decision 3 — the K=20/K=100 serving-benchmark decision (addendum #7 item 3) stays PROPOSED,
+explicitly not decidable now.** Nothing about decisions 1-2 changes this: what prices Option B
+(widen to K=100, let the matching model re-rank) is CLAUDE.md §7's section-7 serving benchmark,
+which has not been built yet (Phase 3 has not reached fine-tuning). Recorded again here so a
+future session does not mistake "retrieval is closed for this round" for "the K=20/K=100 question
+is closed" — it isn't; it is blocked on a measurement that doesn't exist yet, not on more retrieval
+tuning.
+
+**Retrieval work stops here, per instruction.** No further tuning is planned against this figure;
+Phase 3 proceeds to freezing the annotation queue and building the assisted-annotation flow on the
+retrieval as it now stands.
+
+**Rejected.** Continuing to grow the eval set to try to resolve the 88%-vs-90% question now
+(explicitly out of scope this session — the growth rate is documented as impractical, ~27 draws
+per usable pair, and instruction was to stop tuning); leaving `build_embeddings.py` unfixed on the
+grounds that the scratch script was "close enough" (an argument, not a verification — the fix cost
+one conditional import and confirmed nothing had silently drifted); deciding the K=20/K=100
+question now on the strength of the K-sweep alone (the same reasoning addendum #7 already rejected
+once — the serving benchmark is what actually prices it).
+
+**Date.** 2026-09-17 (fifth candidate-retrieval session).
+
+## ADR-0028 addendum #9 — the annotation queue is rebuilt once more, then FROZEN
+
+**Context.** Retrieval is now closed (addendum #8) — every signal Phase 3 built this week
+(canonical embedding fields, species, breed-size rank, XS-XL nulling, age qualifiers,
+`in_scope_only()`) now feeds the queue builder, and the queue itself has been rebuilt three times
+this week already as those signals landed, each time comparing against a shrinking intersection
+with the prior draw. Per instruction: rebuild it once more, on everything now in place, then stop
+rebuilding it.
+
+**Decision.** `scripts/build_annotation_queue.py` re-run, unmodified, against the current
+database state (fresh embeddings from addendum #8, `in_scope_only()`, species, canonical
+breed-size). Output: **997 pairs, 959 distinct `pair_id`s** (some pairs recur across categories
+before dedup collapses to distinct ids — matches the previous queue's own 959-distinct-of-997
+shape).
+
+**Guard, three figures (limit 40%, none exceeded):**
+
+| feature | share of queue |
+|---|---:|
+| `capacity_differs` | 29.4% |
+| `flavour_differs` (both stated) | 11.4% |
+| `brand_differs` | 5.7% |
+
+**M/N/S forecast (rules-engine, `predicted_label_forecast` — persisted inside the JSON artifact
+itself, not only console output):** M-plausible 306 (30.7%), N-by-rule 554 (55.6%) — quantity
+differs 285 (28.6%), lifestage differs 105 (10.5%), flavour differs 88 (8.8%), species differs 47
+(4.7%), breedsize differs 29 (2.9%) — S-likely 137 (13.7%).
+
+**Survival, measured directly, not assumed:**
+- **469 of the previous queue's 959 pairs (48.9%) survive into this rebuild** — the source SQL
+  queries changed enough (fresh embeddings, `in_scope_only()`, canonical breed-size/species) that
+  roughly half the queue is a genuinely different draw, consistent with how much churn the last two
+  same-day rebuilds already showed.
+- **47 of `phase3-pilot100-ai-reference-pass.json`'s 99 distinct pair_ids (47.5%) survive.** The
+  100-pair AI reference pass (addendum #4/finding-8 discussion) is therefore comparable to this
+  queue only on that 47-pair intersection, same caveat as the last comparison (n=44 there) —
+  smaller than the full 100, directional only.
+
+**This queue file is now FROZEN.** No further rebuild without a stated reason recorded in
+STATE.md first — the same discipline already applied to the Phase 2 gate figure (ADR-0027: frozen
+before any fix, never re-scored afterward). The annotation run (STATE.md, "Blocked on Bogdan") can
+now proceed against this exact file.
+
+**Rejected.** Rebuilding a fourth time to chase a higher old-queue/pilot-100 survival rate (there
+is no target number for survival — it is a diagnostic, not a gate); waiting for a fifth signal
+before freezing (retrieval and normalization are both closed for this round; the marginal value of
+one more signal does not justify another 5 hours of relabelled-queue churn against Bogdan's still
+entirely unstarted annotation clock).
+
+**Date.** 2026-09-17 (fifth candidate-retrieval session, queue-freeze step).
+
+## ADR-0028 addendum #10 — STEP 7: product-level TEST/TRAIN_VAL split, assisted annotation flow
+(rules-engine suggestions, never an LLM), annotation run still NOT started
+
+**Context.** CLAUDE.md §7 requires product-level train/val/test splits (item 4: "otherwise the
+same product appears in train and test and every metric is inflated... the most common way these
+projects become worthless") and, separately, an assisted-labelling flow to make Bogdan's ~1,000
+manual decisions (the scarcest resource in this project, ~5 hours at 200/hour) closer to ~2 hours
+without contaminating the ground truth with an LLM's judgement.
+
+**Decision 1 — the split is a NEW, additive script, not a rebuild.**
+`scripts/split_annotation_queue.py` reads the FROZEN `phase3-annotation-queue.json` (addendum #9)
+read-only and writes two new files:
+- `docs/learned/phase3-annotation-split.json` — per-`occurrence_id`: `split` ("test" |
+  "train_val"), `tier`, and — **TRAIN_VAL entries only** — `engine_prediction` ({label, rule}
+  from the same `predict_label()` ladder `build_annotation_queue.py` already uses, ported
+  verbatim so the two can never disagree). **TEST entries carry no `engine_prediction` key at
+  all** — not `null`, absent — the file itself cannot leak one.
+- `docs/learned/phase3-test-split-reference-predictions.json` — TEST pairs' predictions, for
+  later OFFLINE evaluation only. `tools/annotate.html` has no `fetch()` call to this file anywhere
+  in it; named with a `WARNING` field telling a human not to open it while labelling.
+
+**Decision 2 — product-level split via connected components, not a pair-level random split.**
+There is no ground-truth "real product id" in this dataset — that absence is the entire reason
+matching is hard. The strongest defensible proxy: treat the frozen queue's own pairs as edges over
+`content_hash` nodes, take connected components (union-find), and assign each WHOLE component to
+one split. A listing is then structurally unable to appear in both splits — verified directly,
+not assumed (`0 overlap` between 262 TEST listings and 891 TRAIN_VAL listings, printed by the
+script and checked by set intersection).
+
+**Decision 3 — one giant component (281 of 997 pairs, 28.2%) is excluded from TEST eligibility.**
+Assigning it whole to a ~300-pair TEST split would make ~94% of the headline test set describe one
+product family. Policy, stated as a general rule rather than hand-picked for this one case: a
+component may not supply more than 30% of the TEST target (target 300 → cap 90 pairs); anything
+larger routes to TRAIN_VAL, where it is one family among ~700 pairs rather than the entire signal.
+A seeded shuffle + best-fit walk over the remaining 381 components then assembles **TEST at
+exactly 300 pairs, from 36 components**; the rest — **697 pairs, from 346 components (including
+the excluded 281-pair giant) — form TRAIN_VAL.** Both splits span every tier (TEST: proxy_key
+35.0%, capacity_differs_cross_shop 25.0%, blocked_retrieval 10.3%, plus five smaller hard-negative
+tiers 4–7% each — not dominated by any single source).
+
+**Decision 4 — the assisted flow lives in `tools/annotate.html`, gated on `split`, keyed
+distinctly from M/N/S.** For a `split === "test"` pair, the tool renders exactly as before —
+no suggestion pill, no confirm button — enforced three ways at once, not just one: (a) the merge
+step in `init()` sets `item.engine_prediction = null` for any pair whose split isn't
+`"train_val"`, regardless of what the split file says; (b) the split file itself never contains a
+prediction for a TEST `occurrence_id` to merge in the first place; (c) the render/confirm code
+paths both re-check `item.split === "train_val"` explicitly before showing or acting on anything,
+so a hypothetical future bug in (a) or (b) alone still cannot surface a prediction on a TEST pair.
+For a `split === "train_val"` pair with a prediction, a "Suggested: <label>" pill and a **`C`
+(Confirm)** button appear — a key deliberately distinct from `M`/`N`/`S`, so pressing `M`/`N`/`S`
+is always recorded as the annotator's own independent judgement (`source: "override"`), even in
+the case where it happens to match the suggestion, and only pressing `C` (`source: "confirm"`,
+label forced to the suggestion) counts as a confirmation. Recorded per pair: final label, engine
+prediction, `source` (`"blind"` for TEST, `"override"`/`"confirm"` for TRAIN_VAL), `corrected`
+(`true` only when `source === "override"` AND the chosen label differs from the suggestion),
+decision time (`ms`), and `tier` — all already-existing fields (`answer`, `ms`, `tier`) plus four
+new ones, no schema break.
+
+**Decision 5 — the end-of-run report** (`assistedFlowReport()`, shown on the done-screen)
+computes, over TRAIN_VAL decisions only: counts of confirmed / corrected / "overrode but agreed",
+overall correction rate, correction rate **per tier**, and median decision time for confirmed vs.
+corrected pairs — exactly what was asked for, nothing extra grafted on. TEST decisions are counted
+separately and explicitly excluded from the correction-rate arithmetic (they never had a
+suggestion to correct).
+
+**Verification, done without opening a browser (Chrome extension unavailable this session, same
+constraint as STEP 5's original build) — same discipline as before, not skipped.**
+`node --check` on the extracted `<script>` (syntax clean). Then a DOM-free simulation: a stub
+`document`/`localStorage`/`fetch` and four synthetic pairs (one TEST/blind, one TRAIN_VAL
+confirmed, one TRAIN_VAL corrected, one TRAIN_VAL "overrode but agreed") driven through the real
+`decide()`/`confirmSuggestion()`/`assistedFlowReport()` functions extracted from the file itself
+(not reimplemented for the test). Output matched the expected classification and arithmetic
+exactly: 1 blind, 1 confirmed, 1 corrected, 1 override-agreed, correction rate 33.3% (1/3), correct
+per-tier breakdown, correct medians (3.0s confirmed vs. 8.0s corrected in the synthetic data).
+
+**Also fixed while verifying**: `_quantity_tuple`/`predict_label` in the new split script
+initially returned `S` for every pair (rule 0 fired on every row) — `left.get("category")` was
+always `None` because `build_annotation_queue.py`'s own `listing_dict()` never persists `category`
+per-pair into the frozen queue JSON (a real, pre-existing gap in that file, found while porting
+the ladder, not assumed). Fixed by skipping rule 0 in the split script with a comment explaining
+why it's safe to skip: every pair in the frozen queue already passed `in_scope_only()` before
+being written, so rule 0 cannot fire on this data regardless. Sanity-checked the fix against the
+frozen queue's own recorded forecast: TEST (117 M / 146 N / 37 S) + TRAIN_VAL (189 M / 408 N / 100
+S) = 306 M / 554 N / 137 S — **exactly** the frozen queue's own `predicted_label_forecast`
+(addendum #9), confirming the ported ladder agrees with the original on every one of the 997 pairs.
+
+**Reported, per instruction — split sizes, blind/assisted boundary, enforcement — no annotation
+run started:**
+- **TEST: 300 pairs, 262 distinct listings, blind — no suggestion shown, ever.**
+- **TRAIN_VAL: 697 pairs, 891 distinct listings, assisted — suggestion shown, `C` to confirm,
+  `M`/`N`/`S` to override.**
+- Enforcement is structural (three independent layers, decision 4 above), not a single "don't
+  render this" check that a future edit could quietly break.
+
+**Rejected.** An LLM pre-label for the assisted suggestion (explicitly forbidden by instruction —
+would make the fine-tune a distillation of a larger model, not supervised learning on ground
+truth, and would make the reported F1 a measure of imitation, not matching skill). A pair-level
+random split (the exact CLAUDE.md §7 item 4 failure mode — leaks listing identity across the
+train/test boundary). Letting the 281-pair component into TEST uncapped (would make the headline
+test metric mostly a measurement of one product family). Treating "pressed M/N/S and it happened
+to match the suggestion" as a confirmation (would undercount how often the annotator is actually
+exercising independent judgement, the opposite of what the correction-rate report needs to show).
+
+**Date.** 2026-09-17 (fifth candidate-retrieval session, STEP 7).

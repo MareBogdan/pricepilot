@@ -58,6 +58,7 @@ import argparse
 import io
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -74,6 +75,75 @@ from pricepilot.normalize.attributes import breed_size_class  # noqa: E402
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 BATCH_SIZE = 256
+
+
+def _load_sentence_transformer_class() -> Any:
+    """Import `sentence_transformers.SentenceTransformer`, working around a Windows sandbox
+    'Application Control' policy on this dev machine that blocks scikit-learn's compiled
+    extensions (`sklearn.utils._array_api` -> `scipy.spatial._qhull` -> DLL load failure).
+    `sentence_transformers` imports `sklearn.metrics` transitively for a similarity-metrics
+    helper (`util/similarity.py`) never touched by a plain `encode()` call, so the failure is an
+    import-time artifact of this one machine's policy, not a real dependency of the encode path.
+
+    Tries the normal import first and only installs a stub if that fails, so behaviour is
+    unchanged on a machine where `sklearn` imports fine (Bogdan's own machine, the deployment
+    VPS) -- this is a workaround for THIS environment, not a permanent replacement for the real
+    library. Verified bit-identical to a normal import:
+    `docs/learned/phase3-embedding-equivalence-2026-09-17.md` compares a genuine
+    `SentenceTransformer` loaded this way against the vectors already stored in `norm_listings`
+    on 20 real rows -- cosine similarity 1.000000, max abs diff ~1e-7 (pgvector float32 round-trip
+    noise, not a real discrepancy). The stub only fakes `sklearn` well enough to satisfy Python's
+    import machinery; it never touches pooling, normalization, or any part of the actual forward
+    pass, which stays 100% real `sentence-transformers`/`transformers`/`torch` code and real
+    downloaded model weights.
+    """
+    try:
+        from sentence_transformers import SentenceTransformer
+
+        return SentenceTransformer
+    except ImportError:
+        pass
+
+    import importlib.abc
+    import importlib.machinery
+
+    def _make_stub(name: str) -> Any:
+        mod = __import__("types").ModuleType(name)
+        mod.__spec__ = importlib.machinery.ModuleSpec(name, loader=None, is_package=True)
+        mod.__path__ = []
+
+        def _getattr(attr: str) -> Any:
+            def _raise(*_a: object, **_k: object) -> None:
+                raise NotImplementedError(f"stubbed sklearn attr {attr!r} called")
+
+            return _raise
+
+        mod.__getattr__ = _getattr
+        return mod
+
+    class _SklearnStubFinder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
+        def find_module(self, fullname: str, path: object = None) -> object:
+            if fullname == "sklearn" or fullname.startswith("sklearn."):
+                return self
+            return None
+
+        def load_module(self, fullname: str) -> Any:
+            if fullname in sys.modules:
+                return sys.modules[fullname]
+            mod = _make_stub(fullname)
+            sys.modules[fullname] = mod
+            return mod
+
+    print(
+        "NOTE: normal `sentence_transformers` import failed (sklearn DLL block) -- "
+        "installing a sklearn import stub for this process only. See "
+        "docs/learned/phase3-embedding-equivalence-2026-09-17.md.",
+        file=sys.stderr,
+    )
+    sys.meta_path.insert(0, _SklearnStubFinder())
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer
 
 
 def embedding_text(row: NormListing) -> str:
@@ -136,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         print(f"loading model {MODEL_NAME} ...")
-        from sentence_transformers import SentenceTransformer
+        SentenceTransformer = _load_sentence_transformer_class()
 
         model = SentenceTransformer(MODEL_NAME)
 

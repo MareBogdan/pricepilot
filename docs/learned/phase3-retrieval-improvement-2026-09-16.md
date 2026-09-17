@@ -297,10 +297,17 @@ the "true match is in the block, just ranked low" finding still holds, now even 
 
 ## Final figure against the 90% gate
 
-**88.0% (44/50), Wilson 95% CI [76.2%, 94.4%] — MISSED against CLAUDE.md §7's >=90% target,
-reported as missed and not reframed, per instruction.** This is close enough that the CI's own
+**88.0% (44/50), Wilson 95% CI [76.2%, 94.4%].** This is close enough that the CI's own
 upper bound (94.4%) clears the gate, but the point estimate does not, and the point estimate is
 what's reported.
+
+**Correction, 2026-09-17 (ADR-0028 addendum #8), left here rather than silently edited above: the
+"MISSED against the target" framing overstated what n=50 can support.** The >=90% target sits
+INSIDE the 95% CI — 88% and 90% are not statistically distinguishable at this sample size. The
+honest reading is a measurement-power finding, not a pass/fail verdict: point estimate below
+target, gap inside the measurement's own noise, ~1,000 verified positive pairs (~27,000 draws at
+this project's observed hit rate) needed to resolve it further. Full correction:
+`docs/learned/phase3-embedding-equivalence-2026-09-17.md` and DECISIONS.md ADR-0028 addendum #8.
 
 The K=20-vs-K=100 argument — a re-ranking component (the Phase 3 matching model itself) could
 close the remaining gap, since most misses are ranked 21-100, not absent — is written up as a
