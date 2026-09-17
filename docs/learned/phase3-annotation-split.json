@@ -59,7 +59,7 @@
   },
   "0d1b18f0a21e_1d71ae73298c_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "0b9df5e81782_15d4ac2e73f7_0": {
    "split": "test",
@@ -71,7 +71,7 @@
   },
   "5e1296b9a5e1_d421baa2c85c_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "27ee07f5e367_bd73470574eb_0": {
    "split": "test",
@@ -87,7 +87,7 @@
   },
   "4b2cb18cab99_724b0a6ded05_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "11f2f14e5058_5d22a53683e0_0": {
    "split": "test",
@@ -111,7 +111,7 @@
   },
   "d7e51a8b7ba2_dc2765730536_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "0b9df5e81782_6475e64e7766_0": {
    "split": "test",
@@ -223,7 +223,7 @@
   },
   "794cdac35490_f451658b69fe_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "61edaef48537_654e9478b215_0": {
    "split": "test",
@@ -247,7 +247,7 @@
   },
   "45d78c52ceb8_e78f8525c049_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "8d373d9b98c7_c9438c8f7a8c_0": {
    "split": "test",
@@ -259,7 +259,7 @@
   },
   "6a815f68ac81_a777ff4041ae_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "70ec8132ff2b_b00b309bd8c4_0": {
    "split": "test",
@@ -293,6 +293,10 @@
    "split": "test",
    "tier": "capacity_differs_cross_shop"
   },
+  "d7e51a8b7ba2_dc2765730536_1": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
   "d01f3e239423_e74fd2ce0e55_0": {
    "split": "test",
    "tier": "proxy_key_collision"
@@ -307,7 +311,7 @@
   },
   "006fb9eb7e29_d2215849da87_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "cd575374833a_cfcc39876672_0": {
    "split": "test",
@@ -335,7 +339,7 @@
   },
   "849c8c66908e_97a5d666acd4_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "3b55967781dd_ac3b2ff9c5a0_0": {
    "split": "test",
@@ -380,6 +384,10 @@
   "0430382e0b69_3b6dd195dd27_0": {
    "split": "test",
    "tier": "capacity_differs_cross_shop"
+  },
+  "849c8c66908e_97a5d666acd4_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
   },
   "4a9ee8d65177_65e9aff77e81_0": {
    "split": "test",
@@ -447,7 +455,7 @@
   },
   "89e2901f53a4_af09fe488ef1_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "4a9ee8d65177_a479d20bd164_0": {
    "split": "test",
@@ -497,13 +505,17 @@
    "split": "test",
    "tier": "same_capacity_diff_lifestage"
   },
+  "4b2cb18cab99_724b0a6ded05_1": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
   "37bdf7ea04fa_d8e6ed17437c_0": {
    "split": "test",
    "tier": "proxy_key_collision"
   },
   "a34a1f1d8475_b173b5fd3a05_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "8d373d9b98c7_f0d65a9e2613_0": {
    "split": "test",
@@ -567,11 +579,11 @@
   },
   "61dca7be02ee_fd501d04e6f2_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "72b31032505e_947c7308aba7_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "c68cb489e95f_e6d623aa0e58_0": {
    "split": "test",
@@ -597,6 +609,10 @@
    "split": "test",
    "tier": "blocked_retrieval_candidate"
   },
+  "45d78c52ceb8_e78f8525c049_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
+  },
   "4d63c226009b_ecb98201aba3_0": {
    "split": "test",
    "tier": "diff_brand_similar_title"
@@ -611,7 +627,7 @@
   },
   "366b7f2665c2_a960a4aea31a_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "0aa64e7141e9_cf8b25b8e20a_0": {
    "split": "test",
@@ -705,6 +721,10 @@
    "split": "test",
    "tier": "proxy_key_collision"
   },
+  "366b7f2665c2_a960a4aea31a_1": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
   "4b716da37ec2_7445dc20376f_0": {
    "split": "test",
    "tier": "blocked_retrieval_candidate"
@@ -753,6 +773,10 @@
    "split": "test",
    "tier": "capacity_differs_cross_shop"
   },
+  "5e1296b9a5e1_d421baa2c85c_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
+  },
   "a472ace6672b_60a3c410247d_0": {
    "split": "test",
    "tier": "blocked_retrieval_candidate"
@@ -781,6 +805,10 @@
    "split": "test",
    "tier": "blocked_retrieval_candidate"
   },
+  "a34a1f1d8475_b173b5fd3a05_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
+  },
   "d5fcb235eb23_cd575374833a_0": {
    "split": "test",
    "tier": "blocked_retrieval_candidate"
@@ -791,7 +819,7 @@
   },
   "1f25d9a8f6a1_9cad53a38e85_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "80bb9135e4f2_b4ed4378826f_0": {
    "split": "test",
@@ -799,7 +827,7 @@
   },
   "15d4ac2e73f7_d84df75bbf5f_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "bd73470574eb_f4d9c946486f_0": {
    "split": "test",
@@ -835,13 +863,17 @@
   },
   "8a863350ba8b_acf8ff85a6ce_0": {
    "split": "test",
-   "tier": "proxy_key_collision"
+   "tier": "trivial_spot_check"
   },
   "3b6dd195dd27_ffb386986a96_0": {
    "split": "test",
    "tier": "same_capacity_diff_breedsize"
   },
   "1901f9b561d4_2ed57bcc51d8_0": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
+  "8a863350ba8b_acf8ff85a6ce_1": {
    "split": "test",
    "tier": "proxy_key_collision"
   },
@@ -860,6 +892,10 @@
   "6b6833baf993_85cdc8e62bc8_0": {
    "split": "test",
    "tier": "diff_brand_similar_title"
+  },
+  "0d1b18f0a21e_1d71ae73298c_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
   },
   "cf3c9566947c_d3f01787a140_0": {
    "split": "test",
@@ -893,6 +929,14 @@
    "split": "test",
    "tier": "proxy_key_collision"
   },
+  "61dca7be02ee_fd501d04e6f2_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
+  },
+  "6a815f68ac81_a777ff4041ae_1": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
   "085fe137cdf2_c55961beed26_0": {
    "split": "test",
    "tier": "proxy_key_collision"
@@ -903,7 +947,7 @@
   },
   "39b24e4f4cbf_7ee41572ef18_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "7dfe0693709e_dc2765730536_0": {
    "split": "test",
@@ -919,7 +963,7 @@
   },
   "1f6c7d1e3176_9d0e4c3b4caf_0": {
    "split": "test",
-   "tier": "trivial_spot_check"
+   "tier": "proxy_key_collision"
   },
   "1ecde7890f3e_31b7920d544b_0": {
    "split": "test",
@@ -928,6 +972,10 @@
   "0bbabbae1139_82f447dcf4a0_0": {
    "split": "test",
    "tier": "proxy_key_collision"
+  },
+  "006fb9eb7e29_d2215849da87_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
   },
   "b173b5fd3a05_c88ca6b3ac3e_0": {
    "split": "test",
@@ -969,6 +1017,10 @@
    "split": "test",
    "tier": "capacity_differs_within_shop"
   },
+  "72b31032505e_947c7308aba7_1": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
   "1e4c883c24ac_2a59e25a6593_0": {
    "split": "test",
    "tier": "same_capacity_diff_flavour"
@@ -1005,6 +1057,10 @@
    "split": "test",
    "tier": "blocked_retrieval_candidate"
   },
+  "15d4ac2e73f7_d84df75bbf5f_1": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
   "941127cf2788_950c3dc6c2ff_0": {
    "split": "test",
    "tier": "proxy_key_collision"
@@ -1038,6 +1094,10 @@
    "tier": "proxy_key_collision"
   },
   "4d3cdf1e9e73_a73e323f9787_0": {
+   "split": "test",
+   "tier": "proxy_key_collision"
+  },
+  "1f25d9a8f6a1_9cad53a38e85_1": {
    "split": "test",
    "tier": "proxy_key_collision"
   },
@@ -1097,13 +1157,25 @@
    "split": "test",
    "tier": "diff_brand_similar_title"
   },
+  "89e2901f53a4_af09fe488ef1_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
+  },
   "2dbe213797ba_3b55967781dd_0": {
    "split": "test",
    "tier": "same_capacity_diff_lifestage"
   },
+  "1f6c7d1e3176_9d0e4c3b4caf_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
+  },
   "5e1296b9a5e1_6b2f34b37bdc_0": {
    "split": "test",
    "tier": "capacity_differs_cross_shop"
+  },
+  "794cdac35490_f451658b69fe_1": {
+   "split": "test",
+   "tier": "proxy_key_collision"
   },
   "006fb9eb7e29_dde289e42199_0": {
    "split": "test",
@@ -1136,6 +1208,10 @@
   "6b6833baf993_ad524e4cefd7_0": {
    "split": "test",
    "tier": "diff_brand_similar_title"
+  },
+  "39b24e4f4cbf_7ee41572ef18_1": {
+   "split": "test",
+   "tier": "trivial_spot_check"
   },
   "07014717d472_b3a7c37ff84f_0": {
    "split": "train_val",
@@ -1235,7 +1311,7 @@
   },
   "01b880c1f365_33394df3427d_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
@@ -1387,7 +1463,7 @@
   },
   "3f12b3225e74_a0b2cb253771_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
@@ -1495,6 +1571,14 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "01b880c1f365_33394df3427d_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
    }
   },
   "d6762681f478_b360bd415ab6_0": {
@@ -1707,7 +1791,7 @@
   },
   "4e70fb687853_e1f0ae404b44_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1755,7 +1839,7 @@
   },
   "0fb28ed4b16d_1155978dcb8f_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -1803,7 +1887,7 @@
   },
   "a19a1b41f49f_afc62890b6b5_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
@@ -1811,7 +1895,7 @@
   },
   "3b07b7e65dbc_3f12b3225e74_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
@@ -2387,7 +2471,7 @@
   },
   "671a8573b282_e3e2fe29e12d_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -2451,7 +2535,7 @@
   },
   "4e70fb687853_e37389942714_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -2841,6 +2925,14 @@
     "rule": "default_M"
    }
   },
+  "0fb28ed4b16d_1155978dcb8f_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "5ee1159ce955_a19a1b41f49f_0": {
    "split": "train_val",
    "tier": "diff_brand_similar_title",
@@ -2955,7 +3047,7 @@
   },
   "671a8573b282_d680799ed2c9_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -3249,6 +3341,14 @@
     "rule": "default_M"
    }
   },
+  "3f12b3225e74_a0b2cb253771_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
   "4ad034f3660c_9d932a3d47a5_0": {
    "split": "train_val",
    "tier": "diff_brand_similar_title",
@@ -3259,7 +3359,7 @@
   },
   "2adf50061238_78b4c6c9cc57_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -3323,7 +3423,7 @@
   },
   "3901bdc8daeb_3c922af4f3d8_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -3363,7 +3463,7 @@
   },
   "3f427684496e_4ba27b806af1_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -3753,6 +3853,14 @@
     "rule": "one_sided_attribute"
    }
   },
+  "3901bdc8daeb_3c922af4f3d8_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "1c0d1a45d509_3adc8125e14f_0": {
    "split": "train_val",
    "tier": "capacity_differs_cross_shop",
@@ -4017,6 +4125,14 @@
     "rule": "rule3_lifestage_differs"
    }
   },
+  "4e70fb687853_e37389942714_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "a4a605aa33df_e45231280f0b_0": {
    "split": "train_val",
    "tier": "capacity_differs_cross_shop",
@@ -4179,7 +4295,7 @@
   },
   "45e34c15d8c2_c50f86901a68_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
@@ -4187,7 +4303,7 @@
   },
   "21264bcab329_e45231280f0b_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -4211,7 +4327,7 @@
   },
   "34f9c8790cc6_35f57c20451a_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -4395,7 +4511,7 @@
   },
   "26847ec1f0b9_a1cc7b1de4e5_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
@@ -4457,6 +4573,14 @@
     "rule": "rule2_quantity_differs"
    }
   },
+  "34f9c8790cc6_35f57c20451a_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "5a43eab47d59_5d2b97a55566_0": {
    "split": "train_val",
    "tier": "proxy_key_collision",
@@ -4499,7 +4623,7 @@
   },
   "4acc12b4e65b_9a5d6d8f7aed_0": {
    "split": "train_val",
-   "tier": "trivial_spot_check",
+   "tier": "proxy_key_collision",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -4881,6 +5005,14 @@
     "rule": "rule2_quantity_differs"
    }
   },
+  "671a8573b282_d680799ed2c9_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "a19a1b41f49f_e45231280f0b_0": {
    "split": "train_val",
    "tier": "same_capacity_diff_lifestage",
@@ -4911,6 +5043,14 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
+   }
+  },
+  "21264bcab329_e45231280f0b_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "83a59d473ec5_dda6b07372d3_0": {
@@ -5137,6 +5277,14 @@
     "rule": "default_M"
    }
   },
+  "671a8573b282_e3e2fe29e12d_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "1391ee855f85_82bb1af96736_0": {
    "split": "train_val",
    "tier": "same_capacity_diff_flavour",
@@ -5147,7 +5295,7 @@
   },
   "559aea683058_9a5b80cd9313_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -5271,6 +5419,14 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
+   }
+  },
+  "2adf50061238_78b4c6c9cc57_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "324b771367e0_78471db61880_0": {
@@ -5433,6 +5589,14 @@
     "rule": "rule2_quantity_differs"
    }
   },
+  "a19a1b41f49f_afc62890b6b5_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
   "4eff527cd4a2_f0973cbbd030_0": {
    "split": "train_val",
    "tier": "same_capacity_diff_flavour",
@@ -5511,6 +5675,14 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
+   }
+  },
+  "26847ec1f0b9_a1cc7b1de4e5_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
    }
   },
   "1b210d867bd7_5c2977c3f573_0": {
@@ -5729,6 +5901,14 @@
     "rule": "rule2_quantity_differs"
    }
   },
+  "4acc12b4e65b_9a5d6d8f7aed_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
   "6eafab761f93_be7ed49013a3_0": {
    "split": "train_val",
    "tier": "proxy_key_collision",
@@ -5759,6 +5939,14 @@
    "engine_prediction": {
     "label": "S",
     "rule": "one_sided_attribute"
+   }
+  },
+  "559aea683058_9a5b80cd9313_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "0e45d9b997f8_153c7e549d19_0": {
@@ -5818,6 +6006,14 @@
    }
   },
   "285e316715e6_5797e5be38d6_0": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
+   }
+  },
+  "4e70fb687853_e1f0ae404b44_1": {
    "split": "train_val",
    "tier": "proxy_key_collision",
    "engine_prediction": {
@@ -5935,6 +6131,14 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule2_quantity_differs"
+   }
+  },
+  "3f427684496e_4ba27b806af1_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "d680799ed2c9_e3e2fe29e12d_0": {
@@ -6353,6 +6557,14 @@
     "rule": "one_sided_attribute"
    }
   },
+  "3b07b7e65dbc_3f12b3225e74_1": {
+   "split": "train_val",
+   "tier": "trivial_spot_check",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
+   }
+  },
   "bc0bf8dbc045_ec7c3b72cb73_0": {
    "split": "train_val",
    "tier": "proxy_key_collision",
@@ -6411,7 +6623,7 @@
   },
   "a99beb6e580c_cb6d4b07e233_0": {
    "split": "train_val",
-   "tier": "proxy_key_collision",
+   "tier": "trivial_spot_check",
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
@@ -6463,6 +6675,14 @@
    "engine_prediction": {
     "label": "M",
     "rule": "default_M"
+   }
+  },
+  "45e34c15d8c2_c50f86901a68_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "S",
+    "rule": "one_sided_attribute"
    }
   },
   "3cf5a12a0219_bf9a904d27fa_0": {
@@ -6527,6 +6747,14 @@
    "engine_prediction": {
     "label": "N",
     "rule": "rule3_lifestage_differs"
+   }
+  },
+  "a99beb6e580c_cb6d4b07e233_1": {
+   "split": "train_val",
+   "tier": "proxy_key_collision",
+   "engine_prediction": {
+    "label": "M",
+    "rule": "default_M"
    }
   },
   "31819fd7c3af_f45a1caa8154_0": {

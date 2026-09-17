@@ -8,6 +8,21 @@ queue.json` is FROZEN (DECISIONS.md ADR-0028 addendum #9) — no further rebuild
 reason recorded in STATE.md first. Splitting it into TEST/TRAIN_VAL is a read-only, additive step:
 this script reads the frozen queue and writes two NEW files, never touching the queue itself.
 
+**FIX 1 — occurrence_id collisions (ADR-0028 addendum #11).** The frozen queue has 997 rows but
+only 959 distinct `occurrence_id` values: `build_annotation_queue.py` hardcodes
+`occurrence_id = f"{pair_id}_0"`, and 38 pair_ids appear TWICE in the frozen file — always as one
+`proxy_key_collision` row and one `trivial_spot_check` row, the source query's own dedup missing
+this specific cross-tier duplication (the trivial-tier pass scans already-selected pairs for
+byte-identical attributes and can re-select one that a category query already placed elsewhere).
+Both rows then collide on `occurrence_id`, which breaks two things: the split file can only have
+959 keys where it needs 997, and `tools/annotate.html`'s own `state` dict (keyed by
+`occurrence_id`) treats the second showing as already-decided the instant the first is, so it is
+never actually shown to the annotator. **Fixed here by deriving the id deterministically from
+frozen-file ROW ORDER, never trusting the file's own (colliding) field**:
+`occurrence_id = f"{pair_id}_{k}"`, `k` = 0-based ordinal of that `pair_id` among the queue file's
+rows, in file order. `tools/annotate.html` derives the identical id the identical way before
+merging the split file, so the two can never disagree.
+
 **Why product-level, not pair-level (CLAUDE.md §7 item 4).** A pair-level random split lets the
 same listing appear on both sides of the TEST/TRAIN boundary — e.g. listing A paired with B in
 TEST and the same listing A paired with C in TRAIN — which leaks identity-specific cues the model
@@ -131,6 +146,20 @@ def predict_label(left: dict[str, Any], right: dict[str, Any]) -> tuple[str, str
     return "M", "default_M"
 
 
+def derive_occurrence_ids(pairs: list[dict[str, Any]]) -> list[str]:
+    """FIX 1 — `occurrence_id = f"{pair_id}_{k}"`, k = 0-based ordinal of that pair_id among the
+    frozen file's rows, IN FILE ORDER. Never reads the file's own (colliding) `occurrence_id`
+    field. `tools/annotate.html` derives the identical id from the identical rule."""
+    counts: dict[str, int] = {}
+    ids = []
+    for p in pairs:
+        pid = p["pair_id"]
+        k = counts.get(pid, 0)
+        ids.append(f"{pid}_{k}")
+        counts[pid] = k + 1
+    return ids
+
+
 # --- union-find over content_hash, edges = the frozen queue's own pairs ---
 class UnionFind:
     def __init__(self) -> None:
@@ -157,6 +186,15 @@ def main() -> int:
     queue = json.loads(QUEUE_JSON.read_text(encoding="utf-8"))
     pairs = queue["pairs"]
     print(f"frozen queue: {len(pairs)} pairs (read-only, not modified by this script)")
+
+    # FIX 1 — derive occurrence_ids from row order, never trust the file's own field.
+    occurrence_ids = derive_occurrence_ids(pairs)
+    distinct_pair_ids = len({p["pair_id"] for p in pairs})
+    print(
+        f"distinct pair_ids: {distinct_pair_ids}, rows with a repeated pair_id: "
+        f"{len(pairs) - distinct_pair_ids} (each now gets a unique derived occurrence_id)"
+    )
+    assert len(set(occurrence_ids)) == len(pairs), "derived occurrence_ids are not all unique!"
 
     uf = UnionFind()
     for p in pairs:
@@ -244,25 +282,32 @@ def main() -> int:
 
     for i in test_indices:
         p = pairs[i]
-        assignments[p["occurrence_id"]] = {"split": "test", "tier": p["tier"]}
+        occ_id = occurrence_ids[i]
+        assignments[occ_id] = {"split": "test", "tier": p["tier"]}
         tier_counts_test[p["tier"]] = tier_counts_test.get(p["tier"], 0) + 1
         label, rule = predict_label(p["left"], p["right"])
         label_forecast_test_hidden[label] += 1
-        test_reference[p["occurrence_id"]] = {
+        test_reference[occ_id] = {
             "pair_id": p["pair_id"],
             "engine_prediction": {"label": label, "rule": rule},
         }
 
     for i in train_val_indices:
         p = pairs[i]
+        occ_id = occurrence_ids[i]
         label, rule = predict_label(p["left"], p["right"])
-        assignments[p["occurrence_id"]] = {
+        assignments[occ_id] = {
             "split": "train_val",
             "tier": p["tier"],
             "engine_prediction": {"label": label, "rule": rule},
         }
         tier_counts_trainval[p["tier"]] = tier_counts_trainval.get(p["tier"], 0) + 1
         label_forecast_trainval[label] += 1
+
+    assert len(assignments) == len(pairs), (
+        f"assignments has {len(assignments)} keys, expected {len(pairs)} "
+        "(occurrence_id derivation produced a collision)"
+    )
 
     print("\nTEST tier composition:")
     for tier, n in sorted(tier_counts_test.items(), key=lambda x: -x[1]):

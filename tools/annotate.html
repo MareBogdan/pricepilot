@@ -797,6 +797,64 @@ function seededShuffle(arr, seed) {
   return out;
 }
 
+// FIX 1 (ADR-0028 addendum #11) -- derive occurrence_id from FILE ROW ORDER, never trust the
+// file's own (colliding) field. 38 pair_ids appear twice in the frozen queue (always one
+// proxy_key_collision row + one trivial_spot_check row), both hardcoded to occurrence_id
+// "<pair_id>_0" by build_annotation_queue.py -- so `state`, keyed by occurrence_id, would treat
+// the second showing as already-decided the instant the first is. Same derivation as
+// scripts/split_annotation_queue.py::derive_occurrence_ids(), so the two can never disagree.
+// Mutates each item's `occurrence_id` in place, in `queue` array order.
+function deriveOccurrenceIds(queueArr) {
+  const counts = {};
+  for (const item of queueArr) {
+    const pid = item.pair_id;
+    const k = counts[pid] || 0;
+    item.occurrence_id = `${pid}_${k}`;
+    counts[pid] = k + 1;
+  }
+}
+
+// FIX 1 -- for every pair_id with two occurrences, push the SECOND occurrence at least `minGap`
+// positions after the first in the display order (never pull the first one earlier). The two
+// occurrences are a deliberate self-agreement check (same pair, two source tiers); showing them
+// close together would let short-term memory answer the second one instead of judgement.
+function findRepeatGroups(queueArr) {
+  const byPid = {};
+  queueArr.forEach((item, idx) => {
+    (byPid[item.pair_id] = byPid[item.pair_id] || []).push(idx);
+  });
+  return Object.values(byPid).filter((idxs) => idxs.length > 1);
+}
+
+function enforceRepeatSpacing(orderArr, queueArr, minGap) {
+  const groups = findRepeatGroups(queueArr);
+  let seq = orderArr.slice();
+
+  // Process groups by the position of their EARLIEST occurrence, ascending, so a later group's
+  // decision is made against the already-adjusted sequence, not a stale one.
+  const withFirstPos = groups.map((idxs) => ({
+    idxs,
+    firstPos: Math.min(...idxs.map((i) => seq.indexOf(i))),
+  }));
+  withFirstPos.sort((a, b) => a.firstPos - b.firstPos);
+
+  for (const { idxs } of withFirstPos) {
+    if (idxs.length !== 2) continue; // this queue only ever produces pairs, but don't assume elsewhere
+    const [x, y] = idxs;
+    const posX = seq.indexOf(x), posY = seq.indexOf(y);
+    const firstIdx = posX < posY ? x : y;
+    const secondIdx = posX < posY ? y : x;
+    const firstPos = Math.min(posX, posY);
+    const secondPos = Math.max(posX, posY);
+    if (secondPos - firstPos >= minGap) continue; // already spaced out enough, leave it alone
+    seq.splice(secondPos, 1); // secondPos > firstPos always, so firstIdx's own position is unaffected
+    const newFirstPos = seq.indexOf(firstIdx);
+    const targetPos = Math.min(newFirstPos + minGap, seq.length);
+    seq.splice(targetPos, 0, secondIdx);
+  }
+  return seq;
+}
+
 function buildOrder(seed) {
   // Shuffle WITHIN each tier (fatigue must not correlate with any class), then INTERLEAVE tiers
   // proportionally across the WHOLE sequence — not concatenated one after another.
@@ -844,20 +902,43 @@ async function init() {
   }
 
   queue = data.pairs;
-  // STEP 7 merge: attach split/tier/engine_prediction from the separate split file. A pair with
-  // no assignment entry (should never happen against a matching pair count, but not assumed) is
-  // treated as TEST -- the SAFE default, since a missing assignment must never accidentally
-  // surface a prediction that was never vetted for that pair.
+  // FIX 1 -- derive occurrence_id from row order BEFORE merging the split file, never trust the
+  // frozen queue's own (colliding) field.
+  deriveOccurrenceIds(queue);
+
+  // STEP 7 merge: attach split/tier/engine_prediction from the separate split file.
+  const missingAssignment = [];
   for (const item of queue) {
     const a = splitData.assignments && splitData.assignments[item.occurrence_id];
-    item.split = a ? a.split : "test";
+    if (!a) {
+      missingAssignment.push(item.occurrence_id);
+      continue;
+    }
+    item.split = a.split;
     // Explicit, redundant-by-design guard: engine_prediction is only ever attached for
     // split === "train_val". Even if the split file's shape changes upstream, a "test" item
     // here can never carry a prediction field.
-    item.engine_prediction = a && a.split === "train_val" ? a.engine_prediction || null : null;
+    item.engine_prediction = a.split === "train_val" ? a.engine_prediction || null : null;
   }
+  // FIX 1 -- stop with a VISIBLE error instead of silently defaulting to "test". A silent
+  // default is exactly what hid the original occurrence_id collision bug -- every pair the tool
+  // shows must have a split assignment, or something upstream is out of sync and needs a human
+  // to look, not a hushed default that could quietly relabel a TRAIN_VAL pair as blind TEST.
+  if (missingAssignment.length) {
+    document.getElementById("content").innerHTML =
+      `<div class="card">ERROR: ${missingAssignment.length} queue pair(s) have no entry in the
+      split file (${SPLIT_URL}). Example occurrence_id(s): ${missingAssignment.slice(0, 5).join(", ")}.
+      This means the queue and split files are out of sync -- re-run
+      <code>scripts/split_annotation_queue.py</code> against the CURRENT
+      <code>phase3-annotation-queue.json</code> before opening this page. Refusing to start
+      rather than guess.</div>`;
+    return;
+  }
+
   state = loadState();
   order = buildOrder(data.shuffle_seed || 20260915);
+  // FIX 1 -- push each repeated pair_id's second showing >=100 positions after its first.
+  order = enforceRepeatSpacing(order, queue, 100);
 
   const firstUndone = findNextUndone();
   cursor = firstUndone === -1 ? 0 : firstUndone;
