@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 QUEUE_JSON = ROOT / "docs" / "learned" / "phase3-annotation-queue.json"
 SPLIT_JSON = ROOT / "docs" / "learned" / "phase3-annotation-split.json"
 TEST_REFERENCE_JSON = ROOT / "docs" / "learned" / "phase3-test-split-reference-predictions.json"
+REPEAT_FIRST_OCCURRENCE_JSON = ROOT / "docs" / "learned" / "phase3-repeat-first-occurrence.json"
 
 # Recorded the moment the queue was frozen (ADR-0028 addendum #9). If this ever fails, the
 # "frozen" file has been edited -- CLAUDE.md §7's own discipline (never re-score a frozen gate
@@ -47,6 +48,10 @@ def _load_queue() -> dict:
 
 def _load_split() -> dict:
     return json.loads(SPLIT_JSON.read_text(encoding="utf-8"))
+
+
+def _load_repeat_first_occurrence() -> dict:
+    return json.loads(REPEAT_FIRST_OCCURRENCE_JSON.read_text(encoding="utf-8"))
 
 
 def test_frozen_queue_hash_unchanged() -> None:
@@ -197,3 +202,96 @@ def test_per_tier_gap_within_threshold() -> None:
         assert t_n >= TEST_MIN_PER_TIER, (
             f"tier {tier!r}: TEST count {t_n} below {TEST_MIN_PER_TIER}"
         )
+
+
+# --- ADR-0028 addendum #12 (TASK 2) -- evaluation rules, checked structurally --------------------
+
+
+def test_headline_test_set_is_287_distinct_pair_ids() -> None:
+    """Recomputed from `assignments` directly, not read from the split file's own
+    `test_distinct_pair_ids` summary field -- this is the test that would catch that summary
+    itself going stale."""
+    split = _load_split()
+    test_pair_ids = {
+        entry["pair_id"] for entry in split["assignments"].values() if entry["split"] == "test"
+    }
+    assert len(test_pair_ids) == 287
+
+
+def test_every_repeated_pair_has_both_occurrences_in_the_same_split() -> None:
+    """Every one of the 38 pair_ids that appear twice in the frozen queue (once as
+    proxy_key_collision, once as trivial_spot_check) must land entirely in TEST or entirely in
+    TRAIN_VAL -- never split across the boundary. Guaranteed by construction (a connected
+    component is assigned whole to one split), verified here directly against `assignments`."""
+    split = _load_split()
+    pair_id_to_splits: dict[str, set[str]] = {}
+    for entry in split["assignments"].values():
+        pair_id_to_splits.setdefault(entry["pair_id"], set()).add(entry["split"])
+
+    # A pair_id repeated in the frozen queue produces TWO assignment entries under the SAME
+    # pair_id key (different occurrence_ids) -- count occurrences, not just distinct splits.
+    queue = _load_queue()
+    pair_id_occurrence_count: dict[str, int] = {}
+    for p in queue["pairs"]:
+        pair_id_occurrence_count[p["pair_id"]] = pair_id_occurrence_count.get(p["pair_id"], 0) + 1
+    repeated_pair_ids = {pid for pid, n in pair_id_occurrence_count.items() if n > 1}
+    assert len(repeated_pair_ids) == 38
+
+    cross_split = [pid for pid in repeated_pair_ids if len(pair_id_to_splits.get(pid, set())) != 1]
+    assert not cross_split, (
+        f"{len(cross_split)} repeated pair(s) split across TEST/TRAIN_VAL: {cross_split}"
+    )
+
+
+def test_repeat_first_occurrence_lookup_covers_exactly_38_pairs() -> None:
+    lookup = _load_repeat_first_occurrence()["lookup"]
+    assert len(lookup) == 38
+
+
+def test_repeat_first_occurrence_entries_reference_real_queue_occurrences() -> None:
+    queue = _load_queue()
+    derived_ids = set(_derive_occurrence_ids(queue["pairs"]))
+    lookup = _load_repeat_first_occurrence()["lookup"]
+    for pair_id, entry in lookup.items():
+        assert entry["first_occurrence_id"] in derived_ids, (
+            f"{pair_id}: first_occurrence_id {entry['first_occurrence_id']!r} not in the frozen "
+            "queue's derived occurrence_ids"
+        )
+        assert entry["second_occurrence_id"] in derived_ids, (
+            f"{pair_id}: second_occurrence_id {entry['second_occurrence_id']!r} not in the frozen "
+            "queue's derived occurrence_ids"
+        )
+        assert entry["first_occurrence_id"] != entry["second_occurrence_id"]
+
+
+def test_repeat_first_occurrence_hashes_match_current_files() -> None:
+    """The lookup file records the queue/split SHA-256 it was built against -- if either file
+    changes without regenerating the lookup, this catches the drift."""
+    lookup_file = _load_repeat_first_occurrence()
+    assert lookup_file["queue_sha256"] == FROZEN_QUEUE_SHA256
+    actual_split_sha256 = hashlib.sha256(SPLIT_JSON.read_bytes()).hexdigest()
+    assert lookup_file["split_sha256"] == actual_split_sha256, (
+        "phase3-repeat-first-occurrence.json was built against a different "
+        "phase3-annotation-split.json than the one currently committed -- re-run "
+        "scripts/compute_repeat_first_occurrence.js"
+    )
+
+
+def test_split_file_carries_evaluation_rules_block() -> None:
+    split = _load_split()
+    rules = split["evaluation_rules"]
+    assert rules["headline_test_distinct_pair_ids"] == 287
+    assert rules["repeat_reporting_tier"] == "proxy_key_collision"
+    assert rules["trivial_spot_check_test_standalone_pair_ids"] == 2
+    assert rules["predicted_label_forecast_by_split"]["test"] == {
+        "M": 103,
+        "N": 164,
+        "S": 33,
+        "of_rows": 300,
+    }
+    assert rules["predicted_label_forecast_by_split"]["train_val"] == {
+        "M": 203,
+        "N": 390,
+        "S": 104,
+        "of_rows": 697,
+    }

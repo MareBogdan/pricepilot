@@ -598,6 +598,45 @@ def main() -> int:
         "evaluation_note": "TEST metrics must be computed over DISTINCT pair_ids -- the repeat "
         "occurrence of a pair_id (proxy_key_collision + trivial_spot_check, same underlying "
         "pair) is for self-agreement measurement, not a second independent test point.",
+        # ADR-0028 addendum #12, TASK 2 -- the evaluation rules written down BEFORE any label
+        # exists, mirrored here (machine-readable) from DECISIONS.md's own prose statement of
+        # them, so a scoring script can read them rather than re-encode the same rules by hand.
+        "evaluation_rules": {
+            "adr_reference": "DECISIONS.md ADR-0028 addendum #12",
+            "headline_test_metric_denominator": "287 DISTINCT pair_ids, not the 300 TEST rows",
+            "headline_test_distinct_pair_ids": len(test_pair_ids),
+            "repeat_tie_break": (
+                "for a repeated pair_id, the evaluation label is the FIRST decision in DISPLAY "
+                "order (tools/annotate.html buildOrder(), TASK 1 -- display order, not file "
+                "order, decides). Resolved per-pair in "
+                "docs/learned/phase3-repeat-first-occurrence.json. The second occurrence is used "
+                "only for self-agreement, never as a second independent test point."
+            ),
+            "repeat_reporting_tier": "proxy_key_collision",
+            "repeat_reporting_note": (
+                "a repeated pair (drawn once under proxy_key_collision, once under "
+                "trivial_spot_check) is attributed to tier proxy_key_collision for per-category "
+                "reporting. trivial_spot_check is NOT reported as its own TEST category -- after "
+                "excluding the 13 pairs it shares with proxy_key_collision, only 2 distinct "
+                "pair_ids remain solely under trivial_spot_check in TEST, too few for a category "
+                "line; reported as a footnote with its raw count instead."
+            ),
+            "trivial_spot_check_test_standalone_pair_ids": 2,
+            "per_tier_ci_discipline": (
+                "any per-tier figure (TEST counts span 14-86 pairs) must be reported with its "
+                "denominator and a Wilson 95% CI, never a bare percentage -- the same discipline "
+                "already applied to recall@20's 88% [76.2%, 94.4%]."
+            ),
+            "predicted_label_forecast_by_split": {
+                "test": dict(label_forecast_test_hidden, of_rows=len(test_indices)),
+                "train_val": dict(label_forecast_trainval, of_rows=len(train_val_indices)),
+            },
+            "predicted_label_forecast_note": (
+                "the rules-engine forecast differs between splits by construction: the split is "
+                "balanced on tier only, deliberately never on predicted label. This difference is "
+                "a consequence, reported as a stated limitation for the README, not corrected."
+            ),
+        },
         # Deliberately NOT included: any per-pair prediction for TEST occurrence_ids. Only
         # TRAIN_VAL entries in `assignments` carry an "engine_prediction" key.
         "assignments": assignments,
