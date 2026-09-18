@@ -112,6 +112,15 @@
 
   #resume-note { font-size: 11.5px; color: var(--muted); padding: 4px 20px 0; }
 
+  /* TASK 1 (ADR-0028 addendum #12) — full-width banner shown once, at the TEST->TRAIN_VAL
+     transition, so the annotator gets a clear, unmissable marker that suggestions start
+     appearing from here on. Not a blocking screen — no "continue" step, sequential only. */
+  #phase-banner {
+    background: rgba(79,140,255,0.14); border-bottom: 1px solid var(--accent);
+    color: var(--text); font-size: 13px; padding: 10px 20px; text-align: center;
+  }
+  #phase-banner[hidden] { display: none; }
+
   /* Assisted flow (TRAIN_VAL only, never TEST — see JS) */
   .split-badge { border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; }
   .split-badge.test { background: rgba(240,75,75,0.14); color: var(--nomatch); border: 1px solid var(--nomatch); }
@@ -169,6 +178,7 @@
       <div class="stat"><b id="stat-done">0</b> / <span id="stat-total">0</span> done</div>
       <div class="stat">⏱ <b id="stat-timer">00:00</b></div>
       <div class="stat">median <b id="stat-median">—</b>/decision</div>
+      <div class="stat">phase <b id="stat-phase">—</b> — <b id="stat-phase-remaining">0</b> left</div>
       <div id="split-badge-wrap"><span class="split-badge" id="split-badge"></span></div>
       <button class="btn" id="btn-export" title="Export labels (key: E)"><span class="key">E</span> Export</button>
       <button class="btn" id="btn-import" title="Import labels (key: I)"><span class="key">I</span> Import</button>
@@ -176,6 +186,7 @@
       <div id="tiers"></div>
     </div>
     <div id="resume-note"></div>
+    <div id="phase-banner" hidden></div>
 
     <div id="content">
       <div class="card" id="titles">
@@ -239,9 +250,8 @@
  *
  * Loads docs/learned/phase3-annotation-queue.json (STEP 6, scripts/build_annotation_queue.py)
  * — run this page from a local static server (CORS blocks fetch() over
- * file://), e.g. from the repo root:
- *     python -m http.server 8000
- * then open http://localhost:8000/tools/annotate.html
+ * file://): `make annotate` (Windows: `.\make.ps1 annotate`) from the repo root,
+ * then open http://localhost:8010/tools/annotate.html
  *
  * NEVER shows a model prediction or score anywhere in this file — that
  * would anchor the annotator and turn the ground truth into a copy of
@@ -312,6 +322,15 @@ let timerHandle = null;
 let sessionStartMs = null;
 let queueSha256 = null;  // FIX 3 -- SHA-256 of the fetched queue file's raw text, set in init()
 let splitSha256 = null;  // FIX 3 -- SHA-256 of the fetched split file's raw text, set in init()
+
+// TASK 1 (ADR-0028 addendum #12) -- number of TEST-split items at the front of `order`. Set once,
+// as a side effect of buildOrder(), which already has item.split available (the split file is
+// merged onto `queue` before buildOrder() is called -- see init()). Everything from index
+// [0, testBlockSize) in `order` is TEST; everything from [testBlockSize, order.length) is
+// TRAIN_VAL. Used to compute the active phase and remaining-in-phase count, and to fire the
+// one-time phase-transition banner.
+let testBlockSize = 0;
+let phaseBannerShownFor = -1; // the `cursor` position the banner was last shown at (dedupe re-renders)
 
 // FIX 3 -- label export/import. crypto.subtle.digest is available on http://localhost and
 // https://, not on a bare file:// origin, matching this tool's existing http-server requirement.
@@ -601,6 +620,7 @@ function showPilotReport() {
   document.getElementById("decision-bar").style.display = "none";
   document.getElementById("reason-strip").hidden = true;
   document.getElementById("content").style.display = "none";
+  document.getElementById("phase-banner").hidden = true;
 
   const stats = pilotStats();
   document.getElementById("pilot-size-label").textContent = PILOT_SIZE;
@@ -640,12 +660,49 @@ function fmtDuration(totalMs) {
   return `${mm}:${ss}`;
 }
 
+// TASK 1 (ADR-0028 addendum #12) -- active phase + how many undone items remain in THAT phase
+// only (not the whole queue). `cursor`'s block membership (< testBlockSize => TEST) decides which
+// half of `order` counts toward "remaining".
+function currentPhaseInfo() {
+  if (cursor < 0 || cursor >= order.length) return { phase: "done", remaining: 0 };
+  const inTest = cursor < testBlockSize;
+  const start = inTest ? 0 : testBlockSize;
+  const end = inTest ? testBlockSize : order.length;
+  let remaining = 0;
+  for (let k = start; k < end; k++) {
+    if (!state[queue[order[k]].occurrence_id]) remaining++;
+  }
+  return { phase: inTest ? "TEST (blind)" : "TRAIN/VAL (assisted)", remaining };
+}
+
 function updateTopbar() {
   const doneCount = Object.keys(state).length;
   document.getElementById("stat-done").textContent = doneCount;
   document.getElementById("stat-total").textContent = queue.length;
   document.getElementById("stat-median").textContent = fmtMs(medianDecisionMs());
+  const { phase, remaining } = currentPhaseInfo();
+  document.getElementById("stat-phase").textContent = phase;
+  document.getElementById("stat-phase-remaining").textContent = remaining;
   renderTiers();
+}
+
+// TASK 1 -- shown exactly once, the moment `cursor` first lands on the first TRAIN_VAL item
+// (order[testBlockSize]). Not a blocking screen: it renders alongside that pair and disappears on
+// the next render once `cursor` has moved past it -- there is no "continue" step and no way to
+// jump back to re-trigger it, matching "sequential only, no phase-jump" from the instruction.
+function renderPhaseBanner() {
+  const banner = document.getElementById("phase-banner");
+  if (testBlockSize > 0 && cursor === testBlockSize) {
+    const distinctTestPairs = new Set(
+      order.slice(0, testBlockSize).map((idx) => queue[idx].pair_id)
+    ).size;
+    banner.textContent =
+      `Blind TEST phase complete (${testBlockSize} shown / ${distinctTestPairs} distinct pairs). ` +
+      `Assisted phase starts — suggestions now visible.`;
+    banner.hidden = false;
+  } else {
+    banner.hidden = true;
+  }
 }
 
 function tickTimer() {
@@ -701,6 +758,7 @@ function renderPair() {
   }
   decisionStart = Date.now();
   updateTopbar();
+  renderPhaseBanner();
 }
 
 // STEP 7 -- assisted-flow report: correction rate (overall + per tier) and median decision time,
@@ -754,6 +812,7 @@ function assistedFlowReport() {
 function showDone() {
   document.getElementById("content").parentElement.querySelector("#decision-bar").style.display = "none";
   document.getElementById("content").style.display = "none";
+  document.getElementById("phase-banner").hidden = true;
   document.getElementById("done-screen").style.display = "flex";
   const { totals, done } = tierCounts();
   const lines = Object.keys(totals).sort().map((t) => `${t}: ${done[t] || 0}/${totals[t]}`).join(" · ");
@@ -911,16 +970,35 @@ function deriveOccurrenceIds(queueArr) {
 // positions after the first in the display order (never pull the first one earlier). The two
 // occurrences are a deliberate self-agreement check (same pair, two source tiers); showing them
 // close together would let short-term memory answer the second one instead of judgement.
-function findRepeatGroups(queueArr) {
+// TASK 1 (ADR-0028 addendum #12) -- `allowedIdxSet`, when given, restricts grouping to indices
+// belonging to one display block (TEST or TRAIN_VAL). Every one of the 38 repeated pair_ids has
+// both its occurrences in the SAME block by construction (split_annotation_queue.py assigns whole
+// connected components to one split), so a group whose indices aren't both in `allowedIdxSet` is
+// always a group that belongs entirely to the OTHER block -- filtering here, rather than after,
+// avoids ever computing a bogus/partial group.
+function findRepeatGroups(queueArr, allowedIdxSet) {
   const byPid = {};
   queueArr.forEach((item, idx) => {
+    if (allowedIdxSet && !allowedIdxSet.has(idx)) return;
     (byPid[item.pair_id] = byPid[item.pair_id] || []).push(idx);
   });
   return Object.values(byPid).filter((idxs) => idxs.length > 1);
 }
 
-function enforceRepeatSpacing(orderArr, queueArr, minGap) {
-  const groups = findRepeatGroups(queueArr);
+// TASK 1 -- called once per block (see init()), with `orderArr` already limited to that block's
+// own indices. This is what keeps a repeat's spacing adjustment from ever pushing its second
+// occurrence past the block's own end: `seq.length` below is the BLOCK's length, not the whole
+// queue's, so `Math.min(newFirstPos + minGap, seq.length)` can never cross into the other block.
+// Known, accepted edge effect of confining spacing to a block (TEST=300, TRAIN_VAL=697 rows,
+// both far smaller than the un-split queue's 997): a repeat whose first occurrence lands close to
+// its block's own end can be pushed only up to that end, not the full 100 positions -- verified
+// against the real files, 4 of 38 repeated pairs land short (TEST: 3 pairs at 48/77/99; TRAIN_VAL:
+// 1 pair at 66), all still clearly separated, just under the nominal target. Only the SECOND
+// occurrence ever moves (never pull the first one earlier -- unchanged from the pre-TASK-1
+// algorithm), so this is a direct, explainable consequence of shrinking the available room, not a
+// new defect.
+function enforceRepeatSpacing(orderArr, queueArr, minGap, allowedIdxSet) {
+  const groups = findRepeatGroups(queueArr, allowedIdxSet);
   let seq = orderArr.slice();
 
   // Process groups by the position of their EARLIEST occurrence, ascending, so a later group's
@@ -948,22 +1026,27 @@ function enforceRepeatSpacing(orderArr, queueArr, minGap) {
   return seq;
 }
 
-function buildOrder(seed) {
-  // Shuffle WITHIN each tier (fatigue must not correlate with any class), then INTERLEAVE tiers
-  // proportionally across the WHOLE sequence — not concatenated one after another.
-  //
-  // TASK D fix (ADR-0028 architect-audit response #2): the previous version concatenated tiers
-  // in alphabetical order, so the first N pairs shown were entirely from whichever tier name
-  // sorted first (e.g. "blocked_retrieval_candidate") — a pilot run on the first 100 pairs would
-  // have seen almost no capacity_differs/same_capacity_diff_* pairs at all, nothing like the
-  // full queue's mix. Fixed by giving every item a fractional rank WITHIN its own (shuffled)
-  // tier — (position + 0.5) / tier_size, always in (0, 1) — then sorting ALL items globally by
-  // that rank. A tier's items land spread evenly across the whole range regardless of tier size,
-  // so ANY prefix (the first 100, the first 500) approximates the full queue's tier proportions.
-  // Verified against the real queue (not assumed): see docs/learned/ for the reported check.
+// Shuffle WITHIN each tier (fatigue must not correlate with any class), then INTERLEAVE tiers
+// proportionally across the WHOLE sequence — not concatenated one after another.
+//
+// TASK D fix (ADR-0028 architect-audit response #2): the previous version concatenated tiers
+// in alphabetical order, so the first N pairs shown were entirely from whichever tier name
+// sorted first (e.g. "blocked_retrieval_candidate") — a pilot run on the first 100 pairs would
+// have seen almost no capacity_differs/same_capacity_diff_* pairs at all, nothing like the
+// full queue's mix. Fixed by giving every item a fractional rank WITHIN its own (shuffled)
+// tier — (position + 0.5) / tier_size, always in (0, 1) — then sorting ALL items globally by
+// that rank. A tier's items land spread evenly across the whole range regardless of tier size,
+// so ANY prefix (the first 100, the first 500) approximates the full queue's tier proportions.
+// Verified against the real queue (not assumed): see docs/learned/ for the reported check.
+//
+// TASK 1 (ADR-0028 addendum #12): this interleave now runs SEPARATELY within a TEST subset and a
+// TRAIN_VAL subset (see buildOrder() below), instead of once over the whole queue — so it still
+// gives each block its own representative tier mix under any prefix.
+function interleaveBlock(indices, seed) {
   const byTier = {};
-  queue.forEach((item, idx) => {
-    (byTier[item.tier] = byTier[item.tier] || []).push(idx);
+  indices.forEach((idx) => {
+    const tier = queue[idx].tier;
+    (byTier[tier] = byTier[tier] || []).push(idx);
   });
   const keyed = [];
   for (const tier of Object.keys(byTier).sort()) {
@@ -975,6 +1058,31 @@ function buildOrder(seed) {
   }
   keyed.sort((a, b) => a.key - b.key);
   return keyed.map((k) => k.idx);
+}
+
+// TASK 1 (ADR-0028 addendum #12) — display order is now BLIND TEST FIRST, ASSISTED TRAIN_VAL
+// SECOND, sequential only (no way to jump between phases). Reason: interleaving the two across
+// the whole queue meant that by the time an annotator reached a blind TEST pair, they had likely
+// already seen hundreds of TRAIN_VAL suggestions and internalised the rules engine's habits —
+// anchoring that leaks into the blind labels the headline metric is computed from. Each block
+// keeps its own tier-proportional interleave (interleaveBlock(), above) so any prefix of either
+// block still approximates that block's own tier mix. Accepted cost, recorded in DECISIONS.md
+// ADR-0028 addendum #12: annotator fatigue now concentrates on TRAIN_VAL instead of being spread
+// evenly across the whole run — the right trade, since TEST is where the reported metric comes
+// from and it is labelled first, while attention is freshest.
+function buildOrder(seed) {
+  const testIdx = [];
+  const trainValIdx = [];
+  queue.forEach((item, idx) => {
+    (item.split === "test" ? testIdx : trainValIdx).push(idx);
+  });
+  // Distinct sub-seeds per block (arbitrary fixed offset) purely so the two blocks don't shuffle
+  // identically-named tiers through the exact same RNG draw sequence; determinism (same seed in
+  // -> same order out) is unaffected either way.
+  const testOrder = interleaveBlock(testIdx, seed);
+  const trainValOrder = interleaveBlock(trainValIdx, seed + 7919);
+  testBlockSize = testOrder.length;
+  return testOrder.concat(trainValOrder);
 }
 
 async function init() {
@@ -989,8 +1097,8 @@ async function init() {
     document.getElementById("content").innerHTML =
       `<div class="card">Could not load <code>${QUEUE_URL}</code> and/or <code>${SPLIT_URL}</code>.
       This page must be served over http:// (not opened as a file:// double-click) — run
-      <code>python -m http.server</code> from the repo root and open
-      <code>http://localhost:8000/tools/annotate.html</code>. Also run
+      <code>make annotate</code> (Windows: <code>.\make.ps1 annotate</code>) from the repo root and
+      open <code>http://localhost:8010/tools/annotate.html</code>. Also run
       <code>scripts/build_annotation_queue.py</code> then
       <code>scripts/split_annotation_queue.py</code> first if either file doesn't exist yet.</div>`;
     return;
@@ -1035,9 +1143,15 @@ async function init() {
   }
 
   state = loadState();
-  order = buildOrder(data.shuffle_seed || 20260915);
+  order = buildOrder(data.shuffle_seed || 20260915); // also sets testBlockSize as a side effect
   // FIX 1 -- push each repeated pair_id's second showing >=100 positions after its first.
-  order = enforceRepeatSpacing(order, queue, 100);
+  // TASK 1 -- run the spacing pass SEPARATELY within each block (TEST, then TRAIN_VAL), never
+  // across the boundary between them -- see enforceRepeatSpacing()'s comment for why.
+  const testBlock = order.slice(0, testBlockSize);
+  const trainValBlock = order.slice(testBlockSize);
+  const spacedTest = enforceRepeatSpacing(testBlock, queue, 100, new Set(testBlock));
+  const spacedTrainVal = enforceRepeatSpacing(trainValBlock, queue, 100, new Set(trainValBlock));
+  order = spacedTest.concat(spacedTrainVal);
 
   const firstUndone = findNextUndone();
   cursor = firstUndone === -1 ? 0 : firstUndone;
