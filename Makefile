@@ -5,7 +5,7 @@
 # file is the source of truth. See DECISIONS.md ADR-0003.
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test status cost scrape overlap up down logs migrate revision api mock-store health check clean
+.PHONY: help install lint format typecheck test status cost scrape overlap up down logs migrate revision api mock-store health check clean annotate
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -64,6 +64,10 @@ mock-store: ## Run the mock store locally (no Docker)
 
 health: ## Curl both health endpoints
 	curl -s localhost:8000/health; echo; curl -s localhost:8001/health; echo
+
+annotate: ## Serve the repo root for the Phase 3 annotation tool (tools/annotate.html needs http://, not file://)
+	@echo "Open: http://localhost:8010/tools/annotate.html"
+	uv run python -m http.server 8010 --bind 127.0.0.1
 
 clean: ## Remove caches
 	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage

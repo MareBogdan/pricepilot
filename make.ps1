@@ -52,6 +52,10 @@ switch ($Target) {
             catch { Write-Host "$u -> unreachable" -ForegroundColor Yellow }
         }
     }
+    'annotate' {
+        Write-Host "Open: http://localhost:8010/tools/annotate.html" -ForegroundColor Cyan
+        Invoke-Step @('uv', 'run', 'python', '-m', 'http.server', '8010', '--bind', '127.0.0.1')
+    }
     'clean' {
         foreach ($d in '.pytest_cache', '.ruff_cache', '.mypy_cache', 'htmlcov') {
             if (Test-Path $d) { Remove-Item -Recurse -Force $d }
@@ -75,6 +79,7 @@ switch ($Target) {
             'api         Run the API locally on :8000'
             'mock-store  Run the mock store locally on :8001'
             'health      Curl both health endpoints'
+            'annotate    Serve the repo root for the Phase 3 annotation tool (http://localhost:8010)'
         ) | ForEach-Object { Write-Host "  $_" }
     }
 }
