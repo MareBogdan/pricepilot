@@ -4,7 +4,7 @@ Phase: 1 — Collection (still open — gate met except 7-consecutive-days, pure
 to decide), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open since
 2026-09-15.**
 
-**Current state, 2026-09-17 — read this paragraph first; the session-by-session narrative below
+**Current state, 2026-09-18 — read this paragraph first; the session-by-session narrative below
 is history, not status.** Phase 3 items 1 and 2 of CLAUDE.md §7 are done: candidate retrieval is
 built and **closed at recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%]** — a
 measurement-power finding, neither "met" nor "missed": the >=90% target sits inside the interval
@@ -12,8 +12,9 @@ and separating 88% from 90% would need ~1,000 verified positive pairs (~27,000 d
 project's observed rate), which is out of reach. No further retrieval tuning. The annotation
 queue is **FROZEN** (997 rows / 959 distinct pair_ids, single-feature guard passed at 29.4% /
 11.4% / 5.7%, forecast M 30.7% / N 55.6% / S 13.7% persisted in the JSON) and split
-product-level into **TEST 300 rows (blind — no rules-engine suggestion is ever shown) and
-TRAIN_VAL 697 rows (assisted — suggestion shown, `C` confirms, `M`/`N`/`S` override)**.
+product-level into **TEST 300 rows / 287 distinct pairs (blind — no rules-engine suggestion is
+ever shown) and TRAIN_VAL 697 rows (assisted — suggestion shown, `C` confirms, `M`/`N`/`S`
+override)**.
 **A same-week verification pass (ADR-0028 addendum #11) found and fixed three real defects before
 labelling started**: (1) 38 `pair_id`s appear twice in the frozen queue under a colliding
 hardcoded `occurrence_id`, which would have silently hidden the second occurrence from the
@@ -29,6 +30,25 @@ committed seed's result isn't a lucky outlier; (3) the tool had no way to get la
 doesn't match what's currently loaded. The frozen queue file itself was never touched (SHA-256
 verified identical before and after). The assisted annotation tool is built and verified without
 a browser (`node --check` plus a DOM-free harness against the real files).
+
+**2026-09-18 session (ADR-0028 addendum #12) — the day before labelling starts.** Display order
+reworked: all 300 TEST pairs are shown first (blind), then all 697 TRAIN_VAL pairs (assisted) —
+previously interleaved, which risked blind TEST judgements being anchored by suggestions already
+seen on TRAIN_VAL pairs. Five evaluation rules written down before any label exists (headline
+metric is 287 distinct TEST pair_ids, not 300 rows; a repeated pair's evaluation label is its
+FIRST decision in display order, resolved in the new committed
+`docs/learned/phase3-repeat-first-occurrence.json`; a repeated pair reports under
+`proxy_key_collision`, not `trivial_spot_check`; the TEST/TRAIN_VAL rules-engine forecast gap is
+stated as a limitation, not corrected; every per-tier figure needs its denominator and a Wilson
+95% CI). Built `scripts/ingest_labels.py` — the only path from a browser export into the committed
+dataset, structurally unable to accept an AI-produced label (cross-checks every provenance field
+against the frozen queue/split, refuses on any SHA-256 mismatch, conflicting labels across
+exports, or a decision shape the real tool cannot produce) — plus a QA report covering coverage,
+label distribution, self-agreement, assisted-flow correction rate, and throughput. Added
+`make annotate` (fixed local port, `127.0.0.1`-only after a reviewer caught the default
+`0.0.0.0` bind would have exposed `.env` on the LAN during a sitting) and the annotation runbook.
+Full detail, including the reviewer's other findings and what was done about each: DECISIONS.md
+ADR-0028 addendum #12.
 
 **The next action in this project is Bogdan labelling.** Nothing is blocked on architecture, on
 retrieval, or on Claude Code. CLAUDE.md §7 item 3 — "the user annotates 800-1,000 pairs manually

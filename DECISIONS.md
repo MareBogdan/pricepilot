@@ -2524,4 +2524,156 @@ hash itself, every run, and refuses to proceed if it ever disagrees.
   rebalance move was added because pure same-size swaps could get stuck whenever no unselected
   component of exactly the needed size existed.
 
-**Date.** 2026-09-17 (sixth session, pre-annotation verification pass).
+## ADR-0028 addendum #12 — display order reworked (TEST first, TRAIN_VAL second) and the
+evaluation rules written down before any label exists
+
+**Context.** Written 2026-09-18, the day before Bogdan starts labelling, in response to a specific
+anchoring risk the prior interleaved order (addendum #10/#11, 2026-09-17) created: mixing blind
+TEST pairs with assisted TRAIN_VAL pairs meant that by the time the annotator reached a given TEST
+pair, they had plausibly already seen hundreds of TRAIN_VAL suggestions and absorbed the rules
+engine's habits — anchoring that leaks straight into the blind labels the headline metric is
+computed from.
+
+**TASK 1 — display order: all TEST items first, then all TRAIN_VAL items, sequential only.**
+`tools/annotate.html`'s `buildOrder()` now runs the existing per-tier shuffle + fractional-rank
+interleave (`interleaveBlock()`, unchanged logic, just factored out) SEPARATELY over the TEST
+subset and the TRAIN_VAL subset, then concatenates TEST-block + TRAIN_VAL-block — never
+interleaved across the two. The `>=100`-position repeat-spacing post-pass
+(`enforceRepeatSpacing()`) now also runs once per block, with `findRepeatGroups()` taking an
+`allowedIdxSet` so a group is only ever detected within the block both its occurrences actually
+belong to (guaranteed by construction: `split_annotation_queue.py` assigns a whole connected
+component to one split, so both occurrences of any of the 38 repeated pair_ids always land in the
+same block — verified directly, not assumed: 13 of the 38 repeats sit in TEST, 25 in TRAIN_VAL,
+confirmed against `docs/learned/phase3-repeat-first-occurrence.json`'s own `split` field, zero
+pairs split across the boundary). Running the spacing pass per block, rather than on the
+concatenated 997-row sequence, is what keeps a repeat's spacing adjustment from ever being pushed
+across the TEST/TRAIN_VAL boundary — the block's own length is the clamp, not the full queue's.
+
+No way to jump between phases exists or was added — advancing through `order` is the only
+navigation, same as before.
+
+**A full-width, non-blocking banner** fires once, exactly when `cursor` first lands on
+`order[testBlockSize]` (the first TRAIN_VAL item): "Blind TEST phase complete (N shown / M distinct
+pairs). Assisted phase starts — suggestions now visible." Both numbers are computed live from the
+loaded files, not hardcoded. **The progress header** now also shows the active phase name and how
+many undone items remain IN THAT PHASE specifically (`currentPhaseInfo()`), not just the
+whole-queue done/total count that was already there.
+
+**Accepted cost, as instructed — fatigue now concentrates on TRAIN_VAL rather than being spread
+evenly across the whole run.** The right trade: TEST is where the reported metric comes from, and
+under this order it is labelled first, while attention is freshest.
+
+**A second, smaller accepted cost, found while verifying, not anticipated going in.** Confining
+`enforceRepeatSpacing()` to a 300-row and a 697-row block (instead of the full 997-row sequence
+addendum #11 measured) means a repeat whose first occurrence lands close to its own block's end can
+only be pushed as far as that end, not the full 100 positions. Verified against the real files: of
+the 38 repeated pairs, 4 land short of the 100-position target — TEST: 3 pairs at gaps 48, 77, 99
+(of 13 TEST repeats; min 48, median 126, max 249); TRAIN_VAL: 1 pair at gap 66 (of 25 TRAIN_VAL
+repeats; min 66, median 209, max 543). All four are still clearly separated, just under the nominal
+threshold — a direct, explainable consequence of shrinking the available room, not a new defect,
+and not worth a more invasive placement algorithm for four pairs at these margins.
+
+**Verification (Node, against the real committed files, no browser — same constraint as addenda
+#9-#11).** A DOM-free harness (`vm` module, stubbed `document`/`fetch`/`location`/`crypto`) executes
+the REAL extracted `<script>` body against the real frozen queue and real split file:
+- Positions 0-299 of the resulting order are all `split === "test"`; positions 300-996 are all
+  `split === "train_val"` — both checked directly over every position, not sampled.
+- Per-block tier composition in display order is **identical** to that block's own full tier
+  composition (interleaving reorders, it does not resample) — confirmed for both blocks, all 9
+  tiers. The first 100 items of each block track the block's own full-block percentages within
+  ~1pp per tier (e.g. TEST first-100 `proxy_key_collision` 29.0% vs. full-TEST-block 28.7%).
+- Repeat gaps, both blocks: reported above.
+- Determinism: `buildOrder()` run twice against the identical seed produces byte-identical output
+  (`JSON.stringify` equal), including `testBlockSize`.
+
+**TASK 2 — evaluation rules, written down before any label exists.** Five rules, enforced two ways:
+stated here and mirrored machine-readably into `docs/learned/phase3-annotation-split.json`'s new
+`evaluation_rules` block (written by `scripts/split_annotation_queue.py`, re-run this session —
+confirmed byte-identical `assignments`, `evaluation_rules` the only new top-level key), and checked
+structurally by new tests in `tests/test_annotation_split.py`.
+
+1. **The headline TEST set is 287 DISTINCT pair_ids, not 300 rows.** Every reported metric (P/R/F1,
+   per-tier breakdown, baseline vs. fine-tune) is computed over those 287. `split["test_distinct_
+   pair_ids"]` already carried this number since addendum #11; `evaluation_rules
+   .headline_test_metric_denominator` now says so in words next to it.
+2. **For a repeated pair, the evaluation label is the FIRST decision in DISPLAY order** — not file
+   order, not occurrence_id order. `docs/learned/phase3-repeat-first-occurrence.json` (new,
+   committed, built by `scripts/compute_repeat_first_occurrence.js`) names which of each of the 38
+   pairs' two occurrence_ids that is. **Built by executing the real `tools/annotate.html` ordering
+   logic, not by re-implementing the Mulberry32/interleave/spacing algorithm a second time** — a
+   hand-ported duplicate of a stateful RNG algorithm is exactly the kind of thing that silently
+   drifts from the original, which is what produced the occurrence_id collision bug addendum #11
+   fixed. The second occurrence is used only for self-agreement, never as a second test point.
+3. **A repeated pair is attributed to tier `proxy_key_collision` for per-category reporting.**
+   `trivial_spot_check` is NOT reported as its own TEST category: of its 15 TEST rows, 13 are the
+   second occurrence of a pair already counted under `proxy_key_collision` — verified directly
+   against the lookup file, not assumed — leaving only **2** distinct pair_ids genuinely unique to
+   `trivial_spot_check` in TEST (`0d008008050b_3156616197c4`, `5e1296b9a5e1_a479d20bd164`). n=2 is
+   noise pretending to be a category; reported as a footnote with its raw count instead. (Check:
+   8 headline categories' TEST distinct-pair-id counts sum to 285, plus these 2 standalone
+   `trivial_spot_check` pairs = 287 — reconciles exactly with rule 1's denominator.)
+4. **Stated limitation for the README: the rules-engine forecast differs between splits.** TEST 103
+   M / 164 N / 33 S of 300 rows; TRAIN_VAL 203 M / 390 N / 104 S of 697 rows — both verified
+   directly from `phase3-test-split-reference-predictions.json` and the split file's own
+   `engine_prediction`s, not re-derived by hand. The split was balanced on `tier` only, deliberately
+   never on predicted label (addendum #11, "Rejected" — balancing on `engine_prediction` would
+   contaminate the fine-tune-vs-baseline comparison). This forecast gap is a consequence of that
+   choice, reported, not corrected.
+5. **Per-tier TEST counts run 14-86 pairs.** Any per-tier figure must be reported with its
+   denominator and a Wilson 95% CI, never a bare percentage — the same discipline already applied
+   to recall@20's 88% [76.2%, 94.4%] (STATE.md).
+
+**New tests, `tests/test_annotation_split.py`:** exactly 287 distinct TEST pair_ids (recomputed from
+`assignments`, not read from the summary field); every one of the 38 repeated pairs has both
+occurrences in the same split; the repeat-first-occurrence lookup covers exactly 38 pairs, and both
+`first_occurrence_id`/`second_occurrence_id` of every entry are real derived occurrence_ids present
+in the frozen queue; the frozen-queue SHA-256 constant still matches (already existed, re-asserted
+here as part of the same run).
+
+**Rejected.**
+- **Interleaving TEST and TRAIN_VAL but hiding suggestions with a per-pair random draw** (e.g. only
+  show suggestions on 70% of TRAIN_VAL pairs, still interleaved) — doesn't solve the anchoring
+  problem the reordering exists for: the annotator would still see hundreds of suggestions, shown or
+  not, before reaching a given TEST pair, whatever the interleave ratio.
+- **A blocking "continue" screen at the TEST/TRAIN_VAL boundary**, mirroring the pilot-stop screen —
+  rejected as unnecessary friction; the instruction asked for a banner, not a gate, and there is
+  nothing to decide at that boundary the way there is at the pilot stop (whether to keep going at
+  all).
+- **Re-running the full local-search split optimizer** to try to reduce the 4 short repeat gaps —
+  the split itself (which components land in TEST vs. TRAIN_VAL) is unrelated to repeat spacing
+  (a display-order concern); changing it over 4 pairs' gaps would revisit an already-frozen,
+  already-verified assignment for a cosmetic gain of a few tens of positions.
+
+**Post-review fixes (same session, `reviewer` sub-agent on Opus, before commit).** One
+BLOCKING finding: `make annotate` / `make.ps1 annotate` used `python -m http.server`'s default
+bind (`0.0.0.0`), which would have exposed `.env` (API keys, DB password, the scraper contact
+address CLAUDE.md §5 says must never leave that file) to the whole LAN for the duration of any
+labelling sitting on shared Wi-Fi. Fixed: both now pass `--bind 127.0.0.1`, verified with a real
+request (`netstat` shows the listener on `127.0.0.1` only, not `0.0.0.0`) — see the session report
+for the command output. Two real validation gaps in `scripts/ingest_labels.py`, closed: its
+docstring claimed every provenance field was cross-checked "not just present, but equal to what
+the queue/split actually say," but `engine_prediction` and `corrected` were only presence-checked
+— a hand-crafted export could claim `source="confirm"` for a label the rules engine never
+suggested, or attach a populated `engine_prediction` to a TEST row (structurally impossible for
+the real tool). Both now cross-checked against the canonical queue/split data, with two new tests;
+fixing this also caught a real inconsistency in this session's own test fixtures (a "corrected"
+flag left `False` on a decision that should have computed `True`), evidence the new check works.
+One fabricated number, found and corrected: `docs/phase3-training-environment.md` (written by the
+`researcher` sub-agent) stated "697/891" for TRAIN_VAL rows/listings; 891 appears nowhere in the
+repo — corrected to the real, verified figure, 802 distinct listings. Two documentation gaps,
+closed: the runbook's `ingest_labels.py docs/learned/labels/*.json` command only glob-expands in
+Git Bash, not PowerShell (added the `Get-ChildItem ... .FullName` form); and a stale `python -m
+http.server` / port 8000 reference survived in `tools/annotate.html`'s own load-failure message
+(updated to `make annotate` / port 8010). Two judgement calls, not changed: the ADR heading
+wrapping across two lines (matches every prior addendum in this file — addenda #10/#11 do the
+same; fixing only #12 would be the inconsistent choice) and `scripts/compute_repeat_first_
+occurrence.js`'s driver re-implementing `init()`'s orchestration, not just its algorithm (flagged
+in that file's own docstring as a residual risk for a future `init()` change to remember, not
+fixed — no test infrastructure change was in scope this session). One item surfaced, not acted on:
+an untracked `Claude outputs/pricepilot-blind30.xlsx` predates this session, is not gitignored,
+and — checked directly, not assumed — has every label cell empty (`I2:I31` blank in
+`sheet2.xml`), so it carries no fabricated data; it is a second labelling surface with none of
+`ingest_labels.py`'s provenance discipline, reported to Bogdan rather than modified unprompted.
+
+**Date.** 2026-09-18 (seventh session, pre-annotation verification pass — one day after addendum
+#11's session; both are pre-annotation work, no labelling has started).
