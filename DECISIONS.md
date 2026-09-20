@@ -2563,15 +2563,26 @@ whole-queue done/total count that was already there.
 evenly across the whole run.** The right trade: TEST is where the reported metric comes from, and
 under this order it is labelled first, while attention is freshest.
 
-**A second, smaller accepted cost, found while verifying, not anticipated going in.** Confining
-`enforceRepeatSpacing()` to a 300-row and a 697-row block (instead of the full 997-row sequence
-addendum #11 measured) means a repeat whose first occurrence lands close to its own block's end can
-only be pushed as far as that end, not the full 100 positions. Verified against the real files: of
-the 38 repeated pairs, 4 land short of the 100-position target — TEST: 3 pairs at gaps 48, 77, 99
-(of 13 TEST repeats; min 48, median 126, max 249); TRAIN_VAL: 1 pair at gap 66 (of 25 TRAIN_VAL
-repeats; min 66, median 209, max 543). All four are still clearly separated, just under the nominal
-threshold — a direct, explainable consequence of shrinking the available room, not a new defect,
-and not worth a more invasive placement algorithm for four pairs at these margins.
+**A second, smaller accepted cost, found while verifying, not anticipated going in — CORRECTED,
+see "Post-report correction" below.** This session's own report described the following as an
+accepted cost. It was not: nothing enforced the `>=100` invariant this same paragraph (and
+STATE.md) claimed elsewhere, and no test locked it. The original text is kept for the record,
+not deleted:
+
+> Confining `enforceRepeatSpacing()` to a 300-row and a 697-row block (instead of the full 997-row
+> sequence addendum #11 measured) means a repeat whose first occurrence lands close to its own
+> block's end can only be pushed as far as that end, not the full 100 positions. Verified against
+> the real files: of the 38 repeated pairs, 4 land short of the 100-position target — TEST: 3 pairs
+> at gaps 48, 77, 99 (of 13 TEST repeats; min 48, median 126, max 249); TRAIN_VAL: 1 pair at gap 66
+> (of 25 TRAIN_VAL repeats; min 66, median 209, max 543). All four are still clearly separated,
+> just under the nominal threshold — a direct, explainable consequence of shrinking the available
+> room, not a new defect, and not worth a more invasive placement algorithm for four pairs at these
+> margins.
+
+That framing was wrong on the substance, not just the tone: a `>=100` invariant with 4 known
+violations is a broken invariant, not an accepted cost, regardless of how small the shortfall.
+See "Post-report correction" below for the fix, the corrected numbers, and why the verification
+that produced this paragraph missed it.
 
 **Verification (Node, against the real committed files, no browser — same constraint as addenda
 #9-#11).** A DOM-free harness (`vm` module, stubbed `document`/`fetch`/`location`/`crypto`) executes
@@ -2677,3 +2688,78 @@ and — checked directly, not assumed — has every label cell empty (`I2:I31` b
 
 **Date.** 2026-09-18 (seventh session, pre-annotation verification pass — one day after addendum
 #11's session; both are pre-annotation work, no labelling has started).
+
+---
+
+**Post-report correction (2026-09-20, found by the architect, before annotation started).** The
+architect re-ran this session's own `buildOrder()`/`enforceRepeatSpacing()` in Node against the
+committed files and reproduced the exact numbers this ADR's "accepted cost" paragraph reported —
+38 repeats, min gap 48, median 147, 4 violations (TEST gaps 99 at 169→268, 77 at 221→298, 48 at
+251→299; TRAIN_VAL gap 66 at 930→996, i.e. block-local 630→696) — and pointed out that a `>=100`
+invariant with 4 violations is a defect, not an accepted cost, and that STATE.md's "min 100, median
+314, max 849" was stated as current fact when it in fact described the addendum #11 **single-block**
+order that this addendum's TEST/TRAIN_VAL split had already replaced.
+
+**Root cause.** `enforceRepeatSpacing()` can only ever push a repeat's SECOND occurrence forward,
+clamped to `Math.min(newFirstPos + minGap, seq.length)`. If the FIRST occurrence already sits
+within `minGap` positions of the block's own end, no amount of pushing the second occurrence can
+reach the full gap — exactly the four cases above, all with a first occurrence past position ~200
+in the 300-row TEST block.
+
+**Fix.** A new function, `ensureRepeatFirstOccurrencesFit()` (`tools/annotate.html`), runs before
+`enforceRepeatSpacing()` on each block. For any repeat whose first occurrence sits later than the
+last position from which a full `minGap` gap still fits (`blockLength - 1 - minGap`), it swaps that
+first occurrence with a **same-tier, non-repeated ("singleton") item** at or before that cutoff,
+chosen via the seeded Mulberry32 RNG (factored out of `seededShuffle()` into its own `mulberry32()`
+so both callers share one PRNG) from *all* eligible candidates, not the first one scanned — so the
+result stays deterministic without a positional bias toward the block's start. Restricting the
+swap partner to a same-tier singleton is what preserves `interleaveBlock()`'s tier interleaving:
+the tier present at every position touched by the swap is unchanged, only which item of that tier
+sits there differs, so a prefix's tier proportions are provably unaffected, not just checked and
+hoped to hold. The pass throws immediately if a repeat has no eligible singleton to swap with,
+rather than silently leaving a short gap — the failure mode this correction exists to close. A
+second, independent check (`assertRepeatSpacing()`) runs after `enforceRepeatSpacing()` as a
+belt-and-braces guard against a future regression in either function.
+`scripts/compute_repeat_first_occurrence.js`'s driver was updated to call the same three functions
+in the same order (its own docstring already flagged this orchestration-duplication as a residual
+risk in the original addendum #12 session — this is that risk materializing on the very next
+`init()` change, exactly as flagged).
+
+**Corrected numbers (real files, Node, no browser — same harness style as every prior addendum in
+this ADR).**
+- **TEST block (n=300):** 13 repeats, min gap **100**, median 126, max 251, **0 violations**.
+- **TRAIN_VAL block (n=697):** 25 repeats, min gap **100**, median 224, max 543, **0 violations**.
+- Overall (38 repeats): min 100, median 146.5, max 543 — this replaces both addendum #11's
+  "min 100, median 314, max 849" (which described the single-block, pre-addendum-#12 order and no
+  longer applies to the current TEST/TRAIN_VAL split) and this addendum's own now-corrected
+  "min 48, median 147" paragraph above.
+- First 300 positions all `split === "test"`, positions 300-996 all `split === "train_val"` —
+  unchanged, still true after the fix.
+- `buildOrder()` + the new pre-pass run twice against the identical seed produce byte-identical
+  output.
+- Tier proportions, first 100 of each block vs. that block's own full composition: unchanged from
+  addendum #12's original measurement (within ~1pp per tier, both blocks, all 9 tiers) — expected,
+  since the swap is same-tier by construction and therefore cannot move tier mass across the
+  prefix boundary.
+- `docs/learned/phase3-repeat-first-occurrence.json` regenerated from the corrected order; each of
+  the 38 entries now also carries its `gap`, and the file header carries `gap_stats.test` /
+  `gap_stats.train_val` (min/median/max/count), matching the numbers above exactly.
+- `tests/test_annotation_split.py`: 4 new tests lock the invariant against the regenerated lookup
+  file (all 38 gaps `>=100`; `first_position < second_position`; both occurrences of a pair share a
+  split; the header's per-split gap_stats match a recomputation from the entries) — pytest 22/22
+  passed, `ruff check`/`ruff format --check` clean.
+
+**Why the original verification missed this.** The prompt that produced addendum #12's
+verification asked for per-block gap **statistics** (count, min, median, max) — the same shape this
+correction's own "Corrected numbers" section above reproduces — but not for a **violation count**
+against the stated `>=100` threshold. Min-48/median-126 was reported as a fact about the
+distribution; nobody then checked that fact against the invariant the surrounding prose claimed
+was still being enforced. The gap between "here is the distribution" and "here is whether the
+distribution satisfies the rule" is exactly where the false "accepted cost" framing slipped through
+uncaught. `tests/test_annotation_split.py` closes this permanently by asserting the threshold
+directly, not just recording the distribution next to it.
+
+**Commits.** One for the fix (`tools/annotate.html`, `scripts/compute_repeat_first_occurrence.js`,
+regenerated `docs/learned/phase3-repeat-first-occurrence.json`,
+`tests/test_annotation_split.py`); one for this documentation correction (this file and
+`STATE.md`).

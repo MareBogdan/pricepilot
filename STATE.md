@@ -20,7 +20,9 @@ labelling started**: (1) 38 `pair_id`s appear twice in the frozen queue under a 
 hardcoded `occurrence_id`, which would have silently hidden the second occurrence from the
 annotator — fixed by deriving `occurrence_id` from row order in three independent places
 (Python split script, JS tool, Python test) and spacing each pair's two showings >=100 positions
-apart (verified against the real files: min 100, median 314, max 849); (2) the first TEST split
+apart (verified against the real files **at the time**: min 100, median 314, max 849 — this was the
+single-block order later replaced by addendum #12's TEST/TRAIN_VAL split, see the 2026-09-20
+correction below; it no longer describes the current order); (2) the first TEST split
 was filled by raw component size with no tier balance (one tier's TEST/TRAIN_VAL gap was 9.5pp) —
 replaced with a seeded stratified optimizer, now every tier's gap is <=0.3pp, an acceptance gate
 (<=4.5pp per tier, >=14 TEST rows per tier, 0 listing overlap, 997 keys, no leaked predictions)
@@ -49,6 +51,25 @@ label distribution, self-agreement, assisted-flow correction rate, and throughpu
 `0.0.0.0` bind would have exposed `.env` on the LAN during a sitting) and the annotation runbook.
 Full detail, including the reviewer's other findings and what was done about each: DECISIONS.md
 ADR-0028 addendum #12.
+
+**2026-09-20 — defect found and fixed before annotation started (ADR-0028 addendum #12
+post-report correction).** The architect re-ran addendum #12's own `buildOrder()`/
+`enforceRepeatSpacing()` in Node against the committed files and found the "accepted cost"
+paragraph above was actually a broken invariant: `enforceRepeatSpacing()`'s clamp let 4 of the 38
+repeats land short of the `>=100` gap (TEST: 99, 77, 48; TRAIN_VAL: 66) inside the 300-row TEST /
+697-row TRAIN_VAL blocks, and nothing in the test suite caught it. Fixed with a new pre-pass,
+`ensureRepeatFirstOccurrencesFit()` (`tools/annotate.html`), that swaps any repeat's
+too-late-to-space first occurrence with a same-tier singleton earlier in its block, via the seeded
+RNG, before spacing runs; fails loudly if a block genuinely can't satisfy the invariant. **Corrected
+numbers, current order: TEST 13 repeats (min 100, median 126, max 251), TRAIN_VAL 25 repeats (min
+100, median 224, max 543), 0 violations** — regenerated into
+`docs/learned/phase3-repeat-first-occurrence.json` (now also carries each entry's `gap` and a
+per-split `gap_stats` header) and locked by 4 new tests in `tests/test_annotation_split.py` (22/22
+passing). Tier proportions of each block's first 100 vs. its own full composition are unaffected
+(swap is same-tier by construction), first-300-all-TEST/rest-all-TRAIN_VAL still holds, and
+`buildOrder()` + the new pass are still deterministic across repeated runs. Full detail, including
+why the original verification missed it: DECISIONS.md ADR-0028 addendum #12, "Post-report
+correction."
 
 **The next action in this project is Bogdan labelling.** Nothing is blocked on architecture, on
 retrieval, or on Claude Code. CLAUDE.md §7 item 3 — "the user annotates 800-1,000 pairs manually
