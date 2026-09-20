@@ -1,10 +1,24 @@
 {
- "built_from": "scripts/compute_repeat_first_occurrence.js, executing the REAL tools/annotate.html display-order logic (buildOrder + enforceRepeatSpacing) against the committed queue+split files -- not a re-implementation, to avoid the two ever silently disagreeing (see this file's own module docstring)",
- "purpose": "ADR-0028 addendum #12 rule 2: for a repeated pair, the evaluation label is the FIRST decision in DISPLAY order, not file order. This file names which occurrence_id that is, for each of the 38 repeated pair_ids.",
+ "built_from": "scripts/compute_repeat_first_occurrence.js, executing the REAL tools/annotate.html display-order logic (buildOrder + ensureRepeatFirstOccurrencesFit + enforceRepeatSpacing + assertRepeatSpacing) against the committed queue+split files -- not a re-implementation, to avoid the two ever silently disagreeing (see this file's own module docstring)",
+ "purpose": "ADR-0028 addendum #12 rule 2: for a repeated pair, the evaluation label is the FIRST decision in DISPLAY order, not file order. This file names which occurrence_id that is, for each of the 38 repeated pair_ids, and records the gap between the two occurrences (ADR-0028 addendum #12 defect fix: every gap here is >= 100 by construction, checked by assertRepeatSpacing() at generation time and locked by tests/test_annotation_split.py).",
  "queue_sha256": "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011",
  "split_sha256": "83c6b0e3e96dbc56c93ab5c5534f052bfcff12e63d363c997456d12dc9023e09",
  "shuffle_seed": 20260915,
  "repeat_pair_count": 38,
+ "gap_stats": {
+  "test": {
+   "min": 100,
+   "median": 126,
+   "max": 251,
+   "count": 13
+  },
+  "train_val": {
+   "min": 100,
+   "median": 224,
+   "max": 543,
+   "count": 25
+  }
+ },
  "lookup": {
   "01b880c1f365_33394df3427d": {
    "first_occurrence_id": "01b880c1f365_33394df3427d_0",
@@ -13,7 +27,8 @@
    "second_occurrence_id": "01b880c1f365_33394df3427d_1",
    "second_tier": "proxy_key_collision",
    "second_position": 972,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 244
   },
   "0d1b18f0a21e_1d71ae73298c": {
    "first_occurrence_id": "0d1b18f0a21e_1d71ae73298c_0",
@@ -22,7 +37,8 @@
    "second_occurrence_id": "0d1b18f0a21e_1d71ae73298c_1",
    "second_tier": "trivial_spot_check",
    "second_position": 905,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 270
   },
   "3f12b3225e74_a0b2cb253771": {
    "first_occurrence_id": "3f12b3225e74_a0b2cb253771_0",
@@ -31,7 +47,8 @@
    "second_occurrence_id": "3f12b3225e74_a0b2cb253771_1",
    "second_tier": "trivial_spot_check",
    "second_position": 847,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 375
   },
   "5e1296b9a5e1_d421baa2c85c": {
    "first_occurrence_id": "5e1296b9a5e1_d421baa2c85c_0",
@@ -39,8 +56,9 @@
    "first_position": 140,
    "second_occurrence_id": "5e1296b9a5e1_d421baa2c85c_1",
    "second_tier": "trivial_spot_check",
-   "second_position": 287,
-   "split": "test"
+   "second_position": 289,
+   "split": "test",
+   "gap": 149
   },
   "4b2cb18cab99_724b0a6ded05": {
    "first_occurrence_id": "4b2cb18cab99_724b0a6ded05_0",
@@ -49,16 +67,18 @@
    "second_occurrence_id": "4b2cb18cab99_724b0a6ded05_1",
    "second_tier": "proxy_key_collision",
    "second_position": 235,
-   "split": "test"
+   "split": "test",
+   "gap": 126
   },
   "d7e51a8b7ba2_dc2765730536": {
    "first_occurrence_id": "d7e51a8b7ba2_dc2765730536_0",
    "first_tier": "trivial_spot_check",
-   "first_position": 251,
+   "first_position": 150,
    "second_occurrence_id": "d7e51a8b7ba2_dc2765730536_1",
    "second_tier": "proxy_key_collision",
-   "second_position": 299,
-   "split": "test"
+   "second_position": 276,
+   "split": "test",
+   "gap": 126
   },
   "4e70fb687853_e1f0ae404b44": {
    "first_occurrence_id": "4e70fb687853_e1f0ae404b44_0",
@@ -67,7 +87,8 @@
    "second_occurrence_id": "4e70fb687853_e1f0ae404b44_1",
    "second_tier": "proxy_key_collision",
    "second_position": 895,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 506
   },
   "0fb28ed4b16d_1155978dcb8f": {
    "first_occurrence_id": "0fb28ed4b16d_1155978dcb8f_0",
@@ -76,7 +97,8 @@
    "second_occurrence_id": "0fb28ed4b16d_1155978dcb8f_1",
    "second_tier": "trivial_spot_check",
    "second_position": 414,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 100
   },
   "a19a1b41f49f_afc62890b6b5": {
    "first_occurrence_id": "a19a1b41f49f_afc62890b6b5_1",
@@ -85,7 +107,8 @@
    "second_occurrence_id": "a19a1b41f49f_afc62890b6b5_0",
    "second_tier": "trivial_spot_check",
    "second_position": 827,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 117
   },
   "3b07b7e65dbc_3f12b3225e74": {
    "first_occurrence_id": "3b07b7e65dbc_3f12b3225e74_1",
@@ -94,7 +117,8 @@
    "second_occurrence_id": "3b07b7e65dbc_3f12b3225e74_0",
    "second_tier": "proxy_key_collision",
    "second_position": 918,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 489
   },
   "794cdac35490_f451658b69fe": {
    "first_occurrence_id": "794cdac35490_f451658b69fe_1",
@@ -103,7 +127,8 @@
    "second_occurrence_id": "794cdac35490_f451658b69fe_0",
    "second_tier": "trivial_spot_check",
    "second_position": 164,
-   "split": "test"
+   "split": "test",
+   "gap": 100
   },
   "45d78c52ceb8_e78f8525c049": {
    "first_occurrence_id": "45d78c52ceb8_e78f8525c049_0",
@@ -112,7 +137,8 @@
    "second_occurrence_id": "45d78c52ceb8_e78f8525c049_1",
    "second_tier": "trivial_spot_check",
    "second_position": 209,
-   "split": "test"
+   "split": "test",
+   "gap": 170
   },
   "6a815f68ac81_a777ff4041ae": {
    "first_occurrence_id": "6a815f68ac81_a777ff4041ae_0",
@@ -121,16 +147,18 @@
    "second_occurrence_id": "6a815f68ac81_a777ff4041ae_1",
    "second_tier": "proxy_key_collision",
    "second_position": 189,
-   "split": "test"
+   "split": "test",
+   "gap": 100
   },
   "671a8573b282_e3e2fe29e12d": {
    "first_occurrence_id": "671a8573b282_e3e2fe29e12d_1",
    "first_tier": "proxy_key_collision",
-   "first_position": 930,
+   "first_position": 633,
    "second_occurrence_id": "671a8573b282_e3e2fe29e12d_0",
    "second_tier": "trivial_spot_check",
-   "second_position": 996,
-   "split": "train_val"
+   "second_position": 986,
+   "split": "train_val",
+   "gap": 353
   },
   "4e70fb687853_e37389942714": {
    "first_occurrence_id": "4e70fb687853_e37389942714_1",
@@ -139,7 +167,8 @@
    "second_occurrence_id": "4e70fb687853_e37389942714_0",
    "second_tier": "proxy_key_collision",
    "second_position": 925,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 398
   },
   "006fb9eb7e29_d2215849da87": {
    "first_occurrence_id": "006fb9eb7e29_d2215849da87_1",
@@ -147,8 +176,9 @@
    "first_position": 128,
    "second_occurrence_id": "006fb9eb7e29_d2215849da87_0",
    "second_tier": "proxy_key_collision",
-   "second_position": 274,
-   "split": "test"
+   "second_position": 275,
+   "split": "test",
+   "gap": 147
   },
   "849c8c66908e_97a5d666acd4": {
    "first_occurrence_id": "849c8c66908e_97a5d666acd4_1",
@@ -157,7 +187,8 @@
    "second_occurrence_id": "849c8c66908e_97a5d666acd4_0",
    "second_tier": "proxy_key_collision",
    "second_position": 223,
-   "split": "test"
+   "split": "test",
+   "gap": 174
   },
   "671a8573b282_d680799ed2c9": {
    "first_occurrence_id": "671a8573b282_d680799ed2c9_1",
@@ -166,7 +197,8 @@
    "second_occurrence_id": "671a8573b282_d680799ed2c9_0",
    "second_tier": "trivial_spot_check",
    "second_position": 867,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 464
   },
   "2adf50061238_78b4c6c9cc57": {
    "first_occurrence_id": "2adf50061238_78b4c6c9cc57_1",
@@ -175,7 +207,8 @@
    "second_occurrence_id": "2adf50061238_78b4c6c9cc57_0",
    "second_tier": "trivial_spot_check",
    "second_position": 449,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 100
   },
   "89e2901f53a4_af09fe488ef1": {
    "first_occurrence_id": "89e2901f53a4_af09fe488ef1_0",
@@ -184,7 +217,8 @@
    "second_occurrence_id": "89e2901f53a4_af09fe488ef1_1",
    "second_tier": "trivial_spot_check",
    "second_position": 547,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 170
   },
   "3901bdc8daeb_3c922af4f3d8": {
    "first_occurrence_id": "3901bdc8daeb_3c922af4f3d8_1",
@@ -193,7 +227,8 @@
    "second_occurrence_id": "3901bdc8daeb_3c922af4f3d8_0",
    "second_tier": "proxy_key_collision",
    "second_position": 891,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 224
   },
   "3f427684496e_4ba27b806af1": {
    "first_occurrence_id": "3f427684496e_4ba27b806af1_0",
@@ -202,7 +237,8 @@
    "second_occurrence_id": "3f427684496e_4ba27b806af1_1",
    "second_tier": "proxy_key_collision",
    "second_position": 873,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 543
   },
   "a34a1f1d8475_b173b5fd3a05": {
    "first_occurrence_id": "a34a1f1d8475_b173b5fd3a05_1",
@@ -211,16 +247,18 @@
    "second_occurrence_id": "a34a1f1d8475_b173b5fd3a05_0",
    "second_tier": "proxy_key_collision",
    "second_position": 907,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 100
   },
   "61dca7be02ee_fd501d04e6f2": {
    "first_occurrence_id": "61dca7be02ee_fd501d04e6f2_0",
    "first_tier": "proxy_key_collision",
-   "first_position": 221,
+   "first_position": 146,
    "second_occurrence_id": "61dca7be02ee_fd501d04e6f2_1",
    "second_tier": "trivial_spot_check",
-   "second_position": 298,
-   "split": "test"
+   "second_position": 268,
+   "split": "test",
+   "gap": 122
   },
   "72b31032505e_947c7308aba7": {
    "first_occurrence_id": "72b31032505e_947c7308aba7_0",
@@ -228,8 +266,9 @@
    "first_position": 169,
    "second_occurrence_id": "72b31032505e_947c7308aba7_1",
    "second_tier": "proxy_key_collision",
-   "second_position": 268,
-   "split": "test"
+   "second_position": 269,
+   "split": "test",
+   "gap": 100
   },
   "366b7f2665c2_a960a4aea31a": {
    "first_occurrence_id": "366b7f2665c2_a960a4aea31a_1",
@@ -238,7 +277,8 @@
    "second_occurrence_id": "366b7f2665c2_a960a4aea31a_0",
    "second_tier": "trivial_spot_check",
    "second_position": 786,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 307
   },
   "45e34c15d8c2_c50f86901a68": {
    "first_occurrence_id": "45e34c15d8c2_c50f86901a68_0",
@@ -247,7 +287,8 @@
    "second_occurrence_id": "45e34c15d8c2_c50f86901a68_1",
    "second_tier": "proxy_key_collision",
    "second_position": 588,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 100
   },
   "21264bcab329_e45231280f0b": {
    "first_occurrence_id": "21264bcab329_e45231280f0b_0",
@@ -256,7 +297,8 @@
    "second_occurrence_id": "21264bcab329_e45231280f0b_1",
    "second_tier": "trivial_spot_check",
    "second_position": 468,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 105
   },
   "34f9c8790cc6_35f57c20451a": {
    "first_occurrence_id": "34f9c8790cc6_35f57c20451a_0",
@@ -265,7 +307,8 @@
    "second_occurrence_id": "34f9c8790cc6_35f57c20451a_1",
    "second_tier": "trivial_spot_check",
    "second_position": 629,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 209
   },
   "26847ec1f0b9_a1cc7b1de4e5": {
    "first_occurrence_id": "26847ec1f0b9_a1cc7b1de4e5_0",
@@ -274,7 +317,8 @@
    "second_occurrence_id": "26847ec1f0b9_a1cc7b1de4e5_1",
    "second_tier": "trivial_spot_check",
    "second_position": 966,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 411
   },
   "4acc12b4e65b_9a5d6d8f7aed": {
    "first_occurrence_id": "4acc12b4e65b_9a5d6d8f7aed_1",
@@ -283,7 +327,8 @@
    "second_occurrence_id": "4acc12b4e65b_9a5d6d8f7aed_0",
    "second_tier": "proxy_key_collision",
    "second_position": 735,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 127
   },
   "1f25d9a8f6a1_9cad53a38e85": {
    "first_occurrence_id": "1f25d9a8f6a1_9cad53a38e85_1",
@@ -292,7 +337,8 @@
    "second_occurrence_id": "1f25d9a8f6a1_9cad53a38e85_0",
    "second_tier": "trivial_spot_check",
    "second_position": 229,
-   "split": "test"
+   "split": "test",
+   "gap": 125
   },
   "15d4ac2e73f7_d84df75bbf5f": {
    "first_occurrence_id": "15d4ac2e73f7_d84df75bbf5f_0",
@@ -301,7 +347,8 @@
    "second_occurrence_id": "15d4ac2e73f7_d84df75bbf5f_1",
    "second_tier": "proxy_key_collision",
    "second_position": 848,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 100
   },
   "8a863350ba8b_acf8ff85a6ce": {
    "first_occurrence_id": "8a863350ba8b_acf8ff85a6ce_0",
@@ -310,7 +357,8 @@
    "second_occurrence_id": "8a863350ba8b_acf8ff85a6ce_1",
    "second_tier": "proxy_key_collision",
    "second_position": 196,
-   "split": "test"
+   "split": "test",
+   "gap": 186
   },
   "559aea683058_9a5b80cd9313": {
    "first_occurrence_id": "559aea683058_9a5b80cd9313_0",
@@ -319,7 +367,8 @@
    "second_occurrence_id": "559aea683058_9a5b80cd9313_1",
    "second_tier": "proxy_key_collision",
    "second_position": 657,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 288
   },
   "39b24e4f4cbf_7ee41572ef18": {
    "first_occurrence_id": "39b24e4f4cbf_7ee41572ef18_1",
@@ -327,8 +376,9 @@
    "first_position": 30,
    "second_occurrence_id": "39b24e4f4cbf_7ee41572ef18_0",
    "second_tier": "proxy_key_collision",
-   "second_position": 279,
-   "split": "test"
+   "second_position": 281,
+   "split": "test",
+   "gap": 251
   },
   "1f6c7d1e3176_9d0e4c3b4caf": {
    "first_occurrence_id": "1f6c7d1e3176_9d0e4c3b4caf_0",
@@ -337,7 +387,8 @@
    "second_occurrence_id": "1f6c7d1e3176_9d0e4c3b4caf_1",
    "second_tier": "trivial_spot_check",
    "second_position": 567,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 109
   },
   "a99beb6e580c_cb6d4b07e233": {
    "first_occurrence_id": "a99beb6e580c_cb6d4b07e233_0",
@@ -346,7 +397,8 @@
    "second_occurrence_id": "a99beb6e580c_cb6d4b07e233_1",
    "second_tier": "proxy_key_collision",
    "second_position": 454,
-   "split": "train_val"
+   "split": "train_val",
+   "gap": 144
   }
  }
 }

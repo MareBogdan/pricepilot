@@ -25,14 +25,20 @@
  *
  * RESIDUAL RISK, found on review, worth stating rather than hiding: this file's own driver
  * (below) re-implements init()'s ORCHESTRATION -- the queue/split merge, the split into a TEST
- * block and a TRAIN_VAL block, and the literal minGap=100 passed to enforceRepeatSpacing() --
- * even though it calls the real buildOrder()/enforceRepeatSpacing()/deriveOccurrenceIds()
- * functions for the ALGORITHM itself. If tools/annotate.html's init() ever changes that
- * orchestration (a different minGap, a different block boundary), this script and the real tool
- * could silently disagree while every existing test still passes, since nothing currently checks
- * this driver's shape against init()'s. Low probability, not fixed here (no test infrastructure
- * change was in scope this session) -- flagged so a future change to init() remembers to check
- * this file too.
+ * block and a TRAIN_VAL block, the literal minGap=100, and the seed offsets (`seed + 104729`,
+ * `seed + 104729 + 7919`) passed to ensureRepeatFirstOccurrencesFit() -- even though it calls the
+ * real buildOrder()/ensureRepeatFirstOccurrencesFit()/enforceRepeatSpacing()/
+ * assertRepeatSpacing()/deriveOccurrenceIds() functions for the ALGORITHM itself. If
+ * tools/annotate.html's init() ever changes that orchestration (a different minGap, a different
+ * block boundary, different seed offsets), this script and the real tool could silently disagree
+ * while every existing test still passes, since nothing currently checks this driver's shape
+ * against init()'s. Low probability, not fixed here (no test infrastructure change was in scope
+ * this session) -- flagged so a future change to init() remembers to check this file too.
+ *
+ * ADR-0028 addendum #12 defect fix -- this file now also records each entry's display-order
+ * `gap` (second_position - first_position) and, in the file header, per-split `gap_stats`
+ * (min/median/max/count for TEST and TRAIN_VAL separately) -- so the invariant this fix exists to
+ * guarantee is visible in the artifact itself, not just asserted at runtime by the tool.
  */
 "use strict";
 const fs = require("fs");
@@ -111,10 +117,13 @@ for (const item of queue) {
 const seed = data.shuffle_seed || 20260915;
 order = buildOrder(seed); // sets testBlockSize as a side effect
 const tb = testBlockSize;
-const testBlock = order.slice(0, tb);
-const trainValBlock = order.slice(tb);
-const spacedTest = enforceRepeatSpacing(testBlock, queue, 100, new Set(testBlock));
-const spacedTrainVal = enforceRepeatSpacing(trainValBlock, queue, 100, new Set(trainValBlock));
+const MIN_GAP = 100;
+const testBlockFitted = ensureRepeatFirstOccurrencesFit(order.slice(0, tb), queue, MIN_GAP, seed + 104729);
+const trainValBlockFitted = ensureRepeatFirstOccurrencesFit(order.slice(tb), queue, MIN_GAP, seed + 104729 + 7919);
+const spacedTest = enforceRepeatSpacing(testBlockFitted, queue, MIN_GAP, new Set(testBlockFitted));
+const spacedTrainVal = enforceRepeatSpacing(trainValBlockFitted, queue, MIN_GAP, new Set(trainValBlockFitted));
+assertRepeatSpacing(spacedTest, queue, MIN_GAP, new Set(spacedTest));
+assertRepeatSpacing(spacedTrainVal, queue, MIN_GAP, new Set(spacedTrainVal));
 const finalOrder = spacedTest.concat(spacedTrainVal);
 
 const positionOf = {};
@@ -125,6 +134,7 @@ queue.forEach((item) => { (byPid[item.pair_id] = byPid[item.pair_id] || []).push
 
 const lookup = {};
 let repeatedCount = 0;
+const gapsBySplit = { test: [], train_val: [] };
 for (const pid of Object.keys(byPid)) {
   const items = byPid[pid];
   if (items.length !== 2) continue;
@@ -134,6 +144,8 @@ for (const pid of Object.keys(byPid)) {
   const posB = positionOf[b.occurrence_id];
   const first = posA < posB ? a : b;
   const second = posA < posB ? b : a;
+  const gap = positionOf[second.occurrence_id] - positionOf[first.occurrence_id];
+  gapsBySplit[first.split].push(gap);
   lookup[pid] = {
     first_occurrence_id: first.occurrence_id,
     first_tier: first.tier,
@@ -142,6 +154,7 @@ for (const pid of Object.keys(byPid)) {
     second_tier: second.tier,
     second_position: positionOf[second.occurrence_id],
     split: first.split,
+    gap,
   };
 }
 
@@ -150,24 +163,41 @@ if (repeatedCount !== 38) {
   process.exit(1);
 }
 
+function gapStats(arr) {
+  const sorted = arr.slice().sort((x, y) => x - y);
+  const n = sorted.length;
+  if (!n) return { min: null, median: null, max: null, count: 0 };
+  const med = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+  return { min: sorted[0], median: med, max: sorted[n - 1], count: n };
+}
+
 const out = {
   built_from: "scripts/compute_repeat_first_occurrence.js, executing the REAL " +
-    "tools/annotate.html display-order logic (buildOrder + enforceRepeatSpacing) against the " +
-    "committed queue+split files -- not a re-implementation, to avoid the two ever silently " +
-    "disagreeing (see this file's own module docstring)",
+    "tools/annotate.html display-order logic (buildOrder + ensureRepeatFirstOccurrencesFit + " +
+    "enforceRepeatSpacing + assertRepeatSpacing) against the committed queue+split files -- not " +
+    "a re-implementation, to avoid the two ever silently disagreeing (see this file's own module " +
+    "docstring)",
   purpose: "ADR-0028 addendum #12 rule 2: for a repeated pair, the evaluation label is the " +
     "FIRST decision in DISPLAY order, not file order. This file names which occurrence_id that " +
-    "is, for each of the 38 repeated pair_ids.",
+    "is, for each of the 38 repeated pair_ids, and records the gap between the two occurrences " +
+    "(ADR-0028 addendum #12 defect fix: every gap here is >= 100 by construction, checked by " +
+    "assertRepeatSpacing() at generation time and locked by tests/test_annotation_split.py).",
   queue_sha256: outQueueSha256,
   split_sha256: outSplitSha256,
   shuffle_seed: seed,
   repeat_pair_count: repeatedCount,
+  gap_stats: {
+    test: gapStats(gapsBySplit.test),
+    train_val: gapStats(gapsBySplit.train_val),
+  },
   lookup,
 };
 fsNode.writeFileSync(${JSON.stringify(OUT_PATH)}, JSON.stringify(out, null, 1), "utf8");
 console.log("wrote " + ${JSON.stringify(OUT_PATH)} + " (" + repeatedCount + " repeated pairs)");
 console.log("queue_sha256=" + outQueueSha256);
 console.log("split_sha256=" + outSplitSha256);
+console.log("gap_stats.test=" + JSON.stringify(gapStats(gapsBySplit.test)));
+console.log("gap_stats.train_val=" + JSON.stringify(gapStats(gapsBySplit.train_val)));
 `;
 
 vm.runInContext(scriptText + "\n" + driver, sandbox, { filename: "compute-repeat-first-occurrence-driver.js" });

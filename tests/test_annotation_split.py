@@ -277,6 +277,70 @@ def test_repeat_first_occurrence_hashes_match_current_files() -> None:
     )
 
 
+# --- ADR-0028 addendum #12 defect fix -- every repeat's gap must be >= 100 -----------------------
+# (found by the architect re-running buildOrder()/enforceRepeatSpacing() in Node against the
+# committed files: enforceRepeatSpacing()'s clamp let 4 of 38 repeats land short -- TEST gaps
+# 99/77/48, TRAIN_VAL gap 66 -- while STATE.md and ADR-0028 addendum #11 claimed "min 100".
+# ensureRepeatFirstOccurrencesFit() (tools/annotate.html) now guarantees this before spacing runs;
+# these tests lock the guarantee against the regenerated lookup file, not just the algorithm.)
+
+
+def test_repeat_first_occurrence_gaps_all_at_least_100() -> None:
+    lookup = _load_repeat_first_occurrence()["lookup"]
+    assert len(lookup) == 38
+    for pair_id, entry in lookup.items():
+        recomputed_gap = entry["second_position"] - entry["first_position"]
+        assert entry["gap"] == recomputed_gap, (
+            f"{pair_id}: recorded gap {entry['gap']} != second_position - first_position "
+            f"({recomputed_gap})"
+        )
+        assert entry["gap"] >= 100, f"{pair_id}: gap {entry['gap']} < 100"
+
+
+def test_repeat_first_occurrence_first_position_before_second() -> None:
+    lookup = _load_repeat_first_occurrence()["lookup"]
+    for pair_id, entry in lookup.items():
+        assert entry["first_position"] < entry["second_position"], (
+            f"{pair_id}: first_position {entry['first_position']} is not before "
+            f"second_position {entry['second_position']}"
+        )
+
+
+def test_repeat_first_occurrence_both_occurrences_share_a_split() -> None:
+    split = _load_split()
+    lookup = _load_repeat_first_occurrence()["lookup"]
+    for pair_id, entry in lookup.items():
+        first_split = split["assignments"][entry["first_occurrence_id"]]["split"]
+        second_split = split["assignments"][entry["second_occurrence_id"]]["split"]
+        assert first_split == second_split, (
+            f"{pair_id}: first occurrence in split {first_split!r}, second in {second_split!r}"
+        )
+        assert entry["split"] == first_split
+
+
+def test_repeat_first_occurrence_gap_stats_header_matches_recomputed() -> None:
+    """The header's per-split min/median/max is a summary of the same `lookup` entries -- this is
+    the test that would catch the header going stale relative to the entries it summarizes."""
+    data = _load_repeat_first_occurrence()
+    lookup = data["lookup"]
+    by_split: dict[str, list[int]] = {"test": [], "train_val": []}
+    for entry in lookup.values():
+        by_split[entry["split"]].append(entry["gap"])
+
+    for split_name, gaps in by_split.items():
+        gaps_sorted = sorted(gaps)
+        n = len(gaps_sorted)
+        assert n > 0, f"no repeats recorded for split {split_name!r}"
+        median = (
+            gaps_sorted[n // 2] if n % 2 else (gaps_sorted[n // 2 - 1] + gaps_sorted[n // 2]) / 2
+        )
+        stats = data["gap_stats"][split_name]
+        assert stats["count"] == n
+        assert stats["min"] == gaps_sorted[0]
+        assert stats["median"] == median
+        assert stats["max"] == gaps_sorted[-1]
+
+
 def test_split_file_carries_evaluation_rules_block() -> None:
     split = _load_split()
     rules = split["evaluation_rules"]

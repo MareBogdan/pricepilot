@@ -931,16 +931,23 @@ function toggleFlag() {
   document.getElementById("btn-flag").classList.toggle("active", state[item.occurrence_id].flagged);
 }
 
-function seededShuffle(arr, seed) {
-  // Mulberry32 PRNG — deterministic given the seed baked into the queue file, so re-opening the
-  // tool reproduces the identical display order (important for resuming a sitting correctly).
+// Mulberry32 PRNG — deterministic given the seed baked into the queue file, so re-opening the
+// tool (or re-running scripts/compute_repeat_first_occurrence.js against the same files)
+// reproduces the identical display order. Returns a `next()` closure so a caller can pull as many
+// draws as it needs; shared by seededShuffle() and ensureRepeatFirstOccurrencesFit() below so the
+// two never risk drifting into two different PRNGs.
+function mulberry32(seed) {
   let a = seed;
-  function rnd() {
+  return function next() {
     a |= 0; a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  }
+  };
+}
+
+function seededShuffle(arr, seed) {
+  const rnd = mulberry32(seed);
   const out = arr.slice();
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
@@ -985,18 +992,111 @@ function findRepeatGroups(queueArr, allowedIdxSet) {
   return Object.values(byPid).filter((idxs) => idxs.length > 1);
 }
 
+// TASK 1 FIX (ADR-0028 addendum #12 defect, found by the architect re-running this file's own
+// buildOrder()/enforceRepeatSpacing() in Node against the committed files) -- runs BEFORE
+// enforceRepeatSpacing(), once per block. enforceRepeatSpacing() can only ever push a repeat's
+// SECOND occurrence forward, clamped to `Math.min(newFirstPos + minGap, seq.length)` -- so if the
+// FIRST occurrence already sits within `minGap` positions of the block's own end, no amount of
+// pushing the second occurrence can reach the full gap. Measured on the pre-fix committed files:
+// 4 of 38 repeats came in short (TEST: gaps 99/77/48; TRAIN_VAL: gap 66) -- the previous version
+// of this comment (and STATE.md, and DECISIONS.md ADR-0028 addendum #11) wrongly reported this as
+// an accepted edge effect; nothing actually enforced the invariant those docs claimed.
+//
+// The fix moves the failure mode to the front instead of tolerating it at the back: any repeat
+// whose first occurrence sits later than the last position a full `minGap` gap can still fit from
+// (`blockLength - 1 - minGap`) gets that first occurrence swapped with a same-tier, non-repeated
+// ("singleton") item sitting at or before that cutoff. Swapping same-tier items is what preserves
+// interleaveBlock()'s tier interleaving -- the tier present at every touched position is
+// unchanged, only WHICH item of that tier sits there differs -- so a prefix's tier proportions are
+// provably unaffected by this pass, not just checked and hoped to hold.
+//
+// The swap partner is drawn via the seeded RNG from ALL eligible positions (never "first available
+// slot"), so the result stays deterministic without a positional bias toward the block's start.
+// Restricting candidates to singletons is deliberate: a repeated pair's own first occurrence is
+// exactly the thing this pass must not accidentally relocate past the cutoff, so the swap partner
+// must carry no such constraint of its own.
+//
+// Throws -- does not silently proceed -- if a repeat group has no eligible singleton to swap
+// with. A block that genuinely cannot satisfy the invariant must fail loudly, per instruction, not
+// quietly produce a short gap the way the original code did.
+function ensureRepeatFirstOccurrencesFit(blockOrder, queueArr, minGap, seed) {
+  const L = blockOrder.length;
+  const safeMax = L - 1 - minGap;
+  const seq = blockOrder.slice();
+  const posOf = new Map();
+  seq.forEach((idx, pos) => posOf.set(idx, pos));
+
+  const allowedIdxSet = new Set(blockOrder);
+  const groups = findRepeatGroups(queueArr, allowedIdxSet).filter((idxs) => idxs.length === 2);
+  const repeatPids = new Set(groups.map(([a]) => queueArr[a].pair_id));
+
+  const needsFix = [];
+  for (const [a, b] of groups) {
+    const pa = posOf.get(a), pb = posOf.get(b);
+    const firstIdx = pa < pb ? a : b;
+    const firstPos = Math.min(pa, pb);
+    if (firstPos > safeMax) {
+      needsFix.push({ pairId: queueArr[firstIdx].pair_id, firstIdx, tier: queueArr[firstIdx].tier });
+    }
+  }
+  // Deterministic processing order regardless of Map/Set iteration order (both are
+  // insertion-ordered in practice, but pair_id sort makes that an explicit guarantee, not an
+  // accident of engine behaviour).
+  needsFix.sort((x, y) => (x.pairId < y.pairId ? -1 : x.pairId > y.pairId ? 1 : 0));
+
+  const rnd = mulberry32(seed);
+  for (const fix of needsFix) {
+    const candidates = [];
+    for (let p = 0; p <= safeMax; p++) {
+      const item = queueArr[seq[p]];
+      if (item.tier === fix.tier && !repeatPids.has(item.pair_id)) candidates.push(p);
+    }
+    if (!candidates.length) {
+      throw new Error(
+        `ensureRepeatFirstOccurrencesFit: no eligible same-tier singleton at position <= ${safeMax} ` +
+        `to swap with pair_id "${fix.pairId}" (tier "${fix.tier}") -- this block cannot satisfy ` +
+        `the >= ${minGap} gap invariant for this repeat.`
+      );
+    }
+    const targetPos = candidates[Math.floor(rnd() * candidates.length)];
+    const firstPos = posOf.get(fix.firstIdx);
+    const other = seq[targetPos];
+    seq[targetPos] = fix.firstIdx;
+    seq[firstPos] = other;
+    posOf.set(fix.firstIdx, targetPos);
+    posOf.set(other, firstPos);
+  }
+  return seq;
+}
+
+// Belt-and-braces final check, independent of ensureRepeatFirstOccurrencesFit()'s own guarantee --
+// if a future change to either function ever regresses the invariant, this throws immediately and
+// visibly (breaking init(), not silently loading a short-gapped queue) instead of requiring
+// someone to notice a small number buried in a report.
+function assertRepeatSpacing(seq, queueArr, minGap, allowedIdxSet) {
+  const posOf = new Map();
+  seq.forEach((idx, pos) => posOf.set(idx, pos));
+  const groups = findRepeatGroups(queueArr, allowedIdxSet).filter((idxs) => idxs.length === 2);
+  for (const [a, b] of groups) {
+    const gap = Math.abs(posOf.get(a) - posOf.get(b));
+    if (gap < minGap) {
+      throw new Error(
+        `assertRepeatSpacing: pair_id "${queueArr[a].pair_id}" has gap ${gap} < ${minGap} after ` +
+        `spacing -- the repeat-spacing invariant is broken.`
+      );
+    }
+  }
+}
+
 // TASK 1 -- called once per block (see init()), with `orderArr` already limited to that block's
-// own indices. This is what keeps a repeat's spacing adjustment from ever pushing its second
-// occurrence past the block's own end: `seq.length` below is the BLOCK's length, not the whole
-// queue's, so `Math.min(newFirstPos + minGap, seq.length)` can never cross into the other block.
-// Known, accepted edge effect of confining spacing to a block (TEST=300, TRAIN_VAL=697 rows,
-// both far smaller than the un-split queue's 997): a repeat whose first occurrence lands close to
-// its block's own end can be pushed only up to that end, not the full 100 positions -- verified
-// against the real files, 4 of 38 repeated pairs land short (TEST: 3 pairs at 48/77/99; TRAIN_VAL:
-// 1 pair at 66), all still clearly separated, just under the nominal target. Only the SECOND
-// occurrence ever moves (never pull the first one earlier -- unchanged from the pre-TASK-1
-// algorithm), so this is a direct, explainable consequence of shrinking the available room, not a
-// new defect.
+// own indices, and AFTER ensureRepeatFirstOccurrencesFit() has already run on the same block, so
+// every repeat's first occurrence is guaranteed to sit at or before `blockLength - 1 - minGap`.
+// `seq.length` below is the BLOCK's length, not the whole queue's, so
+// `Math.min(newFirstPos + minGap, seq.length)` can never cross into the other block, and with the
+// precondition above it never gets clamped down below `newFirstPos + minGap` either -- every gap
+// this function produces is now exactly >= minGap. See
+// docs/learned/phase3-repeat-first-occurrence.json for the measured per-block min/median/max and
+// tests/test_annotation_split.py for the pytest lock.
 function enforceRepeatSpacing(orderArr, queueArr, minGap, allowedIdxSet) {
   const groups = findRepeatGroups(queueArr, allowedIdxSet);
   let seq = orderArr.slice();
@@ -1143,14 +1243,24 @@ async function init() {
   }
 
   state = loadState();
-  order = buildOrder(data.shuffle_seed || 20260915); // also sets testBlockSize as a side effect
+  const seed = data.shuffle_seed || 20260915;
+  order = buildOrder(seed); // also sets testBlockSize as a side effect
   // FIX 1 -- push each repeated pair_id's second showing >=100 positions after its first.
   // TASK 1 -- run the spacing pass SEPARATELY within each block (TEST, then TRAIN_VAL), never
   // across the boundary between them -- see enforceRepeatSpacing()'s comment for why.
-  const testBlock = order.slice(0, testBlockSize);
-  const trainValBlock = order.slice(testBlockSize);
-  const spacedTest = enforceRepeatSpacing(testBlock, queue, 100, new Set(testBlock));
-  const spacedTrainVal = enforceRepeatSpacing(trainValBlock, queue, 100, new Set(trainValBlock));
+  // TASK 1 FIX -- ensureRepeatFirstOccurrencesFit() runs first, per block, so no repeat's first
+  // occurrence can already be too close to that block's own end before spacing even starts (see
+  // that function's own comment). Distinct sub-seeds per block -- same pattern as buildOrder()'s
+  // own per-block interleave seeds (`seed`, `seed + 7919`) -- so the two blocks' RNG draws for
+  // this pass never overlap with each other or with the interleave's draws.
+  const MIN_GAP = 100;
+  const testBlockFitted = ensureRepeatFirstOccurrencesFit(order.slice(0, testBlockSize), queue, MIN_GAP, seed + 104729);
+  const trainValBlockFitted = ensureRepeatFirstOccurrencesFit(order.slice(testBlockSize), queue, MIN_GAP, seed + 104729 + 7919);
+  const spacedTest = enforceRepeatSpacing(testBlockFitted, queue, MIN_GAP, new Set(testBlockFitted));
+  const spacedTrainVal = enforceRepeatSpacing(trainValBlockFitted, queue, MIN_GAP, new Set(trainValBlockFitted));
+  // Fail loudly rather than silently loading a queue with a broken invariant.
+  assertRepeatSpacing(spacedTest, queue, MIN_GAP, new Set(spacedTest));
+  assertRepeatSpacing(spacedTrainVal, queue, MIN_GAP, new Set(spacedTrainVal));
   order = spacedTest.concat(spacedTrainVal);
 
   const firstUndone = findNextUndone();
