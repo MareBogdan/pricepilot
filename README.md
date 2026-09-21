@@ -57,13 +57,38 @@ large hosted API model on accuracy, latency and cost per 1,000 comparisons.
 | Component | Baseline | Implemented | Metric | Status |
 |---|---|---|---|---|
 | Candidate retrieval | — | — | recall@20 | Phase 3 |
-| Matching | classical cross-encoder | fine-tuned 0.5B (LoRA) | precision / recall / F1 | Phase 3 |
+| Matching | classical cross-encoder — _pending_ | fine-tuned 0.5B (LoRA) — _pending_ | precision / recall / F1 on 287 TEST pairs | Phase 3 |
 | Serving | hosted API model | quantized 0.5B on CPU | p50/p95 latency, $/1k | Phase 3 |
 | Demand | naive 7-day average | PyTorch | MAE / MAPE, elasticity recovery error | Phase 4 |
 | Recommendations | — | RAG + guardrail | margin violations (must be 0) | Phase 5 |
 
 *Every cell is produced by a script in this repo and reproducible with one command. Empty
 cells are empty because the work has not been done — not because the number was bad.*
+
+## Dataset
+
+The matching dataset is **hand-labelled, not generated**: 997 decisions by one annotator
+(M match 359 / N no-match 628 / S skip 10) over 959 distinct pairs drawn from three Romanian pet-shop
+catalogues, deliberately including hard negatives (same line, different size/flavour/life stage).
+
+- **Split is product-level** (no listing appears on both sides): **TEST 300 rows / 287 distinct pairs**,
+  **TRAIN_VAL 697 rows**.
+- **TEST is blind**: no rules-engine suggestion was ever shown while labelling it, so the headline
+  metric is computed on labels the engine could not have shaped. **One exception:** the review
+  pass re-decides TEST occurrence `3f574dad8b6e_b52acad20816_0` with an explanatory note on screen,
+  so that row is not blind (287 pairs, 1 affected). TRAIN_VAL is **assisted** (a
+  suggestion is shown; the annotator overrode it on 104/697 = 14.9% of pairs).
+- 38 pairs were shown twice as a self-consistency check: agreement TEST 13/13, TRAIN_VAL 22/25 (pre-reconciliation, measured at ingest 2026-09-21; the review pass resolves the 3 disagreements).
+- Reproduce: `uv run python scripts/ingest_labels.py` (QA report: `docs/learned/phase3-label-qa-20260921.md`),
+  `uv run python scripts/check_label_rule_consistency.py`.
+
+| Component | Baseline (cross-encoder) | Fine-tuned 0.5B (LoRA) | Metric |
+|---|---|---|---|
+| Matching, TEST (287 pairs) | | | precision / recall / F1 |
+| — size variant | | | F1 |
+| Serving on CPU | | | p50 / p95 latency, $/1k |
+
+*Empty until the models are run; no number appears here without a script behind it.*
 
 ## What this system does NOT do
 

@@ -4,128 +4,39 @@ Phase: 1 — Collection (still open — gate met except 7-consecutive-days, pure
 to decide), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open since
 2026-09-15.**
 
-**Current state, 2026-09-21 (updated from 2026-09-18) — read this paragraph first; the
-session-by-session narrative below is history, not status.** Phase 3 items 1 and 2 of CLAUDE.md §7 are done: candidate retrieval is
-built and **closed at recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%]** — a
-measurement-power finding, neither "met" nor "missed": the >=90% target sits inside the interval
-and separating 88% from 90% would need ~1,000 verified positive pairs (~27,000 draws at this
-project's observed rate), which is out of reach. No further retrieval tuning. The annotation
-queue is **FROZEN** (997 rows / 959 distinct pair_ids, single-feature guard passed at 29.4% /
-11.4% / 5.7%, forecast M 30.7% / N 55.6% / S 13.7% persisted in the JSON) and split
-product-level into **TEST 300 rows / 287 distinct pairs (blind — no rules-engine suggestion is
-ever shown) and TRAIN_VAL 697 rows (assisted — suggestion shown, `C` confirms, `M`/`N`/`S`
-override)**.
-**A same-week verification pass (ADR-0028 addendum #11) found and fixed three real defects before
-labelling started**: (1) 38 `pair_id`s appear twice in the frozen queue under a colliding
-hardcoded `occurrence_id`, which would have silently hidden the second occurrence from the
-annotator — fixed by deriving `occurrence_id` from row order in three independent places
-(Python split script, JS tool, Python test) and spacing each pair's two showings >=100 positions
-apart (verified against the real files **at the time**: min 100, median 314, max 849 — this was the
-single-block order later replaced by addendum #12's TEST/TRAIN_VAL split, see the 2026-09-20
-correction below; it no longer describes the current order); (2) the first TEST split
-was filled by raw component size with no tier balance (one tier's TEST/TRAIN_VAL gap was 9.5pp) —
-replaced with a seeded stratified optimizer, now every tier's gap is <=0.3pp, an acceptance gate
-(<=4.5pp per tier, >=14 TEST rows per tier, 0 listing overlap, 997 keys, no leaked predictions)
-is checked and enforced by the script itself, and a 5-seed range [0.556, 0.611] confirms the
-committed seed's result isn't a lucky outlier; (3) the tool had no way to get labels out of
-`localStorage` — added `E`/Export and `I`/Import, refusing an import whose queue/split SHA-256
-doesn't match what's currently loaded. The frozen queue file itself was never touched (SHA-256
-verified identical before and after). The assisted annotation tool is built and verified without
-a browser (`node --check` plus a DOM-free harness against the real files).
+**Current state, 2026-09-21 (evening) — read this paragraph first; everything below is history,
+not status.** Phase 3 items 1-4 of CLAUDE.md §7 are done: (1) candidate retrieval closed at
+**recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%]** — a measurement-power finding, neither
+met nor missed; (2) annotation tool built; (3) **annotation COMPLETE: 997/997 labels, M 359 /
+N 628 / S 10**, all by Bogdan (`C` pressed 0 times — every decision is his own, recorded as an
+override); (4) product-level split: **blind TEST 300 rows / 287 distinct pairs** (no suggestion
+ever shown) and **assisted TRAIN_VAL 697 rows** (suggestion shown). Self-agreement on repeated
+pairs: **TEST 13/13 = 100%, TRAIN_VAL 22/25 = 88%** (pre-reconciliation, measured at ingest; the 3 disagreements are TRAIN_VAL only).
+Throughput (recomputed from `phase3-labels.json` `ms`): median **3.0s blind (n=300; 3.2s before the
+7 review revisions replaced their timings), 1.5s assisted (n=697), 1.8s overall** — against §7's
+untested 18s/decision assumption. Correction rate of the engine's suggestion in TRAIN_VAL: **104/697
+= 14.9%** overall; per tier in ADR-0028 addendum #15 (`diff_brand_similar_title` 38/39 = 97.4%).
+Queue frozen, SHA-256 `696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`.
+**Caveat:** TRAIN_VAL decisions were faster and less self-consistent than blind ones, so TRAIN_VAL
+labels are more engine-shaped than TEST; the headline number comes from the blind TEST set alone.
 
-**2026-09-18 session (ADR-0028 addendum #12) — the day before labelling starts.** Display order
-reworked: all 300 TEST pairs are shown first (blind), then all 697 TRAIN_VAL pairs (assisted) —
-previously interleaved, which risked blind TEST judgements being anchored by suggestions already
-seen on TRAIN_VAL pairs. Five evaluation rules written down before any label exists (headline
-metric is 287 distinct TEST pair_ids, not 300 rows; a repeated pair's evaluation label is its
-FIRST decision in display order, resolved in the new committed
-`docs/learned/phase3-repeat-first-occurrence.json`; a repeated pair reports under
-`proxy_key_collision`, not `trivial_spot_check`; the TEST/TRAIN_VAL rules-engine forecast gap is
-stated as a limitation, not corrected; every per-tier figure needs its denominator and a Wilson
-95% CI). Built `scripts/ingest_labels.py` — the only path from a browser export into the committed
-dataset, structurally unable to accept an AI-produced label (cross-checks every provenance field
-against the frozen queue/split, refuses on any SHA-256 mismatch, conflicting labels across
-exports, or a decision shape the real tool cannot produce) — plus a QA report covering coverage,
-label distribution, self-agreement, assisted-flow correction rate, and throughput. Added
-`make annotate` (fixed local port, `127.0.0.1`-only after a reviewer caught the default
-`0.0.0.0` bind would have exposed `.env` on the LAN during a sitting) and the annotation runbook.
-Full detail, including the reviewer's other findings and what was done about each: DECISIONS.md
-ADR-0028 addendum #12.
+**This session — final mechanical pass over all 997, nothing relabelled.**
+`scripts/check_label_rule_consistency.py` over 997: (a) 2, (b) 0, (c) 0, (d) 4, (e) 3, (f) 6 —
+15 flags, 12 distinct occurrences, written to `docs/learned/phase3-relabel-queue.json`. The class
+(d) pairs are NOT byte-identical: `classify_tier` only compares brand/line/capacity/pack/bonus, so
+`life_stage`/`food_form` differ (None vs value) on them; no field conflicts. 3 of the 4 are also
+the 3 self-disagreeing pairs. The Schesir occurrence `3f574dad8b6e_b52acad20816_0` was revised
+M -> N wrongly (rule 1 reads titles, not the `species` field) and is queued for re-decision with
+the reason on screen. The dataset-freeze mechanism exists (`scripts/freeze_labels.py`,
+`tests/test_labels_frozen.py`) but is NOT frozen. Full detail: DECISIONS.md ADR-0028 addendum #15.
 
-**2026-09-20 — defect found and fixed before annotation started (ADR-0028 addendum #12
-post-report correction).** The architect re-ran addendum #12's own `buildOrder()`/
-`enforceRepeatSpacing()` in Node against the committed files and found the "accepted cost"
-paragraph above was actually a broken invariant: `enforceRepeatSpacing()`'s clamp let 4 of the 38
-repeats land short of the `>=100` gap (TEST: 99, 77, 48; TRAIN_VAL: 66) inside the 300-row TEST /
-697-row TRAIN_VAL blocks, and nothing in the test suite caught it. Fixed with a new pre-pass,
-`ensureRepeatFirstOccurrencesFit()` (`tools/annotate.html`), that swaps any repeat's
-too-late-to-space first occurrence with a same-tier singleton earlier in its block, via the seeded
-RNG, before spacing runs; fails loudly if a block genuinely can't satisfy the invariant. **Corrected
-numbers, current order: TEST 13 repeats (min 100, median 126, max 251), TRAIN_VAL 25 repeats (min
-100, median 224, max 543), 0 violations** — regenerated into
-`docs/learned/phase3-repeat-first-occurrence.json` (now also carries each entry's `gap` and a
-per-split `gap_stats` header) and locked by 4 new tests in `tests/test_annotation_split.py` (22/22
-passing). Tier proportions of each block's first 100 vs. its own full composition are unaffected
-(swap is same-tier by construction), first-300-all-TEST/rest-all-TRAIN_VAL still holds, and
-`buildOrder()` + the new pass are still deterministic across repeated runs. Full detail, including
-why the original verification missed it: DECISIONS.md ADR-0028 addendum #12, "Post-report
-correction."
+Frozen labels SHA-256: `UNFROZEN`
 
-**The blind TEST phase is CLOSED (300/300 labels, ingested and QA-reported — commits
-`c25b5e7`/`f961b65`, before this session).** Frozen queue SHA-256 unchanged throughout:
-`696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`. TRAIN_VAL (697 rows) has ZERO
-decisions — labelling is paused there, not resumed this session either.
-
-**2026-09-21 session (ADR-0028 addendum #13) — mechanical rule-consistency pass over the 300 TEST
-labels, no relabelling done.** Found a real gap in conventions revision 3: `food_form` (dry vs
-wet/tin/pouch) was never a ladder rule, only a descriptive qualifier to ignore — added as **Rule
-3b** (revision 4 of `docs/learned/phase3-annotation-conventions.md`), wired into both
-`predict_label()` copies (`scripts/build_annotation_queue.py`,
-`scripts/split_annotation_queue.py`, verified byte-identical output across all 997 pairs) at the
-same ladder position, byte-identical logic. Re-ran `scripts/split_annotation_queue.py`: the
-TEST/TRAIN_VAL assignment is **UNCHANGED for all 997 occurrence_ids** (diffed against the
-previously-committed split file) — only the TEST forecast (hidden reference file only, never
-shown to the annotator) moved M:103→102/N:164→165, and 0 TRAIN_VAL suggestions changed. New
-`scripts/check_label_rule_consistency.py` flags decided pairs that mechanically contradict a
-purely mechanical rule — run against the real 300 TEST labels: **(a) quantity-differs-but-M 3,
-(b) species-differs-but-M 4, (c) foodform-dry-vs-wet-but-M 1, (d) trivial_spot_check-not-M 0, (e)
-title/field species mismatch 1** (never counted as an annotator error — see below), 9 flags across
-7 distinct occurrence_ids, written to `docs/learned/phase3-relabel-queue.json`. Added a review
-mode to `tools/annotate.html` (`?review=docs/learned/phase3-relabel-queue.json`) that walks only
-those occurrence_ids, shows the existing label and flagging rule, and lets the annotator
-re-decide — never shows a suggestion (three independent guards, verified with a DOM-free Node
-harness against the real files, same technique addendum #10-#12 used), keeps TEST decisions
-`source: "blind"`, and records `revised_from`/`revised_at`/`revision_rule` so the audit trail
-survives into the export; `undo()` in review mode never deletes the pre-existing label.
-`scripts/ingest_labels.py` now accepts and preserves those three fields, treats a
-`revised_from`-linked answer change as an audited revision rather than an export conflict (new
-`merge_exports()` branch, tested against both the revision case and an ordinary unrelated
-conflict, which still refuses exactly as before), and reports revision counts by rule in the QA
-report. **Nothing has actually been relabelled yet** — the relabel queue is a to-do list, not a
-correction; TASK 5 additionally measured class (e)'s check over the whole `norm_listings`
-population (`scripts/measure_species_field_mismatch.py`, DB reachable, no fallback needed): **53
-of 10,532 rows (0.50%) — 46 `animax_ro`, 7 `petmax_ro`, 0 `pentruanimale_ro`** — a `species`
-extraction defect, not a labelling error (full detail: `docs/learned/
-phase3-species-field-mismatch-20260921.md`, open issue below). **The `reviewer` sub-agent ran on
-the full diff before committing and found 9 real issues** (a blocking one: `ingest_labels.py`
-would have refused a legitimate TRAIN_VAL review revision whenever the canonical rules-engine
-prediction disagreed with the revised answer; plus a missing hash check in review mode, a
-revision-chain edge case, two metrics review revisions would have polluted, and others) — all
-fixed and re-verified before committing, two new regression tests added, a third new test file
-(`tests/test_predict_label_parity.py`) added to lock a parity claim that previously had no test.
-Full detail and rejected alternatives: DECISIONS.md ADR-0028 addendum #13.
-
-**The next action in this project is Bogdan labelling TRAIN_VAL** (697 rows, assisted, 0 done),
-optionally preceded by a short review-mode pass over the 7 occurrence_ids in
-`phase3-relabel-queue.json` (`tools/annotate.html?review=docs/learned/phase3-relabel-queue.json`).
-Nothing is blocked on architecture, on retrieval, or on Claude Code. CLAUDE.md §7 item 3 — "the
-user annotates 800-1,000 pairs manually ... it is not generated, it is labelled" — is UNMET for
-TRAIN_VAL, and no AI-labelled pair may enter any split.
-`docs/learned/phase3-pilot100-ai-reference-pass.json` holds 100 AI labels for measurement only
-and is not training data. Blind throughput is now measured (300 TEST decisions: median 3.2s,
-p90 10.8s — well inside CLAUDE.md §7's 200/hour = 18s/decision target,
-`docs/learned/phase3-label-qa-20260921.md`); the assisted TRAIN_VAL pace (suggestion shown,
-`C`-confirm available) is a different flow and stays unmeasured until Bogdan labels there.
+**The next action is Bogdan's:** run review mode over the 12 queued occurrences
+(`tools/annotate.html?review=docs/learned/phase3-relabel-queue.json`), ingest, re-run the checker,
+then `uv run python scripts/freeze_labels.py --freeze`. After the freeze no label may change
+without a reason recorded here first. Then Phase 3 item 5 (baseline) — model choice in
+`docs/phase3-baseline-model-choice.md`. No AI-labelled pair may enter any split.
 
 Phase 3, 2026-09-15 session, in order: built a retrieval evaluation set independent of embeddings
 (142 known-positive pairs — 26 browser-verified + 116 plausibility-checked proxy-key collisions),
@@ -542,8 +453,8 @@ FROZEN, assisted annotation flow built. Full detail: DECISIONS.md ADR-0028 adden
    DECISIONS.md ADR-0028 addendum #10.
 
 [ ] Baseline (classical cross-encoder) — not started.
-[ ] 800-1,000 pairs annotated by Bogdan — **queue frozen, assisted-annotation tool built,
-    labelling not started.**
+[x] 997 pairs annotated by Bogdan — M 359 / N 628 / S 10; TEST 300 blind, TRAIN_VAL 697 assisted.
+    [ ] final review pass over the 12 flagged occurrences, then dataset freeze (pending).
 [ ] Fine-tuned matcher — not started.
 [ ] Serving benchmark (CPU-quantized vs. cross-encoder vs. hosted API) — not started.
 

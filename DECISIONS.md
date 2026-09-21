@@ -3011,3 +3011,61 @@ throwaway-git-repo test covers the lookup (previously only mocked); the note war
 TRAIN_VAL export can still be refused later by the confirm/corrected cross-check; the Node test is
 wired into `make test` / `make.ps1 test`. Known limit: a shallow clone (CI default) has no history,
 so a hash difference refuses there -- fail-closed, by design.
+
+
+## ADR-0028 addendum #15 — annotation complete (997/997); final consistency pass; freeze mechanism (2026-09-21)
+
+**Context.** CLAUDE.md §7 item 3 is met: 997 labels, M 359 / N 628 / S 10; blind TEST 300 rows (287
+distinct pairs), assisted TRAIN_VAL 697. Self-agreement TEST 13/13 = 100%, TRAIN_VAL 22/25 = 88% (pre-reconciliation, measured at ingest).
+Median decision time 3.0s blind / 1.5s assisted / 1.8s overall (recomputed from the labels file;
+3.2s was the pre-review blind figure), against §7's untested 18s. `C` was pressed 0 times.
+
+**Assisted-phase caveat.** TRAIN_VAL was decided faster (1.5s vs 3.0s) and less self-consistently
+(88% vs 100%) than TEST, so TRAIN_VAL labels are more engine-shaped than TEST ones. This is why the
+headline number is computed on the blind TEST set alone. Correction rate of the suggestion in
+TRAIN_VAL, 104/697 = 14.9%, per tier: blocked_retrieval_candidate 28/86 (32.6%),
+capacity_differs_cross_shop 2/146 (1.4%), capacity_differs_within_shop 0/53 (0.0%),
+**diff_brand_similar_title 38/39 (97.4%)**, proxy_key_collision 25/200 (12.5%),
+same_capacity_diff_breedsize 4/33 (12.1%), same_capacity_diff_flavour 0/59 (0.0%),
+same_capacity_diff_lifestage 1/46 (2.2%), trivial_spot_check 6/35 (17.1%). On
+diff_brand_similar_title the annotator overrode the engine almost everywhere.
+
+**Final mechanical pass over all 997** (`scripts/check_label_rule_consistency.py`): (a) 2, (b) 0,
+(c) 0, (d) 4, (e) 3, new (f) 6 = 15 flags / 12 occurrences -> `phase3-relabel-queue.json`.
+- (a): Royal Canin Maxi Adult 4 kg vs 3 kg and Bulldog Adult 12 kg vs 3 kg, both labelled M (rule 2
+  says N; both decided in ~1s) — likely slips, annotator to re-decide.
+- (d): 3 N + 1 S. classify_tier() is NOT defective in its labelling logic but its "trivial" is
+  weaker than "byte-identical": it compares brand, line, capacity, pack, bonus only, so
+  life_stage/food_form differ (None vs value) on all four; no field conflicts. Three of the four
+  are also the three (f) pairs, whose other occurrence was M. The 4th (33394df3427d_3ab75d311be0)
+  is a single N on fields with no conflict. All four go back to the annotator; the tier description
+  ("byte-identical") in earlier notes was overstated.
+- (f): a self-agreement disagreement is reported with `self_agreement: true`,
+  `data_quality_only: false`; the annotator must pick one label per pair.
+- (e) entries now carry `revert_hint: true`: a stored-data defect never justifies changing a label.
+
+**Schesir correction.** `3f574dad8b6e_b52acad20816_0` was revised M -> N under
+rule1_species_differs. Wrong: rule 1 reads the TITLE, not the `species` field; both titles state
+"pisici"; the left `species='dog'` is the known normalize/species.py defect. It is re-queued (not
+hand-edited) with the reason recorded in the checker (`ARCHITECT_NOTES`) and shown as a prominent
+block in the tool's review screen, because the rule id was visible last time and the note was not.
+Observation for the annotator, not a finding: the left title says "grau", the right "fără cereale".
+
+**Freeze mechanism.** `scripts/freeze_labels.py --freeze` records the SHA-256 of
+`phase3-labels.json` in `tests/test_labels_frozen.py` and STATE.md; it refuses unless 997
+decisions and no class a/b/c/d/f finding remain. The test skips loudly while `UNFROZEN`, fails on
+any change afterwards. **After the freeze no label may change without a stated reason recorded in
+STATE.md first.** Not frozen yet: the annotator's review pass comes first.
+
+**Alternatives rejected.** Editing labels by script (violates "labelled, not generated"); fixing
+the checker to hide the (d) pairs (they are real inconsistencies); auto-freezing at ingest.
+
+**Reviewer findings folded in.** (1) The Schesir note is shown on a blind TEST occurrence, so that
+one row's re-decision is NOT blind; stated as an exception in README rather than dropping the
+instructed note. (2) Freeze hash normalises CRLF->LF (CI is Linux). (3) `--freeze` now checks the
+frozen-queue hash. (4) An occurrence whose label the annotator deliberately keeps can be listed with
+a reason in `docs/learned/phase3-freeze-acknowledgements.json`; the checker never overrides the
+annotator. (5) The 22/25 self-agreement is labelled pre-reconciliation; the (f) note reveals the
+other label, so no fresh self-agreement is computable after review. Known, not changed:
+`FROZEN_QUEUE_SHA256` is CRLF-dependent in the checker (not run in CI); `make status` does not yet
+show freeze state.
