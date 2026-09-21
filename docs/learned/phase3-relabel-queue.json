@@ -1,0 +1,140 @@
+{
+ "built_from": "scripts/check_label_rule_consistency.py",
+ "generated_at": "2026-09-21T16:04:57.376129+00:00",
+ "queue_sha256": "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011",
+ "split_sha256": "a9a4c7583215769c8053d148b65525b88d8ebf0ed9d345cd82d3fa9d68280c29",
+ "labels_ingested_at": "2026-09-21T15:28:24.966365+00:00",
+ "class_legend": {
+  "a": "rule2_quantity_differs -- quantity tuple differs but label is M",
+  "b": "rule1_species_differs -- species differs (both known) but label is M",
+  "c": "rule3b_foodform_dry_vs_wet -- dry vs wet/tin/pouch (both stated) but label is M",
+  "d": "trivial_spot_check tier labelled something other than M",
+  "e": "data quality -- title states one species, species field says the other (NOT an annotator error)"
+ },
+ "class_counts": {
+  "a": 3,
+  "b": 4,
+  "c": 1,
+  "d": 0,
+  "e": 1
+ },
+ "flagged_count": 9,
+ "flagged_occurrence_count": 7,
+ "food_form_diagnostic": {
+  "both_stated_and_differ": 37,
+  "dry_vs_wet": 7,
+  "dry_vs_wet_already_n": 6,
+  "dry_vs_wet_was_m": 1,
+  "wet_family_only": 30
+ },
+ "flagged": {
+  "0e45d9b997f8_153c7e549d19_0": {
+   "pair_id": "0e45d9b997f8_153c7e549d19",
+   "label": "M",
+   "left_title": "PURINA Pro Plan Sterilised Maintenance, Ton și Somon, hrană umedă pisici sterilizate, (pate), bax, 85g x 24buc",
+   "right_title": "PURINA Pro Plan Sterilised Maintenance, Ton și Somon, hrană umedă pisici sterilizate, (pate), 85g",
+   "classes": [
+    {
+     "class": "a",
+     "rule_id": "rule2_quantity_differs",
+     "note": null
+    }
+   ],
+   "data_quality_only": false
+  },
+  "3f3a8d1d2b69_96aa964f7dc7_0": {
+   "pair_id": "3f3a8d1d2b69_96aa964f7dc7",
+   "label": "M",
+   "left_title": "ULTIMA Fit & Delicious Sterilised, Somon, plic hrană umedă pisici sterilizate, (în sos), 85g",
+   "right_title": "ULTIMA Fit & Delicious Sterilised, Somon, plic hrană umedă pisici sterilizate, (în sos), bax, 85g x 24buc",
+   "classes": [
+    {
+     "class": "a",
+     "rule_id": "rule2_quantity_differs",
+     "note": null
+    }
+   ],
+   "data_quality_only": false
+  },
+  "3f574dad8b6e_b52acad20816_0": {
+   "pair_id": "3f574dad8b6e_b52acad20816",
+   "label": "M",
+   "left_title": "Hrana umeda pentru pisici Schesir Functions Digestive Topper Dovleac si grau 40g",
+   "right_title": "SCHESIR Functions Digestive Topper, dovleac, plic hrană umedă fără cereale pisici, sistem digestiv, (topping), 40g",
+   "classes": [
+    {
+     "class": "b",
+     "rule_id": "rule1_species_differs",
+     "note": null
+    },
+    {
+     "class": "e",
+     "rule_id": "species_title_field_mismatch",
+     "note": "left listing: title says 'cat', stored species field says 'dog' -- this is a normalize/species.py extraction defect, never a labelling error"
+    }
+   ],
+   "data_quality_only": false
+  },
+  "c55327a4a4cb_ecc599237076_0": {
+   "pair_id": "c55327a4a4cb_ecc599237076",
+   "label": "M",
+   "left_title": "MONGE Grill Sterilised, Păstrăv, plic hrană umedă fără cereale pisici sterilizate, obezitate, apetit capricios, (în aspic), bax, 85g x 28buc",
+   "right_title": "MONGE Grill Sterilised, Păstrăv, plic hrană umedă fără cereale pisici sterilizate, obezitate, apetit capricios, (în aspic), 85g",
+   "classes": [
+    {
+     "class": "a",
+     "rule_id": "rule2_quantity_differs",
+     "note": null
+    }
+   ],
+   "data_quality_only": false
+  },
+  "af9c46b9524a_bcfe44adfdf1_0": {
+   "pair_id": "af9c46b9524a_bcfe44adfdf1",
+   "label": "M",
+   "left_title": "Brit Care Dog Mini Salmon and Herring Sterilised Fillets in Gravy 85 g",
+   "right_title": "Hrana umeda pentru pisici Brit Care Fileuri de curcan si somon in sos 85g",
+   "classes": [
+    {
+     "class": "b",
+     "rule_id": "rule1_species_differs",
+     "note": null
+    }
+   ],
+   "data_quality_only": false
+  },
+  "da2907bb100e_fced2443703b_0": {
+   "pair_id": "da2907bb100e_fced2443703b",
+   "label": "M",
+   "left_title": "REMI PREMIUM, Pește, conservă hrană umedă pisici, (mousse), 400g",
+   "right_title": "Hrana umeda pentru caini Remi Premium Mousse Peste 400g",
+   "classes": [
+    {
+     "class": "b",
+     "rule_id": "rule1_species_differs",
+     "note": null
+    }
+   ],
+   "data_quality_only": false
+  },
+  "4ebc3a6e6210_31cc6248c1de_0": {
+   "pair_id": "4ebc3a6e6210_31cc6248c1de",
+   "label": "M",
+   "left_title": "Hrana umeda Petkult Adult cu miel 400 g",
+   "right_title": "Hrana uscata pentru pisici Petkult Cat Adult Indoor Miel 400g",
+   "classes": [
+    {
+     "class": "b",
+     "rule_id": "rule1_species_differs",
+     "note": null
+    },
+    {
+     "class": "c",
+     "rule_id": "rule3b_foodform_dry_vs_wet",
+     "note": null
+    }
+   ],
+   "data_quality_only": false
+  }
+ }
+}
