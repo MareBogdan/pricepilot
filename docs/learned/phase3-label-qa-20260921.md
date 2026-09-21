@@ -1,93 +1,103 @@
 # Phase 3 label QA report
 
-Generated: 2026-09-21T16:52:41.803936+00:00
-Source files (3):
+Generated: 2026-09-21T17:17:49.964450+00:00
+Source files (4):
   - phase3-labels-20260921-1807.json: 100 decisions in file (claimed 100), exported_at=2026-09-21T15:07:15.806Z
   - phase3-labels-20260921-1827.json: 300 decisions in file (claimed 300), exported_at=2026-09-21T15:27:25.005Z
   - phase3-labels-20260921-1941.json: 300 decisions in file (claimed 300), exported_at=2026-09-21T16:41:34.134Z
+  - phase3-labels-20260921-2017.json: 997 decisions in file (claimed 997), exported_at=2026-09-21T17:17:32.727Z
 
 ## Coverage
 
-Overall: 300/997 = 30.1% [27.3%, 33.0%]
+Overall: 997/997 = 100.0% [99.6%, 100.0%]
   test: 300/300 = 100.0% [98.7%, 100.0%]
-  train_val: 0/697 = 0.0% [0.0%, 0.5%]
+  train_val: 697/697 = 100.0% [99.5%, 100.0%]
 
 Per tier:
-  blocked_retrieval_candidate: 37/123 = 30.1% [22.7%, 38.7%]
-  capacity_differs_cross_shop: 63/209 = 30.1% [24.3%, 36.7%]
-  capacity_differs_within_shop: 23/76 = 30.3% [21.1%, 41.3%]
-  diff_brand_similar_title: 16/55 = 29.1% [18.8%, 42.1%]
-  proxy_key_collision: 86/286 = 30.1% [25.0%, 35.6%]
-  same_capacity_diff_breedsize: 14/47 = 29.8% [18.7%, 44.0%]
-  same_capacity_diff_flavour: 26/85 = 30.6% [21.8%, 41.0%]
-  same_capacity_diff_lifestage: 20/66 = 30.3% [20.6%, 42.2%]
-  trivial_spot_check: 15/50 = 30.0% [19.1%, 43.8%]
+  blocked_retrieval_candidate: 123/123 = 100.0% [97.0%, 100.0%]
+  capacity_differs_cross_shop: 209/209 = 100.0% [98.2%, 100.0%]
+  capacity_differs_within_shop: 76/76 = 100.0% [95.2%, 100.0%]
+  diff_brand_similar_title: 55/55 = 100.0% [93.5%, 100.0%]
+  proxy_key_collision: 286/286 = 100.0% [98.7%, 100.0%]
+  same_capacity_diff_breedsize: 47/47 = 100.0% [92.4%, 100.0%]
+  same_capacity_diff_flavour: 85/85 = 100.0% [95.7%, 100.0%]
+  same_capacity_diff_lifestage: 66/66 = 100.0% [94.5%, 100.0%]
+  trivial_spot_check: 50/50 = 100.0% [92.9%, 100.0%]
 
 ## Label distribution (M/N/S)
 
 Rules-engine forecast is shown SIDE BY SIDE as a DIAGNOSTIC only -- it is never a correctness judgement of Bogdan's labels. It is computed over the SAME decided occurrence_ids as the observed counts (not the whole population), for a fair comparison.
 
-### overall (n=300 decided)
-  M: observed 110/300 = 36.7% [31.4%, 42.3%]   |   forecast 102/300
-  N: observed 187/300 = 62.3% [56.7%, 67.6%]   |   forecast 165/300
-  S: observed 3/300 = 1.0% [0.3%, 2.9%]   |   forecast 33/300
+### overall (n=997 decided)
+  M: observed 359/997 = 36.0% [33.1%, 39.0%]   |   forecast 305/997
+  N: observed 628/997 = 63.0% [59.9%, 65.9%]   |   forecast 555/997
+  S: observed 10/997 = 1.0% [0.5%, 1.8%]   |   forecast 137/997
 
 ### test (n=300 decided)
   M: observed 110/300 = 36.7% [31.4%, 42.3%]   |   forecast 102/300
   N: observed 187/300 = 62.3% [56.7%, 67.6%]   |   forecast 165/300
   S: observed 3/300 = 1.0% [0.3%, 2.9%]   |   forecast 33/300
 
-### train_val (n=0 decided)
-  M: observed n=0   |   forecast 0/0
-  N: observed n=0   |   forecast 0/0
-  S: observed n=0   |   forecast 0/0
+### train_val (n=697 decided)
+  M: observed 249/697 = 35.7% [32.3%, 39.4%]   |   forecast 203/697
+  N: observed 441/697 = 63.3% [59.6%, 66.8%]   |   forecast 390/697
+  S: observed 7/697 = 1.0% [0.5%, 2.1%]   |   forecast 104/697
 
 Per tier (observed only, n too small for forecast to be meaningful tier-by-tier):
-  blocked_retrieval_candidate (n=37): M=15 N=21 S=1
-  capacity_differs_cross_shop (n=63): M=1 N=62 S=0
-  capacity_differs_within_shop (n=23): M=0 N=22 S=1
-  diff_brand_similar_title (n=16): M=0 N=16 S=0
-  proxy_key_collision (n=86): M=74 N=12 S=0
-  same_capacity_diff_breedsize (n=14): M=4 N=10 S=0
-  same_capacity_diff_flavour (n=26): M=0 N=26 S=0
-  same_capacity_diff_lifestage (n=20): M=1 N=18 S=1
-  trivial_spot_check (n=15): M=15 N=0 S=0
+  blocked_retrieval_candidate (n=123): M=54 N=64 S=5
+  capacity_differs_cross_shop (n=209): M=3 N=206 S=0
+  capacity_differs_within_shop (n=76): M=0 N=75 S=1
+  diff_brand_similar_title (n=55): M=4 N=51 S=0
+  proxy_key_collision (n=286): M=241 N=43 S=2
+  same_capacity_diff_breedsize (n=47): M=9 N=38 S=0
+  same_capacity_diff_flavour (n=85): M=0 N=85 S=0
+  same_capacity_diff_lifestage (n=66): M=2 N=63 S=1
+  trivial_spot_check (n=50): M=46 N=3 S=1
 
 ## Self-agreement (repeated pairs, both occurrences decided)
 
 TRAIN_VAL repeats are both ASSISTED -- the annotator saw a suggestion both times, so agreement there is anchored by the rules engine and is a weaker signal than TEST self-agreement, where neither occurrence was ever shown a suggestion.
 
   test: 13/13 repeated pairs have both occurrences decided; of those, 13/13 = 100.0% [77.2%, 100.0%] agree
-  train_val: 0/25 repeated pairs have both occurrences decided; of those, n=0 agree
+  train_val: 25/25 repeated pairs have both occurrences decided; of those, 22/25 = 88.0% [70.0%, 95.8%] agree
 
 ## Assisted flow (TRAIN_VAL only)
 
-TRAIN_VAL decisions: 0
+TRAIN_VAL decisions: 697
   confirmed (pressed C): 0
-  corrected (overrode, differs from suggestion): 0
-  overrode but agreed with suggestion: 0
-  correction rate (overall): n=0
+  corrected (overrode, differs from suggestion): 104
+  overrode but agreed with suggestion: 593
+  correction rate (overall): 104/697 = 14.9% [12.5%, 17.8%]
   correction rate per tier:
+    blocked_retrieval_candidate: 28/86 = 32.6% [23.6%, 43.0%]
+    capacity_differs_cross_shop: 2/146 = 1.4% [0.4%, 4.9%]
+    capacity_differs_within_shop: 0/53 = 0.0% [-0.0%, 6.8%]
+    diff_brand_similar_title: 38/39 = 97.4% [86.8%, 99.5%]
+    proxy_key_collision: 25/200 = 12.5% [8.6%, 17.8%]
+    same_capacity_diff_breedsize: 4/33 = 12.1% [4.8%, 27.3%]
+    same_capacity_diff_flavour: 0/59 = 0.0% [0.0%, 6.1%]
+    same_capacity_diff_lifestage: 1/46 = 2.2% [0.4%, 11.3%]
+    trivial_spot_check: 6/35 = 17.1% [8.1%, 32.7%]
   median decision time, confirmed: -
-  median decision time, corrected: -
+  median decision time, corrected: 4.4s
 
 ## Throughput
 
 First real measurement of CLAUDE.md §7's untested '200 pairs/hour' claim (sub-18s median decision).
 
-  overall (n=300): median 3.0s, p90 10.8s, 697 remaining -> implied 0.6h to finish (at this median pace)
+  overall (n=997): median 1.8s, p90 8.1s, 0 remaining -> implied 0.0h to finish (at this median pace)
   test (n=300): median 3.0s, p90 10.8s, 0 remaining -> implied 0.0h to finish (at this median pace)
-  train_val (n=0): median -, p90 -, 697 remaining -> implied - to finish (at this median pace)
+  train_val (n=697): median 1.5s, p90 6.0s, 0 remaining -> implied 0.0h to finish (at this median pace)
   Per-tier median decision time:
-    blocked_retrieval_candidate: median 7.4s (n=37)
-    capacity_differs_cross_shop: median 1.7s (n=63)
-    capacity_differs_within_shop: median 2.0s (n=23)
-    diff_brand_similar_title: median 4.9s (n=16)
-    proxy_key_collision: median 3.2s (n=86)
-    same_capacity_diff_breedsize: median 6.2s (n=14)
-    same_capacity_diff_flavour: median 6.0s (n=26)
-    same_capacity_diff_lifestage: median 3.7s (n=20)
-    trivial_spot_check: median 1.6s (n=15)
+    blocked_retrieval_candidate: median 3.7s (n=123)
+    capacity_differs_cross_shop: median 1.5s (n=209)
+    capacity_differs_within_shop: median 1.5s (n=76)
+    diff_brand_similar_title: median 4.1s (n=55)
+    proxy_key_collision: median 1.6s (n=286)
+    same_capacity_diff_breedsize: median 4.3s (n=47)
+    same_capacity_diff_flavour: median 2.8s (n=85)
+    same_capacity_diff_lifestage: median 2.2s (n=66)
+    trivial_spot_check: median 1.1s (n=50)
 
 ## Flagged pairs
 
@@ -98,6 +108,13 @@ First real measurement of CLAUDE.md §7's untested '200 pairs/hour' claim (sub-1
   - 458190b7d79e_8b7d069a7266_0 (pair_id=458190b7d79e_8b7d069a7266): unspecified
   - d5fcb235eb23_97a5d666acd4_0 (pair_id=d5fcb235eb23_97a5d666acd4): unspecified
   - 687e29e4280d_a746795258cd_0 (pair_id=687e29e4280d_a746795258cd): unspecified
+  - 381ad6bf4e5c_98bff2af651c_0 (pair_id=381ad6bf4e5c_98bff2af651c): unspecified
+  - 889e719216a5_ea6d5f153b94_0 (pair_id=889e719216a5_ea6d5f153b94): unspecified
+  - 48fd1f2f7142_db48d6e143a2_0 (pair_id=48fd1f2f7142_db48d6e143a2): unspecified
+  - 4b716da37ec2_fcebb06c2a34_0 (pair_id=4b716da37ec2_fcebb06c2a34): unspecified
+  - bce9992b1579_d38a575da629_0 (pair_id=bce9992b1579_d38a575da629): unspecified
+  - 337b68ef4d83_0b356dfb4b69_0 (pair_id=337b68ef4d83_0b356dfb4b69): unspecified
+  - 01b880c1f365_33394df3427d_0 (pair_id=01b880c1f365_33394df3427d): unspecified
 
 ## Review-mode revisions
 
