@@ -24,6 +24,26 @@ after it shifts down by one. `predict_label()` in `scripts/build_annotation_queu
 matching rule at the same ladder position. Revision 2's text is otherwise unchanged below, only
 renumbered.
 
+**Revision 4, 2026-09-21 (mechanical rule-consistency pass over the closed 300-row blind TEST
+set).** Revision 3's descriptive-qualifier list (rule 3, below) says to ignore "hrană uscată /
+umedă" entirely and says nothing about wet-vs-dry being a product difference — that is a real gap,
+not a style choice: a dry bag and a wet pouch are never the same purchasable unit even at an
+identical stated weight, because a dry kibble and a wet pouch/tin are physically different SKUs
+sold at different prices. In the 300 TEST labels, `food_form` differs on 37 pairs: 7 are dry vs
+wet/tin/pouch, and of those 6 were already `N` (usually for an independent reason — quantity or
+line — that happened to also cover the gap) but one was not:
+`Hrana umeda Petkult Adult cu miel 400 g` (wet) vs `Hrana uscata pentru pisici Petkult Cat Adult
+Indoor Miel 400g` (dry) — same brand, same flavour, same 400 g weight, labelled `M` under revision
+3's "ignore hrană uscată/umedă entirely" instruction, which is exactly the gap this revision
+closes. The remaining 30 of the 37 differ only within the wet family (tin vs pouch vs wet is
+extractor granularity, never a product difference on its own) and are correctly unaffected.
+New **Rule 3b**, inserted between rule 3 (formula qualifier) and rule 4 (breed size) — see below.
+`predict_label()` in both `scripts/build_annotation_queue.py` and `scripts/split_annotation_queue.py`
+gained the matching rule at the same ladder position, kept byte-identical between the two.
+Every pair this revision would flip is a mechanical relabel candidate, not a re-annotation of
+judgement — tracked in `docs/learned/phase3-relabel-queue.json`, decided through the tool's review
+mode, never overwritten by a script.
+
 ## The operational question
 
 > **Are these the same purchasable unit, such that a price-comparison engine should compare
@@ -130,6 +150,25 @@ Shops add and drop these freely — Orijen is always grain-free whether or not t
 Treating their presence as a product difference would manufacture false negatives.
 
 If a qualifier is not on either list and you cannot place it in five seconds, press `S`.
+
+### Rule 3b — the food form differs (dry vs wet) → `N`
+
+`food_form` (dry / wet / tin / pouch) is extracted separately from the "hrană uscată" / "hrană
+umedă" descriptive wording rule 3 tells you to ignore — that instruction is about a qualifier's
+presence or absence, not about what the qualifier *says*. A dry bag and a wet pouch/tin of the
+identical line, weight and flavour are still not the same purchasable unit: they are physically
+different products (kibble vs a mousse or pâté in liquid) sold at a different price per unit, the
+same reasoning rule 2 applies to weight.
+
+- **Both sides state a food form, one is `dry` and the other is `wet`/`tin`/`pouch` → `N`.** A
+  400 g dry bag and a 400 g wet pouch are not the same purchasable unit even when brand, line and
+  flavour all agree — example: `Hrana umeda Petkult Adult cu miel 400 g` (wet) vs
+  `Hrana uscata pentru pisici Petkult Cat Adult Indoor Miel 400g` (dry) is `N`, not `M`.
+- **`wet`, `tin` and `pouch` are the SAME food form at different extractor granularity — never a
+  difference on their own.** A tin and a pouch of the identical wet line/weight/flavour is not
+  automatically `N` on food_form alone; decide on the rest of the ladder.
+- **One side states no food form → ignore it, decide on the rest of the ladder** — the same
+  one-sided-absence discipline as rule 4's dosage bands and rule 7's quantity.
 
 ### Rule 4 — the breed size differs → `N`
 
@@ -261,6 +300,13 @@ the quantity rule), renumbering rules 1–8 to 2–9. Prompted by the 100-pair A
 pass finding 4 of its 100 pairs cross-species, and `normalize/species.py` existing to detect it as
 of this session. No other rule's text changed — this is purely an insertion and renumbering, not
 a re-decision of anything revision 2 already settled.
+
+**Revision 4, 2026-09-21 (mechanical rule-consistency pass)** — added Rule 3b, dry vs wet/tin/pouch
+`food_form`, between rule 3 (formula qualifier) and rule 4 (breed size); no renumbering, since it
+slots in as `3b` rather than shifting the ladder. Prompted by a mechanical pass over the closed
+300-row TEST set finding one pair labelled `M` where revision 3's "ignore hrană uscată/umedă
+entirely" text left the ladder silent on dry-vs-wet as a product difference. No other rule's text
+changed.
 
 Revise this file, not the tool's code, when real labelling surfaces a case these rules don't
 resolve — the same discipline Phase 2's conventions followed (ADR-0026 → ADR-0027 added
