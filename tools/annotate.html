@@ -130,6 +130,13 @@
   }
   #review-banner[hidden] { display: none; }
   #review-banner b { color: var(--flag); }
+  /* Class notes (the WHY behind a flag) are shown as their own large block -- a rule id alone
+     was visible when the Schesir pair was mis-revised; the explanatory note was not. */
+  #review-banner .review-note {
+    display: block; margin-top: 8px; padding: 8px 12px; text-align: left;
+    background: rgba(245,165,36,0.22); border-left: 4px solid var(--flag);
+    font-size: 15px; font-weight: 600; line-height: 1.4;
+  }
 
   /* Assisted flow (TRAIN_VAL only, never TEST — see JS) */
   .split-badge { border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; }
@@ -779,6 +786,28 @@ function renderReviewBanner(item) {
       `be correct. Re-decide only if you disagree with it.`
     : `REVIEW MODE — existing label: ${info.label} — flagged by: ${ruleList}. ` +
       `Re-decide with M/N/S; no suggestion is shown here.`;
+  // Prominent note block: curated class_note, per-class notes, revert hint, self-agreement.
+  const notes = [];
+  if (info.class_note) notes.push(`NOTE: ${info.class_note}`);
+  for (const c of info.classes) {
+    if (c.note) notes.push(`[class ${c.class}] ${c.note}`);
+    if (c.revert_hint) {
+      notes.push(
+        `[class ${c.class}] REVERT HINT: this flag is a stored-data defect and never justifies ` +
+          `changing a label. If the current label rests on the stored field instead of the ` +
+          `title text, revert it.`
+      );
+    }
+  }
+  if (info.self_agreement) {
+    notes.push("SELF-AGREEMENT: this pair was labelled differently on its two showings -- pick ONE label for the pair.");
+  }
+  for (const n of notes) {
+    const el = document.createElement("span");
+    el.className = "review-note";
+    el.textContent = n;
+    banner.appendChild(el);
+  }
   banner.hidden = false;
 }
 
