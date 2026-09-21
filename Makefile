@@ -26,6 +26,7 @@ typecheck: ## mypy strict
 
 test: ## Run the test suite (offline; never touches a live site)
 	uv run pytest
+	node --test tests/js/annotate_review_topbar.test.mjs
 
 check: lint typecheck test ## Everything CI runs
 

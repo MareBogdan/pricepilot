@@ -810,6 +810,11 @@ function reviewFirstUnrevisedIndex() {
 
 function renderPair() {
   if (cursor < 0 || cursor >= order.length) {
+    // ADR-0028 addendum #14 -- the ONLY other updateTopbar() call is below this early return, so
+    // deciding the LAST pair used to leave the header one step stale (review: "6/7 ... 1 left"
+    // under a "7/7 re-decided" completion screen). Refresh it here too; currentPhaseInfo()
+    // already returns remaining=0 for an out-of-range cursor.
+    updateTopbar();
     showDone();
     return;
   }
