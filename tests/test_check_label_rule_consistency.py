@@ -255,7 +255,7 @@ def test_main_writes_relabel_queue_grouped_by_occurrence_id_and_exits_nonzero(
     assert exit_code != 0
 
     relabel = json.loads(paths["relabel_queue_path"].read_text(encoding="utf-8"))
-    assert relabel["class_counts"] == {"a": 1, "b": 1, "c": 1, "d": 1, "e": 1}
+    assert relabel["class_counts"] == {"a": 1, "b": 1, "c": 1, "d": 1, "e": 1, "f": 0}
     assert relabel["flagged_count"] == 5
     # FIXTURE_b_0 is flagged once, under class "b" only -- FIXTURE_e_0 is the one carrying both
     # a genuine species-differs flag AND the extraction-defect flag in the real data, not this one.
@@ -302,3 +302,24 @@ def test_queue_sha256_mismatch_refused(tmp_path: Path, monkeypatch: pytest.Monke
     monkeypatch.setattr(clc, "FROZEN_QUEUE_SHA256", "0" * 64)
     exit_code = clc.main()
     assert exit_code == 1
+
+
+def test_class_f_self_agreement_and_class_e_revert_hint() -> None:
+    clean = next(p for p in FIXTURE_PAIRS if p["pair_id"] == "FIXTURE_clean")
+    e_pair = next(p for p in FIXTURE_PAIRS if p["pair_id"] == "FIXTURE_e")
+    pairs = [clean, clean, e_pair]
+    pairs_by_occ = dict(zip(clc.derive_occurrence_ids(pairs), pairs, strict=True))
+    decisions = {
+        "FIXTURE_clean_0": {"pair_id": "FIXTURE_clean", "label": "M"},
+        "FIXTURE_clean_1": {"pair_id": "FIXTURE_clean", "label": "N"},
+        "FIXTURE_e_0": {"pair_id": "FIXTURE_e", "label": "M"},
+    }
+    flags = clc.check(pairs_by_occ, decisions)
+    f_flags = [f for f in flags if f.cls == "f"]
+    assert {f.occurrence_id for f in f_flags} == {"FIXTURE_clean_0", "FIXTURE_clean_1"}
+    assert all(f.self_agreement and not f.revert_hint for f in f_flags)
+    e_flags = [f for f in flags if f.cls == "e"]
+    assert e_flags and all(f.revert_hint for f in e_flags)
+    # agreeing repeats are never flagged
+    decisions["FIXTURE_clean_1"]["label"] = "M"
+    assert not [f for f in clc.check(pairs_by_occ, decisions) if f.cls == "f"]

@@ -1,85 +1,91 @@
 {
  "built_from": "scripts/check_label_rule_consistency.py",
- "generated_at": "2026-09-21T16:04:57.376129+00:00",
+ "generated_at": "2026-09-21T19:41:31.401350+00:00",
  "queue_sha256": "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011",
  "split_sha256": "a9a4c7583215769c8053d148b65525b88d8ebf0ed9d345cd82d3fa9d68280c29",
- "labels_ingested_at": "2026-09-21T15:28:24.966365+00:00",
+ "labels_ingested_at": "2026-09-21T17:17:49.950863+00:00",
  "class_legend": {
   "a": "rule2_quantity_differs -- quantity tuple differs but label is M",
   "b": "rule1_species_differs -- species differs (both known) but label is M",
   "c": "rule3b_foodform_dry_vs_wet -- dry vs wet/tin/pouch (both stated) but label is M",
   "d": "trivial_spot_check tier labelled something other than M",
-  "e": "data quality -- title states one species, species field says the other (NOT an annotator error)"
+  "e": "data quality -- title states one species, species field says the other (NOT an annotator error)",
+  "f": "self_agreement -- the same pair was labelled differently on its two occurrences (annotator must pick one label per pair)"
  },
  "class_counts": {
-  "a": 3,
-  "b": 4,
-  "c": 1,
-  "d": 0,
-  "e": 1
+  "a": 2,
+  "b": 0,
+  "c": 0,
+  "d": 4,
+  "e": 3,
+  "f": 6
  },
- "flagged_count": 9,
- "flagged_occurrence_count": 7,
+ "flagged_count": 15,
+ "flagged_occurrence_count": 12,
  "food_form_diagnostic": {
-  "both_stated_and_differ": 37,
-  "dry_vs_wet": 7,
-  "dry_vs_wet_already_n": 6,
-  "dry_vs_wet_was_m": 1,
-  "wet_family_only": 30
+  "both_stated_and_differ": 105,
+  "dry_vs_wet": 19,
+  "dry_vs_wet_already_n": 19,
+  "dry_vs_wet_was_m": 0,
+  "wet_family_only": 86
  },
  "flagged": {
-  "0e45d9b997f8_153c7e549d19_0": {
-   "pair_id": "0e45d9b997f8_153c7e549d19",
-   "label": "M",
-   "left_title": "PURINA Pro Plan Sterilised Maintenance, Ton și Somon, hrană umedă pisici sterilizate, (pate), bax, 85g x 24buc",
-   "right_title": "PURINA Pro Plan Sterilised Maintenance, Ton și Somon, hrană umedă pisici sterilizate, (pate), 85g",
-   "classes": [
-    {
-     "class": "a",
-     "rule_id": "rule2_quantity_differs",
-     "note": null
-    }
-   ],
-   "data_quality_only": false
-  },
-  "3f3a8d1d2b69_96aa964f7dc7_0": {
-   "pair_id": "3f3a8d1d2b69_96aa964f7dc7",
-   "label": "M",
-   "left_title": "ULTIMA Fit & Delicious Sterilised, Somon, plic hrană umedă pisici sterilizate, (în sos), 85g",
-   "right_title": "ULTIMA Fit & Delicious Sterilised, Somon, plic hrană umedă pisici sterilizate, (în sos), bax, 85g x 24buc",
-   "classes": [
-    {
-     "class": "a",
-     "rule_id": "rule2_quantity_differs",
-     "note": null
-    }
-   ],
-   "data_quality_only": false
-  },
   "3f574dad8b6e_b52acad20816_0": {
    "pair_id": "3f574dad8b6e_b52acad20816",
-   "label": "M",
+   "label": "N",
    "left_title": "Hrana umeda pentru pisici Schesir Functions Digestive Topper Dovleac si grau 40g",
    "right_title": "SCHESIR Functions Digestive Topper, dovleac, plic hrană umedă fără cereale pisici, sistem digestiv, (topping), 40g",
    "classes": [
     {
-     "class": "b",
-     "rule_id": "rule1_species_differs",
-     "note": null
-    },
+     "class": "e",
+     "rule_id": "species_title_field_mismatch",
+     "note": "left listing: title says 'cat', stored species field says 'dog' -- this is a normalize/species.py extraction defect, never a labelling error",
+     "revert_hint": true
+    }
+   ],
+   "class_note": "Revised M->N in the review pass under rule1_species_differs. That revision was WRONG: conventions rule 1 reads the TITLE, not the `species` field. Both titles state 'pisici' (cat); the left listing's stored species='dog' is the known normalize/species.py defect. Same brand, same line, both 40 g, both wet-family. Re-decide on the titles.",
+   "self_agreement": false,
+   "data_quality_only": true
+  },
+  "2acc97947c1c_c8f4810554f2_0": {
+   "pair_id": "2acc97947c1c_c8f4810554f2",
+   "label": "N",
+   "left_title": "Hrana umeda pentru pisici Schesir After Dark Pui si Sunca 80g",
+   "right_title": "SCHESIR After Dark Velvet Mousse, Pui și Vită, plic hrană umedă fără cereale pisici, (mousse), 80g",
+   "classes": [
     {
      "class": "e",
      "rule_id": "species_title_field_mismatch",
-     "note": "left listing: title says 'cat', stored species field says 'dog' -- this is a normalize/species.py extraction defect, never a labelling error"
+     "note": "left listing: title says 'cat', stored species field says 'dog' -- this is a normalize/species.py extraction defect, never a labelling error",
+     "revert_hint": true
     }
    ],
-   "data_quality_only": false
+   "class_note": null,
+   "self_agreement": false,
+   "data_quality_only": true
   },
-  "c55327a4a4cb_ecc599237076_0": {
-   "pair_id": "c55327a4a4cb_ecc599237076",
+  "84fe6219552b_e8343e4a08b2_0": {
+   "pair_id": "84fe6219552b_e8343e4a08b2",
+   "label": "N",
+   "left_title": "SCHESIR Baby Fillets, Pui și Ficat, conservă hrană umedă fără cereale pisici junior, (în supă), 70g",
+   "right_title": "Hrana umeda pentru pisici Schesir Special Light Pui 70g",
+   "classes": [
+    {
+     "class": "e",
+     "rule_id": "species_title_field_mismatch",
+     "note": "right listing: title says 'cat', stored species field says 'dog' -- this is a normalize/species.py extraction defect, never a labelling error",
+     "revert_hint": true
+    }
+   ],
+   "class_note": null,
+   "self_agreement": false,
+   "data_quality_only": true
+  },
+  "1c0d1a45d509_614c9a4d1f42_0": {
+   "pair_id": "1c0d1a45d509_614c9a4d1f42",
    "label": "M",
-   "left_title": "MONGE Grill Sterilised, Păstrăv, plic hrană umedă fără cereale pisici sterilizate, obezitate, apetit capricios, (în aspic), bax, 85g x 28buc",
-   "right_title": "MONGE Grill Sterilised, Păstrăv, plic hrană umedă fără cereale pisici sterilizate, obezitate, apetit capricios, (în aspic), 85g",
+   "left_title": "Hrana uscata pentru caini Royal Canin Maxi Adult 4 kg",
+   "right_title": "Royal Canin Maxi Adult 3 Kg",
    "classes": [
     {
      "class": "a",
@@ -87,53 +93,151 @@
      "note": null
     }
    ],
+   "class_note": null,
+   "self_agreement": false,
    "data_quality_only": false
   },
-  "af9c46b9524a_bcfe44adfdf1_0": {
-   "pair_id": "af9c46b9524a_bcfe44adfdf1",
-   "label": "M",
-   "left_title": "Brit Care Dog Mini Salmon and Herring Sterilised Fillets in Gravy 85 g",
-   "right_title": "Hrana umeda pentru pisici Brit Care Fileuri de curcan si somon in sos 85g",
+  "01b880c1f365_33394df3427d_0": {
+   "pair_id": "01b880c1f365_33394df3427d",
+   "label": "S",
+   "left_title": "Royal Canin Kitten, 10 kg",
+   "right_title": "ROYAL CANIN Kitten, hrană uscată pisici junior, 10kg",
    "classes": [
     {
-     "class": "b",
-     "rule_id": "rule1_species_differs",
-     "note": null
-    }
-   ],
-   "data_quality_only": false
-  },
-  "da2907bb100e_fced2443703b_0": {
-   "pair_id": "da2907bb100e_fced2443703b",
-   "label": "M",
-   "left_title": "REMI PREMIUM, Pește, conservă hrană umedă pisici, (mousse), 400g",
-   "right_title": "Hrana umeda pentru caini Remi Premium Mousse Peste 400g",
-   "classes": [
-    {
-     "class": "b",
-     "rule_id": "rule1_species_differs",
-     "note": null
-    }
-   ],
-   "data_quality_only": false
-  },
-  "4ebc3a6e6210_31cc6248c1de_0": {
-   "pair_id": "4ebc3a6e6210_31cc6248c1de",
-   "label": "M",
-   "left_title": "Hrana umeda Petkult Adult cu miel 400 g",
-   "right_title": "Hrana uscata pentru pisici Petkult Cat Adult Indoor Miel 400g",
-   "classes": [
-    {
-     "class": "b",
-     "rule_id": "rule1_species_differs",
-     "note": null
+     "class": "d",
+     "rule_id": "trivial_spot_check_not_M",
+     "note": "differing extracted fields -- life_stage: None vs 'junior'; food_form: None vs 'dry'"
     },
     {
-     "class": "c",
-     "rule_id": "rule3b_foodform_dry_vs_wet",
+     "class": "f",
+     "rule_id": "self_agreement_disagreement",
+     "note": "other occurrence(s) of this pair: 01b880c1f365_33394df3427d_1=M"
+    }
+   ],
+   "class_note": null,
+   "self_agreement": true,
+   "data_quality_only": false
+  },
+  "a960a4aea31a_cf3c9566947c_0": {
+   "pair_id": "a960a4aea31a_cf3c9566947c",
+   "label": "M",
+   "left_title": "Royal Canin Bulldog Adult 12 kg",
+   "right_title": "ROYAL CANIN Bulldog Adult, hrană uscată câini, 3kg",
+   "classes": [
+    {
+     "class": "a",
+     "rule_id": "rule2_quantity_differs",
      "note": null
     }
    ],
+   "class_note": null,
+   "self_agreement": false,
+   "data_quality_only": false
+  },
+  "a19a1b41f49f_afc62890b6b5_0": {
+   "pair_id": "a19a1b41f49f_afc62890b6b5",
+   "label": "N",
+   "left_title": "ROYAL CANIN Kitten, hrană uscată pisici junior, 400g",
+   "right_title": "Royal Canin Kitten, 400 g",
+   "classes": [
+    {
+     "class": "d",
+     "rule_id": "trivial_spot_check_not_M",
+     "note": "differing extracted fields -- life_stage: 'junior' vs None; food_form: 'dry' vs None"
+    },
+    {
+     "class": "f",
+     "rule_id": "self_agreement_disagreement",
+     "note": "other occurrence(s) of this pair: a19a1b41f49f_afc62890b6b5_1=M"
+    }
+   ],
+   "class_note": null,
+   "self_agreement": true,
+   "data_quality_only": false
+  },
+  "3f12b3225e74_a0b2cb253771_1": {
+   "pair_id": "3f12b3225e74_a0b2cb253771",
+   "label": "N",
+   "left_title": "ROYAL CANIN Kitten, hrană uscată pisici junior, 2kg",
+   "right_title": "Royal Canin Kitten, 2 kg",
+   "classes": [
+    {
+     "class": "d",
+     "rule_id": "trivial_spot_check_not_M",
+     "note": "differing extracted fields -- life_stage: 'junior' vs None; food_form: 'dry' vs None"
+    },
+    {
+     "class": "f",
+     "rule_id": "self_agreement_disagreement",
+     "note": "other occurrence(s) of this pair: 3f12b3225e74_a0b2cb253771_0=M"
+    }
+   ],
+   "class_note": null,
+   "self_agreement": true,
+   "data_quality_only": false
+  },
+  "33394df3427d_3ab75d311be0_0": {
+   "pair_id": "33394df3427d_3ab75d311be0",
+   "label": "N",
+   "left_title": "ROYAL CANIN Kitten, hrană uscată pisici junior, 10kg",
+   "right_title": "Hrana uscata pentru pisici Royal Canin Kitten 10 kg",
+   "classes": [
+    {
+     "class": "d",
+     "rule_id": "trivial_spot_check_not_M",
+     "note": "differing extracted fields -- life_stage: 'junior' vs None"
+    }
+   ],
+   "class_note": null,
+   "self_agreement": false,
+   "data_quality_only": false
+  },
+  "3f12b3225e74_a0b2cb253771_0": {
+   "pair_id": "3f12b3225e74_a0b2cb253771",
+   "label": "M",
+   "left_title": "ROYAL CANIN Kitten, hrană uscată pisici junior, 2kg",
+   "right_title": "Royal Canin Kitten, 2 kg",
+   "classes": [
+    {
+     "class": "f",
+     "rule_id": "self_agreement_disagreement",
+     "note": "other occurrence(s) of this pair: 3f12b3225e74_a0b2cb253771_1=N"
+    }
+   ],
+   "class_note": null,
+   "self_agreement": true,
+   "data_quality_only": false
+  },
+  "a19a1b41f49f_afc62890b6b5_1": {
+   "pair_id": "a19a1b41f49f_afc62890b6b5",
+   "label": "M",
+   "left_title": "ROYAL CANIN Kitten, hrană uscată pisici junior, 400g",
+   "right_title": "Royal Canin Kitten, 400 g",
+   "classes": [
+    {
+     "class": "f",
+     "rule_id": "self_agreement_disagreement",
+     "note": "other occurrence(s) of this pair: a19a1b41f49f_afc62890b6b5_0=N"
+    }
+   ],
+   "class_note": null,
+   "self_agreement": true,
+   "data_quality_only": false
+  },
+  "01b880c1f365_33394df3427d_1": {
+   "pair_id": "01b880c1f365_33394df3427d",
+   "label": "M",
+   "left_title": "Royal Canin Kitten, 10 kg",
+   "right_title": "ROYAL CANIN Kitten, hrană uscată pisici junior, 10kg",
+   "classes": [
+    {
+     "class": "f",
+     "rule_id": "self_agreement_disagreement",
+     "note": "other occurrence(s) of this pair: 01b880c1f365_33394df3427d_0=S"
+    }
+   ],
+   "class_note": null,
+   "self_agreement": true,
    "data_quality_only": false
   }
  }

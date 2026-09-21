@@ -21,6 +21,15 @@ wrong" -- only the five classes below, each cheap enough to check with a plain f
                   right; the structured field is what is wrong. (One flagged pair overlaps class
                   (b) for exactly this reason -- see the printed note when it happens.)
 
+  (f) self-agreement -- a pair shown twice (38 pair_ids repeat in the queue) whose two occurrences
+                  were labelled DIFFERENTLY. Not a rule violation: the annotator must pick one label
+                  per pair before the dataset is used for training. Reported with
+                  `self_agreement: true` / `data_quality_only: false`.
+
+Class (e) entries carry `revert_hint: true`: the flagged field is a stored-data defect, so a flag
+of this class NEVER supports changing a label, and any label revision that rested on the stored
+field instead of the title text should be reverted (see ARCHITECT_NOTES).
+
 Exits non-zero if any class is non-empty (each is a real, actionable finding on a supposedly
 mechanical rule -- there is no clean pass with a non-zero count here). Writes every flagged
 occurrence_id, with its class and the rule/check that flagged it, to
@@ -68,7 +77,44 @@ CLASS_LABELS = {
     "d": "trivial_spot_check tier labelled something other than M",
     "e": "data quality -- title states one species, species field says the other (NOT an "
     "annotator error)",
+    "f": "self_agreement -- the same pair was labelled differently on its two occurrences "
+    "(annotator must pick one label per pair)",
 }
+
+# Curated, per-occurrence reasoning recorded by the architect -- shown prominently in the tool's
+# review screen. Attaches only when the occurrence is actually flagged.
+ARCHITECT_NOTES = {
+    "3f574dad8b6e_b52acad20816_0": (
+        "Revised M->N in the review pass under rule1_species_differs. That revision was WRONG: "
+        "conventions rule 1 reads the TITLE, not the `species` field. Both titles state 'pisici' "
+        "(cat); the left listing's stored species='dog' is the known normalize/species.py defect. "
+        "Same brand, same line, both 40 g, both wet-family. Re-decide on the titles."
+    ),
+}
+
+_TIER_FIELDS = (
+    "brand",
+    "product_line",
+    "net_weight_g",
+    "net_volume_ml",
+    "pack_count",
+    "bonus_weight_g",
+    "breed_size_code",
+    "life_stage",
+    "flavour",
+    "food_form",
+    "species",
+    "breed_size_class",
+)
+
+
+def _field_diff(left: dict[str, Any], right: dict[str, Any]) -> str:
+    diffs = [
+        f"{f}: {left.get(f)!r} vs {right.get(f)!r}"
+        for f in _TIER_FIELDS
+        if left.get(f) != right.get(f)
+    ]
+    return "; ".join(diffs) if diffs else "no extracted field differs"
 
 
 def derive_occurrence_ids(pairs: list[dict[str, Any]]) -> list[str]:
@@ -100,6 +146,8 @@ class Flag:
     left_title: str
     right_title: str
     note: str | None = None
+    revert_hint: bool = False
+    self_agreement: bool = False
 
 
 def check(
@@ -168,6 +216,7 @@ def check(
                     label,
                     left["title"],
                     right["title"],
+                    note=f"differing extracted fields -- {_field_diff(left, right)}",
                 )
             )
 
@@ -191,11 +240,37 @@ def check(
                         label,
                         left["title"],
                         right["title"],
+                        revert_hint=True,
                         note=(
                             f"{side_name} listing: title says {title_species!r}, stored species "
                             f"field says {field_species!r} -- this is a normalize/species.py "
                             f"extraction defect, never a labelling error"
                         ),
+                    )
+                )
+
+    # (f) self-agreement: same pair_id, differing labels across occurrences.
+    by_pair: dict[str, list[str]] = {}
+    for occ_id in decisions:
+        if occ_id in pairs_by_occ:
+            by_pair.setdefault(pairs_by_occ[occ_id]["pair_id"], []).append(occ_id)
+    for pair_id, occs in by_pair.items():
+        labels = {o: decisions[o]["label"] for o in occs}
+        if len(occs) > 1 and len(set(labels.values())) > 1:
+            for o in occs:
+                pair = pairs_by_occ[o]
+                others = ", ".join(f"{k}={v}" for k, v in labels.items() if k != o)
+                flags.append(
+                    Flag(
+                        o,
+                        pair_id,
+                        "f",
+                        "self_agreement_disagreement",
+                        labels[o],
+                        pair["left"]["title"],
+                        pair["right"]["title"],
+                        note=f"other occurrence(s) of this pair: {others}",
+                        self_agreement=True,
                     )
                 )
 
@@ -347,7 +422,17 @@ def main() -> int:
                 "label": fs[0].label,
                 "left_title": fs[0].left_title,
                 "right_title": fs[0].right_title,
-                "classes": [{"class": f.cls, "rule_id": f.rule_id, "note": f.note} for f in fs],
+                "classes": [
+                    {
+                        "class": f.cls,
+                        "rule_id": f.rule_id,
+                        "note": f.note,
+                        **({"revert_hint": True} if f.revert_hint else {}),
+                    }
+                    for f in fs
+                ],
+                "class_note": ARCHITECT_NOTES.get(occ_id),
+                "self_agreement": any(f.self_agreement for f in fs),
                 # TASK 4 / review finding #9 -- class (e) is a data-quality finding, NEVER an
                 # annotator error (module docstring). `data_quality_only: true` tells
                 # tools/annotate.html's review mode to soften its banner wording for an
