@@ -2965,3 +2965,49 @@ review-mode tool changes + `ingest_labels.py` + tests), each folding in the revi
 that landed in that task's own files (all fixes above are inside files TASK 2-4 already touched,
 so there is no file left over for a separate "fixes" commit), plus this entry and the `STATE.md`
 "Current state" update.
+
+
+## ADR-0028 addendum #14 — split-file hash was the wrong ingest invariant; header stale on last review decision
+
+*2026-09-21.* Two defects in code written earlier the same day, found while the annotator was mid-run
+(300 TEST labels exported, 7 review-mode revisions applied, TRAIN_VAL not started).
+
+**Defect 1 — `scripts/ingest_labels.py` refused any export recorded against a different split FILE.**
+The regenerated split for conventions revision 4 changed the file's bytes (`a9a4c758...` vs
+`83c6b0e3...`), so both earlier exports were refused even though no pair had moved. The invariant
+that actually protects the dataset is: the frozen queue is unchanged (byte equality, unchanged and
+still strict) AND every occurrence_id keeps the same `split` and `tier`. A file hash is only a
+proxy for that, and it cost a real workflow.
+**Replaced by:** if the export's `split_sha256` differs from the current file's, find the historical
+split file with that hash via `git log --all -- <split path>` + `git show`, and compare `assignments`
+on `split` and `tier` per occurrence_id. Identical -> ingest, printing both hashes, the count of
+`engine_prediction` differences by old->new label, and any other top-level key that differs. Any
+moved occurrence_id, or a historical file that cannot be found -> refuse, naming the moved ids.
+Both hashes (`split_sha256_recorded`, `split_sha256_current`) are recorded per source file in
+`phase3-labels.json`. There is no skip flag. **Rejected:** a `--force`/`--ignore-split-hash` flag
+(would re-open exactly the hole the check exists for); trusting the recorded hash's mere presence.
+**Finding worth recording:** the brief described the regeneration as changing only
+`engine_prediction` values. Measured, all 997 assignments are identical on every field (0
+engine_prediction differences, 0 split/tier moves); the only differing key is the top-level
+`evaluation_rules` text. The check accepts it either way; the note now reports both.
+
+**Defect 2 — review header `6/7 done ... 1 left` under a `7/7 re-decided` completion screen.**
+Suspected cause (a same-label re-decision not counted) was **wrong**: `decide()` stamps `revised_at`
+on every review decision regardless of label, and a same-label re-decision mid-sequence counted
+correctly. Actual cause: `renderPair()`'s completion branch (`cursor >= order.length`) returned
+through `showDone()` before the only `updateTopbar()` call, so deciding the LAST pair never
+refreshed the header (the ordinary flow had the same off-by-one at 996/997). Fixed by calling
+`updateTopbar()` in that branch. Regression: `tests/js/annotate_review_topbar.test.mjs` drives the
+real page script in a vm with a fake DOM; a same-label re-decision is placed both mid-sequence and
+last; fails 2/2 without the fix, passes with it.
+
+**Not changed, flagged:** `tools/annotate.html`'s review mode and its own import path still compare
+`split_sha256` by file hash (they cannot run `git`); they refuse, loudly, on a regenerated split.
+
+**Reviewer findings folded in (all fixed before commit):** history lookup now tolerates CRLF
+worktree bytes vs LF blobs and skips commits where `git show` fails (path deleted) instead of
+aborting; malformed/old-schema historical splits refuse cleanly instead of a traceback; a real
+throwaway-git-repo test covers the lookup (previously only mocked); the note warns that a
+TRAIN_VAL export can still be refused later by the confirm/corrected cross-check; the Node test is
+wired into `make test` / `make.ps1 test`. Known limit: a shallow clone (CI default) has no history,
+so a hash difference refuses there -- fail-closed, by design.
