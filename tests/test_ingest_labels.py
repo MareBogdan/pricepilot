@@ -789,3 +789,114 @@ def test_unrelated_answer_mismatch_still_refused_as_conflict(
         il.main([str(export_a), str(export_b)])
     assert exc_info.value.code == 1
     assert not ds["labels_out_path"].exists()
+
+
+# --- ADR-0028 addendum #14: split guard is on ASSIGNMENTS, not the file hash --------------------
+
+
+def _historical_split(ds: dict[str, Any], mutate: Any) -> tuple[bytes, str]:
+    doc = json.loads(ds["split_path"].read_bytes().decode("utf-8"))
+    mutate(doc)
+    raw = json.dumps(doc, indent=2).encode("utf-8")
+    return raw, hashlib.sha256(raw).hexdigest()
+
+
+def _one_test_export(ds: dict[str, Any], recorded_split_sha: str) -> Path:
+    export_path = ds["learned"] / "FIXTURE-export-oldsplit.json"
+    _write_export(
+        export_path,
+        ds["queue_sha256"],
+        recorded_split_sha,
+        {
+            "FIXTURE_pair_test_1_0": _decision(
+                "FIXTURE_pair_test_1", "blocked_retrieval_candidate", "test", "M", "blind"
+            )
+        },
+    )
+    return export_path
+
+
+def test_split_hash_differs_but_assignments_identical_is_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+
+    # historical file: only a non-assignment key and an engine_prediction label differ
+    def mutate(doc: dict[str, Any]) -> None:
+        doc["evaluation_rules"] = "older wording"
+        doc["assignments"]["FIXTURE_pair_trainval_2_0"]["engine_prediction"]["label"] = "S"
+
+    raw, old_sha = _historical_split(ds, mutate)
+    monkeypatch.setattr(il, "_historical_split_bytes", lambda sha: raw if sha == old_sha else None)
+    export_path = _one_test_export(ds, old_sha)
+
+    assert il.main([str(export_path)]) == 0
+    out = capsys.readouterr().out
+    assert old_sha in out and ds["split_sha256"] in out
+    assert "S->M: 1" in out
+    assert "evaluation_rules" in out
+    prov = json.loads(ds["labels_out_path"].read_text(encoding="utf-8"))["source_files"][0]
+    assert prov["split_sha256_recorded"] == old_sha
+    assert prov["split_sha256_current"] == ds["split_sha256"]
+
+
+def test_split_hash_differs_and_assignment_moved_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+
+    def mutate(doc: dict[str, Any]) -> None:
+        doc["assignments"]["FIXTURE_pair_trainval_2_0"]["split"] = "test"
+
+    raw, old_sha = _historical_split(ds, mutate)
+    monkeypatch.setattr(il, "_historical_split_bytes", lambda sha: raw if sha == old_sha else None)
+    with pytest.raises(SystemExit) as exc_info:
+        il.main([str(_one_test_export(ds, old_sha))])
+    assert exc_info.value.code == 1
+    assert "FIXTURE_pair_trainval_2_0" in capsys.readouterr().err
+    assert not ds["labels_out_path"].exists()
+
+
+def test_split_hash_differs_and_history_missing_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+    monkeypatch.setattr(il, "_historical_split_bytes", lambda sha: None)
+    with pytest.raises(SystemExit) as exc_info:
+        il.main([str(_one_test_export(ds, "2" * 64))])
+    assert exc_info.value.code == 1
+    assert not ds["labels_out_path"].exists()
+
+
+def _git(repo: Path, *args: str) -> None:
+    import subprocess
+
+    subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_real_git_history_lookup_finds_old_split_incl_crlf_and_deleted_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+    repo = tmp_path
+    rel = ds["split_path"].relative_to(repo).as_posix()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "core.autocrlf", "false")
+    old_raw = ds["split_path"].read_bytes()
+    old_sha = hashlib.sha256(old_raw).hexdigest()
+    _git(repo, "add", rel)
+    _git(repo, "commit", "-q", "-m", "old split")
+    # a later commit deletes the file: `git show <that>:path` fails and must not abort the search
+    _git(repo, "rm", "-q", rel)
+    _git(repo, "commit", "-q", "-m", "delete split")
+    ds["split_path"].write_bytes(old_raw + b" ")  # current file differs in bytes only
+    monkeypatch.setattr(il, "ROOT", repo)
+    assert il._historical_split_bytes(old_sha) == old_raw
+    # recorded hash taken over CRLF worktree bytes while the blob is LF
+    crlf = old_raw.replace(b"\n", b"\r\n")
+    assert il._historical_split_bytes(hashlib.sha256(crlf).hexdigest()) == crlf
+    assert il._historical_split_bytes("0" * 64) is None

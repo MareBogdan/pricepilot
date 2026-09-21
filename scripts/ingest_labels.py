@@ -20,7 +20,10 @@ state machine and cross-checking every field against the frozen data, not just w
 
 REFUSES (clear message on stderr, exit 1) and writes NOTHING on:
   - queue SHA-256 mismatch (an export's `queue_sha256` != the frozen queue's actual hash)
-  - split-file SHA-256 mismatch (an export's `split_sha256` != the committed split file's hash)
+  - split-ASSIGNMENT mismatch: an export's `split_sha256` differs from the current split file's
+    hash AND the historical split file with that hash (found via git history) either cannot be
+    found or assigns a different `split`/`tier` to some occurrence_id (ADR-0028 addendum #14 --
+    a differing file hash alone is NOT a refusal; only moved assignments are)
   - an occurrence_id in an export that is not present in the frozen queue
   - a label (`answer`) outside {M, N, S}
   - a decision with no `source` field
@@ -53,6 +56,7 @@ import hashlib
 import io
 import json
 import math
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -204,12 +208,132 @@ def load_canonical() -> tuple[str, str, dict[str, CanonicalRow]]:
     return actual_queue_sha256, actual_split_sha256, canonical
 
 
+def _split_repo_path() -> str | None:
+    """SPLIT_JSON as a repo-relative POSIX path, or None if it is not inside ROOT."""
+    try:
+        return SPLIT_JSON.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
+def _historical_split_bytes(export_sha256: str) -> bytes | None:
+    """Finds the committed split file whose SHA-256 is `export_sha256` by walking
+    `git log --all` for the split path. Returns its raw bytes, or None if no historical version
+    matches (or git/history is unavailable) -- the caller then refuses."""
+    rel = _split_repo_path()
+    if rel is None:
+        return None
+    try:
+        log = subprocess.run(
+            ["git", "-C", str(ROOT), "log", "--all", "--format=%H", "--", rel],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout.split()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    for commit in dict.fromkeys(log):
+        try:
+            blob = subprocess.run(
+                ["git", "-C", str(ROOT), "show", f"{commit}:{rel}"],
+                capture_output=True,
+                check=True,
+            ).stdout
+        except (OSError, subprocess.CalledProcessError):
+            continue  # e.g. a commit that deleted the path -- keep looking in older ones
+        # The recorded hash was taken over worktree bytes; git normalises the blob to LF
+        # (.gitattributes eol=lf) while Windows worktree files may be CRLF, so try both.
+        lf = blob.replace(b"\r\n", b"\n")
+        for candidate in (blob, lf.replace(b"\n", b"\r\n")):
+            if hashlib.sha256(candidate).hexdigest() == export_sha256:
+                return candidate
+    return None
+
+
+@dataclass
+class SplitCompat:
+    recorded_sha256: str
+    current_sha256: str
+    note: str
+
+
+def check_split_compat(path: Path, recorded_sha256: str, current_sha256: str) -> SplitCompat:
+    """The invariant that protects the dataset is "every occurrence_id's `split` and `tier` are
+    unchanged", not "the split file's bytes are unchanged" (ADR-0028 addendum #14). Equal hashes
+    pass trivially. Otherwise the historical file is looked up in git and its assignments
+    compared to the current ones; any moved occurrence_id (or an unfindable historical file)
+    refuses. There is deliberately no flag that skips this."""
+    if recorded_sha256 == current_sha256:
+        return SplitCompat(recorded_sha256, current_sha256, "")
+    old_raw = _historical_split_bytes(recorded_sha256)
+    if old_raw is None:
+        refuse(
+            f"{path}: split-file SHA-256 mismatch -- this export was recorded against split file "
+            f"{recorded_sha256}, the current split file is {current_sha256}, and no historical "
+            f"version with the recorded hash could be found in git history, so the assignments "
+            f"cannot be compared. Refusing to ingest."
+        )
+    assert old_raw is not None
+    try:
+        old_doc = json.loads(old_raw.decode("utf-8"))
+        new_doc = json.loads(SPLIT_JSON.read_bytes().decode("utf-8"))
+        old, new = old_doc["assignments"], new_doc["assignments"]
+        for a in (*old.values(), *new.values()):
+            a["split"], a["tier"]  # schema probe
+    except (ValueError, KeyError, TypeError):
+        refuse(
+            f"{path}: the historical split file {recorded_sha256} (or the current one) does not "
+            f"have the split/tier assignment schema, so assignments cannot be compared. "
+            f"Refusing to ingest."
+        )
+        raise
+    moved = sorted(
+        occ
+        for occ in old.keys() | new.keys()
+        if occ not in old
+        or occ not in new
+        or old[occ]["split"] != new[occ]["split"]
+        or old[occ]["tier"] != new[occ]["tier"]
+    )
+    if moved:
+        refuse(
+            f"{path}: split ASSIGNMENTS changed between the recorded split file "
+            f"({recorded_sha256}) and the current one ({current_sha256}); "
+            f"{len(moved)} occurrence_id(s) moved split/tier: {moved[:20]}"
+            f"{' ...' if len(moved) > 20 else ''}. Refusing to ingest."
+        )
+    changes: dict[str, int] = {}
+    for occ, a in new.items():
+        old_label = (old[occ].get("engine_prediction") or {}).get("label")
+        new_label = (a.get("engine_prediction") or {}).get("label")
+        if old_label != new_label:
+            key = f"{old_label}->{new_label}"
+            changes[key] = changes.get(key, 0) + 1
+    total = sum(changes.values())
+    detail = ", ".join(f"{k}: {v}" for k, v in sorted(changes.items())) or "none"
+    other_keys = sorted(
+        k
+        for k in old_doc.keys() | new_doc.keys()
+        if k != "assignments" and old_doc.get(k) != new_doc.get(k)
+    )
+    note = (
+        f"NOTE {path}: split file hash differs (recorded {recorded_sha256}, current "
+        f"{current_sha256}) but all {len(new)} occurrence_id split+tier assignments are identical; "
+        f"engine_prediction differs on {total} occurrence_id(s) [{detail}]; "
+        f"other top-level keys that differ: {other_keys or 'none'}. Accepted "
+        f"(a TRAIN_VAL export recorded against an older suggestion can still be refused later by "
+        f"the confirm/corrected cross-check against the CURRENT engine_prediction)."
+    )
+    return SplitCompat(recorded_sha256, current_sha256, note)
+
+
 @dataclass
 class LoadedExport:
     path: Path
     exported_at: str
     decision_count_claimed: int
     decisions: dict[str, dict[str, Any]]  # occurrence_id -> validated raw decision dict
+    split_compat: SplitCompat
 
 
 def load_and_validate_export(
@@ -246,12 +370,9 @@ def load_and_validate_export(
             f"queue file (export: {payload['queue_sha256']}, current frozen queue: "
             f"{actual_queue_sha256}). Refusing to ingest."
         )
-    if payload["split_sha256"] != actual_split_sha256:
-        refuse(
-            f"{path}: split-file SHA-256 mismatch -- this export was recorded against a "
-            f"different split file (export: {payload['split_sha256']}, current split file: "
-            f"{actual_split_sha256}). Refusing to ingest."
-        )
+    split_compat = check_split_compat(path, payload["split_sha256"], actual_split_sha256)
+    if split_compat.note:
+        print(split_compat.note)
 
     state = payload["state"]
     if not isinstance(state, dict):
@@ -356,6 +477,7 @@ def load_and_validate_export(
         exported_at=payload["exported_at"],
         decision_count_claimed=payload["decision_count"],
         decisions=validated,
+        split_compat=split_compat,
     )
 
 
@@ -807,6 +929,10 @@ def main(argv: list[str] | None = None) -> int:
                 else str(export.path),
                 "decision_count_in_file": len(export.decisions),
                 "exported_at": export.exported_at,
+                # ADR-0028 addendum #14: both hashes, so a file-hash difference that was accepted
+                # on identical assignments stays auditable.
+                "split_sha256_recorded": export.split_compat.recorded_sha256,
+                "split_sha256_current": export.split_compat.current_sha256,
             }
             for export in loaded
         ],
