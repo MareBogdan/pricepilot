@@ -315,10 +315,21 @@ def load_and_validate_export(
                 f"the rules engine's own suggestion {canon.engine_prediction_label!r} -- "
                 f"confirmSuggestion() can only ever record the suggested label itself"
             )
-        expected_corrected = source == "override" and canon.engine_prediction_label not in (
-            None,
-            answer,
-        )
+        # TASK 4 (ADR-0028 addendum #13) -- a review-mode revision ALWAYS carries a null
+        # engine_prediction (GUARD 1, tools/annotate.html's initReviewMode()), so decide() always
+        # computes corrected=False for one, regardless of what the CANONICAL split file's
+        # engine_prediction says for that occurrence_id -- there was no suggestion on screen to be
+        # "corrected" relative to. Checking against the canonical suggestion here (as an ordinary,
+        # non-review decision must) would refuse a legitimate TRAIN_VAL review revision whenever
+        # the canonical prediction disagrees with the revised answer -- found on review, before
+        # this shipped with only TEST-split revisions ever exercised.
+        if "revised_at" in decision:
+            expected_corrected = False
+        else:
+            expected_corrected = source == "override" and canon.engine_prediction_label not in (
+                None,
+                answer,
+            )
         if decision["corrected"] != expected_corrected:
             refuse(
                 f"{path}: decision for {occ_id!r} has corrected={decision['corrected']!r}, but "
@@ -348,11 +359,34 @@ def load_and_validate_export(
     )
 
 
+def _is_legitimate_revision(newer: dict[str, Any]) -> bool:
+    """TASK 4 (ADR-0028 addendum #13) -- a review-mode re-decision changes an occurrence_id's
+    answer BY DESIGN (that is the whole point of `tools/annotate.html`'s review mode). Two exports
+    disagreeing on an occurrence_id's answer must therefore not always be treated as a genuine
+    conflict: whenever the chronologically LATER decision carries a `revised_from` at all, it was
+    produced by review mode -- the only code path that ever sets this field (`decide()`) -- so it
+    is trusted as an intentional, audited revision.
+
+    Deliberately does NOT also require `newer["revised_from"] == older["answer"]`: review mode's
+    own documented workflow supports revising the SAME occurrence_id more than once in one
+    sitting (`undo()` steps back so a mis-press can be re-decided again), and each further
+    revision's `revised_from` names the PREVIOUS revision's answer, not the original pre-review
+    one. A chain M -> N -> S merged from two separate exports (one holding the original "M", the
+    other the final "S" with `revised_from: "N"`) would fail a strict equality check even though
+    it is exactly the two-revision case the tool supports -- found on review before it shipped
+    with only ever a single revision exercised."""
+    return newer.get("revised_from") is not None
+
+
 def merge_exports(
     loaded: list[LoadedExport], resolve_latest: bool
-) -> dict[str, tuple[dict[str, Any], Path]]:
+) -> tuple[
+    dict[str, tuple[dict[str, Any], Path]],
+    list[tuple[str, dict[str, Any], Path, dict[str, Any], Path]],
+]:
     merged: dict[str, tuple[dict[str, Any], Path]] = {}
     conflicts: list[tuple[str, dict[str, Any], Path, dict[str, Any], Path]] = []
+    revisions: list[tuple[str, dict[str, Any], Path, dict[str, Any], Path]] = []
 
     for export in loaded:
         for occ_id, decision in export.decisions.items():
@@ -361,6 +395,27 @@ def merge_exports(
                 continue
             existing_decision, existing_path = merged[occ_id]
             if existing_decision["answer"] != decision["answer"]:
+                # Order the two chronologically first -- a revision is only legitimate in the
+                # direction OLD ANSWER -> NEW ANSWER, regardless of which export file happened to
+                # be passed on the command line first.
+                if existing_decision["decided_at"] <= decision["decided_at"]:
+                    older, older_path, newer, newer_path = (
+                        existing_decision,
+                        existing_path,
+                        decision,
+                        export.path,
+                    )
+                else:
+                    older, older_path, newer, newer_path = (
+                        decision,
+                        export.path,
+                        existing_decision,
+                        existing_path,
+                    )
+                if _is_legitimate_revision(newer):
+                    revisions.append((occ_id, older, older_path, newer, newer_path))
+                    merged[occ_id] = (newer, newer_path)
+                    continue
                 conflicts.append((occ_id, existing_decision, existing_path, decision, export.path))
                 if resolve_latest and decision["decided_at"] >= existing_decision["decided_at"]:
                     merged[occ_id] = (decision, export.path)
@@ -373,7 +428,9 @@ def merge_exports(
     if conflicts and not resolve_latest:
         print(
             f"REFUSING: {len(conflicts)} genuine conflict(s) -- same occurrence_id, different "
-            f"label, across exports. Pass --resolve=latest to resolve by most-recent decided_at.",
+            f"label, across exports (not an audited review-mode revision -- see "
+            f"revised_from/ADR-0028 addendum #13). Pass --resolve=latest to resolve by "
+            f"most-recent decided_at.",
             file=sys.stderr,
         )
         for occ_id, d1, p1, d2, p2 in conflicts:
@@ -396,7 +453,16 @@ def merge_exports(
                 f"{kept_path.name} -> {kept['answer']!r}"
             )
 
-    return merged
+    if revisions:
+        print(f"\n{len(revisions)} audited review-mode revision(s) merged (not conflicts):")
+        for occ_id, older, older_path, newer, newer_path in revisions:
+            print(
+                f"  {occ_id}: {older_path.name} @ {older['decided_at']} -> {older['answer']!r}   "
+                f"REVISED TO   {newer_path.name} @ {newer['decided_at']} -> {newer['answer']!r} "
+                f"(rule: {newer.get('revision_rule')})"
+            )
+
+    return merged, revisions
 
 
 def build_qa_report(
@@ -404,6 +470,7 @@ def build_qa_report(
     decisions: dict[str, dict[str, Any]],
     loaded: list[LoadedExport],
     repeat_lookup: dict[str, Any],
+    revisions: list[tuple[str, dict[str, Any], Path, dict[str, Any], Path]] | None = None,
 ) -> str:
     lines: list[str] = []
     add = lines.append
@@ -460,7 +527,13 @@ def build_qa_report(
         if answer == "S":
             s_decisions.append((occ_id, canon.pair_id, decision["s_reason"] or "unspecified"))
 
-        if canon.split == "train_val":
+        # TASK 4 (ADR-0028 addendum #13) -- a review-mode revision is excluded from the assisted
+        # flow entirely: it always carries source="override"/corrected=False (GUARD 1 nulls the
+        # prediction, so there was never a suggestion to be "corrected" relative to), and counting
+        # it here would land it in "overrode but agreed w/ suggestion" and inflate
+        # `trainval_by_tier`'s denominator with a decision the correction-rate metric was never
+        # about. Counted instead in the "Review-mode revisions" section below.
+        if canon.split == "train_val" and "revised_at" not in decision:
             trainval_by_tier[canon.tier] = trainval_by_tier.get(canon.tier, 0) + 1
             if decision["source"] == "confirm":
                 confirmed += 1
@@ -631,6 +704,34 @@ def build_qa_report(
         add("  (no S decisions yet)")
     add("")
 
+    # TASK 4 (ADR-0028 addendum #13) -- review-mode revisions, counted by the rule that flagged
+    # the pair in the first place (`revision_rule`, joined by comma when more than one class
+    # fired -- see scripts/check_label_rule_consistency.py). These are audited label CHANGES, not
+    # export conflicts (merge_exports()'s own distinction) -- reported here so the QA report is
+    # the one place that shows how many mechanical-rule findings actually got corrected.
+    add("## Review-mode revisions")
+    add("")
+    if revisions:
+        by_rule: dict[str, int] = {}
+        for _occ_id, _older, _older_path, newer, _newer_path in revisions:
+            rule = newer.get("revision_rule") or "(unknown)"
+            by_rule[rule] = by_rule.get(rule, 0) + 1
+        add(f"Total revised: {len(revisions)}")
+        add("By rule:")
+        for rule in sorted(by_rule):
+            add(f"  {rule}: {by_rule[rule]}")
+        add("")
+        add("Detail (old -> new):")
+        for occ_id, older, _older_path, newer, _newer_path in revisions:
+            add(
+                f"  - {occ_id} (pair_id={newer['pair_id']}): {older['answer']!r} -> "
+                f"{newer['answer']!r} (rule: {newer.get('revision_rule')}, "
+                f"revised_at={newer.get('revised_at')})"
+            )
+    else:
+        add("  (no revisions in this ingest)")
+    add("")
+
     return "\n".join(lines)
 
 
@@ -664,7 +765,7 @@ def main(argv: list[str] | None = None) -> int:
     for export in loaded:
         print(f"{export.path}: {len(export.decisions)} valid decision(s)")
 
-    merged = merge_exports(loaded, resolve_latest=args.resolve == "latest")
+    merged, revisions = merge_exports(loaded, resolve_latest=args.resolve == "latest")
     decisions = {occ_id: decision for occ_id, (decision, _path) in merged.items()}
     print(
         f"\nmerged: {len(decisions)} distinct occurrence_id(s) decided across {len(loaded)} file(s)"
@@ -684,6 +785,11 @@ def main(argv: list[str] | None = None) -> int:
             "corrected": d["corrected"],
             "ms": d["ms"],
             "decided_at": d["decided_at"],
+            # TASK 4 (ADR-0028 addendum #13) -- present only on a review-mode re-decision; a
+            # fresh (never-reviewed) decision carries none of these three, same as before.
+            **({"revised_from": d["revised_from"]} if "revised_from" in d else {}),
+            **({"revised_at": d["revised_at"]} if "revised_at" in d else {}),
+            **({"revision_rule": d["revision_rule"]} if "revision_rule" in d else {}),
         }
         for occ_id, d in decisions.items()
     }
@@ -710,7 +816,7 @@ def main(argv: list[str] | None = None) -> int:
     LABELS_JSON.write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"\nwritten: {LABELS_JSON.relative_to(ROOT)} ({len(decisions_out)} decisions)")
 
-    qa_report = build_qa_report(canonical, decisions, loaded, repeat_lookup)
+    qa_report = build_qa_report(canonical, decisions, loaded, repeat_lookup, revisions)
     date_stamp = datetime.now(UTC).strftime("%Y%m%d")
     qa_path = ROOT / "docs" / "learned" / f"phase3-label-qa-{date_stamp}.md"
     qa_path.write_text(qa_report, encoding="utf-8")

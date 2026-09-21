@@ -121,6 +121,16 @@
   }
   #phase-banner[hidden] { display: none; }
 
+  /* TASK 4 (ADR-0028 addendum #13) — review mode banner: shown on every pair while reviewing,
+     never hidden after the first render the way #phase-banner is (there is no "seen once"
+     moment here — the whole point is to keep the flagged label/rule visible for every item). */
+  #review-banner {
+    background: rgba(245,165,36,0.14); border-bottom: 1px solid var(--flag);
+    color: var(--text); font-size: 13px; padding: 10px 20px;
+  }
+  #review-banner[hidden] { display: none; }
+  #review-banner b { color: var(--flag); }
+
   /* Assisted flow (TRAIN_VAL only, never TEST — see JS) */
   .split-badge { border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; }
   .split-badge.test { background: rgba(240,75,75,0.14); color: var(--nomatch); border: 1px solid var(--nomatch); }
@@ -187,6 +197,7 @@
     </div>
     <div id="resume-note"></div>
     <div id="phase-banner" hidden></div>
+    <div id="review-banner" hidden></div>
 
     <div id="content">
       <div class="card" id="titles">
@@ -274,6 +285,19 @@ const QUEUE_URL = "../docs/learned/phase3-annotation-queue.json";
 // phase3-test-split-reference-predictions.json (the held-out file with TEST's own predictions,
 // for later offline evaluation only) -- there is no fetch() call to it anywhere in this file.
 const SPLIT_URL = "../docs/learned/phase3-annotation-split.json";
+
+// TASK 4 (ADR-0028 addendum #13) — review mode. Entered by `?review=<path>` in the URL, where
+// <path> is a repo-root-relative path (e.g. `docs/learned/phase3-relabel-queue.json`, the file
+// scripts/check_label_rule_consistency.py writes) -- same convention QUEUE_URL/SPLIT_URL use,
+// just resolved at runtime instead of hardcoded, since this file changes every run. In review
+// mode the tool walks ONLY the occurrence_ids that file lists, shows each one's existing label
+// and the rule that flagged it, and NEVER shows a rules-engine suggestion -- see the three
+// independent guards this comment's neighbours below implement, mirroring the TEST-blindness
+// guards this file already has for the ordinary flow.
+const REVIEW_PARAM = new URLSearchParams(location.search).get("review");
+const REVIEW_MODE = !!REVIEW_PARAM;
+const REVIEW_URL = REVIEW_MODE ? `../${REVIEW_PARAM}` : null;
+let reviewInfoByOcc = new Map(); // occurrence_id -> {pair_id, label, left_title, right_title, classes}
 
 // TASK D — a configurable pilot size. Default 100 (Bogdan labels a pilot slice before committing
 // to the full run, per instruction). Override with ?pilot=N in the URL; ?pilot=0 disables the
@@ -665,6 +689,18 @@ function fmtDuration(totalMs) {
 // half of `order` counts toward "remaining".
 function currentPhaseInfo() {
   if (cursor < 0 || cursor >= order.length) return { phase: "done", remaining: 0 };
+  if (REVIEW_MODE) {
+    // Every item in a review `order` already has a pre-existing decision (that's why it was
+    // flagged) -- "remaining" means "not yet RE-decided", the same `reviewFirstUnrevisedIndex()`
+    // definition, not "has no state entry at all" (which would always be 0 here and mislead the
+    // topbar into showing 0 remaining before a single pair has been reviewed).
+    let remaining = 0;
+    for (const idx of order) {
+      const s = state[queue[idx].occurrence_id];
+      if (!s || !s.revised_at) remaining++;
+    }
+    return { phase: "REVIEW", remaining };
+  }
   const inTest = cursor < testBlockSize;
   const start = inTest ? 0 : testBlockSize;
   const end = inTest ? testBlockSize : order.length;
@@ -676,6 +712,17 @@ function currentPhaseInfo() {
 }
 
 function updateTopbar() {
+  if (REVIEW_MODE) {
+    const revisedCount = order.filter((idx) => state[queue[idx].occurrence_id]?.revised_at).length;
+    document.getElementById("stat-done").textContent = revisedCount;
+    document.getElementById("stat-total").textContent = order.length;
+    document.getElementById("stat-median").textContent = fmtMs(medianDecisionMs());
+    const { phase, remaining } = currentPhaseInfo();
+    document.getElementById("stat-phase").textContent = phase;
+    document.getElementById("stat-phase-remaining").textContent = remaining;
+    document.getElementById("tiers").innerHTML = "";
+    return;
+  }
   const doneCount = Object.keys(state).length;
   document.getElementById("stat-done").textContent = doneCount;
   document.getElementById("stat-total").textContent = queue.length;
@@ -705,6 +752,36 @@ function renderPhaseBanner() {
   }
 }
 
+// TASK 4 (ADR-0028 addendum #13) — shown on every pair in review mode: the label the mechanical
+// check flagged as inconsistent, and which rule(s)/class(es) fired. Purely informational -- it
+// never pre-fills an answer button and never counts as a suggestion (see the three guards this
+// file's other comments name).
+function renderReviewBanner(item) {
+  const banner = document.getElementById("review-banner");
+  if (!REVIEW_MODE) {
+    banner.hidden = true;
+    return;
+  }
+  const info = reviewInfoByOcc.get(item.occurrence_id);
+  if (!info) {
+    banner.textContent = "REVIEW MODE — no flagged-record found for this occurrence_id (unexpected).";
+    banner.hidden = false;
+    return;
+  }
+  const ruleList = info.classes.map((c) => `${c.rule_id} (class ${c.class})`).join(", ");
+  // Review finding #9 (ADR-0028 addendum #13) -- class (e) is a data-quality finding (title vs.
+  // stored species field), NEVER an annotator error. An occurrence_id flagged SOLELY by class (e)
+  // gets softer wording so the annotator isn't invited to "fix" a label that may well already be
+  // correct -- `data_quality_only` is set by scripts/check_label_rule_consistency.py itself.
+  banner.textContent = info.data_quality_only
+    ? `REVIEW MODE — existing label: ${info.label} — DATA QUALITY finding only (${ruleList}): a ` +
+      `stored field disagrees with the title text on one listing; the label itself may already ` +
+      `be correct. Re-decide only if you disagree with it.`
+    : `REVIEW MODE — existing label: ${info.label} — flagged by: ${ruleList}. ` +
+      `Re-decide with M/N/S; no suggestion is shown here.`;
+  banner.hidden = false;
+}
+
 function tickTimer() {
   if (sessionStartMs === null) return;
   document.getElementById("stat-timer").textContent = fmtDuration(Date.now() - sessionStartMs);
@@ -714,6 +791,19 @@ function findNextUndone() {
   for (let k = 0; k < order.length; k++) {
     const idx = order[k];
     if (!state[queue[idx].occurrence_id]) return k;
+  }
+  return -1;
+}
+
+// TASK 4 (ADR-0028 addendum #13) -- review-mode equivalent of findNextUndone(). Every item in a
+// review `order` already has a pre-existing decision in `state` by construction (that is why it
+// was flagged), so findNextUndone()'s "no state entry yet" test would see the whole review queue
+// as already done. "Undone" here means "not yet re-decided in review mode", i.e. its state entry
+// carries no `revised_at`.
+function reviewFirstUnrevisedIndex() {
+  for (let k = 0; k < order.length; k++) {
+    const s = state[queue[order[k]].occurrence_id];
+    if (!s || !s.revised_at) return k;
   }
   return -1;
 }
@@ -740,12 +830,20 @@ function renderPair() {
   badge.textContent = item.split === "test" ? "TEST (blind)" : "TRAIN/VAL (assisted)";
   badge.className = "split-badge " + item.split;
 
-  const showSuggestion = item.split === "train_val" && !!item.engine_prediction;
+  // GUARD 2/3 (TASK 4) -- review mode never shows a suggestion, even for a TRAIN_VAL pair that
+  // has one. `item.engine_prediction` is already forced to null for every item in review mode
+  // (GUARD 1, in init()), so `!!item.engine_prediction` alone would already block this -- the
+  // explicit `&& !REVIEW_MODE` is a second, independent guard, same redundancy style as the
+  // existing TEST-blindness checks (a null-by-construction field, a render guard, and
+  // confirmSuggestion()'s own refusal below is the third).
+  const showSuggestion = item.split === "train_val" && !!item.engine_prediction && !REVIEW_MODE;
   document.getElementById("suggestion-pill").style.display = showSuggestion ? "flex" : "none";
   document.getElementById("btn-confirm").style.display = showSuggestion ? "flex" : "none";
   if (showSuggestion) {
     document.getElementById("suggestion-label").textContent = item.engine_prediction.label;
   }
+
+  renderReviewBanner(item);
 
   document.querySelectorAll(".btn[data-answer]").forEach((b) => b.classList.remove("active"));
   document.getElementById("btn-flag").classList.remove("active");
@@ -772,7 +870,11 @@ function median(values) {
 }
 
 function assistedFlowReport() {
-  const decided = Object.values(state).filter((s) => s.split === "train_val");
+  // TASK 4 (ADR-0028 addendum #13) -- review-mode revisions are excluded: they always carry
+  // source="override"/corrected=false (no suggestion was ever shown to be "corrected" against),
+  // so counting them here would land every one in "overrode but agreed w/ suggestion" and
+  // inflate the correction-rate denominator with decisions this report was never about.
+  const decided = Object.values(state).filter((s) => s.split === "train_val" && !s.revised_at);
   const confirmed = decided.filter((s) => s.source === "confirm");
   const corrected = decided.filter((s) => s.corrected);
   const overrideAgreed = decided.filter((s) => s.source === "override" && !s.corrected);
@@ -806,6 +908,12 @@ function assistedFlowReport() {
   lines.push("");
   lines.push(`TEST (blind) decisions: ${blind.length} -- no suggestion was ever shown for these.`);
 
+  const reviewRevisions = Object.values(state).filter((s) => s.revised_at);
+  lines.push(
+    `Review-mode revisions (excluded above, both splits): ${reviewRevisions.length} -- see ` +
+    `scripts/ingest_labels.py's QA report for the by-rule breakdown.`
+  );
+
   return lines.join("\n");
 }
 
@@ -813,7 +921,27 @@ function showDone() {
   document.getElementById("content").parentElement.querySelector("#decision-bar").style.display = "none";
   document.getElementById("content").style.display = "none";
   document.getElementById("phase-banner").hidden = true;
+  document.getElementById("review-banner").hidden = true;
   document.getElementById("done-screen").style.display = "flex";
+
+  if (REVIEW_MODE) {
+    // Review-specific summary -- the ordinary tierCounts()/assistedFlowReport() describe the
+    // WHOLE 997-pair queue, which would misreport a small hand-picked review run as "997 done".
+    const revised = order.filter((idx) => state[queue[idx].occurrence_id]?.revised_at);
+    const byRule = {};
+    for (const idx of revised) {
+      const occId = queue[idx].occurrence_id;
+      const rule = state[occId].revision_rule || "(unknown)";
+      byRule[rule] = (byRule[rule] || 0) + 1;
+    }
+    document.getElementById("done-summary").textContent =
+      `Review complete. ${revised.length}/${order.length} flagged pair(s) re-decided.`;
+    const lines = ["Revisions by rule:"];
+    for (const rule of Object.keys(byRule).sort()) lines.push(`  ${rule}: ${byRule[rule]}`);
+    document.getElementById("done-report").textContent = lines.join("\n");
+    return;
+  }
+
   const { totals, done } = tierCounts();
   const lines = Object.keys(totals).sort().map((t) => `${t}: ${done[t] || 0}/${totals[t]}`).join(" · ");
   document.getElementById("done-summary").textContent = `${Object.keys(state).length}/${queue.length} decisions recorded. ${lines}`;
@@ -834,7 +962,7 @@ function decide(answer, source) {
   const prevReason = state[item.occurrence_id]?.s_reason || null;
   const prediction = item.engine_prediction || null;
   const corrected = source === "override" && !!prediction && prediction.label !== answer;
-  state[item.occurrence_id] = {
+  const newDecision = {
     pair_id: item.pair_id,
     tier: item.tier,
     split: item.split,
@@ -847,6 +975,21 @@ function decide(answer, source) {
     ms,
     decided_at: new Date().toISOString(),
   };
+  // TASK 4 (ADR-0028 addendum #13) -- a review-mode re-decision NEVER silently overwrites the
+  // original label: `revised_from` is set to whatever answer this occurrence_id carried
+  // immediately before this call -- the current in-browser `state` if present (covers a second
+  // revision in the same sitting), otherwise the label the flagged file itself recorded at
+  // check_label_rule_consistency.py's run time (covers a fresh browser/machine with no prior
+  // localStorage for this occurrence_id). `revision_rule` names every rule/class that flagged
+  // this pair, so the audit trail explains WHY it was re-opened, not just that it was.
+  if (REVIEW_MODE) {
+    const info = reviewInfoByOcc.get(item.occurrence_id);
+    const priorAnswer = state[item.occurrence_id]?.answer ?? info?.label ?? null;
+    newDecision.revised_from = priorAnswer;
+    newDecision.revised_at = newDecision.decided_at;
+    newDecision.revision_rule = info ? info.classes.map((c) => c.rule_id).join(",") : null;
+  }
+  state[item.occurrence_id] = newDecision;
   saveState();
   if (answer === "S") {
     showReasonStrip(item.occurrence_id);
@@ -858,6 +1001,13 @@ function decide(answer, source) {
 
 function confirmSuggestion() {
   if (cursor < 0 || cursor >= order.length) return;
+  // GUARD 3 (TASK 4) -- review mode never shows a suggestion, for TEST or TRAIN_VAL alike, so
+  // there must never be a code path where pressing C confirms one during a review-mode
+  // re-decision. Checked first, independent of the TEST-blindness guard right below it.
+  if (REVIEW_MODE) {
+    toast("review mode is blind — no suggestion to confirm");
+    return;
+  }
   const item = queue[order[cursor]];
   // Belt-and-braces: confirm is a no-op on a TEST pair or a TRAIN_VAL pair with no suggestion --
   // there must never be a code path where pressing C invents or reveals a label on a TEST pair.
@@ -895,12 +1045,12 @@ function advance() {
   // (lets you review/change answers by scrolling forward manually too, via re-render).
   let next = cursor + 1;
   if (next >= order.length) {
-    const firstUndone = findNextUndone();
+    const firstUndone = REVIEW_MODE ? reviewFirstUnrevisedIndex() : findNextUndone();
     cursor = firstUndone === -1 ? order.length : firstUndone;
   } else {
     cursor = next;
   }
-  if (pilotBoundaryReached()) {
+  if (!REVIEW_MODE && pilotBoundaryReached()) {
     showPilotReport();
     return;
   }
@@ -908,15 +1058,26 @@ function advance() {
 }
 
 function undo() {
-  // Undo = clear the CURRENT item's answer and step back to the previous decided item.
-  if (cursor > 0) {
+  if (cursor <= 0) return;
+  // TASK 4 (ADR-0028 addendum #13) -- review mode NEVER deletes a decision outright: every item
+  // walked here already carried a real label before review mode even started, and the ordinary
+  // undo() below (`delete state[...]`) would erase that pre-existing label entirely, not just
+  // the in-review revision -- a silent drop the instruction explicitly forbids. Review "undo"
+  // instead just steps the cursor back so the annotator can press M/N/S again, which records
+  // another proper revised_from/revised_at/revision_rule entry (see decide()) rather than a gap.
+  if (REVIEW_MODE) {
     cursor--;
-    const item = queue[order[cursor]];
-    delete state[item.occurrence_id];
-    saveState();
     renderPair();
-    toast("undone");
+    toast("moved back — re-decide to revise again (the existing label was not deleted)");
+    return;
   }
+  // Undo = clear the CURRENT item's answer and step back to the previous decided item.
+  cursor--;
+  const item = queue[order[cursor]];
+  delete state[item.occurrence_id];
+  saveState();
+  renderPair();
+  toast("undone");
 }
 
 function toggleFlag() {
@@ -1243,6 +1404,12 @@ async function init() {
   }
 
   state = loadState();
+
+  if (REVIEW_MODE) {
+    await initReviewMode();
+    return;
+  }
+
   const seed = data.shuffle_seed || 20260915;
   order = buildOrder(seed); // also sets testBlockSize as a side effect
   // FIX 1 -- push each repeated pair_id's second showing >=100 positions after its first.
@@ -1280,6 +1447,99 @@ async function init() {
   } else {
     renderPair();
   }
+}
+
+// TASK 4 (ADR-0028 addendum #13) -- review mode's own init path. Runs AFTER the ordinary
+// queue+split fetch/merge above (so `queue` already has every item's real split/tier/
+// engine_prediction), then: (1) fetches the relabel-queue file named by `?review=`, (2) GUARD 1
+// -- forces `engine_prediction` to null on EVERY item, review-mode-wide, not just the ones being
+// walked, so there is no code path left anywhere that could read a live prediction while
+// reviewing, (3) builds `order` from ONLY the occurrence_ids that file lists, in the file's own
+// key order (deterministic -- see check_label_rule_consistency.py's own occurrence-grouping),
+// skipping the ordinary buildOrder()/spacing/pilot machinery entirely (none of it applies to a
+// small, hand-picked review subset).
+async function initReviewMode() {
+  let reviewText, reviewData;
+  try {
+    const res = await fetch(REVIEW_URL);
+    reviewText = await res.text();
+    reviewData = JSON.parse(reviewText);
+  } catch (e) {
+    document.getElementById("content").innerHTML =
+      `<div class="card">Could not load review file <code>${REVIEW_URL}</code>. Run
+      <code>scripts/check_label_rule_consistency.py</code> first to generate it.</div>`;
+    return;
+  }
+
+  // Same refusal idiom as importLabelsFromFile()'s applyImportPayload() and init()'s own
+  // missingAssignment check: a hash mismatch means this relabel-queue file was generated against
+  // a DIFFERENT queue/split than the one currently loaded (e.g. the split file was regenerated
+  // after check_label_rule_consistency.py last ran, exactly what this repo's own session did) --
+  // refuse loudly with a visible error rather than silently walking occurrence_ids that may no
+  // longer mean what the file's `classes`/`rule_id` annotations claim they mean.
+  if (reviewData.queue_sha256 !== queueSha256 || reviewData.split_sha256 !== splitSha256) {
+    document.getElementById("content").innerHTML =
+      `<div class="card">ERROR: <code>${REVIEW_URL}</code> was generated against a DIFFERENT
+      queue and/or split file than the one currently loaded (review file:
+      queue_sha256=${reviewData.queue_sha256}, split_sha256=${reviewData.split_sha256} vs.
+      current: queue_sha256=${queueSha256}, split_sha256=${splitSha256}). Re-run
+      <code>scripts/check_label_rule_consistency.py</code> to regenerate it against the current
+      files. Refusing to start rather than guess.</div>`;
+    return;
+  }
+
+  // GUARD 1 -- review-mode-wide, not just for reviewed items (see function comment above).
+  for (const item of queue) item.engine_prediction = null;
+
+  const occToIdx = new Map(queue.map((item, idx) => [item.occurrence_id, idx]));
+  const flagged = reviewData.flagged || {};
+  reviewInfoByOcc = new Map(Object.entries(flagged));
+
+  const missing = [];
+  order = [];
+  for (const occId of Object.keys(flagged)) {
+    const idx = occToIdx.get(occId);
+    if (idx === undefined) {
+      missing.push(occId);
+      continue;
+    }
+    order.push(idx);
+  }
+  testBlockSize = 0; // review mode has no TEST/TRAIN_VAL phase concept -- currentPhaseInfo() below
+
+  if (missing.length) {
+    const msg =
+      `review mode: ${missing.length} occurrence_id(s) in ${REVIEW_URL} are not in the current ` +
+      `queue (queue/relabel-queue out of sync?): ${missing.slice(0, 5).join(", ")}`;
+    console.warn(msg);
+    // Visible, not just console -- the annotator has no reason to open devtools mid-sitting, and
+    // a silently-shrunk review set is exactly the kind of gap the queue/split hash check above
+    // exists to catch at the file level; this covers the narrower per-occurrence_id case where
+    // the files match overall but an individual id still doesn't resolve.
+    document.getElementById("resume-note").textContent = msg;
+  }
+
+  if (!order.length) {
+    document.getElementById("content").innerHTML =
+      `<div class="card">Review file <code>${REVIEW_URL}</code> lists no occurrence_ids this
+      queue recognises. Nothing to review.</div>`;
+    return;
+  }
+
+  // Every item walked here already has a PRE-EXISTING decision in `state` by definition (that
+  // is why it was flagged) -- the ordinary findNextUndone()'s "no state entry yet" test would
+  // therefore see the whole review queue as already done and jump straight to the done screen.
+  // Resumability instead keys off `revised_at`: the first item in `order` that has not yet been
+  // re-decided IN review mode this file's run (i.e. carries no `revised_at`) is where a resumed
+  // sitting picks back up.
+  cursor = reviewFirstUnrevisedIndex();
+  const resumeNote = document.getElementById("resume-note");
+  const walkMsg = `REVIEW MODE — walking ${order.length} flagged pair(s) from ${REVIEW_PARAM}.`;
+  resumeNote.textContent = missing.length ? `${resumeNote.textContent} ${walkMsg}` : walkMsg;
+
+  sessionStartMs = Date.now();
+  timerHandle = setInterval(tickTimer, 1000);
+  renderPair();
 }
 
 document.addEventListener("keydown", (e) => {

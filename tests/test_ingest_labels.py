@@ -174,8 +174,11 @@ def _decision(
     corrected: bool = False,
     ms: int = 5000,
     decided_at: str = "2026-09-18T10:00:00.000Z",
+    revised_from: str | None = None,
+    revised_at: str | None = None,
+    revision_rule: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    d = {
         "pair_id": pair_id,
         "tier": tier,
         "split": split,
@@ -188,6 +191,15 @@ def _decision(
         "ms": ms,
         "decided_at": decided_at,
     }
+    # TASK 4 (ADR-0028 addendum #13) -- only present on a review-mode re-decision, same as the
+    # real tool: a fresh decision never carries these three.
+    if revised_from is not None:
+        d["revised_from"] = revised_from
+    if revised_at is not None:
+        d["revised_at"] = revised_at
+    if revision_rule is not None:
+        d["revision_rule"] = revision_rule
+    return d
 
 
 # --- 1. clean run -------------------------------------------------------------------------------
@@ -499,3 +511,281 @@ def test_partial_export_ingests_without_complaint(
     qa_text = qa_files[0].read_text(encoding="utf-8")
     # Coverage must show 1/3 decided overall, not complain about the missing 2.
     assert "Coverage" in qa_text
+
+
+# --- 6. review-mode revisions (TASK 4, ADR-0028 addendum #13) --------------------------------
+
+
+def test_review_revision_is_not_a_conflict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A review-mode re-decision changes an occurrence_id's answer BY DESIGN -- across two
+    exports (original sitting, then a later review sitting) this must merge cleanly, never be
+    refused as a conflict, and never need --resolve=latest."""
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+    export_original = ds["learned"] / "FIXTURE-export-original.json"
+    export_reviewed = ds["learned"] / "FIXTURE-export-reviewed.json"
+    _write_export(
+        export_original,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_1_0": _decision(
+                "FIXTURE_pair_trainval_1",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "M",
+                "override",
+                engine_prediction={"label": "N", "rule": "rule2_quantity_differs"},
+                corrected=True,
+                decided_at="2026-09-18T10:00:00.000Z",
+            )
+        },
+    )
+    _write_export(
+        export_reviewed,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_1_0": _decision(
+                "FIXTURE_pair_trainval_1",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "N",
+                "override",
+                engine_prediction=None,  # review mode never shows a suggestion (GUARD 1)
+                corrected=False,
+                decided_at="2026-09-21T09:00:00.000Z",
+                revised_from="M",
+                revised_at="2026-09-21T09:00:00.000Z",
+                revision_rule="rule2_quantity_differs",
+            )
+        },
+    )
+
+    # No --resolve=latest passed -- a genuine conflict would refuse (exit 1) here.
+    rc = il.main([str(export_original), str(export_reviewed)])
+    assert rc == 0
+
+    out = json.loads(ds["labels_out_path"].read_text(encoding="utf-8"))
+    decision = out["decisions"]["FIXTURE_pair_trainval_1_0"]
+    assert decision["label"] == "N"
+    assert decision["revised_from"] == "M"
+    assert decision["revision_rule"] == "rule2_quantity_differs"
+    assert decision["revised_at"] == "2026-09-21T09:00:00.000Z"
+
+    qa_files = sorted((tmp_path / "docs" / "learned").glob("phase3-label-qa-*.md"))
+    qa_text = qa_files[0].read_text(encoding="utf-8")
+    assert "Review-mode revisions" in qa_text
+    assert "Total revised: 1" in qa_text
+    assert "rule2_quantity_differs: 1" in qa_text
+
+
+def test_review_revision_where_revised_answer_disagrees_with_canonical_prediction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression for the review finding that the `corrected` cross-check recomputed
+    `expected_corrected` from the CANONICAL split-file prediction rather than trusting a
+    review-mode decision's own (always-null) engine_prediction -- which refused a revision
+    whenever the canonical suggestion happened to disagree with the revised answer.
+    FIXTURE_pair_trainval_2's canonical prediction is {"label": "M", "rule": "default_M"}; this
+    test revises it to "S", which the canonical prediction does NOT match, unlike
+    test_review_revision_is_not_a_conflict's "N" (which happens to equal its own canonical
+    prediction and therefore could not have exercised this bug)."""
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+    export_original = ds["learned"] / "FIXTURE-export-original.json"
+    export_reviewed = ds["learned"] / "FIXTURE-export-reviewed.json"
+    _write_export(
+        export_original,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_2_0": _decision(
+                "FIXTURE_pair_trainval_2",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "M",
+                "confirm",
+                engine_prediction={"label": "M", "rule": "default_M"},
+                corrected=False,
+                decided_at="2026-09-18T10:00:00.000Z",
+            )
+        },
+    )
+    _write_export(
+        export_reviewed,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_2_0": _decision(
+                "FIXTURE_pair_trainval_2",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "S",
+                "override",
+                engine_prediction=None,
+                corrected=False,
+                decided_at="2026-09-21T09:00:00.000Z",
+                revised_from="M",
+                revised_at="2026-09-21T09:00:00.000Z",
+                revision_rule="one_sided_attribute",
+            )
+        },
+    )
+
+    rc = il.main([str(export_original), str(export_reviewed)])
+    assert rc == 0
+    out = json.loads(ds["labels_out_path"].read_text(encoding="utf-8"))
+    decision = out["decisions"]["FIXTURE_pair_trainval_2_0"]
+    assert decision["label"] == "S"
+    assert decision["revised_from"] == "M"
+
+
+def test_chained_review_revision_merges_without_an_intermediate_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression for the review finding that a strict `newer.revised_from == older.answer`
+    equality check breaks the tool's own documented two-revision workflow (undo() -> re-decide
+    again): if the annotator revises M -> N -> S in one sitting but only ever exports the
+    ORIGINAL decision (M) and the FINAL one (S, `revised_from: "N"` -- the intermediate N was
+    never exported on its own), a strict equality check would see `"N" != "M"` and refuse this as
+    a genuine conflict. `_is_legitimate_revision()` must trust the later decision's `revised_from`
+    on its own, not require it to name this SPECIFIC other export's answer."""
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+    export_original = ds["learned"] / "FIXTURE-export-original.json"
+    export_final = ds["learned"] / "FIXTURE-export-final.json"
+    _write_export(
+        export_original,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_1_0": _decision(
+                "FIXTURE_pair_trainval_1",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "M",
+                "override",
+                engine_prediction={"label": "N", "rule": "rule2_quantity_differs"},
+                corrected=True,
+                decided_at="2026-09-18T10:00:00.000Z",
+            )
+        },
+    )
+    _write_export(
+        export_final,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_1_0": _decision(
+                "FIXTURE_pair_trainval_1",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "S",
+                "override",
+                engine_prediction=None,
+                corrected=False,
+                decided_at="2026-09-21T11:00:00.000Z",
+                revised_from="N",  # the intermediate revision's answer, never exported on its own
+                revised_at="2026-09-21T11:00:00.000Z",
+                revision_rule="rule2_quantity_differs",
+            )
+        },
+    )
+
+    rc = il.main([str(export_original), str(export_final)])
+    assert rc == 0
+    out = json.loads(ds["labels_out_path"].read_text(encoding="utf-8"))
+    decision = out["decisions"]["FIXTURE_pair_trainval_1_0"]
+    assert decision["label"] == "S"
+    assert decision["revised_from"] == "N"
+
+
+def test_review_revision_preserves_blind_source_on_test_pair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+    export_original = ds["learned"] / "FIXTURE-export-original.json"
+    export_reviewed = ds["learned"] / "FIXTURE-export-reviewed.json"
+    _write_export(
+        export_original,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_test_1_0": _decision(
+                "FIXTURE_pair_test_1", "blocked_retrieval_candidate", "test", "M", "blind"
+            )
+        },
+    )
+    _write_export(
+        export_reviewed,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_test_1_0": _decision(
+                "FIXTURE_pair_test_1",
+                "blocked_retrieval_candidate",
+                "test",
+                "N",
+                "blind",  # a TEST pair's source must stay "blind" even after a review revision
+                decided_at="2026-09-21T09:00:00.000Z",
+                revised_from="M",
+                revised_at="2026-09-21T09:00:00.000Z",
+                revision_rule="rule1_species_differs",
+            )
+        },
+    )
+
+    rc = il.main([str(export_original), str(export_reviewed)])
+    assert rc == 0
+    out = json.loads(ds["labels_out_path"].read_text(encoding="utf-8"))
+    decision = out["decisions"]["FIXTURE_pair_test_1_0"]
+    assert decision["label"] == "N"
+    assert decision["source"] == "blind"
+    assert decision["revised_from"] == "M"
+
+
+def test_unrelated_answer_mismatch_still_refused_as_conflict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A plain disagreement with no `revised_from` linking it to the other export's answer must
+    still be refused exactly as before -- this task must not weaken genuine conflict detection."""
+    ds = _write_synthetic_dataset(tmp_path, monkeypatch)
+    export_a = ds["learned"] / "FIXTURE-export-a.json"
+    export_b = ds["learned"] / "FIXTURE-export-b.json"
+    _write_export(
+        export_a,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_1_0": _decision(
+                "FIXTURE_pair_trainval_1",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "N",
+                "confirm",
+                engine_prediction={"label": "N", "rule": "rule2_quantity_differs"},
+                decided_at="2026-09-18T10:00:00.000Z",
+            )
+        },
+    )
+    _write_export(
+        export_b,
+        ds["queue_sha256"],
+        ds["split_sha256"],
+        {
+            "FIXTURE_pair_trainval_1_0": _decision(
+                "FIXTURE_pair_trainval_1",
+                "capacity_differs_cross_shop",
+                "train_val",
+                "M",
+                "override",
+                engine_prediction={"label": "N", "rule": "rule2_quantity_differs"},
+                corrected=True,
+                decided_at="2026-09-18T11:00:00.000Z",
+                # No revised_from -- an ordinary override, not a review-mode revision.
+            )
+        },
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        il.main([str(export_a), str(export_b)])
+    assert exc_info.value.code == 1
+    assert not ds["labels_out_path"].exists()
