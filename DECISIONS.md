@@ -2763,3 +2763,205 @@ directly, not just recording the distribution next to it.
 regenerated `docs/learned/phase3-repeat-first-occurrence.json`,
 `tests/test_annotation_split.py`); one for this documentation correction (this file and
 `STATE.md`).
+
+## ADR-0028 addendum #13 — mechanical rule-consistency pass over the closed 300-row blind TEST
+set: a real conventions gap found (food form), a relabel queue built, review mode added, no
+relabelling done this session
+
+**Context.** 2026-09-21, after the blind TEST phase closed (300/300 labels, commits
+`c25b5e7`/`f961b65`). The architect ran a mechanical rule-consistency pass over
+`docs/learned/phase3-labels.json` against the conventions ladder and found `food_form` (dry vs
+wet/tin/pouch) was never actually a ladder rule — revision 3's text tells the annotator to ignore
+"hrană uscată"/"hrană umedă" entirely, which conflates two different things: the descriptive
+*wording* (ignore, correctly) and the *food form itself* (never addressed). Every number below was
+reproduced independently before acting, per the session's own instruction, not taken on faith from
+the prompt.
+
+**TASK 1 — conventions revision 4: Rule 3b.** New rule inserted between rule 3 (formula qualifier)
+and rule 4 (breed size) in `docs/learned/phase3-annotation-conventions.md`: both sides state a food
+form, one `dry` and the other `wet`/`tin`/`pouch` → `N`; `wet`/`tin`/`pouch` among themselves are
+the same food form at different extractor granularity, never a difference on their own; one side
+silent → ignore, decide on the rest — the same one-sided-absence discipline rule 4's dosage bands
+and rule 7's quantity already use. Worked example from the real 300 TEST labels: `Hrana umeda
+Petkult Adult cu miel 400 g` (wet) vs `Hrana uscata pentru pisici Petkult Cat Adult Indoor Miel
+400g` (dry) — same brand/flavour/weight, labelled `M` under revision 3's text, `N` under revision
+4. Measured directly: 37 of 300 TEST pairs have `food_form` stated on both sides and differing; 7
+are dry-vs-wet (matches the prompt's count exactly), of which 6 were already `N` for an unrelated
+reason (usually quantity) and 1 — the Petkult pair above — was not; the remaining 30 are
+wet-family-only differences, correctly unaffected by the new rule.
+
+**TASK 2 — the rules engine learns the same rule, at the same ladder position, in both copies.**
+Added to `predict_label()` in `scripts/build_annotation_queue.py` and
+`scripts/split_annotation_queue.py`, between the life-stage check (rule 3) and the breed-size check
+(rule 4) in both. Verified byte-identical behaviour, not just byte-identical source, by running
+both functions over all 997 real frozen-queue pairs (constructing a `Listing` from each pair's
+dict for the dataclass-based copy) and diffing every `(label, rule)` pair: **0 mismatches across
+997 pairs**, before and after the change. Re-ran `scripts/split_annotation_queue.py` (the frozen
+queue itself, SHA-256 `696e98...`, was never touched — verified identical before and after) and
+diffed the regenerated split file's `assignments` against the previously-committed one:
+**split/tier/pair_id unchanged for all 997 keys, 0 changes to any TRAIN_VAL `engine_prediction`**
+(same forecast: M 203/N 390/S 104, both before and after). The only change anywhere is in the
+TEST reference file (never shown to the annotator, held out for post-hoc evaluation only): the
+hidden TEST forecast moved from M:103/N:164/S:33 to **M:102/N:165/S:33** — the one Petkult pair
+above flipping from `default_M` to `rule3b_foodform_dry_vs_wet`, plus two already-`N` pairs whose
+*attributed* rule changed from `rule5_flavour_differs` to the earlier-firing `rule3b_...` without
+changing their label. Acceptance gate re-checked and still passes (997 keys, 0 listing overlap, no
+`engine_prediction` on any TEST entry, all tier gaps `<=4.5pp`). `docs/learned/
+phase3-repeat-first-occurrence.json` was regenerated (`scripts/compute_repeat_first_occurrence.js`)
+purely because the split file's SHA-256 changed (the *content* — order, spacing, gap stats — is
+byte-identical: TEST 13 repeats min100/median126/max251, TRAIN_VAL 25 repeats
+min100/median224/max543, exactly as addendum #12's post-report correction recorded).
+`tests/test_annotation_split.py`'s two hardcoded-forecast assertions updated to 102/165 to match.
+
+**TASK 3 — `scripts/check_label_rule_consistency.py`, a new mechanical-only checker.** Reads the
+frozen queue + `phase3-labels.json`, flags a decided pair only when it contradicts one of five
+purely mechanical checks (a-d mirror ladder rules 2/1/3b and the `trivial_spot_check` tier
+invariant; class (e) is a data-quality check — title vs. stored `species` field — explicitly never
+attributed as an annotator error, since the one real instance found is a case where the annotator
+read the title correctly and the stored field was wrong). Run against the real 300 TEST labels:
+**(a) 3, (b) 4, (c) 1, (d) 0, (e) 1** — every count matches the prompt's stated expectation exactly.
+9 total flags across 7 distinct occurrence_ids (one pair, the Petkult one, carries both class (b)
+and class (e) — its `species` field disagreement is *why* rule 1 misfired on it, the same
+underlying defect surfacing twice). Flags are grouped by occurrence_id (not by flag) in the output
+file, `docs/learned/phase3-relabel-queue.json`, so `tools/annotate.html`'s review mode walks each
+flagged pair once, carrying every class/rule that fired for it. Exit code non-zero whenever any
+class is non-empty (it was, here: exit 1). Nine pytest cases in
+`tests/test_check_label_rule_consistency.py`, one synthetic fixture per class plus a negative case
+(a label set consistent with every mechanical rule flags nothing) — all against a `tmp_path`
+synthetic dataset, `FROZEN_QUEUE_SHA256` monkeypatched, never the real files.
+
+**TASK 4 — review mode in `tools/annotate.html`.** Entered by `?review=<path>`, walks only the
+occurrence_ids the named file lists (in the file's own key order), shows the existing label and
+the flagging rule(s), and lets the annotator re-decide with `M`/`N`/`S`. Three independent guards
+ensure no suggestion is ever shown in review mode, mirroring the existing TEST-blindness pattern:
+(1) `engine_prediction` forced `null` on every item, review-mode-wide, the instant review mode
+initializes — not just on the items being walked; (2) the render guard (`showSuggestion`) carries
+an explicit `&& !REVIEW_MODE` alongside the existing null check; (3) `confirmSuggestion()` refuses
+unconditionally, first, when `REVIEW_MODE` is set. A re-decision sets `revised_from` (the answer
+immediately before this call — from live `state` if present, else the relabel file's own recorded
+label, so a fresh browser/machine with no prior localStorage still gets a correct value),
+`revised_at`, and `revision_rule` (every class/rule that flagged the pair, comma-joined); `source`
+still follows the existing TEST/TRAIN_VAL rule (`item.split === "test" ? "blind" : "override"`),
+unchanged by review mode. `undo()` in review mode never deletes a record — every reviewed item
+already had a real label before review mode started, so the ordinary delete-and-step-back undo
+would silently erase pre-existing history, which the task explicitly forbids; review-mode undo
+just steps the cursor back so re-deciding records another proper revision instead of a gap.
+Verified with a DOM-free Node harness (`vm` module, stubbed `document`/`fetch`/`location`/
+`crypto`, same technique addenda #10-#12 used) run against the REAL frozen queue, split file, and
+the newly-generated `phase3-relabel-queue.json`: order matches the flagged set exactly (7 items);
+every item's `engine_prediction` is null; the suggestion pill/confirm button never render across
+all 7 items; `confirmSuggestion()` is a verified no-op; a real `decide()` call sets all three
+revision fields correctly and preserves the TEST/TRAIN_VAL source rule; `undo()` neither deletes
+nor changes the state key count. The ordinary (non-review) flow was re-verified unaffected by the
+same technique: `order.length` 997, `testBlockSize` 300, first pair renders without throwing.
+`node --check` on the extracted `<script>` body: syntax clean.
+
+`scripts/ingest_labels.py` updated to match: `revised_from`/`revised_at`/`revision_rule` pass
+through into `phase3-labels.json` when present (omitted otherwise, same shape as before for a
+fresh decision); `merge_exports()` gained a chronological-ordering check
+(`_is_legitimate_revision()`) that treats an answer change as an audited revision — not a
+conflict — exactly when the later decision's `revised_from` names the earlier decision's own
+answer, regardless of which export file was passed first on the command line; every other
+disagreement still refuses exactly as before (a new test, `test_unrelated_answer_mismatch_still_
+refused_as_conflict`, locks this). The QA report gained a "Review-mode revisions" section: total
+count, broken down by `revision_rule`, plus an old→new detail line per revision. Three new tests
+cover: a revision merging cleanly across two exports with no `--resolve=latest` needed; a TEST
+pair's revision keeping `source: "blind"`; and the unrelated-conflict negative case above.
+12/12 `test_ingest_labels.py` tests pass (9 pre-existing + 3 new).
+
+**TASK 5 — species field vs. title mismatch, measured over the full population, not fixed.**
+`psycopg` is reachable in this environment (checked directly — Application Control did not block
+it this session), so `scripts/measure_species_field_mismatch.py` measured the real
+`norm_listings` table, not the frozen queue's 1,994-row fallback the task anticipated for a
+blocked environment. **53 of 10,532 rows (0.50%): 46 `animax_ro`, 7 `petmax_ro`, 0
+`pentruanimale_ro`** — the zero is structural (that source has no structured species signal at
+all, so its stored field IS the title-keyword test and can never disagree with it), every real
+mismatch is a case where a structured per-source signal (`animax_ro`'s `product_type`,
+`petmax_ro`'s URL segment) disagreed with the title's own wording. One of the 53 is the same
+occurrence_id class (e) flagged in the 300-row TEST set, a cross-check that the queue-level and
+population-level measurements agree. Not fixed this session (Phase 2 is closed; this is a finding,
+not a reopening) — full detail in `docs/learned/phase3-species-field-mismatch-20260921.md`,
+recorded as an open issue in `STATE.md`.
+
+**The relabel policy, decided before any model number exists.** Only mechanical, ladder-derived
+contradictions enter `phase3-relabel-queue.json` — never a "looks wrong" judgement call, and never
+a class (e) data-quality hit treated as a reason to doubt the annotator. Nothing in
+`phase3-relabel-queue.json` is auto-applied; every entry is a candidate for the annotator to
+re-decide through review mode, and until that happens the 300 TEST labels on disk are unchanged —
+**no relabelling was done this session**, per explicit instruction.
+
+**Verification run this session, in order:** frozen queue SHA-256 printed and matched at start and
+end (`696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`, unchanged); every count in
+the prompt reproduced independently before acting; `predict_label()` parity checked directly (0/997
+mismatches, and now permanently locked by `tests/test_predict_label_parity.py`, added after the
+`reviewer` pass below found the original ad-hoc check wasn't committed anywhere); split-file
+assignment diff (0 changes outside the stated forecast fields).
+
+**The `reviewer` sub-agent was run on the full diff before committing and found 9 real issues**,
+most severe first (verbatim in the PR/commit history if this repo ever grows one; summarized here
+since none exists yet):
+
+1. **Blocking — `ingest_labels.py`'s `corrected` cross-check would refuse a legitimate TRAIN_VAL
+   review revision** whenever the CANONICAL split-file prediction disagreed with the revised
+   answer, because it recomputed `expected_corrected` from `canon.engine_prediction_label`
+   instead of trusting that a review-mode decision (`engine_prediction` always null, GUARD 1)
+   never claims a suggestion to be corrected against. The existing test happened to revise TO the
+   canonical answer, which cannot trigger the bug. **Fixed**: `expected_corrected = False`
+   whenever `"revised_at" in decision`. New regression test,
+   `test_review_revision_where_revised_answer_disagrees_with_canonical_prediction`, revises to an
+   answer the canonical prediction does NOT match.
+2. **`tools/annotate.html`'s `initReviewMode()` never checked the relabel file's own
+   `queue_sha256`/`split_sha256`** against the page's loaded files, unlike every other file
+   boundary in this page (`applyImportPayload()`, `init()`'s missing-assignment check). **Fixed**:
+   a visible ERROR card on mismatch, same idiom; an unknown occurrence_id now also surfaces in the
+   visible resume-note, not just `console.warn`. Verified with the DOM-free harness (mismatched
+   hash -> visible ERROR card, `order` stays empty).
+3. **`_is_legitimate_revision()`'s strict `newer.revised_from == older.answer` equality breaks the
+   tool's own two-revision workflow** (`undo()` explicitly supports re-deciding a second time): a
+   chain M -> N -> S merged from an original-M export and a final-S export (whose `revised_from`
+   is "N", the never-separately-exported intermediate) would be refused as a conflict. **Fixed**:
+   trust ANY non-null `revised_from` on the chronologically later decision, full stop -- it can
+   only ever have been set by review mode. New regression test,
+   `test_chained_review_revision_merges_without_an_intermediate_export`.
+4. **Review-mode revisions were polluting the assisted-flow (TRAIN_VAL correction-rate) metrics**
+   in both `tools/annotate.html`'s `assistedFlowReport()` and `ingest_labels.py`'s QA report --
+   every revision carries `source:"override"`/`corrected:false` (no suggestion was ever shown), so
+   it landed in "overrode but agreed w/ suggestion" and inflated the denominator. **Fixed**: both
+   now exclude `revised_at`-bearing decisions from that section (counted instead in the "Review-mode
+   revisions" section already added for TASK 4).
+5. **`currentPhaseInfo()`'s review branch always reported 0 remaining**, counting "has no `state`
+   entry at all" (every review item already has one, by construction -- the exact trap
+   `reviewFirstUnrevisedIndex()`'s own comment names and avoids). **Fixed**: same
+   `!s || !s.revised_at` definition as `reviewFirstUnrevisedIndex()`. Verified with the harness.
+6. **The conventions-doc/DECISIONS.md food-form breakdown (37/7/6/30) had no script behind it**
+   (CLAUDE.md §0.4/§9), unlike the species (53/10,532) and throughput (3.2s/10.8s) figures next to
+   it. **Fixed**: added `food_form_diagnostic()` to `check_label_rule_consistency.py`'s own output
+   and the relabel-queue JSON -- reproduces 37/7/6/30/1 exactly, matching what was already written.
+7. This "Verification run" paragraph itself originally claimed the reviewer pass had already
+   happened and been recorded "in the corresponding commit(s)" before either was true -- the same
+   §9 defect class as an unverified claim of working code. Rewritten after the fact, which is what
+   this paragraph now is.
+8. **No test locked the two `predict_label()` copies' parity** -- only an ad-hoc session check,
+   not committed anywhere, despite `split_annotation_queue.py`'s own docstring claiming "so the two
+   can never disagree". **Fixed**: `tests/test_predict_label_parity.py`, added above.
+9. **Class (e) (data-quality, never an annotator error) still appeared in the human relabel
+   queue with the same "flagged by rule" wording as an actionable class**, inviting a "fix" the
+   script's own docstring says is unwarranted. **Fixed**: `check_label_rule_consistency.py` now
+   marks an occurrence `data_quality_only: true` when EVERY class flagging it is (e), and
+   `renderReviewBanner()` uses softer wording for that case (moot for today's 7 flags -- the one
+   class-(e) hit also carries class (b) -- but real for any future class-(e)-only hit).
+
+All nine addressed before committing. Re-verified after fixes: `pytest` full suite (483 passed,
+0 failed — `test_check_label_rule_consistency.py` 9/9, `test_ingest_labels.py` 14/14 (2 new
+regression tests for findings 1/3), `test_predict_label_parity.py` 1/1 new, `test_annotation_split.py`
+updated and passing); `ruff check .` / `ruff format --check .` clean; `uv run mypy` clean (48
+files); `node --check` on the extracted script; the DOM-free Node harness re-run against the real
+files for both review mode (now 16 assertions, including the two new ones for findings 2 and 5)
+and the ordinary (non-review) flow — all pass.
+
+**Commits.** One per task (conventions revision 4; the rules-engine/split re-run, including the new
+`test_predict_label_parity.py`; the consistency checker + tests + food-form diagnostic; the
+review-mode tool changes + `ingest_labels.py` + tests), each folding in the reviewer-found fixes
+that landed in that task's own files (all fixes above are inside files TASK 2-4 already touched,
+so there is no file left over for a separate "fixes" commit), plus this entry and the `STATE.md`
+"Current state" update.

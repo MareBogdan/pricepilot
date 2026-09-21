@@ -4,8 +4,8 @@ Phase: 1 — Collection (still open — gate met except 7-consecutive-days, pure
 to decide), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open since
 2026-09-15.**
 
-**Current state, 2026-09-18 — read this paragraph first; the session-by-session narrative below
-is history, not status.** Phase 3 items 1 and 2 of CLAUDE.md §7 are done: candidate retrieval is
+**Current state, 2026-09-21 (updated from 2026-09-18) — read this paragraph first; the
+session-by-session narrative below is history, not status.** Phase 3 items 1 and 2 of CLAUDE.md §7 are done: candidate retrieval is
 built and **closed at recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%]** — a
 measurement-power finding, neither "met" nor "missed": the >=90% target sits inside the interval
 and separating 88% from 90% would need ~1,000 verified positive pairs (~27,000 draws at this
@@ -71,13 +71,61 @@ passing). Tier proportions of each block's first 100 vs. its own full compositio
 why the original verification missed it: DECISIONS.md ADR-0028 addendum #12, "Post-report
 correction."
 
-**The next action in this project is Bogdan labelling.** Nothing is blocked on architecture, on
-retrieval, or on Claude Code. CLAUDE.md §7 item 3 — "the user annotates 800-1,000 pairs manually
-... it is not generated, it is labelled" — is UNMET, and no AI-labelled pair may enter any split.
+**The blind TEST phase is CLOSED (300/300 labels, ingested and QA-reported — commits
+`c25b5e7`/`f961b65`, before this session).** Frozen queue SHA-256 unchanged throughout:
+`696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`. TRAIN_VAL (697 rows) has ZERO
+decisions — labelling is paused there, not resumed this session either.
+
+**2026-09-21 session (ADR-0028 addendum #13) — mechanical rule-consistency pass over the 300 TEST
+labels, no relabelling done.** Found a real gap in conventions revision 3: `food_form` (dry vs
+wet/tin/pouch) was never a ladder rule, only a descriptive qualifier to ignore — added as **Rule
+3b** (revision 4 of `docs/learned/phase3-annotation-conventions.md`), wired into both
+`predict_label()` copies (`scripts/build_annotation_queue.py`,
+`scripts/split_annotation_queue.py`, verified byte-identical output across all 997 pairs) at the
+same ladder position, byte-identical logic. Re-ran `scripts/split_annotation_queue.py`: the
+TEST/TRAIN_VAL assignment is **UNCHANGED for all 997 occurrence_ids** (diffed against the
+previously-committed split file) — only the TEST forecast (hidden reference file only, never
+shown to the annotator) moved M:103→102/N:164→165, and 0 TRAIN_VAL suggestions changed. New
+`scripts/check_label_rule_consistency.py` flags decided pairs that mechanically contradict a
+purely mechanical rule — run against the real 300 TEST labels: **(a) quantity-differs-but-M 3,
+(b) species-differs-but-M 4, (c) foodform-dry-vs-wet-but-M 1, (d) trivial_spot_check-not-M 0, (e)
+title/field species mismatch 1** (never counted as an annotator error — see below), 9 flags across
+7 distinct occurrence_ids, written to `docs/learned/phase3-relabel-queue.json`. Added a review
+mode to `tools/annotate.html` (`?review=docs/learned/phase3-relabel-queue.json`) that walks only
+those occurrence_ids, shows the existing label and flagging rule, and lets the annotator
+re-decide — never shows a suggestion (three independent guards, verified with a DOM-free Node
+harness against the real files, same technique addendum #10-#12 used), keeps TEST decisions
+`source: "blind"`, and records `revised_from`/`revised_at`/`revision_rule` so the audit trail
+survives into the export; `undo()` in review mode never deletes the pre-existing label.
+`scripts/ingest_labels.py` now accepts and preserves those three fields, treats a
+`revised_from`-linked answer change as an audited revision rather than an export conflict (new
+`merge_exports()` branch, tested against both the revision case and an ordinary unrelated
+conflict, which still refuses exactly as before), and reports revision counts by rule in the QA
+report. **Nothing has actually been relabelled yet** — the relabel queue is a to-do list, not a
+correction; TASK 5 additionally measured class (e)'s check over the whole `norm_listings`
+population (`scripts/measure_species_field_mismatch.py`, DB reachable, no fallback needed): **53
+of 10,532 rows (0.50%) — 46 `animax_ro`, 7 `petmax_ro`, 0 `pentruanimale_ro`** — a `species`
+extraction defect, not a labelling error (full detail: `docs/learned/
+phase3-species-field-mismatch-20260921.md`, open issue below). **The `reviewer` sub-agent ran on
+the full diff before committing and found 9 real issues** (a blocking one: `ingest_labels.py`
+would have refused a legitimate TRAIN_VAL review revision whenever the canonical rules-engine
+prediction disagreed with the revised answer; plus a missing hash check in review mode, a
+revision-chain edge case, two metrics review revisions would have polluted, and others) — all
+fixed and re-verified before committing, two new regression tests added, a third new test file
+(`tests/test_predict_label_parity.py`) added to lock a parity claim that previously had no test.
+Full detail and rejected alternatives: DECISIONS.md ADR-0028 addendum #13.
+
+**The next action in this project is Bogdan labelling TRAIN_VAL** (697 rows, assisted, 0 done),
+optionally preceded by a short review-mode pass over the 7 occurrence_ids in
+`phase3-relabel-queue.json` (`tools/annotate.html?review=docs/learned/phase3-relabel-queue.json`).
+Nothing is blocked on architecture, on retrieval, or on Claude Code. CLAUDE.md §7 item 3 — "the
+user annotates 800-1,000 pairs manually ... it is not generated, it is labelled" — is UNMET for
+TRAIN_VAL, and no AI-labelled pair may enter any split.
 `docs/learned/phase3-pilot100-ai-reference-pass.json` holds 100 AI labels for measurement only
-and is not training data. Two things stay unmeasured until Bogdan labels: his real throughput
-(CLAUDE.md §7's 200 pairs/hour has never been tested — the full run may be 5 hours or 12) and the
-human S rate.
+and is not training data. Blind throughput is now measured (300 TEST decisions: median 3.2s,
+p90 10.8s — well inside CLAUDE.md §7's 200/hour = 18s/decision target,
+`docs/learned/phase3-label-qa-20260921.md`); the assisted TRAIN_VAL pace (suggestion shown,
+`C`-confirm available) is a different flow and stays unmeasured until Bogdan labels there.
 
 Phase 3, 2026-09-15 session, in order: built a retrieval evaluation set independent of embeddings
 (142 known-positive pairs — 26 browser-verified + 116 plausibility-checked proxy-key collisions),
@@ -885,6 +933,23 @@ N 53 / S 14, agreement 80/100. Full detail:
 
 ## Open issues
 
+- **Flagged 2026-09-21 (ADR-0028 addendum #13, TASK 5): `species` field disagrees with its own
+  title on 53/10,532 `norm_listings` rows (0.50%)** — 46 `animax_ro`, 7 `petmax_ro`, 0
+  `pentruanimale_ro` (structurally impossible there — see below). A `normalize/species.py`
+  extraction defect, found by `scripts/check_label_rule_consistency.py`'s class (e) on the 300-row
+  TEST label set (1 instance, `3f574dad8b6e...`) and then measured over the whole population by
+  `scripts/measure_species_field_mismatch.py`. Every mismatch is a case where `animax_ro`'s
+  `raw_payload["product_type"]` or `petmax_ro`'s URL path segment (the STRUCTURED per-source
+  signal `classify_species()` trusts ahead of the title) disagreed with what the title itself
+  says; `pentruanimale_ro` has no structured signal at all, so its stored field IS the title
+  keyword test and can never disagree with it by construction. **Not fixed this session — Phase 2
+  is closed, this is a recorded finding, not a reopening.** Full detail, methodology and examples:
+  `docs/learned/phase3-species-field-mismatch-20260921.md`. Matters most for Phase 3's rule 1
+  (species-differs): a wrong `species` field can silently suppress a real cross-species `N` the
+  annotator would have caught reading the actual title, and worth reconsidering before Phase 3
+  fine-tuning leans on the field again — but no evidence yet that it changed any of the 300 TEST
+  labels themselves (the one overlapping instance was already correctly labelled `M` by the
+  annotator, reading the real title, not the wrong field).
 - **Flagged 2026-09-17: `sentence-transformers` is the second library this machine's Windows
   Application Control policy blocks outright (after `psycopg`, flagged earlier).** Worked around
   for a plain embedding forward pass this session (`transformers` directly + a `sklearn` stub —
