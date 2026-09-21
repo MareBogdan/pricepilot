@@ -126,7 +126,7 @@ _LIFE_STAGE_GROUP = {"puppy": "young", "junior": "young", "adult": "adult", "sen
 
 
 # --- predict_label(), ported verbatim from build_annotation_queue.py (same ladder, same
-# conventions.md revision 3) so the TRAIN_VAL suggestion and the frozen queue's own
+# conventions.md revision 4) so the TRAIN_VAL suggestion and the frozen queue's own
 # `predicted_label_forecast` can never disagree on what the rules engine says for a given pair. ---
 def _quantity_tuple(listing: dict[str, Any]) -> tuple[Any, Any, Any, Any]:
     pack = listing["pack_count"] if listing["pack_count"] is not None else 1
@@ -159,6 +159,16 @@ def predict_label(left: dict[str, Any], right: dict[str, Any]) -> tuple[str, str
         rg = _LIFE_STAGE_GROUP.get(right["life_stage"], right["life_stage"])
         if lg != rg:
             return "N", "rule3_lifestage_differs"
+
+    # Rule 3b — food form (conventions revision 4, 2026-09-21 mechanical rule-consistency pass).
+    # dry vs wet/tin/pouch is a product difference (a kibble bag and a pouch/tin are physically
+    # different SKUs); wet/tin/pouch are the same food form at different extractor granularity and
+    # never a difference on their own. One-sided (either side null) falls through untouched.
+    if left["food_form"] and right["food_form"]:
+        l_dry = left["food_form"] == "dry"
+        r_dry = right["food_form"] == "dry"
+        if l_dry != r_dry:
+            return "N", "rule3b_foodform_dry_vs_wet"
 
     if breed_size_overlaps(left["breed_size_code"], right["breed_size_code"]) is False:
         return "N", "rule4_breedsize_differs"

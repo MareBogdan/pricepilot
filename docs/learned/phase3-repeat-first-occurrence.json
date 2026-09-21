@@ -2,7 +2,7 @@
  "built_from": "scripts/compute_repeat_first_occurrence.js, executing the REAL tools/annotate.html display-order logic (buildOrder + ensureRepeatFirstOccurrencesFit + enforceRepeatSpacing + assertRepeatSpacing) against the committed queue+split files -- not a re-implementation, to avoid the two ever silently disagreeing (see this file's own module docstring)",
  "purpose": "ADR-0028 addendum #12 rule 2: for a repeated pair, the evaluation label is the FIRST decision in DISPLAY order, not file order. This file names which occurrence_id that is, for each of the 38 repeated pair_ids, and records the gap between the two occurrences (ADR-0028 addendum #12 defect fix: every gap here is >= 100 by construction, checked by assertRepeatSpacing() at generation time and locked by tests/test_annotation_split.py).",
  "queue_sha256": "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011",
- "split_sha256": "83c6b0e3e96dbc56c93ab5c5534f052bfcff12e63d363c997456d12dc9023e09",
+ "split_sha256": "a9a4c7583215769c8053d148b65525b88d8ebf0ed9d345cd82d3fa9d68280c29",
  "shuffle_seed": 20260915,
  "repeat_pair_count": 38,
  "gap_stats": {

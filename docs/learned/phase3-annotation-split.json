@@ -103,8 +103,8 @@
   "per_tier_ci_discipline": "any per-tier figure (TEST counts span 14-86 pairs) must be reported with its denominator and a Wilson 95% CI, never a bare percentage -- the same discipline already applied to recall@20's 88% [76.2%, 94.4%].",
   "predicted_label_forecast_by_split": {
    "test": {
-    "M": 103,
-    "N": 164,
+    "M": 102,
+    "N": 165,
     "S": 33,
     "of_rows": 300
    },

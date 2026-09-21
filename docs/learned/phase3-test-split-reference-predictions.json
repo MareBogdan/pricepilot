@@ -291,8 +291,8 @@
   "8faf2a4c707f_4b87cb304758_0": {
    "pair_id": "8faf2a4c707f_4b87cb304758",
    "engine_prediction": {
-    "label": "M",
-    "rule": "default_M"
+    "label": "N",
+    "rule": "rule3b_foodform_dry_vs_wet"
    }
   },
   "b525800f07cc_7da46dd4087c_0": {
@@ -565,7 +565,7 @@
    "pair_id": "3a91b36a71c1_48c70b7d8577",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule5_flavour_differs"
+    "rule": "rule3b_foodform_dry_vs_wet"
    }
   },
   "0d008008050b_cfcc39876672_0": {
@@ -1188,7 +1188,7 @@
    "pair_id": "8c80b96b7fac_9b85d923618f",
    "engine_prediction": {
     "label": "N",
-    "rule": "rule5_flavour_differs"
+    "rule": "rule3b_foodform_dry_vs_wet"
    }
   },
   "458febbc891a_4ebe58fd8baf_0": {

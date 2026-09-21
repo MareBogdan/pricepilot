@@ -447,6 +447,16 @@ def predict_label(left: Listing, right: Listing) -> tuple[str, str]:
         if lg != rg:
             return "N", "rule3_lifestage_differs"
 
+    # Rule 3b — food form (conventions revision 4, 2026-09-21 mechanical rule-consistency pass).
+    # dry vs wet/tin/pouch is a product difference (a kibble bag and a pouch/tin are physically
+    # different SKUs); wet/tin/pouch are the same food form at different extractor granularity and
+    # never a difference on their own. One-sided (either side null) falls through untouched.
+    if left.food_form and right.food_form:
+        l_dry = left.food_form == "dry"
+        r_dry = right.food_form == "dry"
+        if l_dry != r_dry:
+            return "N", "rule3b_foodform_dry_vs_wet"
+
     # Rule 4 — breed size differs. Finding 5 (2026-09-15 session): compares the CANONICAL rank
     # interval (`breed_size_class`/`breed_size_overlaps`), not the raw string — "Medium" and "M"
     # are the same size (a real cross-shop match, pilot 12) and a raw-string check would wrongly

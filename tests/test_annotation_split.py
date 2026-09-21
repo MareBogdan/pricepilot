@@ -348,8 +348,10 @@ def test_split_file_carries_evaluation_rules_block() -> None:
     assert rules["repeat_reporting_tier"] == "proxy_key_collision"
     assert rules["trivial_spot_check_test_standalone_pair_ids"] == 2
     assert rules["predicted_label_forecast_by_split"]["test"] == {
-        "M": 103,
-        "N": 164,
+        # conventions revision 4 / ADR-0028 addendum #13 -- rule 3b (food form) flips one pair's
+        # forecast from M to N (previously M:103/N:164).
+        "M": 102,
+        "N": 165,
         "S": 33,
         "of_rows": 300,
     }
