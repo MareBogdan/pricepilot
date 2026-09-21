@@ -1,0 +1,1016 @@
+{
+ "built_from": "scripts/ingest_labels.py, merging tools/annotate.html label exports against the FROZEN queue + committed split file",
+ "queue_sha256": "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011",
+ "split_sha256": "83c6b0e3e96dbc56c93ab5c5534f052bfcff12e63d363c997456d12dc9023e09",
+ "ingested_at": "2026-09-21T15:07:52.216302+00:00",
+ "source_files": [
+  {
+   "path": "docs/learned/labels/phase3-labels-20260921-1807.json",
+   "decision_count_in_file": 100,
+   "exported_at": "2026-09-21T15:07:15.806Z"
+  }
+ ],
+ "decision_count": 100,
+ "decisions": {
+  "4b87cb304758_c556c1640cef_0": {
+   "pair_id": "4b87cb304758_c556c1640cef",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 113953,
+   "decided_at": "2026-09-21T14:54:46.475Z"
+  },
+  "3841e4ee73ef_acf8ff85a6ce_0": {
+   "pair_id": "3841e4ee73ef_acf8ff85a6ce",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 53695,
+   "decided_at": "2026-09-21T14:55:40.170Z"
+  },
+  "80bb9135e4f2_b4ed4378826f_0": {
+   "pair_id": "80bb9135e4f2_b4ed4378826f",
+   "label": "M",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 6267,
+   "decided_at": "2026-09-21T14:55:46.437Z"
+  },
+  "79e1835fe2b5_b00b309bd8c4_0": {
+   "pair_id": "79e1835fe2b5_b00b309bd8c4",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 6277,
+   "decided_at": "2026-09-21T14:55:52.714Z"
+  },
+  "3e9da6f6ccff_be33d2321c1b_0": {
+   "pair_id": "3e9da6f6ccff_be33d2321c1b",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 8731,
+   "decided_at": "2026-09-21T14:56:01.445Z"
+  },
+  "2f17cd43ea4f_9c36accdc5d0_0": {
+   "pair_id": "2f17cd43ea4f_9c36accdc5d0",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2827,
+   "decided_at": "2026-09-21T14:56:04.273Z"
+  },
+  "39b24e4f4cbf_65e9aff77e81_0": {
+   "pair_id": "39b24e4f4cbf_65e9aff77e81",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3848,
+   "decided_at": "2026-09-21T14:56:08.122Z"
+  },
+  "70ec8132ff2b_79e1835fe2b5_0": {
+   "pair_id": "70ec8132ff2b_79e1835fe2b5",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_lifestage",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3909,
+   "decided_at": "2026-09-21T14:56:12.031Z"
+  },
+  "523714647355_65e9aff77e81_0": {
+   "pair_id": "523714647355_65e9aff77e81",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 6374,
+   "decided_at": "2026-09-21T14:56:18.406Z"
+  },
+  "31b7920d544b_bdd58b334b2c_0": {
+   "pair_id": "31b7920d544b_bdd58b334b2c",
+   "label": "N",
+   "split": "test",
+   "tier": "diff_brand_similar_title",
+   "source": "blind",
+   "corrected": false,
+   "ms": 10400,
+   "decided_at": "2026-09-21T14:56:28.806Z"
+  },
+  "8a863350ba8b_acf8ff85a6ce_0": {
+   "pair_id": "8a863350ba8b_acf8ff85a6ce",
+   "label": "M",
+   "split": "test",
+   "tier": "trivial_spot_check",
+   "source": "blind",
+   "corrected": false,
+   "ms": 5950,
+   "decided_at": "2026-09-21T14:56:34.756Z"
+  },
+  "ecc2bc5ca5cf_fa9671cb4e54_0": {
+   "pair_id": "ecc2bc5ca5cf_fa9671cb4e54",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_breedsize",
+   "source": "blind",
+   "corrected": false,
+   "ms": 8885,
+   "decided_at": "2026-09-21T14:56:43.641Z"
+  },
+  "1f25d9a8f6a1_2155b541d27e_0": {
+   "pair_id": "1f25d9a8f6a1_2155b541d27e",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3684,
+   "decided_at": "2026-09-21T14:56:47.325Z"
+  },
+  "b018d42abb15_28acf769dd96_0": {
+   "pair_id": "b018d42abb15_28acf769dd96",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 9569,
+   "decided_at": "2026-09-21T14:56:56.894Z"
+  },
+  "9b85d923618f_b89523f6edb7_0": {
+   "pair_id": "9b85d923618f_b89523f6edb7",
+   "label": "N",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 8406,
+   "decided_at": "2026-09-21T14:57:05.301Z"
+  },
+  "458febbc891a_4ebe58fd8baf_0": {
+   "pair_id": "458febbc891a_4ebe58fd8baf",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3536,
+   "decided_at": "2026-09-21T14:57:08.838Z"
+  },
+  "3a902c0ebf84_72b31032505e_0": {
+   "pair_id": "3a902c0ebf84_72b31032505e",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2801,
+   "decided_at": "2026-09-21T14:57:11.640Z"
+  },
+  "72b31032505e_8a63ed923ac9_0": {
+   "pair_id": "72b31032505e_8a63ed923ac9",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2624,
+   "decided_at": "2026-09-21T14:57:14.265Z"
+  },
+  "37bdf7ea04fa_5bd2eaa71f6d_0": {
+   "pair_id": "37bdf7ea04fa_5bd2eaa71f6d",
+   "label": "N",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1661,
+   "decided_at": "2026-09-21T14:57:15.926Z"
+  },
+  "2e13ca5f4269_6356d8c97fe4_0": {
+   "pair_id": "2e13ca5f4269_6356d8c97fe4",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2670,
+   "decided_at": "2026-09-21T14:57:18.597Z"
+  },
+  "82c9c4aea9e7_9a66cd082c57_0": {
+   "pair_id": "82c9c4aea9e7_9a66cd082c57",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2220,
+   "decided_at": "2026-09-21T14:57:20.817Z"
+  },
+  "617618c67b89_f451658b69fe_0": {
+   "pair_id": "617618c67b89_f451658b69fe",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1186,
+   "decided_at": "2026-09-21T14:57:22.004Z"
+  },
+  "4ebe58fd8baf_e78f8525c049_0": {
+   "pair_id": "4ebe58fd8baf_e78f8525c049",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_lifestage",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1433,
+   "decided_at": "2026-09-21T14:57:23.438Z"
+  },
+  "1a712f712e96_b9192a88311c_0": {
+   "pair_id": "1a712f712e96_b9192a88311c",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 5673,
+   "decided_at": "2026-09-21T14:57:29.112Z"
+  },
+  "6776ceceb41a_ccd11a228a5d_0": {
+   "pair_id": "6776ceceb41a_ccd11a228a5d",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 4527,
+   "decided_at": "2026-09-21T14:57:33.640Z"
+  },
+  "43bb543a4d3c_e9156ff33a7b_0": {
+   "pair_id": "43bb543a4d3c_e9156ff33a7b",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2574,
+   "decided_at": "2026-09-21T14:57:36.215Z"
+  },
+  "4d63c226009b_ecb98201aba3_0": {
+   "pair_id": "4d63c226009b_ecb98201aba3",
+   "label": "N",
+   "split": "test",
+   "tier": "diff_brand_similar_title",
+   "source": "blind",
+   "corrected": false,
+   "ms": 10022,
+   "decided_at": "2026-09-21T14:57:46.238Z"
+  },
+  "4d9abdd1155a_3b6dd195dd27_0": {
+   "pair_id": "4d9abdd1155a_3b6dd195dd27",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 5708,
+   "decided_at": "2026-09-21T14:57:51.947Z"
+  },
+  "011d2aef1c51_9525e9cb55fc_0": {
+   "pair_id": "011d2aef1c51_9525e9cb55fc",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 7974,
+   "decided_at": "2026-09-21T14:57:59.922Z"
+  },
+  "34c3ca18a10b_70710182dac0_0": {
+   "pair_id": "34c3ca18a10b_70710182dac0",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 5881,
+   "decided_at": "2026-09-21T14:58:05.804Z"
+  },
+  "39b24e4f4cbf_7ee41572ef18_1": {
+   "pair_id": "39b24e4f4cbf_7ee41572ef18",
+   "label": "M",
+   "split": "test",
+   "tier": "trivial_spot_check",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1868,
+   "decided_at": "2026-09-21T14:58:07.673Z"
+  },
+  "4d63c226009b_ff26d2f8936e_0": {
+   "pair_id": "4d63c226009b_ff26d2f8936e",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1770,
+   "decided_at": "2026-09-21T14:58:09.444Z"
+  },
+  "bedf3e4ede5a_cbbf5af9323c_0": {
+   "pair_id": "bedf3e4ede5a_cbbf5af9323c",
+   "label": "M",
+   "split": "test",
+   "tier": "same_capacity_diff_breedsize",
+   "source": "blind",
+   "corrected": false,
+   "ms": 13765,
+   "decided_at": "2026-09-21T14:58:23.209Z"
+  },
+  "42fee5310ce7_8a720ce00243_0": {
+   "pair_id": "42fee5310ce7_8a720ce00243",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2195,
+   "decided_at": "2026-09-21T14:58:25.405Z"
+  },
+  "198c154498ed_f1f58ea34bc9_0": {
+   "pair_id": "198c154498ed_f1f58ea34bc9",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1487,
+   "decided_at": "2026-09-21T14:58:26.892Z"
+  },
+  "2155b541d27e_30ec46eeb06d_0": {
+   "pair_id": "2155b541d27e_30ec46eeb06d",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1364,
+   "decided_at": "2026-09-21T14:58:28.257Z"
+  },
+  "ad4dbcc1a913_9a8b2207ee41_0": {
+   "pair_id": "ad4dbcc1a913_9a8b2207ee41",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1507,
+   "decided_at": "2026-09-21T14:58:29.765Z"
+  },
+  "204386d38023_9e9ed57fd44e_0": {
+   "pair_id": "204386d38023_9e9ed57fd44e",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3703,
+   "decided_at": "2026-09-21T14:58:33.468Z"
+  },
+  "80bb9135e4f2_acf8ff85a6ce_0": {
+   "pair_id": "80bb9135e4f2_acf8ff85a6ce",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_lifestage",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3015,
+   "decided_at": "2026-09-21T14:58:36.484Z"
+  },
+  "45d78c52ceb8_e78f8525c049_0": {
+   "pair_id": "45d78c52ceb8_e78f8525c049",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1811,
+   "decided_at": "2026-09-21T14:58:38.296Z"
+  },
+  "0aa64e7141e9_bf7fae4b15b4_0": {
+   "pair_id": "0aa64e7141e9_bf7fae4b15b4",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1428,
+   "decided_at": "2026-09-21T14:58:39.724Z"
+  },
+  "4a9ee8d65177_65e9aff77e81_0": {
+   "pair_id": "4a9ee8d65177_65e9aff77e81",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1635,
+   "decided_at": "2026-09-21T14:58:41.360Z"
+  },
+  "03c89d94a8c8_c919165d92e3_0": {
+   "pair_id": "03c89d94a8c8_c919165d92e3",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3394,
+   "decided_at": "2026-09-21T14:58:44.755Z"
+  },
+  "b018d42abb15_d65d8a447463_0": {
+   "pair_id": "b018d42abb15_d65d8a447463",
+   "label": "M",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 12775,
+   "decided_at": "2026-09-21T14:58:57.531Z"
+  },
+  "65e9aff77e81_a73e323f9787_0": {
+   "pair_id": "65e9aff77e81_a73e323f9787",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1658,
+   "decided_at": "2026-09-21T14:58:59.189Z"
+  },
+  "0f1bbd9e204c_b0574edec4df_0": {
+   "pair_id": "0f1bbd9e204c_b0574edec4df",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1170,
+   "decided_at": "2026-09-21T14:59:00.360Z"
+  },
+  "4ad034f3660c_9d932a3d47a5_0": {
+   "pair_id": "4ad034f3660c_9d932a3d47a5",
+   "label": "N",
+   "split": "test",
+   "tier": "diff_brand_similar_title",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3856,
+   "decided_at": "2026-09-21T14:59:04.216Z"
+  },
+  "b00b309bd8c4_b277fbd57ceb_0": {
+   "pair_id": "b00b309bd8c4_b277fbd57ceb",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2429,
+   "decided_at": "2026-09-21T14:59:06.645Z"
+  },
+  "37bdf7ea04fa_45d78c52ceb8_0": {
+   "pair_id": "37bdf7ea04fa_45d78c52ceb8",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3669,
+   "decided_at": "2026-09-21T14:59:10.315Z"
+  },
+  "849c8c66908e_97a5d666acd4_1": {
+   "pair_id": "849c8c66908e_97a5d666acd4",
+   "label": "M",
+   "split": "test",
+   "tier": "trivial_spot_check",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1045,
+   "decided_at": "2026-09-21T14:59:11.361Z"
+  },
+  "07014717d472_b3a7c37ff84f_0": {
+   "pair_id": "07014717d472_b3a7c37ff84f",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2004,
+   "decided_at": "2026-09-21T14:59:13.366Z"
+  },
+  "153c7e549d19_c054e709fc27_0": {
+   "pair_id": "153c7e549d19_c054e709fc27",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 7788,
+   "decided_at": "2026-09-21T14:59:21.154Z"
+  },
+  "0d1b95628ed0_8253b75f84d4_0": {
+   "pair_id": "0d1b95628ed0_8253b75f84d4",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_lifestage",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2158,
+   "decided_at": "2026-09-21T14:59:23.313Z"
+  },
+  "8faf2a4c707f_4b87cb304758_0": {
+   "pair_id": "8faf2a4c707f_4b87cb304758",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1727,
+   "decided_at": "2026-09-21T14:59:25.040Z"
+  },
+  "4d9abdd1155a_93c12e9aee45_0": {
+   "pair_id": "4d9abdd1155a_93c12e9aee45",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_breedsize",
+   "source": "blind",
+   "corrected": false,
+   "ms": 6214,
+   "decided_at": "2026-09-21T14:59:31.255Z"
+  },
+  "77de3ab88bf1_bbe7b649cf73_0": {
+   "pair_id": "77de3ab88bf1_bbe7b649cf73",
+   "label": "N",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 14512,
+   "decided_at": "2026-09-21T14:59:45.767Z"
+  },
+  "3841e4ee73ef_57beb5e9e5ad_0": {
+   "pair_id": "3841e4ee73ef_57beb5e9e5ad",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1307,
+   "decided_at": "2026-09-21T14:59:47.075Z"
+  },
+  "228bac86aa61_f75e11bc28ed_0": {
+   "pair_id": "228bac86aa61_f75e11bc28ed",
+   "label": "N",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 5153,
+   "decided_at": "2026-09-21T14:59:52.228Z"
+  },
+  "8eec308f7a7b_dc2add6543f4_0": {
+   "pair_id": "8eec308f7a7b_dc2add6543f4",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 4492,
+   "decided_at": "2026-09-21T14:59:56.722Z"
+  },
+  "4a9ee8d65177_d421baa2c85c_0": {
+   "pair_id": "4a9ee8d65177_d421baa2c85c",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1581,
+   "decided_at": "2026-09-21T14:59:58.304Z"
+  },
+  "d6762681f478_b360bd415ab6_0": {
+   "pair_id": "d6762681f478_b360bd415ab6",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 6484,
+   "decided_at": "2026-09-21T15:00:04.789Z"
+  },
+  "0430382e0b69_be66fdf59608_0": {
+   "pair_id": "0430382e0b69_be66fdf59608",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 4122,
+   "decided_at": "2026-09-21T15:00:08.912Z"
+  },
+  "3a91b36a71c1_48c70b7d8577_0": {
+   "pair_id": "3a91b36a71c1_48c70b7d8577",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 10475,
+   "decided_at": "2026-09-21T15:00:19.388Z"
+  },
+  "006fb9eb7e29_458febbc891a_0": {
+   "pair_id": "006fb9eb7e29_458febbc891a",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1833,
+   "decided_at": "2026-09-21T15:00:21.221Z"
+  },
+  "794cdac35490_f451658b69fe_1": {
+   "pair_id": "794cdac35490_f451658b69fe",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1246,
+   "decided_at": "2026-09-21T15:00:22.468Z"
+  },
+  "1ecde7890f3e_31b7920d544b_0": {
+   "pair_id": "1ecde7890f3e_31b7920d544b",
+   "label": "N",
+   "split": "test",
+   "tier": "diff_brand_similar_title",
+   "source": "blind",
+   "corrected": false,
+   "ms": 4998,
+   "decided_at": "2026-09-21T15:00:27.467Z"
+  },
+  "3b55967781dd_ac3b2ff9c5a0_0": {
+   "pair_id": "3b55967781dd_ac3b2ff9c5a0",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_lifestage",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2929,
+   "decided_at": "2026-09-21T15:00:30.397Z"
+  },
+  "7151ce30247c_bae7a3ec2db1_0": {
+   "pair_id": "7151ce30247c_bae7a3ec2db1",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 14821,
+   "decided_at": "2026-09-21T15:00:45.219Z"
+  },
+  "4b2cb18cab99_a61c68fd9e11_0": {
+   "pair_id": "4b2cb18cab99_a61c68fd9e11",
+   "label": "M",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 18211,
+   "decided_at": "2026-09-21T15:01:03.431Z"
+  },
+  "30ec46eeb06d_9cad53a38e85_0": {
+   "pair_id": "30ec46eeb06d_9cad53a38e85",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2237,
+   "decided_at": "2026-09-21T15:01:05.669Z"
+  },
+  "3841e4ee73ef_70710182dac0_0": {
+   "pair_id": "3841e4ee73ef_70710182dac0",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1095,
+   "decided_at": "2026-09-21T15:01:06.765Z"
+  },
+  "53a3242d6fc1_93ba2a2443f0_0": {
+   "pair_id": "53a3242d6fc1_93ba2a2443f0",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2194,
+   "decided_at": "2026-09-21T15:01:08.960Z"
+  },
+  "6a815f68ac81_c309854e7403_0": {
+   "pair_id": "6a815f68ac81_c309854e7403",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2345,
+   "decided_at": "2026-09-21T15:01:11.306Z"
+  },
+  "57beb5e9e5ad_8a863350ba8b_0": {
+   "pair_id": "57beb5e9e5ad_8a863350ba8b",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 7549,
+   "decided_at": "2026-09-21T15:01:18.856Z"
+  },
+  "eccfb2f4adbb_fa9671cb4e54_0": {
+   "pair_id": "eccfb2f4adbb_fa9671cb4e54",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_breedsize",
+   "source": "blind",
+   "corrected": false,
+   "ms": 6437,
+   "decided_at": "2026-09-21T15:01:25.294Z"
+  },
+  "86b15ef26d9b_f1f39f06d1e7_0": {
+   "pair_id": "86b15ef26d9b_f1f39f06d1e7",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 4481,
+   "decided_at": "2026-09-21T15:01:29.776Z"
+  },
+  "eb7dab4ddee7_a476eecd2a6b_0": {
+   "pair_id": "eb7dab4ddee7_a476eecd2a6b",
+   "label": "M",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3376,
+   "decided_at": "2026-09-21T15:01:33.152Z"
+  },
+  "29640c7c5b3d_cce0cd3382cd_0": {
+   "pair_id": "29640c7c5b3d_cce0cd3382cd",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 21211,
+   "decided_at": "2026-09-21T15:01:54.364Z"
+  },
+  "5e1296b9a5e1_65e9aff77e81_0": {
+   "pair_id": "5e1296b9a5e1_65e9aff77e81",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1568,
+   "decided_at": "2026-09-21T15:01:55.932Z"
+  },
+  "c68cb489e95f_e6d623aa0e58_0": {
+   "pair_id": "c68cb489e95f_e6d623aa0e58",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1670,
+   "decided_at": "2026-09-21T15:01:57.602Z"
+  },
+  "198c154498ed_6a815f68ac81_0": {
+   "pair_id": "198c154498ed_6a815f68ac81",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_lifestage",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3640,
+   "decided_at": "2026-09-21T15:02:01.242Z"
+  },
+  "57beb5e9e5ad_70710182dac0_0": {
+   "pair_id": "57beb5e9e5ad_70710182dac0",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1461,
+   "decided_at": "2026-09-21T15:02:02.703Z"
+  },
+  "31b7920d544b_f52bd9a80e5d_0": {
+   "pair_id": "31b7920d544b_f52bd9a80e5d",
+   "label": "N",
+   "split": "test",
+   "tier": "diff_brand_similar_title",
+   "source": "blind",
+   "corrected": false,
+   "ms": 3880,
+   "decided_at": "2026-09-21T15:02:06.584Z"
+  },
+  "27aa20bf14ce_c45e799122f8_0": {
+   "pair_id": "27aa20bf14ce_c45e799122f8",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1534,
+   "decided_at": "2026-09-21T15:02:08.118Z"
+  },
+  "82c9c4aea9e7_4a8e164f43f2_0": {
+   "pair_id": "82c9c4aea9e7_4a8e164f43f2",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 10790,
+   "decided_at": "2026-09-21T15:02:18.908Z"
+  },
+  "2d38db442675_617618c67b89_0": {
+   "pair_id": "2d38db442675_617618c67b89",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1457,
+   "decided_at": "2026-09-21T15:02:20.366Z"
+  },
+  "34d4a8e06ecc_ff26d2f8936e_0": {
+   "pair_id": "34d4a8e06ecc_ff26d2f8936e",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 10311,
+   "decided_at": "2026-09-21T15:02:30.678Z"
+  },
+  "79e1835fe2b5_f1f58ea34bc9_0": {
+   "pair_id": "79e1835fe2b5_f1f58ea34bc9",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1263,
+   "decided_at": "2026-09-21T15:02:31.942Z"
+  },
+  "2e660fe85dcf_5edaf3cd0f46_0": {
+   "pair_id": "2e660fe85dcf_5edaf3cd0f46",
+   "label": "N",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2041,
+   "decided_at": "2026-09-21T15:02:33.983Z"
+  },
+  "6a815f68ac81_a777ff4041ae_0": {
+   "pair_id": "6a815f68ac81_a777ff4041ae",
+   "label": "M",
+   "split": "test",
+   "tier": "trivial_spot_check",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1443,
+   "decided_at": "2026-09-21T15:02:35.426Z"
+  },
+  "79e1835fe2b5_b277fbd57ceb_0": {
+   "pair_id": "79e1835fe2b5_b277fbd57ceb",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 963,
+   "decided_at": "2026-09-21T15:02:36.389Z"
+  },
+  "00f775f25237_6a81b0d8429b_0": {
+   "pair_id": "00f775f25237_6a81b0d8429b",
+   "label": "M",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 4943,
+   "decided_at": "2026-09-21T15:02:41.333Z"
+  },
+  "b018d42abb15_fd5fbfb64fd6_0": {
+   "pair_id": "b018d42abb15_fd5fbfb64fd6",
+   "label": "N",
+   "split": "test",
+   "tier": "blocked_retrieval_candidate",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2803,
+   "decided_at": "2026-09-21T15:02:44.137Z"
+  },
+  "140bb948d9df_dc2765730536_0": {
+   "pair_id": "140bb948d9df_dc2765730536",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2549,
+   "decided_at": "2026-09-21T15:02:46.687Z"
+  },
+  "f7073b1708fc_fed65fee5316_0": {
+   "pair_id": "f7073b1708fc_fed65fee5316",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_breedsize",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2483,
+   "decided_at": "2026-09-21T15:02:49.171Z"
+  },
+  "321417089290_9ebc80a63852_0": {
+   "pair_id": "321417089290_9ebc80a63852",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_lifestage",
+   "source": "blind",
+   "corrected": false,
+   "ms": 12751,
+   "decided_at": "2026-09-21T15:03:01.922Z"
+  },
+  "8a63ed923ac9_9cad53a38e85_0": {
+   "pair_id": "8a63ed923ac9_9cad53a38e85",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_cross_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 1552,
+   "decided_at": "2026-09-21T15:03:03.475Z"
+  },
+  "98e1e4ade522_e489c2dabc23_0": {
+   "pair_id": "98e1e4ade522_e489c2dabc23",
+   "label": "N",
+   "split": "test",
+   "tier": "capacity_differs_within_shop",
+   "source": "blind",
+   "corrected": false,
+   "ms": 2340,
+   "decided_at": "2026-09-21T15:03:05.816Z"
+  },
+  "515f3cfb46cc_e4fe2b3e6b68_0": {
+   "pair_id": "515f3cfb46cc_e4fe2b3e6b68",
+   "label": "N",
+   "split": "test",
+   "tier": "same_capacity_diff_flavour",
+   "source": "blind",
+   "corrected": false,
+   "ms": 6102,
+   "decided_at": "2026-09-21T15:03:11.919Z"
+  },
+  "58585fa7ff32_aa029a8b23ae_0": {
+   "pair_id": "58585fa7ff32_aa029a8b23ae",
+   "label": "M",
+   "split": "test",
+   "tier": "proxy_key_collision",
+   "source": "blind",
+   "corrected": false,
+   "ms": 5602,
+   "decided_at": "2026-09-21T15:03:17.522Z"
+  }
+ }
+}
