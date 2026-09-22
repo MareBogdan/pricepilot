@@ -3017,6 +3017,11 @@ so a hash difference refuses there -- fail-closed, by design.
 
 **Context.** CLAUDE.md §7 item 3 is met: 997 labels, M 359 / N 628 / S 10; blind TEST 300 rows (287
 distinct pairs), assisted TRAIN_VAL 697. Self-agreement TEST 13/13 = 100%, TRAIN_VAL 22/25 = 88% (pre-reconciliation, measured at ingest).
+**Correction (2026-09-22, addendum #16):** all 38 repeated pairs are exactly the
+`trivial_spot_check` pairs, re-drawn once under `proxy_key_collision` — these two figures measure
+consistency on near-identical titles only, never on the hard negatives, and must never be quoted
+without that qualifier. TRAIN_VAL's 22/25 is more informatively read as a **12% self-disagreement
+rate on trivially easy pairs**.
 Median decision time 3.0s blind / 1.5s assisted / 1.8s overall (recomputed from the labels file;
 3.2s was the pre-review blind figure), against §7's untested 18s. `C` was pressed 0 times.
 
@@ -3040,6 +3045,13 @@ diff_brand_similar_title the annotator overrode the engine almost everywhere.
   are also the three (f) pairs, whose other occurrence was M. The 4th (33394df3427d_3ab75d311be0)
   is a single N on fields with no conflict. All four go back to the annotator; the tier description
   ("byte-identical") in earlier notes was overstated.
+  **Correction (2026-09-22, addendum #16) — this is not merely a tier-definition looseness, it is a
+  measured anchoring effect.** Across the full `trivial_spot_check`-class population
+  (`docs/learned/phase3-eval-view.json`): blind TEST is **15/15 correct** (2 standalone + 13
+  repeats, zero failures, no suggestion ever shown), assisted TRAIN_VAL is **31/35 correct, 4/35
+  failed** (10 standalone + 25 repeats) — and all 4 TRAIN_VAL failures are exactly these class (d)
+  flags. Zero failures where the engine showed nothing, all failures where it did. The measured
+  fact is 15/15 vs 4/35, reported as such, not softened.
 - (f): a self-agreement disagreement is reported with `self_agreement: true`,
   `data_quality_only: false`; the annotator must pick one label per pair.
 - (e) entries now carry `revert_hint: true`: a stored-data defect never justifies changing a label.

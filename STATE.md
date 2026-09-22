@@ -12,6 +12,11 @@ N 628 / S 10**, all by Bogdan (`C` pressed 0 times — every decision is his own
 override); (4) product-level split: **blind TEST 300 rows / 287 distinct pairs** (no suggestion
 ever shown) and **assisted TRAIN_VAL 697 rows** (suggestion shown). Self-agreement on repeated
 pairs: **TEST 13/13 = 100%, TRAIN_VAL 22/25 = 88%** (pre-reconciliation, measured at ingest; the 3 disagreements are TRAIN_VAL only).
+**Qualifier that must travel with these numbers (2026-09-22 correction):** all 38 repeated pairs
+are exactly the `trivial_spot_check` pairs, re-drawn once under `proxy_key_collision` — these
+figures measure annotator consistency **on near-identical titles only, never on the hard
+negatives**. The more informative reading of TRAIN_VAL is a **12% self-disagreement rate on
+trivially easy pairs**, not "88% agreement" read in isolation.
 Throughput (recomputed from `phase3-labels.json` `ms`): median **3.0s blind (n=300; 3.2s before the
 7 review revisions replaced their timings), 1.5s assisted (n=697), 1.8s overall** — against §7's
 untested 18s/decision assumption. Correction rate of the engine's suggestion in TRAIN_VAL: **104/697
@@ -25,7 +30,14 @@ labels are more engine-shaped than TEST; the headline number comes from the blin
 15 flags, 12 distinct occurrences, written to `docs/learned/phase3-relabel-queue.json`. The class
 (d) pairs are NOT byte-identical: `classify_tier` only compares brand/line/capacity/pack/bonus, so
 `life_stage`/`food_form` differ (None vs value) on them; no field conflicts. 3 of the 4 are also
-the 3 self-disagreeing pairs. The Schesir occurrence `3f574dad8b6e_b52acad20816_0` was revised
+the 3 self-disagreeing pairs. **Measured fact, not softened as a tier-naming quirk (2026-09-22
+correction):** across the full `trivial_spot_check`-class population, blind TEST is **15/15
+correct** (0 failures) and assisted TRAIN_VAL is **31/35 correct, 4/35 failed**
+(`docs/learned/phase3-eval-view.json`'s `trivial_spot_check`/repeat counts: TEST 2 standalone + 13
+repeats = 15, TRAIN_VAL 10 standalone + 25 repeats = 35). All 4 TRAIN_VAL failures are this
+session's class (d) flags. Zero failures where the engine showed no suggestion, all four where it
+did — an **anchoring effect on the engine's suggestion**, not merely a tier-definition looseness.
+The Schesir occurrence `3f574dad8b6e_b52acad20816_0` was revised
 M -> N wrongly (rule 1 reads titles, not the `species` field) and is queued for re-decision with
 the reason on screen. The dataset-freeze mechanism exists (`scripts/freeze_labels.py`,
 `tests/test_labels_frozen.py`) but is NOT frozen. Full detail: DECISIONS.md ADR-0028 addendum #15.

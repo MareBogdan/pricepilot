@@ -79,6 +79,10 @@ catalogues, deliberately including hard negatives (same line, different size/fla
   so that row is not blind (287 pairs, 1 affected). TRAIN_VAL is **assisted** (a
   suggestion is shown; the annotator overrode it on 104/697 = 14.9% of pairs).
 - 38 pairs were shown twice as a self-consistency check: agreement TEST 13/13, TRAIN_VAL 22/25 (pre-reconciliation, measured at ingest 2026-09-21; the review pass resolves the 3 disagreements).
+  **Qualifier:** all 38 repeated pairs are exactly the `trivial_spot_check` pairs (near-identical
+  titles), so these numbers measure consistency on the easiest pairs in the dataset, not on the
+  hard negatives — TRAIN_VAL's 22/25 is more informatively read as a **12% self-disagreement rate
+  on trivially easy pairs**.
 - Reproduce: `uv run python scripts/ingest_labels.py` (QA report: `docs/learned/phase3-label-qa-20260921.md`),
   `uv run python scripts/check_label_rule_consistency.py`.
 
