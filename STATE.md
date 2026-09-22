@@ -1,8 +1,246 @@
 # STATE
 
-Phase: 1 — Collection, **CLOSED 2026-09-22** (last box, ≥7 consecutive days, MET — see Gate
-progress below), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open
-since 2026-09-15.**
+Phase: 3 — Matching (Phases 0-2 CLOSED)
+Updated: 2026-09-22
+
+## Gate progress
+
+**Phase 0 — Foundation: CLOSED** (2026-09-12). All 8 gate boxes met (Docker compose up, migration
+applied, pgvector live, `/health` ok, mock-store seeded, `make test`/`make lint` clean, $0 spent).
+Full detail: History → "Gate progress detail — Phase 0 & Phase 1".
+
+**Phase 1 — Collection: CLOSED** (2026-09-22). `docs/SOURCES.md` complete; all 3 adapters
+(petmax/pentruanimale/animax) built and tested offline; daily cron running for all 3;
+**≥3,000 in-scope listings — MET (18,585 in-scope / 18,703 stored, 3 sources)**; **≥7 consecutive
+days — MET (9 days, 2026-09-13→2026-09-21, strict definition)**; **≥400 cross-shop overlap —
+MET (hand-verified sample, point 1,214–1,342 across two independent passes, 95% CI clears 400 on
+both — ADR-0023/ADR-0028 addendum #7)**. Full detail: History → "Gate progress detail — Phase 0 &
+Phase 1".
+
+**Phase 2 — Normalization: CLOSED** (2026-09-14). **85% attribute-accuracy gate MET: 93.2%
+(261/280 symmetric — labelled cells + false positives, brand excluded) — the gate figure; 95.6%
+(261/273, labelled-cells-only) kept alongside as the recall figure; weight parsing 100% (82/82).**
+Cache proof shown (0 new extractions on a second pass). Four gate-derived fixes approved and
+implemented, each measured by population coverage, never by re-scoring the frozen gate sample.
+Full detail: History → "Phase 2 — Normalization: CLOSED 2026-09-14 (detail)", DECISIONS.md
+ADR-0027.
+
+**Phase 3 — Matching: OPEN since 2026-09-15.** CLAUDE.md §7's 8 items:
+
+[x] 1. Candidate retrieval via embeddings — **recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%,
+    94.4%].** CLOSED as a measurement-power finding, not a pass or a fail: at n=50, 88% and the
+    >=90% target are not statistically distinguishable (the target sits inside the CI). Closing
+    that question would need ~1,000 verified positive pairs (~27,000 draws at this project's
+    observed rate) — out of reach; not pursued further. DECISIONS.md ADR-0028 addendum #8.
+[x] 2. Annotation tool — `tools/annotate.html`. Keyboard-driven (M/N/S), token-level title diff,
+    attribute table, pilot stop, assisted TRAIN_VAL suggestions with blind TEST enforced three
+    independent ways, review mode (bug-fixed this session — see Last done).
+[x] 3. 800-1,000 pairs labelled by Bogdan — **997/997, M 354 / N 634 / S 9.** Hand-labelled, one
+    annotator, not generated. Includes: 4 `trivial_spot_check` occurrences the mechanical checker
+    still flags on tier-definition grounds alone, recorded as deliberate annotator
+    acknowledgements (`docs/learned/phase3-freeze-acknowledgements.json`) — the checker never
+    overrides the annotator; and 1 TEST occurrence (`3f574dad8b6e_b52acad20816_0`) recorded as a
+    stated, never-reviewed limitation — its label rests on a 2026-09-21 revision ADR-0028
+    addendum #15 judged invalid, and the annotator deliberately let it stand on 2026-09-22 rather
+    than reopen it.
+[x] 4. Product-level split — **TEST 287 distinct pairs (300 rows) / TRAIN_VAL 672 distinct pairs
+    (697 rows)**, 0 listing overlap between splits. TEST is BLIND (no rules-engine suggestion ever
+    shown). Post-freeze eval-view numbers (`docs/learned/phase3-eval-view.json`): TEST 97 M / 187 N
+    / 3 S (284 scored), TRAIN_VAL 222 M / 444 N / 6 S (666 scored).
+[ ] 5. Baseline: classical cross-encoder, precision/recall/F1 — **NOT STARTED, next action.**
+    Brief: `docs/phase3-baseline-model-choice.md`.
+[ ] 6. Fine-tune 0.5B-1.5B with LoRA/QLoRA, same TEST set — not started.
+[ ] 7. Comparison table + error analysis of 10 representative failures — not started.
+[ ] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
+    hosted API — not started.
+
+**Dataset FROZEN 2026-09-22.** SHA-256 (of `docs/learned/phase3-labels.json`, LF-normalised)
+`540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` — recorded identically in
+`tests/test_labels_frozen.py` and this file's marker line below. No label may change without a
+reason recorded here first; `test_frozen_labels_hash_unchanged` enforces it and now runs (not
+skipped).
+
+Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4`
+
+## Last done
+
+1. **Froze the Phase 3 label dataset** (`uv run python scripts/freeze_labels.py --freeze`) — 997
+   decisions, class counts a:0 b:0 c:0 d:4 e:3 f:0 (4 class-d acknowledged, class-e never blocks by
+   construction). Hash `540a4fd6...` written identically into `tests/test_labels_frozen.py` and
+   this file; `test_frozen_labels_hash_unchanged` now runs and passes instead of skipping.
+2. **Recorded the Schesir occurrence** (`3f574dad8b6e_b52acad20816_0`, the only queued TEST
+   occurrence) **as a stated, unreviewed limitation** in
+   `docs/learned/phase3-freeze-acknowledgements.json`, per the annotator's explicit 2026-09-22
+   decision to let its N label stand rather than reopen it — recorded honestly, never as
+   "reviewed".
+3. **Recorded the four class-(d) `trivial_spot_check` occurrences as deliberate annotator
+   acknowledgements** in the same file — `freeze_labels.blocking_findings()` now returns `{}`; the
+   checker's own class counts are unaffected (it never reads the acknowledgement file).
+4. **Fixed the review-mode skip defect in `tools/annotate.html`.** A `revised_at` timestamp from
+   an OLDER review file no longer counts as "already re-decided this session" — this is the exact
+   defect that silently skipped the Schesir occurrence while the completion screen still reported
+   12/12 done. New regression test shown failing against the pre-fix code and passing after.
+5. **Confirmed two `.pytest_cache/lastfailed` entries were stale, not real failures, with
+   source-level proof, not just history.** The two recorded node-ids do not exist in any commit of
+   `tests/test_normalize_attributes.py` (one was never committed with that expected value; the
+   other was changed by `8ec799b`, 2026-09-15) — confirmed both are `ERROR: not found` when run
+   directly, and confirmed from `_pytest/cacheprovider.py`'s own source that `lastfailed` only pops
+   an entry when the test actually executes, which an orphaned node-id structurally never does.
+
+## Open issues
+
+- **Flagged 2026-09-21 (ADR-0028 addendum #13, TASK 5): `species` field disagrees with its own
+  title on 53/10,532 `norm_listings` rows (0.50%)** — 46 `animax_ro`, 7 `petmax_ro`, 0
+  `pentruanimale_ro` (structurally impossible there — see below). A `normalize/species.py`
+  extraction defect, found by `scripts/check_label_rule_consistency.py`'s class (e) on the 300-row
+  TEST label set (1 instance, `3f574dad8b6e...`) and then measured over the whole population by
+  `scripts/measure_species_field_mismatch.py`. Every mismatch is a case where `animax_ro`'s
+  `raw_payload["product_type"]` or `petmax_ro`'s URL path segment (the STRUCTURED per-source
+  signal `classify_species()` trusts ahead of the title) disagreed with what the title itself
+  says; `pentruanimale_ro` has no structured signal at all, so its stored field IS the title
+  keyword test and can never disagree with it by construction. **Not fixed this session — Phase 2
+  is closed, this is a recorded finding, not a reopening.** Full detail, methodology and examples:
+  `docs/learned/phase3-species-field-mismatch-20260921.md`. Matters most for Phase 3's rule 1
+  (species-differs): a wrong `species` field can silently suppress a real cross-species `N` the
+  annotator would have caught reading the actual title, and worth reconsidering before Phase 3
+  fine-tuning leans on the field again — but no evidence yet that it changed any of the 300 TEST
+  labels themselves (the one overlapping instance was already correctly labelled `M` by the
+  annotator, reading the real title, not the wrong field).
+- **Flagged 2026-09-17: `sentence-transformers` is the second library this machine's Windows
+  Application Control policy blocks outright (after `psycopg`, flagged earlier).** Worked around
+  for a plain embedding forward pass this session (`transformers` directly + a `sklearn` stub —
+  see DECISIONS.md ADR-0028 addendum #7 item 1). **That workaround does not extend to Phase 3 item
+  6 (LoRA/QLoRA fine-tuning)** — training needs the real, full `torch` + `transformers` + `peft`
+  dependency chain (optimizers, schedulers, mixed precision), most of which routes through the
+  same blocked compiled extensions somewhere a `sys.modules` stub can't reach. `torch` and
+  `transformers` import cleanly here (checked); `peft` not yet checked. **The fine-tuning step is
+  planned for a hosted GPU notebook, not this local environment — flagged now, before the week-5
+  fine-tuning decision, not discovered on the day.**
+- **CLOSED 2026-09-13: Hill's "PD" token, checked and added** — 0 newly quarantined (all 8
+  matches were already caught by animax's `product_type` signal); defense-in-depth for the other
+  two sources going forward. See "Last done" above.
+- **CLOSED 2026-09-14: Phase 2 gate sample labelled and scored, gate MET and CLOSED.** Labelled
+  externally (by a model with no visibility into this repo's code, so never tuned against),
+  committed as `docs/learned/phase2-gate-sample-labeled.csv`, scored by
+  `scripts/measure_gate.py`: **gate figure 93.2% (261/280, symmetric — labelled cells + false
+  positives, brand excluded), 95.6% kept alongside as the recall figure, 100% weight parsing
+  (82/82)** — the 96.6% first computed was the inflated all-cells figure, and the 95.6%
+  labelled-cells figure that replaced it structurally cannot see a false positive; both corrected
+  before anything was tuned against them (DECISIONS.md ADR-0027 addendum #2 has the full
+  reconciliation). These figures are frozen, taken before the four gate-derived fixes below, and not
+  re-measured after them. Full breakdown and the 34 mismatches' failure-shape analysis in
+  DECISIONS.md ADR-0027.
+- **CLOSED 2026-09-14: `product_line` extraction wired into `normalize.extract()` and run over
+  the full table.** `src/pricepilot/normalize/product_line.py` — the manufacturer-only portion of
+  the brand field (not the whole raw field, since STEP 1a) + RO food/treat descriptive clause +
+  quantity/pack/bonus/dosage tokens removed, a general dangling-token guard applied, everything
+  else preserved verbatim. Coverage 99.9% (10,525/10,532).
+- **CLOSED 2026-09-14: four gate-derived fixes implemented** (`"punguta"` food_form, M-PETS/
+  L-carnitina breed_size false positives, two small food_form fixes, `"creveti"`/shrimp flavour),
+  each verified by population coverage before/after, never by re-scoring the gate sample.
+  `EXTRACTOR_VERSION` -> `2026-09-14-v5`. Full detail: DECISIONS.md ADR-0027 addendum #2.
+- **CLOSED: `flavour`/`food_form` gap investigated (STEP C, ADR-0027).** Sampled 60 real titles
+  (seed 20260917) from the combined "likely real food, one field missing" pool, checked every
+  candidate word against the full population before adding. flavour 59.6% -> 61.3%, food_form
+  56.1% -> 57.7%. "Cutie" (box) was checked and deliberately NOT added — real samples packaged
+  both dry and wet items, no reliable single mapping. Full list of additions in ADR-0027.
+- **Brand extraction has no title-only fallback.** `canonicalize_brand()` returns `None` when the
+  shop's own structured brand field is empty — only 3 of 10,503 rows today (all petmax), so low
+  priority, but the function's `title` parameter is already reserved for this if it ever becomes
+  worth building.
+- **CLOSED: `breed_size_code`/`life_stage` failure-shape breakdown built (STEP B, ADR-0027) —
+  diagnostic only, not fixed.** For both fields, ~96-98% of nulls are genuinely correct (title
+  states nothing); the small real-gap remainder (talie mica/mare/medie, Small/Large/Medium/
+  Giant/Toy Breed, kitten, RO diminutives) is documented in `scripts/normalize_coverage.py` and
+  ADR-0027 but deliberately not wired into `attributes.py` this session — scoped strictly to what
+  was asked (report the split, not fix it).
+- **CLOSED 2026-09-14: `is_regulated()` veterinary-diet leak** (ADR-0025). Tightened the shared
+  token check (diacritic folding, line-code tokens), added animax's `product_type` as a second
+  signal, and quarantined the 118 already-collected rows the tightened rule catches. See "Last
+  done" above and ADR-0025 for the full rule, evidence, and rejected alternatives.
+- **pentruanimale.ro's regulated-product exposure is "not measured", not "clean".** Its 0-hits
+  result from the 2026-09-13/14 title-text diagnostic is real but incomplete: the source also
+  carries VTEX `categories`/`categoryId` (confirmed live) that could in principle reveal a
+  veterinary-diet branch, but that field was never captured before ADR-0025 started capturing it
+  **going forward only** — it cannot be backfilled onto rows already collected. Do not read
+  pentruanimale's 0-Tier-A-hits as evidence it has no leak; it means only that title text alone
+  found nothing, which is the weaker of the two signals everywhere else it was checked.
+- **Hill's "PD" (Prescription Diet) is a candidate line-code token, not added this session.**
+  Found while reconciling animax's title-check against its `product_type`: "Hill's PD Metabolic",
+  "Hill's PD Afectiuni hepatice L/D" and similar are caught by `product_type` but not by any
+  title token (ADR-0025's token list is `" vd "`/`" vhn "` only, per the two brands checked).
+  Worth the same per-token verification ADR-0025 did for "VD"/"VHN" before adding "PD" — not done
+  this session, since "PD" is a much shorter, more collision-prone string than "VD"/"VHN" and
+  needs its own check across all stored titles before being trusted.
+- **Deferred to Phase 2 (Normalization)**, causes already diagnosed in `docs/AUDIT.md`: brand-field
+  canonicalization (petmax splits Brit into Brit/Brit Premium/Brit Care/Brit Fresh and Calibra into
+  5 strings; pentruanimale writes "HILL'S Science Plan" where petmax writes "Hill's"), an
+  English-Romanian flavour-word table (Chicken/Pui, Lamb/Miel, Beef/Vita, Salmon/Somon,
+  Turkey/Curcan, Duck/Rata, Rabbit/Iepure, Tuna/Ton), and partial token overlap instead of exact
+  set equality. These are normalization work, not a proxy-key patch — `overlap_key()` stays as-is.
+- **petmax's `url` field is not a trustworthy identity signal.** Slug collisions produce a numeric
+  suffix (e.g. `-6847`) and the URL can describe a different product than the row's title (see
+  2026-09-13 verification note in `docs/AUDIT.md`). Checked this session: nothing downstream keys
+  on `url` — `overlap.py` never references it, and the one place it could matter,
+  `runner.py:182`'s `source_product_id or listing.url` fallback, has never actually fired (0 of
+  8,075 rows lack `source_product_id`). Stays a documented constraint for future code, not a bug
+  fixed today.
+- **The 2026-09-13 scheduled run started at 08:13 UTC against a 03:10 UTC cron** — a ~5 hour
+  delay, far past the 10-30 minutes ADR-0018 anticipates. One data point so far; watch it.
+- **The proxy key moved 94 → 241 once animax.ro joined** (sources=3, 2026-09-13), still a known
+  floor at ~8% measured recall, not the gate — the gate stays closed by the hand-verified sample
+  (ADR-0023). Whether animax's contribution is concentrated the same way petmax/pentruanimale's
+  overlap was (88% Royal Canin, per the diagnostic session) has not been re-checked; worth a look
+  before trusting 241 as evenly distributed across brands.
+- **animax's structured `grams` field cannot be trusted as ground truth** — a real listing titled
+  "... 2 kg" carries `grams: 500` in the shop's own data (docs/SOURCES.md, ADR-0024). Captured into
+  `raw_payload` for reference only; nothing reads it as authoritative. Reinforces why the overlap
+  key parses weight from title text and was not changed to use it.
+- **7 consecutive days is 2 so far** (2026-09-12 → 2026-09-13, no gap) — the scheduled cron has now
+  fired once, 5 hours late (see above).
+- **pentruanimale.ro's ~600-product-per-category ceiling is permanent** with the current
+  `?page=N` retrieval path. Reaching the remainder would need a different mechanism (e.g. the
+  `sitemap/product-N.xml` files) — not attempted, flagged for whoever next touches this adapter.
+- **3/25 hand-checked overlap keys contain a false pairing**: life-stage/senior variants ("Adult"
+  vs "Adult 8+", "Adult" vs "Junior") and a packaging-format nuance (can vs pouch) that the current
+  key doesn't distinguish. Within the plan's accepted error margin; not tuned further this session
+  per explicit instruction.
+- **LLM transport not implemented.** ADR-0006.
+- **`make` not installed.** `.\make.ps1 <target>` is the Windows path. ADR-0003.
+- **Bonus-weight titles are a confirmed real trap**, not just theorized — seen in real scraped data
+  on both shops this session. Needs to reach the Phase 3 annotation set.
+
+## Blocked on Bogdan
+
+**Nothing right now.** Both prior "Blocked on Bogdan" sections are merged here; every item either
+one of them raised is now resolved, and this is the one place that answer lives.
+
+Dropped, resolved:
+- *"`3f574dad8b6e_b52acad20816_0` needs a real, confirmed re-decision"* — resolved 2026-09-22: the
+  annotator explicitly decided to let its N label stand, recorded as a stated, never-reviewed
+  limitation rather than reopened.
+- *"The 4 class-d occurrences need a decision"* — resolved 2026-09-22: recorded as deliberate
+  annotator acknowledgements; the checker never overrides the annotator.
+- *"After both are resolved: re-run the checker, then `scripts/freeze_labels.py --freeze`"* — done:
+  dataset frozen 2026-09-22, hash above.
+- *"Every Phase 1 gate box is met except 7 consecutive days of history"* — resolved: Phase 1 is
+  CLOSED (9 consecutive days measured, 2026-09-13→2026-09-21).
+- *"Bogdan needs to review [retrieval closed / queue frozen / split+assisted flow built / pilot
+  stop] before labelling begins"* — resolved: labelling is long since complete (997/997, reviewed,
+  frozen); the review checklist that preceded it is historical.
+
+Phase 3 item 5 (baseline) is the next action and is self-directed — no decision from Bogdan is
+needed to start it.
+
+## History
+
+Everything below this line is historical record, preserved verbatim and never edited after the
+fact — the sections above are the only ones rewritten each session (CLAUDE.md §11). Ordered newest
+first by the date each section was last substantively written; several sections were maintained
+in place across multiple sessions rather than written once, so this ordering is approximate, not a
+precise timeline — the date named in each heading is that section's own, more precise claim.
+
+### 2026-09-22 — current-state narrative (superseded by Gate progress/Last done above)
 
 **Current state, 2026-09-22 (after the annotator's review-pass ingest) — read this paragraph
 first; everything below is history, not status.** **Phase 1 is CLOSED** (re-measured this session
@@ -70,7 +308,9 @@ addendum #16 item 2; not the same file changing, two hash conventions of the sam
 **Caveat:** TRAIN_VAL decisions were faster and less self-consistent than blind ones, so TRAIN_VAL
 labels are more engine-shaped than TEST; the headline number comes from the blind TEST set alone.
 
-## Blocked on Bogdan
+
+### 2026-09-22 — Blocked on Bogdan snapshot (superseded, see the merged section above)
+
 
 - **`3f574dad8b6e_b52acad20816_0` needs a real, confirmed re-decision.** It was queued for the
   2026-09-22 review pass but its stored data shows it was never actually touched. It carries a
@@ -151,7 +391,9 @@ re-scoring the gate sample (that would be tuning on the test set; 93.2%/95.6% st
 un-re-measured figures of record). No Phase 1 box ticked this session.
 Updated: 2026-09-22
 
-## Gate progress
+
+### Gate progress detail — Phase 0 & Phase 1 (original; maintained in place through 2026-09-22)
+
 
 Phase 0 — Foundation: **CLOSED**, verified end to end in Docker on 2026-09-12.
 
@@ -270,128 +512,102 @@ measurement method — hence dropped in favour of dating each actual change.
 [x] adapter for animax.ro — **built, tested, deployed 2026-09-13** (ADR-0024)
 [x] all adapters tested offline against fixtures — petmax, pentruanimale and animax all done
 
-## Phase 2 — Normalization: **CLOSED 2026-09-14**
 
-Opened 2026-09-13, ran in parallel with Phase 1 — was never blocked on Phase 1's remaining
-7-consecutive-days box, and does not tick that box closed either (Phase 1 stays open below).
+### 2026-09-17 — Blocked on Bogdan snapshot (superseded, see the merged section above)
 
-Gate per CLAUDE.md §7: "≥85% attribute accuracy on 100 manually verified listings, with weight
-parsing measured separately", plus the cache demonstrably preventing repeat extraction.
 
-**The gate figure, exactly as recorded (not the first number this session produced — see below
-for why).** Scored on `docs/learned/phase2-gate-sample-labeled.csv` (100 rows, labelled
-externally, code-blind), against `norm_listings` **under `EXTRACTOR_VERSION 2026-09-14-v4`** —
-run and recorded *before* the four gate-derived fixes existed. `EXTRACTOR_VERSION 2026-09-14-v5`
-(the current code, with those four fixes applied) **has no accuracy figure of its own, by
-design** — see "frozen" note further down for why it is never re-measured against this same
-sample, and will not have one until a new, independently drawn sample exists.
+Nothing right now. Phase 2's gate is met and closed (2026-09-14); STEP 5's fix list was approved
+and the 5 items covering the four fix groups were implemented the same session (punguta, M-PETS,
+two food_form fixes, crevete/shrimp — DECISIONS.md ADR-0027 addendum #2). The remaining 10 of 15
+named shapes (#1, #4, #7-#13, #15) stay documented-but-unfixed by design — genuine definitional
+questions, known-deferred gaps, or a gate-sample scope limit, none needing a decision to proceed
+with Phase 3.
 
-- **Gate figure: symmetric (labelled cells + false positives), `brand` excluded — 261/280 =
-  93.2%.** CLAUDE.md §7 says "attribute accuracy" — an extractor that invents a value on an empty
-  cell is not accurate, so the denominator must be able to see that error, not just a miss.
-- **Recall figure, kept alongside it, not as the gate number**: labelled cells only (cannot
-  penalise a false positive — see DECISIONS.md ADR-0027 addendum #2 for the two real category
-  errors this blind spot hid, listing_id 28159 and 28860), `brand` excluded — 261/273 = 95.6%.
-- Weight parsing (`net_weight_g`), separately, on its 82 non-empty labels: **82/82 = 100.0%**
-  (no false positives on this field, so recall and symmetric agree).
-- Reported for transparency, not the gate figure: all-cells 966/1000 = 96.6% (inflated — mostly
-  both-sides-null agreement); labelled-cells-with-brand 346/368 = 94.0%; symmetric-with-brand
-  346/380 = 91.1%.
-- The gate is met on both the 93.2% and 95.6% figures — the substantive conclusion is unchanged;
-  only the framing (which one is "the" gate figure) is corrected.
-- Cache proof: `scripts/normalize.py` run twice, second pass 0 new extractions out of 10,503
-  content hashes (command output in DECISIONS.md ADR-0027 addendum).
-- **Labelling-provenance limitation, stated plainly:** the 100 rows were labelled by a code-blind
-  model, not a human, and 0 of 100 have the `ambiguous` column flagged (verified this session) —
-  the sample README's promised hand-check of flagged rows never ran, since nothing was flagged.
-  Recorded as a limitation of the gate, not a defect that invalidates it: the margin over 85% is
-  wide under every denominator computed. Full reasoning: DECISIONS.md ADR-0027 addendum #2.
+Every Phase 1 gate box is met except 7 consecutive days of history (3/7 as of 2026-09-14), which
+is wall-clock — it closes on its own once the daily cron has run 4 more times, nothing to decide.
 
-**Why `brand` is excluded from the gate figure — not because its score is weakest.** 12 of
-`brand`'s 15 mismatches (89.5% on its own 95 labelled cells) are a labelling-scope artifact: the
-gate sample shows the labeller only `title` text, never the shop's own structured brand field
-`canonicalize_brand()` deliberately prefers. Two different inputs to the same question — this
-sample cannot grade `brand` either way, and it is neither an extractor bug nor a bad label.
-`brand`'s own correctness is validated separately, by STEP 1's cross-shop comparability check
-(Brit/Calibra/Hill's — same product, different shops, same canonical brand).
+Phase 3 prerequisites (STEP 1-6, ADR-0028) are built and committed. Two same-day architect audits
+found and fixed real problems (ADR-0028 addendum, then addendum #2, both 2026-09-15) — full detail
+in DECISIONS.md. **Still stopped for review before any labelling begins**, per explicit
+instruction. Bogdan needs to review, in particular:
 
-**Why 93.2%/95.6%, not the 96.6% first reported or the 90.8% used to approve the fix list.** 96.6%
-was scored against all 1,000 cells, and most fields are null on most rows — `dosage_band` alone
-contributes 1 real test and 99 free "both sides correctly said nothing" points. 95.6% (labelled
-cells only) is closer but structurally cannot see a false positive — a cell where the extractor
-invented a value against an empty label is simply excluded from that denominator, no penalty
-paid. Two real titles in this sample show the cost: listing_id 28159 ("semi-umeda", label empty,
-extractor said "wet") and 28860 ("Turkey Jerky", label empty, extractor said "dry") — both real
-category errors, both invisible to 95.6%, the first exactly what fix #3 corrected. The symmetric
-figure (93.2%) adds every false-positive cell to the denominator, so it can penalise them; that is
-now the gate figure, with 95.6% kept alongside as the recall figure. 90.8% (334/368) was a quick
-mental estimate (368 labelled cells minus all 34 mismatches) that double-subtracts: 12 of the 34
-mismatches are false positives on an empty label, never part of the 368-cell denominator to begin
-with. Both rigorously computed figures are higher than the 90.8% estimate, not lower. Full
-reasoning and the reconciliation arithmetic: DECISIONS.md ADR-0027, addendum #2.
+- **Retrieval is now considered done — no further tuning.** Headline recall@20 (2026-09-17
+  session): **88% (44/50), Wilson 95% CI [76.2%, 94.4%].** **This is a measurement-power finding,
+  not a pass or a fail: at n=50, 88% and the >=90% target are not statistically distinguishable —
+  the target sits inside the interval.** Write it exactly this way, not as "gate met" and not as
+  "gate missed" (that would claim a difference the sample cannot establish): the point estimate
+  sits below target, and the gap between 88% and 90% is smaller than this measurement's own noise.
+  **Closing that question would need roughly 1,000 verified positive pairs** (a ±2pp Wilson
+  half-width at p≈0.9) — at this project's observed rate of ~27 draws per usable verified pair
+  (`phase3-retrieval-improvement-2026-09-16.md`, BLOCK 1b), that is on the order of 27,000 draws,
+  out of reach for this project. The number is not being chased further; the queue is frozen
+  instead (below) and annotation proceeds on the retrieval this session produced.
+  Grown/improved across three same-week sessions: 57.7% (15/26) -> 66.0%/72.0% dense/fused (n=50,
+  eval set grown via pentruanimale's VTEX Catalog API, query independent of the embedding input)
+  -> **74.0%/88.0% dense/fused** after a per-field audit of the embedding text found
+  `breed_size_code` was still the RAW token (not the canonical `breed_size_class` built two
+  sessions ago) and `flavour` — already EN/RO-canonicalised by Phase 2 — was missing from the
+  embedding text entirely. Both fixed, all 10,532 rows re-embedded.
+  **Provenance, corrected this session**: the vectors behind this figure were first produced by an
+  uncommitted scratch script (worked around `sentence-transformers` being blocked in this sandbox
+  via `transformers` directly + a `sklearn` stub), which meant `build_embeddings.py` itself did
+  not demonstrably produce what was measured. Proved equivalence on 20 real rows first — genuine
+  `SentenceTransformer.encode()` (imported here via a generalised version of the same stub, which
+  turns out to let the REAL library run, not just a manual reimplementation) vs. the stored
+  vectors: cosine 1.000000, max abs diff ~1e-7 (pgvector float32 round-trip noise) — identical.
+  Then fixed `build_embeddings.py` itself to use that same stub as a fallback (tries the normal
+  import first; only on this sandbox's ImportError does it install the stub — unchanged behaviour
+  on Bogdan's own machine or the deployment VPS), re-ran it for real (`--force`, all 10,532 rows,
+  genuine model, real weights), and re-measured: **44/50 = 88.0%, CI [76.2%, 94.4%] — identical.**
+  Full detail: `docs/learned/phase3-embedding-equivalence-2026-09-17.md`.
+  **The predicted shrink in EN/RO-flavour-crossing misses mostly did NOT happen (5/17 -> 4/13)**
+  even though the underlying data-level fix demonstrably worked (flavour matches on both sides of
+  all 4 remaining cases, checked directly) — those 4 pairs now miss for a different reason (general
+  `product_line` phrasing divergence in large crowded brand families), reported as a finding, not
+  smoothed into a round success number. K-sweep still shows blocked recall reaching 96% by K=100
+  (up from 94%) — **a within-block re-ranking fix (the Phase 3 matching model itself) stays
+  PROPOSED ONLY (DECISIONS.md ADR-0028 addendum #7 item 3) — not decidable now, since what prices
+  it is the section-7 serving benchmark, which does not exist yet.** No decision needed from
+  Bogdan to proceed with annotation; this is recorded for when the serving benchmark exists.
+  **Structural limitation of the eval set, recorded (not previously written down): all 50 pairs
+  were found by a brand-root query, and blocked retrieval blocks on brand.** Checked directly: 0
+  of the 50 pairs' listings are flagged `brand_is_distributor_code` or have a null
+  `brand_blocking_key` — every recall figure above (66% through 88%) is **recall on brand-aligned
+  pairs only**; the fallback path blocked retrieval uses for brand-misaligned/distributor-code
+  listings has never been exercised by any measurement in this project. Not a defect introduced
+  this session — Q3's own original method was brand-anchored too, so every pair inherits it.
+  Full detail on all of the above: `docs/learned/phase3-retrieval-improvement-2026-09-16.md`,
+  DECISIONS.md ADR-0028 addendum #7.
+  TASK A (the Q3-vs-12.5%-vs-27.5% question) is fully closed: all 35 "not found" rows from the
+  extension have been rechecked against a full SKU list, giving a corrected 40-row rate of
+  **57.5% (23/40), CI [42.2%, 71.5%] — reconciles cleanly with Q3's original 54%**, and now serves
+  as the Phase 1 overlap gate's second independent confirmation (see the gate checklist above).
+- **The annotation queue is now FROZEN (2026-09-17, ADR-0028 addendum #9) — no further rebuild
+  without a stated reason recorded here first.** Final numbers: 997 pairs (959 distinct
+  pair_ids), guard passed (capacity_differs 29.4%, flavour_differs 11.4%, brand_differs 5.7%, all
+  under the 40% limit), forecast M-plausible 30.7% / N-by-rule 55.6% / S-likely 13.7% (persisted
+  inside the queue JSON itself). 469 of the previous queue's 959 pairs (48.9%) and 47 of the
+  100-pair AI reference pass's 99 distinct pairs (47.5%) survive into this final draw.
+- **Product-level TEST/TRAIN_VAL split + assisted annotation flow built (2026-09-17, ADR-0028
+  addendum #10) — no annotation run started.** TEST: 300 pairs / 262 listings, BLIND (no
+  suggestion, ever, enforced three independent ways). TRAIN_VAL: 697 pairs / 891 listings,
+  ASSISTED (rules-engine suggestion shown, `C` to confirm, `M`/`N`/`S` to override — pressing
+  M/N/S is always an independent judgement, never counted as a confirmation). Split is by
+  connected component over the queue's own pairs (no ground-truth product id exists), so no
+  listing can appear in both splits — verified, 0 overlap. Full detail: DECISIONS.md ADR-0028
+  addendum #10.
+- `tools/annotate.html` now also supports a configurable 100-pair pilot stop (reports observed
+  M/N/S, S-reasons, median decision time before requiring an explicit "continue"). Building it
+  caught a real bug: the display order concatenated tiers alphabetically rather than interleaving
+  them, so the first 100 pairs would have been 100% one tier — fixed and re-verified against the
+  real queue (every tier now within ±0.5pp of its full-queue share in the first 100).
 
-**This figure is frozen — measured before any gate-derived fix, and never re-measured after.**
-Every one of the four fixes below was derived from a mismatch inside this same 100-row sample;
-re-scoring those same rows after fixing what they revealed would be tuning on the test set. A
-future post-fix accuracy number needs a new, independently drawn sample.
+Nothing is asked of him beyond reviewing before labelling starts — no architecture question is
+open. When he's ready: `python -m http.server` from the repo root, then
+`http://localhost:8000/tools/annotate.html`.
 
-[x] `norm_listings` schema designed, reviewed, approved, migrated (0005), verified live on Neon
-    (ADR-0026)
-[x] gate sample frozen — 100 rows, seed 20260913, seven conventions (6 and 7 added 2026-09-14)
-[x] gate sample **labelled and committed** — `docs/learned/phase2-gate-sample-labeled.csv`, by an
-    external, code-blind model, same 100 ids/order/titles as the frozen file
-[x] deterministic extractor — `src/pricepilot/normalize/` (`quantity.py` -> `brand.py` ->
-    `flavour.py` -> `attributes.py` -> `product_line.py`). Regex and lookup tables only, no LLM,
-    no network. `norm_listings` fully re-extracted under `EXTRACTOR_VERSION 2026-09-14-v5`:
-    10,532 rows (population grew by 29 via ordinary scheduled collection between sessions), 0
-    extractor exceptions.
-[x] coverage report — `scripts/normalize_coverage.py`, current numbers: brand 100.0%,
-    product_line 99.9%, net_weight_g 81.0%, breed_size_code 23.1%, life_stage 27.9%, flavour
-    61.4%, food_form 61.4%, dosage_band 0.1%.
-[x] `product_line` — built, two real bugs fixed after architect review (1a brand-span, 1b
-    dangling-token guard), wired into `extract()`.
-[x] `breed_size_code`/`life_stage` failure-shape breakdown (diagnostic): the EN "Small/Large/..."
-    breed-size gap and "kitten" life-stage gap are documented, deliberately not fixed this
-    session — resurfaced honestly in this session's gate mismatches, not silently ignored.
-[x] `flavour`/`food_form` table extensions (multiple sessions, most recently `"creveti"`/shrimp).
-[x] **85% accuracy gate — MET: 93.2% (261/280, symmetric — labelled cells + false positives,
-    brand excluded) — the gate figure; 95.6% (261/273, labelled cells only, cannot see false
-    positives) kept alongside it as the recall figure. Weight parsing 100.0% (82/82).**
-[x] cache proof — MET, command output in DECISIONS.md ADR-0027 addendum.
-[x] **four gate-derived fixes approved and implemented** (`"punguta"` food_form, M-PETS/
-    L-carnitina breed_size false positives, two small food_form fixes, `"creveti"`/shrimp
-    flavour), each measured by population coverage before/after — never by re-scoring the gate
-    sample. Details and every number: DECISIONS.md ADR-0027 addendum #2.
+### Phase 3 — Matching: session narrative (opened 2026-09-15, maintained through 2026-09-17)
 
-## What Phase 3 will need from Phase 2's output that doesn't exist yet (historical — written 2026-09-14, before Phase 3 opened)
-
-Grounded in what that session actually saw in the data, not the plan's description. Status as of
-the 2026-09-15 Phase 3 session, item by item:
-
-- **A category signal** (food vs. accessory vs. litter vs. toy) — **BUILT.**
-  `normalize/category.py`, `norm_listings.category` (migration 0007). See the Phase 3 gate
-  section below for the population breakdown.
-- **`product_line`'s own accuracy measurement.** **STILL OPEN, not addressed this session** —
-  Phase 3's own annotation queue (below) implicitly exercises `product_line` as part of the tier
-  classifier and the attribute-comparison table the annotator sees, but no dedicated accuracy
-  figure for the field itself was produced. Stays a real gap.
-- **A brand-trustworthiness signal.** **BUILT, with a correction.** An automated statistical
-  approach was tried and rejected as unreliable (real manufacturers like Chicopee and Dolina
-  Noteci score identically to confirmed distributor codes on title-overlap rate). Shipped as a
-  small hand-verified list instead: `"opti"` (confirmed) and `"ipts"` (weaker evidence, flagged as
-  such). **`"Record"`, named here as an example of a distributor code, was checked this session
-  and found to be a real manufacturer** — this line's own example was wrong; corrected in
-  DECISIONS.md ADR-0028, not silently dropped.
-- **Hyphen/spacing-normalized brand keys.** **BUILT.** `brand_blocking_key()`, grounded in 5 real
-  collisions found among today's canonical brand values (not the Julius K-9 case this line
-  named — that one turned out to already canonicalize identically via the existing alias, checked
-  this session; the real collisions found were different brands entirely — `"club 4 paws"`,
-  `"cat's best"`, `"my love"`, `"lolopets"`, `"dr. clauder's"`).
-- **The still-open EN breed-size vocabulary gap** (`"Small"`/`"Medium"`/`"Large"`/`"Giant"`/`"Toy
-  Breed"`, `"kitten"`) — **STILL OPEN, not addressed this session.** Stays exactly the risk this
-  line described.
-
-## Phase 3 — Matching: opened 2026-09-15, prerequisites only
 
 CLAUDE.md §7 gate for this phase: candidate retrieval recall@20 >=90%, an annotation tool and
 1,000-pair dataset, a baseline, a fine-tuned model, a serving benchmark. **This session built only
@@ -657,7 +873,9 @@ N 53 / S 14, agreement 80/100. Full detail:
   derived from `RNG_SEED`) — the queue is reproducible byte-for-byte from its seed, which it was
   not before this session.
 
-## Last done (2026-09-15 addendum session, in order)
+
+### Last done (2026-09-15 addendum session, in order)
+
 
 1. Committed the previous session's uncommitted work as-is (STEP 4/5/6, ADR-0028) plus a
    mid-session sync of `phase3-annotation-conventions.md` to revision 2 (written externally by an
@@ -684,7 +902,134 @@ N 53 / S 14, agreement 80/100. Full detail:
    ordering bug (tiers concatenated alphabetically, not interleaved) caught while verifying the
    pilot slice would actually be representative — it was not, until fixed.
 
-## Last done (2026-09-14 Phase 2 session, in order)
+
+### Phase 2 — Normalization: CLOSED 2026-09-14 (detail)
+
+
+Opened 2026-09-13, ran in parallel with Phase 1 — was never blocked on Phase 1's remaining
+7-consecutive-days box, and does not tick that box closed either (Phase 1 stays open below).
+
+Gate per CLAUDE.md §7: "≥85% attribute accuracy on 100 manually verified listings, with weight
+parsing measured separately", plus the cache demonstrably preventing repeat extraction.
+
+**The gate figure, exactly as recorded (not the first number this session produced — see below
+for why).** Scored on `docs/learned/phase2-gate-sample-labeled.csv` (100 rows, labelled
+externally, code-blind), against `norm_listings` **under `EXTRACTOR_VERSION 2026-09-14-v4`** —
+run and recorded *before* the four gate-derived fixes existed. `EXTRACTOR_VERSION 2026-09-14-v5`
+(the current code, with those four fixes applied) **has no accuracy figure of its own, by
+design** — see "frozen" note further down for why it is never re-measured against this same
+sample, and will not have one until a new, independently drawn sample exists.
+
+- **Gate figure: symmetric (labelled cells + false positives), `brand` excluded — 261/280 =
+  93.2%.** CLAUDE.md §7 says "attribute accuracy" — an extractor that invents a value on an empty
+  cell is not accurate, so the denominator must be able to see that error, not just a miss.
+- **Recall figure, kept alongside it, not as the gate number**: labelled cells only (cannot
+  penalise a false positive — see DECISIONS.md ADR-0027 addendum #2 for the two real category
+  errors this blind spot hid, listing_id 28159 and 28860), `brand` excluded — 261/273 = 95.6%.
+- Weight parsing (`net_weight_g`), separately, on its 82 non-empty labels: **82/82 = 100.0%**
+  (no false positives on this field, so recall and symmetric agree).
+- Reported for transparency, not the gate figure: all-cells 966/1000 = 96.6% (inflated — mostly
+  both-sides-null agreement); labelled-cells-with-brand 346/368 = 94.0%; symmetric-with-brand
+  346/380 = 91.1%.
+- The gate is met on both the 93.2% and 95.6% figures — the substantive conclusion is unchanged;
+  only the framing (which one is "the" gate figure) is corrected.
+- Cache proof: `scripts/normalize.py` run twice, second pass 0 new extractions out of 10,503
+  content hashes (command output in DECISIONS.md ADR-0027 addendum).
+- **Labelling-provenance limitation, stated plainly:** the 100 rows were labelled by a code-blind
+  model, not a human, and 0 of 100 have the `ambiguous` column flagged (verified this session) —
+  the sample README's promised hand-check of flagged rows never ran, since nothing was flagged.
+  Recorded as a limitation of the gate, not a defect that invalidates it: the margin over 85% is
+  wide under every denominator computed. Full reasoning: DECISIONS.md ADR-0027 addendum #2.
+
+**Why `brand` is excluded from the gate figure — not because its score is weakest.** 12 of
+`brand`'s 15 mismatches (89.5% on its own 95 labelled cells) are a labelling-scope artifact: the
+gate sample shows the labeller only `title` text, never the shop's own structured brand field
+`canonicalize_brand()` deliberately prefers. Two different inputs to the same question — this
+sample cannot grade `brand` either way, and it is neither an extractor bug nor a bad label.
+`brand`'s own correctness is validated separately, by STEP 1's cross-shop comparability check
+(Brit/Calibra/Hill's — same product, different shops, same canonical brand).
+
+**Why 93.2%/95.6%, not the 96.6% first reported or the 90.8% used to approve the fix list.** 96.6%
+was scored against all 1,000 cells, and most fields are null on most rows — `dosage_band` alone
+contributes 1 real test and 99 free "both sides correctly said nothing" points. 95.6% (labelled
+cells only) is closer but structurally cannot see a false positive — a cell where the extractor
+invented a value against an empty label is simply excluded from that denominator, no penalty
+paid. Two real titles in this sample show the cost: listing_id 28159 ("semi-umeda", label empty,
+extractor said "wet") and 28860 ("Turkey Jerky", label empty, extractor said "dry") — both real
+category errors, both invisible to 95.6%, the first exactly what fix #3 corrected. The symmetric
+figure (93.2%) adds every false-positive cell to the denominator, so it can penalise them; that is
+now the gate figure, with 95.6% kept alongside as the recall figure. 90.8% (334/368) was a quick
+mental estimate (368 labelled cells minus all 34 mismatches) that double-subtracts: 12 of the 34
+mismatches are false positives on an empty label, never part of the 368-cell denominator to begin
+with. Both rigorously computed figures are higher than the 90.8% estimate, not lower. Full
+reasoning and the reconciliation arithmetic: DECISIONS.md ADR-0027, addendum #2.
+
+**This figure is frozen — measured before any gate-derived fix, and never re-measured after.**
+Every one of the four fixes below was derived from a mismatch inside this same 100-row sample;
+re-scoring those same rows after fixing what they revealed would be tuning on the test set. A
+future post-fix accuracy number needs a new, independently drawn sample.
+
+[x] `norm_listings` schema designed, reviewed, approved, migrated (0005), verified live on Neon
+    (ADR-0026)
+[x] gate sample frozen — 100 rows, seed 20260913, seven conventions (6 and 7 added 2026-09-14)
+[x] gate sample **labelled and committed** — `docs/learned/phase2-gate-sample-labeled.csv`, by an
+    external, code-blind model, same 100 ids/order/titles as the frozen file
+[x] deterministic extractor — `src/pricepilot/normalize/` (`quantity.py` -> `brand.py` ->
+    `flavour.py` -> `attributes.py` -> `product_line.py`). Regex and lookup tables only, no LLM,
+    no network. `norm_listings` fully re-extracted under `EXTRACTOR_VERSION 2026-09-14-v5`:
+    10,532 rows (population grew by 29 via ordinary scheduled collection between sessions), 0
+    extractor exceptions.
+[x] coverage report — `scripts/normalize_coverage.py`, current numbers: brand 100.0%,
+    product_line 99.9%, net_weight_g 81.0%, breed_size_code 23.1%, life_stage 27.9%, flavour
+    61.4%, food_form 61.4%, dosage_band 0.1%.
+[x] `product_line` — built, two real bugs fixed after architect review (1a brand-span, 1b
+    dangling-token guard), wired into `extract()`.
+[x] `breed_size_code`/`life_stage` failure-shape breakdown (diagnostic): the EN "Small/Large/..."
+    breed-size gap and "kitten" life-stage gap are documented, deliberately not fixed this
+    session — resurfaced honestly in this session's gate mismatches, not silently ignored.
+[x] `flavour`/`food_form` table extensions (multiple sessions, most recently `"creveti"`/shrimp).
+[x] **85% accuracy gate — MET: 93.2% (261/280, symmetric — labelled cells + false positives,
+    brand excluded) — the gate figure; 95.6% (261/273, labelled cells only, cannot see false
+    positives) kept alongside it as the recall figure. Weight parsing 100.0% (82/82).**
+[x] cache proof — MET, command output in DECISIONS.md ADR-0027 addendum.
+[x] **four gate-derived fixes approved and implemented** (`"punguta"` food_form, M-PETS/
+    L-carnitina breed_size false positives, two small food_form fixes, `"creveti"`/shrimp
+    flavour), each measured by population coverage before/after — never by re-scoring the gate
+    sample. Details and every number: DECISIONS.md ADR-0027 addendum #2.
+
+
+### What Phase 3 will need from Phase 2's output that doesn't exist yet (historical — written 2026-09-14, before Phase 3 opened)
+
+
+Grounded in what that session actually saw in the data, not the plan's description. Status as of
+the 2026-09-15 Phase 3 session, item by item:
+
+- **A category signal** (food vs. accessory vs. litter vs. toy) — **BUILT.**
+  `normalize/category.py`, `norm_listings.category` (migration 0007). See the Phase 3 gate
+  section below for the population breakdown.
+- **`product_line`'s own accuracy measurement.** **STILL OPEN, not addressed this session** —
+  Phase 3's own annotation queue (below) implicitly exercises `product_line` as part of the tier
+  classifier and the attribute-comparison table the annotator sees, but no dedicated accuracy
+  figure for the field itself was produced. Stays a real gap.
+- **A brand-trustworthiness signal.** **BUILT, with a correction.** An automated statistical
+  approach was tried and rejected as unreliable (real manufacturers like Chicopee and Dolina
+  Noteci score identically to confirmed distributor codes on title-overlap rate). Shipped as a
+  small hand-verified list instead: `"opti"` (confirmed) and `"ipts"` (weaker evidence, flagged as
+  such). **`"Record"`, named here as an example of a distributor code, was checked this session
+  and found to be a real manufacturer** — this line's own example was wrong; corrected in
+  DECISIONS.md ADR-0028, not silently dropped.
+- **Hyphen/spacing-normalized brand keys.** **BUILT.** `brand_blocking_key()`, grounded in 5 real
+  collisions found among today's canonical brand values (not the Julius K-9 case this line
+  named — that one turned out to already canonicalize identically via the existing alias, checked
+  this session; the real collisions found were different brands entirely — `"club 4 paws"`,
+  `"cat's best"`, `"my love"`, `"lolopets"`, `"dr. clauder's"`).
+- **The still-open EN breed-size vocabulary gap** (`"Small"`/`"Medium"`/`"Large"`/`"Giant"`/`"Toy
+  Breed"`, `"kitten"`) — **STILL OPEN, not addressed this session.** Stays exactly the risk this
+  line described.
+
+
+### Last done (2026-09-14 Phase 2 session, in order)
+
 
 1. **STEP 1a — `brand.brand_span_text()`: strip only the manufacturer from `product_line`, not
    the shop's whole raw brand field.** Fixes a real bug the architect review found: stripping
@@ -718,7 +1063,9 @@ N 53 / S 14, agreement 80/100. Full detail:
    cleared and fully re-extracted (10,532 rows, 0 errors). 381 tests pass; ruff, format, mypy
    clean. **Phase 2 gate: MET and CLOSED.**
 
-## Last done (2026-09-13 Phase 2 session, in order)
+
+### Last done (2026-09-13 Phase 2 session, in order)
+
 
 1. **STEP 0a — Hill's "PD" (Prescription Diet) token, checked and added.** Same per-token
    discipline ADR-0025 used for " vd "/" vhn ": " pd " checked against all 18,703 stored titles —
@@ -890,7 +1237,9 @@ N 53 / S 14, agreement 80/100. Full detail:
    2,329 → 2,334 (only 4 of the 118 fell inside that specific population); point estimate 1,211 →
    1,214; 95% CI [897, 1,519] → [899, 1,522]. The correction moved the estimate by about 0.3%.
 
-## Last done (2026-09-13 session, in order)
+
+### Last done (2026-09-13 session, in order)
+
 
 1. **Closed the overlap gate by measurement method, not by lowering the bar** (ADR-0023): the
    proxy key's recall measured at ~8% (a hand-verified n=50 sample implies point estimate 1,211,
@@ -915,7 +1264,9 @@ N 53 / S 14, agreement 80/100. Full detail:
    age-band/breed-size codes ("8+", "L+XL") that contain "+" but are not CLAUDE.md §7's
    bonus-weight pattern. All captured in `docs/SOURCES.md` and the adapter's test fixture.
 
-## Last done (2026-09-12 session, in order)
+
+### Last done (2026-09-12 session, in order)
+
 
 1. **Built and shipped the pentruanimale.ro adapter** (VTEX — different platform from petmax's
    Gomag). Prices and every grouped-variant SKU come from a server-rendered `__STATE__` Apollo
@@ -955,217 +1306,4 @@ N 53 / S 14, agreement 80/100. Full detail:
    into a larger plain/senior-variant bucket, while still matching the two shops' bonus listings
    of the same product to each other).
 
-## Open issues
 
-- **Flagged 2026-09-21 (ADR-0028 addendum #13, TASK 5): `species` field disagrees with its own
-  title on 53/10,532 `norm_listings` rows (0.50%)** — 46 `animax_ro`, 7 `petmax_ro`, 0
-  `pentruanimale_ro` (structurally impossible there — see below). A `normalize/species.py`
-  extraction defect, found by `scripts/check_label_rule_consistency.py`'s class (e) on the 300-row
-  TEST label set (1 instance, `3f574dad8b6e...`) and then measured over the whole population by
-  `scripts/measure_species_field_mismatch.py`. Every mismatch is a case where `animax_ro`'s
-  `raw_payload["product_type"]` or `petmax_ro`'s URL path segment (the STRUCTURED per-source
-  signal `classify_species()` trusts ahead of the title) disagreed with what the title itself
-  says; `pentruanimale_ro` has no structured signal at all, so its stored field IS the title
-  keyword test and can never disagree with it by construction. **Not fixed this session — Phase 2
-  is closed, this is a recorded finding, not a reopening.** Full detail, methodology and examples:
-  `docs/learned/phase3-species-field-mismatch-20260921.md`. Matters most for Phase 3's rule 1
-  (species-differs): a wrong `species` field can silently suppress a real cross-species `N` the
-  annotator would have caught reading the actual title, and worth reconsidering before Phase 3
-  fine-tuning leans on the field again — but no evidence yet that it changed any of the 300 TEST
-  labels themselves (the one overlapping instance was already correctly labelled `M` by the
-  annotator, reading the real title, not the wrong field).
-- **Flagged 2026-09-17: `sentence-transformers` is the second library this machine's Windows
-  Application Control policy blocks outright (after `psycopg`, flagged earlier).** Worked around
-  for a plain embedding forward pass this session (`transformers` directly + a `sklearn` stub —
-  see DECISIONS.md ADR-0028 addendum #7 item 1). **That workaround does not extend to Phase 3 item
-  6 (LoRA/QLoRA fine-tuning)** — training needs the real, full `torch` + `transformers` + `peft`
-  dependency chain (optimizers, schedulers, mixed precision), most of which routes through the
-  same blocked compiled extensions somewhere a `sys.modules` stub can't reach. `torch` and
-  `transformers` import cleanly here (checked); `peft` not yet checked. **The fine-tuning step is
-  planned for a hosted GPU notebook, not this local environment — flagged now, before the week-5
-  fine-tuning decision, not discovered on the day.**
-- **CLOSED 2026-09-13: Hill's "PD" token, checked and added** — 0 newly quarantined (all 8
-  matches were already caught by animax's `product_type` signal); defense-in-depth for the other
-  two sources going forward. See "Last done" above.
-- **CLOSED 2026-09-14: Phase 2 gate sample labelled and scored, gate MET and CLOSED.** Labelled
-  externally (by a model with no visibility into this repo's code, so never tuned against),
-  committed as `docs/learned/phase2-gate-sample-labeled.csv`, scored by
-  `scripts/measure_gate.py`: **gate figure 93.2% (261/280, symmetric — labelled cells + false
-  positives, brand excluded), 95.6% kept alongside as the recall figure, 100% weight parsing
-  (82/82)** — the 96.6% first computed was the inflated all-cells figure, and the 95.6%
-  labelled-cells figure that replaced it structurally cannot see a false positive; both corrected
-  before anything was tuned against them (DECISIONS.md ADR-0027 addendum #2 has the full
-  reconciliation). These figures are frozen, taken before the four gate-derived fixes below, and not
-  re-measured after them. Full breakdown and the 34 mismatches' failure-shape analysis in
-  DECISIONS.md ADR-0027.
-- **CLOSED 2026-09-14: `product_line` extraction wired into `normalize.extract()` and run over
-  the full table.** `src/pricepilot/normalize/product_line.py` — the manufacturer-only portion of
-  the brand field (not the whole raw field, since STEP 1a) + RO food/treat descriptive clause +
-  quantity/pack/bonus/dosage tokens removed, a general dangling-token guard applied, everything
-  else preserved verbatim. Coverage 99.9% (10,525/10,532).
-- **CLOSED 2026-09-14: four gate-derived fixes implemented** (`"punguta"` food_form, M-PETS/
-  L-carnitina breed_size false positives, two small food_form fixes, `"creveti"`/shrimp flavour),
-  each verified by population coverage before/after, never by re-scoring the gate sample.
-  `EXTRACTOR_VERSION` -> `2026-09-14-v5`. Full detail: DECISIONS.md ADR-0027 addendum #2.
-- **CLOSED: `flavour`/`food_form` gap investigated (STEP C, ADR-0027).** Sampled 60 real titles
-  (seed 20260917) from the combined "likely real food, one field missing" pool, checked every
-  candidate word against the full population before adding. flavour 59.6% -> 61.3%, food_form
-  56.1% -> 57.7%. "Cutie" (box) was checked and deliberately NOT added — real samples packaged
-  both dry and wet items, no reliable single mapping. Full list of additions in ADR-0027.
-- **Brand extraction has no title-only fallback.** `canonicalize_brand()` returns `None` when the
-  shop's own structured brand field is empty — only 3 of 10,503 rows today (all petmax), so low
-  priority, but the function's `title` parameter is already reserved for this if it ever becomes
-  worth building.
-- **CLOSED: `breed_size_code`/`life_stage` failure-shape breakdown built (STEP B, ADR-0027) —
-  diagnostic only, not fixed.** For both fields, ~96-98% of nulls are genuinely correct (title
-  states nothing); the small real-gap remainder (talie mica/mare/medie, Small/Large/Medium/
-  Giant/Toy Breed, kitten, RO diminutives) is documented in `scripts/normalize_coverage.py` and
-  ADR-0027 but deliberately not wired into `attributes.py` this session — scoped strictly to what
-  was asked (report the split, not fix it).
-- **CLOSED 2026-09-14: `is_regulated()` veterinary-diet leak** (ADR-0025). Tightened the shared
-  token check (diacritic folding, line-code tokens), added animax's `product_type` as a second
-  signal, and quarantined the 118 already-collected rows the tightened rule catches. See "Last
-  done" above and ADR-0025 for the full rule, evidence, and rejected alternatives.
-- **pentruanimale.ro's regulated-product exposure is "not measured", not "clean".** Its 0-hits
-  result from the 2026-09-13/14 title-text diagnostic is real but incomplete: the source also
-  carries VTEX `categories`/`categoryId` (confirmed live) that could in principle reveal a
-  veterinary-diet branch, but that field was never captured before ADR-0025 started capturing it
-  **going forward only** — it cannot be backfilled onto rows already collected. Do not read
-  pentruanimale's 0-Tier-A-hits as evidence it has no leak; it means only that title text alone
-  found nothing, which is the weaker of the two signals everywhere else it was checked.
-- **Hill's "PD" (Prescription Diet) is a candidate line-code token, not added this session.**
-  Found while reconciling animax's title-check against its `product_type`: "Hill's PD Metabolic",
-  "Hill's PD Afectiuni hepatice L/D" and similar are caught by `product_type` but not by any
-  title token (ADR-0025's token list is `" vd "`/`" vhn "` only, per the two brands checked).
-  Worth the same per-token verification ADR-0025 did for "VD"/"VHN" before adding "PD" — not done
-  this session, since "PD" is a much shorter, more collision-prone string than "VD"/"VHN" and
-  needs its own check across all stored titles before being trusted.
-- **Deferred to Phase 2 (Normalization)**, causes already diagnosed in `docs/AUDIT.md`: brand-field
-  canonicalization (petmax splits Brit into Brit/Brit Premium/Brit Care/Brit Fresh and Calibra into
-  5 strings; pentruanimale writes "HILL'S Science Plan" where petmax writes "Hill's"), an
-  English-Romanian flavour-word table (Chicken/Pui, Lamb/Miel, Beef/Vita, Salmon/Somon,
-  Turkey/Curcan, Duck/Rata, Rabbit/Iepure, Tuna/Ton), and partial token overlap instead of exact
-  set equality. These are normalization work, not a proxy-key patch — `overlap_key()` stays as-is.
-- **petmax's `url` field is not a trustworthy identity signal.** Slug collisions produce a numeric
-  suffix (e.g. `-6847`) and the URL can describe a different product than the row's title (see
-  2026-09-13 verification note in `docs/AUDIT.md`). Checked this session: nothing downstream keys
-  on `url` — `overlap.py` never references it, and the one place it could matter,
-  `runner.py:182`'s `source_product_id or listing.url` fallback, has never actually fired (0 of
-  8,075 rows lack `source_product_id`). Stays a documented constraint for future code, not a bug
-  fixed today.
-- **The 2026-09-13 scheduled run started at 08:13 UTC against a 03:10 UTC cron** — a ~5 hour
-  delay, far past the 10-30 minutes ADR-0018 anticipates. One data point so far; watch it.
-- **The proxy key moved 94 → 241 once animax.ro joined** (sources=3, 2026-09-13), still a known
-  floor at ~8% measured recall, not the gate — the gate stays closed by the hand-verified sample
-  (ADR-0023). Whether animax's contribution is concentrated the same way petmax/pentruanimale's
-  overlap was (88% Royal Canin, per the diagnostic session) has not been re-checked; worth a look
-  before trusting 241 as evenly distributed across brands.
-- **animax's structured `grams` field cannot be trusted as ground truth** — a real listing titled
-  "... 2 kg" carries `grams: 500` in the shop's own data (docs/SOURCES.md, ADR-0024). Captured into
-  `raw_payload` for reference only; nothing reads it as authoritative. Reinforces why the overlap
-  key parses weight from title text and was not changed to use it.
-- **7 consecutive days is 2 so far** (2026-09-12 → 2026-09-13, no gap) — the scheduled cron has now
-  fired once, 5 hours late (see above).
-- **pentruanimale.ro's ~600-product-per-category ceiling is permanent** with the current
-  `?page=N` retrieval path. Reaching the remainder would need a different mechanism (e.g. the
-  `sitemap/product-N.xml` files) — not attempted, flagged for whoever next touches this adapter.
-- **3/25 hand-checked overlap keys contain a false pairing**: life-stage/senior variants ("Adult"
-  vs "Adult 8+", "Adult" vs "Junior") and a packaging-format nuance (can vs pouch) that the current
-  key doesn't distinguish. Within the plan's accepted error margin; not tuned further this session
-  per explicit instruction.
-- **LLM transport not implemented.** ADR-0006.
-- **`make` not installed.** `.\make.ps1 <target>` is the Windows path. ADR-0003.
-- **Bonus-weight titles are a confirmed real trap**, not just theorized — seen in real scraped data
-  on both shops this session. Needs to reach the Phase 3 annotation set.
-
-## Blocked on Bogdan
-
-Nothing right now. Phase 2's gate is met and closed (2026-09-14); STEP 5's fix list was approved
-and the 5 items covering the four fix groups were implemented the same session (punguta, M-PETS,
-two food_form fixes, crevete/shrimp — DECISIONS.md ADR-0027 addendum #2). The remaining 10 of 15
-named shapes (#1, #4, #7-#13, #15) stay documented-but-unfixed by design — genuine definitional
-questions, known-deferred gaps, or a gate-sample scope limit, none needing a decision to proceed
-with Phase 3.
-
-Every Phase 1 gate box is met except 7 consecutive days of history (3/7 as of 2026-09-14), which
-is wall-clock — it closes on its own once the daily cron has run 4 more times, nothing to decide.
-
-Phase 3 prerequisites (STEP 1-6, ADR-0028) are built and committed. Two same-day architect audits
-found and fixed real problems (ADR-0028 addendum, then addendum #2, both 2026-09-15) — full detail
-in DECISIONS.md. **Still stopped for review before any labelling begins**, per explicit
-instruction. Bogdan needs to review, in particular:
-
-- **Retrieval is now considered done — no further tuning.** Headline recall@20 (2026-09-17
-  session): **88% (44/50), Wilson 95% CI [76.2%, 94.4%].** **This is a measurement-power finding,
-  not a pass or a fail: at n=50, 88% and the >=90% target are not statistically distinguishable —
-  the target sits inside the interval.** Write it exactly this way, not as "gate met" and not as
-  "gate missed" (that would claim a difference the sample cannot establish): the point estimate
-  sits below target, and the gap between 88% and 90% is smaller than this measurement's own noise.
-  **Closing that question would need roughly 1,000 verified positive pairs** (a ±2pp Wilson
-  half-width at p≈0.9) — at this project's observed rate of ~27 draws per usable verified pair
-  (`phase3-retrieval-improvement-2026-09-16.md`, BLOCK 1b), that is on the order of 27,000 draws,
-  out of reach for this project. The number is not being chased further; the queue is frozen
-  instead (below) and annotation proceeds on the retrieval this session produced.
-  Grown/improved across three same-week sessions: 57.7% (15/26) -> 66.0%/72.0% dense/fused (n=50,
-  eval set grown via pentruanimale's VTEX Catalog API, query independent of the embedding input)
-  -> **74.0%/88.0% dense/fused** after a per-field audit of the embedding text found
-  `breed_size_code` was still the RAW token (not the canonical `breed_size_class` built two
-  sessions ago) and `flavour` — already EN/RO-canonicalised by Phase 2 — was missing from the
-  embedding text entirely. Both fixed, all 10,532 rows re-embedded.
-  **Provenance, corrected this session**: the vectors behind this figure were first produced by an
-  uncommitted scratch script (worked around `sentence-transformers` being blocked in this sandbox
-  via `transformers` directly + a `sklearn` stub), which meant `build_embeddings.py` itself did
-  not demonstrably produce what was measured. Proved equivalence on 20 real rows first — genuine
-  `SentenceTransformer.encode()` (imported here via a generalised version of the same stub, which
-  turns out to let the REAL library run, not just a manual reimplementation) vs. the stored
-  vectors: cosine 1.000000, max abs diff ~1e-7 (pgvector float32 round-trip noise) — identical.
-  Then fixed `build_embeddings.py` itself to use that same stub as a fallback (tries the normal
-  import first; only on this sandbox's ImportError does it install the stub — unchanged behaviour
-  on Bogdan's own machine or the deployment VPS), re-ran it for real (`--force`, all 10,532 rows,
-  genuine model, real weights), and re-measured: **44/50 = 88.0%, CI [76.2%, 94.4%] — identical.**
-  Full detail: `docs/learned/phase3-embedding-equivalence-2026-09-17.md`.
-  **The predicted shrink in EN/RO-flavour-crossing misses mostly did NOT happen (5/17 -> 4/13)**
-  even though the underlying data-level fix demonstrably worked (flavour matches on both sides of
-  all 4 remaining cases, checked directly) — those 4 pairs now miss for a different reason (general
-  `product_line` phrasing divergence in large crowded brand families), reported as a finding, not
-  smoothed into a round success number. K-sweep still shows blocked recall reaching 96% by K=100
-  (up from 94%) — **a within-block re-ranking fix (the Phase 3 matching model itself) stays
-  PROPOSED ONLY (DECISIONS.md ADR-0028 addendum #7 item 3) — not decidable now, since what prices
-  it is the section-7 serving benchmark, which does not exist yet.** No decision needed from
-  Bogdan to proceed with annotation; this is recorded for when the serving benchmark exists.
-  **Structural limitation of the eval set, recorded (not previously written down): all 50 pairs
-  were found by a brand-root query, and blocked retrieval blocks on brand.** Checked directly: 0
-  of the 50 pairs' listings are flagged `brand_is_distributor_code` or have a null
-  `brand_blocking_key` — every recall figure above (66% through 88%) is **recall on brand-aligned
-  pairs only**; the fallback path blocked retrieval uses for brand-misaligned/distributor-code
-  listings has never been exercised by any measurement in this project. Not a defect introduced
-  this session — Q3's own original method was brand-anchored too, so every pair inherits it.
-  Full detail on all of the above: `docs/learned/phase3-retrieval-improvement-2026-09-16.md`,
-  DECISIONS.md ADR-0028 addendum #7.
-  TASK A (the Q3-vs-12.5%-vs-27.5% question) is fully closed: all 35 "not found" rows from the
-  extension have been rechecked against a full SKU list, giving a corrected 40-row rate of
-  **57.5% (23/40), CI [42.2%, 71.5%] — reconciles cleanly with Q3's original 54%**, and now serves
-  as the Phase 1 overlap gate's second independent confirmation (see the gate checklist above).
-- **The annotation queue is now FROZEN (2026-09-17, ADR-0028 addendum #9) — no further rebuild
-  without a stated reason recorded here first.** Final numbers: 997 pairs (959 distinct
-  pair_ids), guard passed (capacity_differs 29.4%, flavour_differs 11.4%, brand_differs 5.7%, all
-  under the 40% limit), forecast M-plausible 30.7% / N-by-rule 55.6% / S-likely 13.7% (persisted
-  inside the queue JSON itself). 469 of the previous queue's 959 pairs (48.9%) and 47 of the
-  100-pair AI reference pass's 99 distinct pairs (47.5%) survive into this final draw.
-- **Product-level TEST/TRAIN_VAL split + assisted annotation flow built (2026-09-17, ADR-0028
-  addendum #10) — no annotation run started.** TEST: 300 pairs / 262 listings, BLIND (no
-  suggestion, ever, enforced three independent ways). TRAIN_VAL: 697 pairs / 891 listings,
-  ASSISTED (rules-engine suggestion shown, `C` to confirm, `M`/`N`/`S` to override — pressing
-  M/N/S is always an independent judgement, never counted as a confirmation). Split is by
-  connected component over the queue's own pairs (no ground-truth product id exists), so no
-  listing can appear in both splits — verified, 0 overlap. Full detail: DECISIONS.md ADR-0028
-  addendum #10.
-- `tools/annotate.html` now also supports a configurable 100-pair pilot stop (reports observed
-  M/N/S, S-reasons, median decision time before requiring an explicit "continue"). Building it
-  caught a real bug: the display order concatenated tiers alphabetically rather than interleaving
-  them, so the first 100 pairs would have been 100% one tier — fixed and re-verified against the
-  real queue (every tier now within ±0.5pp of its full-queue share in the first 100).
-
-Nothing is asked of him beyond reviewing before labelling starts — no architecture question is
-open. When he's ready: `python -m http.server` from the repo root, then
-`http://localhost:8000/tools/annotate.html`.

@@ -59,15 +59,30 @@ def blocking_findings() -> dict[str, int]:
     return counts
 
 
+_HISTORY_HEADING = "\n## History\n"
+
+
 def write_hash(digest: str, test_file: Path = TEST_FILE, state_md: Path = STATE_MD) -> None:
     test_text = test_file.read_text(encoding="utf-8")
     if not _CONST_RE.search(test_text):
         raise SystemExit(f"FROZEN_LABELS_SHA256 not found in {test_file}")
     test_file.write_text(_CONST_RE.sub(rf'\g<1>"{digest}"', test_text, count=1), encoding="utf-8")
+
+    # STATE.md's own "## History" section (ADR-0028 addendum #18) is a preserved, never-edited
+    # record of past sessions and may contain OLDER "Frozen labels SHA-256:" lines from before this
+    # dataset was ever frozen -- the marker this function updates is the live one above History
+    # only. Splitting on the heading (not just matching count=1, which silently picked whichever
+    # line happened to come first) keeps a future History reorder from corrupting a historical
+    # snapshot the way one already did once (caught in review, fixed before that commit landed).
     state_text = state_md.read_text(encoding="utf-8")
-    if not _STATE_RE.search(state_text):
-        raise SystemExit(f"'Frozen labels SHA-256:' marker line not found in {state_md}")
-    state_md.write_text(_STATE_RE.sub(rf"\g<1>`{digest}`", state_text, count=1), encoding="utf-8")
+    live_text, sep, history_text = state_text.partition(_HISTORY_HEADING)
+    if not _STATE_RE.search(live_text):
+        raise SystemExit(
+            f"'Frozen labels SHA-256:' marker line not found in {state_md} "
+            "(before '## History', if present)"
+        )
+    live_text = _STATE_RE.sub(rf"\g<1>`{digest}`", live_text, count=1)
+    state_md.write_text(live_text + sep + history_text, encoding="utf-8")
 
 
 def main() -> int:

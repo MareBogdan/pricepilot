@@ -115,20 +115,62 @@ def test_count() -> tuple[int, int, str]:
 
 
 def annotated_pairs() -> tuple[int, str]:
-    """Phase 3's manual bottleneck. Counted from the annotation file once it exists."""
-    path = ROOT / "data" / "annotations.jsonl"
+    """Phase 3's manual bottleneck. Counted from `docs/learned/phase3-labels.json` — the file
+    `tools/annotate.html` + `scripts/ingest_labels.py` actually produce, not the placeholder
+    `data/annotations.jsonl` path this function read before ADR-0028's freeze session (that file
+    never existed; this always silently reported 0)."""
+    path = ROOT / "docs" / "learned" / "phase3-labels.json"
     if not path.exists():
-        return 0, "not started (data/annotations.jsonl)"
-    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        return 0, "not started (docs/learned/phase3-labels.json)"
+    decisions = json.loads(path.read_text(encoding="utf-8"))["decisions"]
     labels: dict[str, int] = {}
-    for line in lines:
-        try:
-            labels[str(json.loads(line).get("label", "?"))] = (
-                labels.get(str(json.loads(line).get("label", "?")), 0) + 1
-            )
-        except json.JSONDecodeError:
-            continue
-    return len(lines), ", ".join(f"{k}={v}" for k, v in sorted(labels.items())) or "-"
+    for d in decisions.values():
+        key = str(d.get("label", "?"))
+        labels[key] = labels.get(key, 0) + 1
+    return len(decisions), ", ".join(f"{k}={v}" for k, v in sorted(labels.items())) or "-"
+
+
+def phase3_eval_view() -> str | None:
+    """Per-split M/N/S breakdown from `docs/learned/phase3-eval-view.json` — the single source of
+    per-tier denominators (STATE.md, ADR-0028 addendum #16). Read, never hard-coded: a future
+    review pass or split change shows up here without editing this script."""
+    path = ROOT / "docs" / "learned" / "phase3-eval-view.json"
+    if not path.exists():
+        return None
+    entries = json.loads(path.read_text(encoding="utf-8"))["entries"]
+    lines = []
+    for split in ("test", "train_val"):
+        rows = [e for e in entries if e["split"] == split]
+        pair_ids = {e["pair_id"] for e in rows}
+        counts: dict[str, int] = {}
+        for e in rows:
+            counts[e["label"]] = counts.get(e["label"], 0) + 1
+        scored = sum(1 for e in rows if e.get("scored"))
+        breakdown = " / ".join(f"{counts.get(k, 0)} {k}" for k in ("M", "N", "S"))
+        lines.append(f"{split}: {len(pair_ids)} distinct pairs, {breakdown} ({scored} scored)")
+    return "; ".join(lines)
+
+
+def freeze_state() -> tuple[bool, str]:
+    """Whether the label dataset is frozen, and its hash — computed live from
+    `tests/test_labels_frozen.py`'s constant and the real file bytes, never trusted from prose.
+    Mirrors `scripts/freeze_labels.py`'s own hashing (CRLF -> LF) so this agrees with `--freeze`
+    without importing that script's argparse-driven `main()`."""
+    test_file = ROOT / "tests" / "test_labels_frozen.py"
+    labels_json = ROOT / "docs" / "learned" / "phase3-labels.json"
+    if not test_file.exists() or not labels_json.exists():
+        return False, "unknown (missing tests/test_labels_frozen.py or the labels file)"
+    m = re.search(r'FROZEN_LABELS_SHA256\s*=\s*"([^"]*)"', test_file.read_text(encoding="utf-8"))
+    recorded = m.group(1) if m else "unknown"
+    if recorded == "UNFROZEN":
+        return False, "UNFROZEN"
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from check_label_rule_consistency import sha256_lf  # local import: keeps this cheap elsewhere
+
+    actual = sha256_lf(labels_json.read_bytes())
+    if actual != recorded:
+        return False, f"MISMATCH — recorded {recorded[:12]}... but file hashes to {actual[:12]}..."
+    return True, actual
 
 
 def fixture_count() -> int:
@@ -365,8 +407,14 @@ def main() -> int:
 
     _h("Phase 3 dataset")
     pairs, breakdown = annotated_pairs()
-    _row("annotated pairs", f"{pairs} / 1000", pairs >= 1000)
+    # CLAUDE.md §7: "800-1,000 pairs" — MET is >=800, not exactly 1000; 997 is a real completion.
+    _row("annotated decisions", f"{pairs} (target 800-1,000)", pairs >= 800)
     _row("  └ label breakdown", breakdown)
+    eval_view = phase3_eval_view()
+    if eval_view:
+        _row("  └ per-split breakdown", eval_view)
+    frozen, hash_or_state = freeze_state()
+    _row("  └ dataset frozen", hash_or_state, frozen)
 
     _h("Repo health")
     passed, failed, note = test_count()
