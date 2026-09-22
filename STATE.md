@@ -1,8 +1,8 @@
 # STATE
 
-Phase: 1 — Collection (still open — gate met except 7-consecutive-days, pure wall-clock, nothing
-to decide), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open since
-2026-09-15.**
+Phase: 1 — Collection, **CLOSED 2026-09-22** (last box, ≥7 consecutive days, MET — see Gate
+progress below), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open
+since 2026-09-15.**
 
 **Current state, 2026-09-21 (evening) — read this paragraph first; everything below is history,
 not status.** Phase 3 items 1-4 of CLAUDE.md §7 are done: (1) candidate retrieval closed at
@@ -93,7 +93,7 @@ Phase 0 — Foundation: **CLOSED**, verified end to end in Docker on 2026-09-12.
 [x] `make lint` passes — ruff check + format clean, mypy strict clean on 20 source files
 [x] zero dollars spent
 
-Phase 1 — Collection: in progress. Gate per CLAUDE.md §7. Checked against git history
+Phase 1 — Collection: **CLOSED 2026-09-22** (all gate boxes MET, see below). Gate per CLAUDE.md §7. Checked against git history
 (2026-09-13): the ≥400-overlap bullet did not exist before 2026-09-12 (`git show 591b7a3 --
 CLAUDE.md`) — that commit added it, along with the proxy-key methodology and the build-order
 note. The ≥3,000/≥3-sources/≥7-days wording predates that commit unchanged (only its formatting,
@@ -126,11 +126,48 @@ measurement method — hence dropped in favour of dating each actual change.
     ADR-0025), 0 errors, verified on a fresh Neon connection. petmax (Gomag) and pentruanimale
     (VTEX) are both non-Shopify, satisfying CLAUDE.md §7's "at least one non-Shopify" regardless
     of animax's own platform.
-[ ] ≥7 consecutive days of history — **3 / 7** (2026-09-12 → 2026-09-14, no gap — verified this
-    session against `scrape_runs`: `select date(started_at), source, status, count(*) from
-    scrape_runs group by 1,2,3 order by 1,2` shows a successful (`status='ok'`) run for every
-    in-scope source on each of the three dates — petmax/pentruanimale on 09-12, all three sources
-    from 09-13 onward, matching animax's 09-13 addition, ADR-0024)
+[x] **≥7 consecutive days of history — MET, re-measured 2026-09-22 against the real database**
+    (pg8000 workaround, ADR-0028 addendum #5 — `psycopg` blocked by Application Control). Query:
+    `select date(started_at) as day, source, status, count(*) from scrape_runs group by 1, 2, 3
+    order by 1, 2` — full, unedited output:
+    ```
+    2026-09-12,pentruanimale_ro,ok,2
+    2026-09-12,petmax_ro,ok,3
+    2026-09-13,animax_ro,ok,1
+    2026-09-13,pentruanimale_ro,ok,2
+    2026-09-13,petmax_ro,ok,2
+    2026-09-14,animax_ro,ok,1
+    2026-09-14,pentruanimale_ro,ok,1
+    2026-09-14,petmax_ro,ok,1
+    2026-09-15,animax_ro,ok,1
+    2026-09-15,pentruanimale_ro,ok,1
+    2026-09-15,petmax_ro,ok,1
+    2026-09-16,animax_ro,ok,1
+    2026-09-16,pentruanimale_ro,ok,1
+    2026-09-16,petmax_ro,ok,1
+    2026-09-17,animax_ro,ok,1
+    2026-09-17,pentruanimale_ro,ok,1
+    2026-09-17,petmax_ro,ok,1
+    2026-09-18,animax_ro,ok,1
+    2026-09-18,pentruanimale_ro,ok,1
+    2026-09-18,petmax_ro,ok,1
+    2026-09-19,animax_ro,ok,1
+    2026-09-19,pentruanimale_ro,ok,1
+    2026-09-19,petmax_ro,ok,1
+    2026-09-20,animax_ro,ok,1
+    2026-09-20,pentruanimale_ro,ok,1
+    2026-09-20,petmax_ro,ok,1
+    2026-09-21,animax_ro,ok,1
+    2026-09-21,pentruanimale_ro,ok,1
+    2026-09-21,petmax_ro,ok,1
+    ```
+    **STRICT definition** (every in-scope source has ≥1 `status='ok'` run that day): qualifying
+    days 09-13 through 09-21, longest consecutive run **9 days, 2026-09-13 → 2026-09-21** —
+    clears the ≥7 target. 09-12 fails strict only because animax hadn't been added yet (ADR-0024,
+    2026-09-13). **WEAK definition** (at least one source ok that day), reported separately, not
+    used to tick this box: 10 days, 2026-09-12 → 2026-09-21 (includes 09-12 since
+    petmax/pentruanimale alone ran that day). **Phase 1 gate is now fully met — Phase 1 CLOSED
+    2026-09-22.**
 [x] **≥400 products on two or more shops — MET, now confirmed by TWO independent verification
     passes, not one.** ADR-0023's own hand-verified sample: point **1,214**, 95% CI **[899,
     1,522]**. A second, independent pass (2026-09-15/16, TASK A — pentruanimale's VTEX Catalog
