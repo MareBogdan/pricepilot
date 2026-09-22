@@ -40,3 +40,15 @@ Thumbs.db
 
 # Scraper run logs (scripts/schedule_daily.ps1)
 logs/
+
+# Phase 3 session artefacts, deliberately ignored rather than committed or deleted
+# (DECISIONS.md ADR-0028 addendum #16):
+#  - Claude Code's own per-session output directory -- tool scratch, not project content.
+Claude outputs/
+#  - the annotator's working sheet, in Romanian (CLAUDE.md's English-only rule is for docs this
+#    project authors; this one is Bogdan's own labelling aid, not disposable, but also not a repo
+#    doc -- kept locally, never committed).
+docs/learned/fisa-adnotare-pricepilot.html
+#  - a one-off scratch draw used while extending the retrieval eval set; superseded by the
+#    committed eval-set/queue files, not needed to reproduce anything downstream.
+docs/learned/phase3-q3-extension-draw.json
