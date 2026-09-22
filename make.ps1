@@ -31,7 +31,7 @@ switch ($Target) {
     'lint'       { Invoke-Step @('uv', 'run', 'ruff', 'check', '.'); Invoke-Step @('uv', 'run', 'ruff', 'format', '--check', '.') }
     'format'     { Invoke-Step @('uv', 'run', 'ruff', 'format', '.'); Invoke-Step @('uv', 'run', 'ruff', 'check', '--fix', '.') }
     'typecheck'  { Invoke-Step @('uv', 'run', 'mypy') }
-    'test'       { Invoke-Step @('uv', 'run', 'pytest'); Invoke-Step @('node', '--test', 'tests/js/annotate_review_topbar.test.mjs') }
+    'test'       { Invoke-Step @('uv', 'run', 'pytest'); Invoke-Step @('node', '--test', 'tests/js/annotate_review_topbar.test.mjs'); Invoke-Step @('node', '--test', 'tests/js/annotate_review_stale_revision.test.mjs') }
     'check'      { & $PSCommandPath lint; & $PSCommandPath typecheck; & $PSCommandPath test }
     'status'     { Invoke-Step @('uv', 'run', 'python', 'scripts/status.py') }
     'cost'       { Invoke-Step @('uv', 'run', 'python', 'scripts/cost.py') }

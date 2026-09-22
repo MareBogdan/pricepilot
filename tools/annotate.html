@@ -306,6 +306,26 @@ const REVIEW_MODE = !!REVIEW_PARAM;
 const REVIEW_URL = REVIEW_MODE ? `../${REVIEW_PARAM}` : null;
 let reviewInfoByOcc = new Map(); // occurrence_id -> {pair_id, label, left_title, right_title, classes}
 
+// Bug fix (ADR-0028 addendum #18): a `revised_at` timestamp alone does not say WHICH review
+// pass produced it. An occurrence re-decided under an OLDER relabel-queue file must still be
+// shown again if it is flagged in the file loaded THIS session -- otherwise a re-flagged
+// occurrence silently vanishes from the walk while still counting as "done" on the completion
+// screen. `REVIEW_GENERATED_AT` holds the currently loaded review file's own `generated_at`
+// (set in initReviewMode()); `isRevisedUnderCurrentReview()` is the only correct way to ask
+// "already re-decided, in THIS review session" anywhere in this file.
+//
+// Identity is keyed on the file's `generated_at`, not on the content of its `flagged` set, by
+// deliberate choice, matching how scripts/check_label_rule_consistency.py's own regeneration is
+// treated everywhere else in this pipeline: every re-run is a new pass, even one that produces a
+// byte-identical flagged set. A consequence worth knowing: re-running that script after an
+// annotator sitting bumps `generated_at` and reopens every revision made under the older file,
+// including ones whose flagged content didn't actually change. That is intentional here, not
+// an oversight -- do not "fix" it by hashing `flagged` instead without re-checking this call site.
+let REVIEW_GENERATED_AT = null;
+function isRevisedUnderCurrentReview(s) {
+  return !!s && !!s.revised_at && s.revised_under_review_generated_at === REVIEW_GENERATED_AT;
+}
+
 // TASK D — a configurable pilot size. Default 100 (Bogdan labels a pilot slice before committing
 // to the full run, per instruction). Override with ?pilot=N in the URL; ?pilot=0 disables the
 // pilot stop entirely (goes straight through to the full queue, for a later full run). The pilot
@@ -704,7 +724,7 @@ function currentPhaseInfo() {
     let remaining = 0;
     for (const idx of order) {
       const s = state[queue[idx].occurrence_id];
-      if (!s || !s.revised_at) remaining++;
+      if (!isRevisedUnderCurrentReview(s)) remaining++;
     }
     return { phase: "REVIEW", remaining };
   }
@@ -720,7 +740,9 @@ function currentPhaseInfo() {
 
 function updateTopbar() {
   if (REVIEW_MODE) {
-    const revisedCount = order.filter((idx) => state[queue[idx].occurrence_id]?.revised_at).length;
+    const revisedCount = order.filter((idx) =>
+      isRevisedUnderCurrentReview(state[queue[idx].occurrence_id])
+    ).length;
     document.getElementById("stat-done").textContent = revisedCount;
     document.getElementById("stat-total").textContent = order.length;
     document.getElementById("stat-median").textContent = fmtMs(medianDecisionMs());
@@ -827,12 +849,13 @@ function findNextUndone() {
 // TASK 4 (ADR-0028 addendum #13) -- review-mode equivalent of findNextUndone(). Every item in a
 // review `order` already has a pre-existing decision in `state` by construction (that is why it
 // was flagged), so findNextUndone()'s "no state entry yet" test would see the whole review queue
-// as already done. "Undone" here means "not yet re-decided in review mode", i.e. its state entry
-// carries no `revised_at`.
+// as already done. "Undone" here means "not yet re-decided under THIS review file specifically"
+// -- see isRevisedUnderCurrentReview() (ADR-0028 addendum #18): a `revised_at` left over from an
+// OLDER review file's run does not count as done here.
 function reviewFirstUnrevisedIndex() {
   for (let k = 0; k < order.length; k++) {
     const s = state[queue[order[k]].occurrence_id];
-    if (!s || !s.revised_at) return k;
+    if (!isRevisedUnderCurrentReview(s)) return k;
   }
   return -1;
 }
@@ -961,7 +984,9 @@ function showDone() {
   if (REVIEW_MODE) {
     // Review-specific summary -- the ordinary tierCounts()/assistedFlowReport() describe the
     // WHOLE 997-pair queue, which would misreport a small hand-picked review run as "997 done".
-    const revised = order.filter((idx) => state[queue[idx].occurrence_id]?.revised_at);
+    const revised = order.filter((idx) =>
+      isRevisedUnderCurrentReview(state[queue[idx].occurrence_id])
+    );
     const byRule = {};
     for (const idx of revised) {
       const occId = queue[idx].occurrence_id;
@@ -1021,6 +1046,7 @@ function decide(answer, source) {
     const priorAnswer = state[item.occurrence_id]?.answer ?? info?.label ?? null;
     newDecision.revised_from = priorAnswer;
     newDecision.revised_at = newDecision.decided_at;
+    newDecision.revised_under_review_generated_at = REVIEW_GENERATED_AT;
     newDecision.revision_rule = info ? info.classes.map((c) => c.rule_id).join(",") : null;
   }
   state[item.occurrence_id] = newDecision;
@@ -1525,6 +1551,8 @@ async function initReviewMode() {
   // GUARD 1 -- review-mode-wide, not just for reviewed items (see function comment above).
   for (const item of queue) item.engine_prediction = null;
 
+  REVIEW_GENERATED_AT = reviewData.generated_at;
+
   const occToIdx = new Map(queue.map((item, idx) => [item.occurrence_id, idx]));
   const flagged = reviewData.flagged || {};
   reviewInfoByOcc = new Map(Object.entries(flagged));
@@ -1563,8 +1591,9 @@ async function initReviewMode() {
   // Every item walked here already has a PRE-EXISTING decision in `state` by definition (that
   // is why it was flagged) -- the ordinary findNextUndone()'s "no state entry yet" test would
   // therefore see the whole review queue as already done and jump straight to the done screen.
-  // Resumability instead keys off `revised_at`: the first item in `order` that has not yet been
-  // re-decided IN review mode this file's run (i.e. carries no `revised_at`) is where a resumed
+  // Resumability instead keys off `isRevisedUnderCurrentReview()`: the first item in `order`
+  // that has not yet been re-decided under THIS review file specifically (a `revised_at` from an
+  // OLDER review file's run does not count -- see ADR-0028 addendum #18) is where a resumed
   // sitting picks back up.
   cursor = reviewFirstUnrevisedIndex();
   const resumeNote = document.getElementById("resume-note");
