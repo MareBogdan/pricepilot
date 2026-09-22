@@ -4,7 +4,16 @@ Date: 2026-09-21. Question: which pretrained model is the classical baseline, an
 
 ## Recommendation
 
-**Baseline = `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, reported twice: zero-shot and fine-tuned on the 697 TRAIN_VAL pairs.** Headline comparison against the LoRA 0.5B LLM uses the fine-tuned row. Cost: free (local CPU).
+**Baseline = `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, reported twice: zero-shot and fine-tuned on the 672 distinct TRAIN_VAL pairs.** Headline comparison against the LoRA 0.5B LLM uses the fine-tuned row. Cost: free (local CPU).
+
+**Correction (2026-09-22, architect review):** this doc previously said "fine-tuned on the 697
+TRAIN_VAL pairs" — wrong twice over. 697 is the TRAIN_VAL **row** count, and 25 of those rows are
+repeats of a pair already shown once under `trivial_spot_check`; the distinct pair count is
+**672**. Training on rows double-weights those 25 pairs and, pre-review, would feed three pairs
+two contradictory labels (the pair repeated, disagreed on both occurrences). Train on the **672
+distinct pairs from `docs/learned/phase3-eval-view.json`** (`scripts/build_eval_view.py`), which
+already applies the repeat-resolution rule (first decision in display order); drop `S` (7 of 672)
+for **665 trainable pairs**.
 
 ## Candidates
 
@@ -13,7 +22,7 @@ Date: 2026-09-21. Question: which pretrained model is the classical baseline, an
 | Params | 0.1B (card rounds; exact UNVERIFIED) | 0.6B | 0.1B (card rounds; exact UNVERIFIED) | UNVERIFIED (12 layers, 384-dim) |
 | Licence | Apache 2.0 | Apache 2.0 | Apache 2.0 | UNVERIFIED (not retrievable) |
 | Romanian | 15 languages, machine-translated MS MARCO; Romanian listed: UNVERIFIED | "Multilingual"; Romanian not confirmed | "50 languages"; Romanian not explicitly listed | 100 languages claimed |
-| Dev PC (CPU) | Yes, ESTIMATE: fine-tuning 697 pairs is minutes | Inference yes; fine-tuning slow, ESTIMATE | Yes | Yes |
+| Dev PC (CPU) | Yes, ESTIMATE: fine-tuning 665 pairs is minutes | Inference yes; fine-tuning slow, ESTIMATE | Yes | Yes |
 | CX22 (2 vCPU / 4 GB) | Yes, ESTIMATE (~0.4 GB fp32 = 0.1B x 4 bytes) | Doubtful: ~2.4 GB fp32 (0.6B x 4 bytes, ESTIMATE) competes with Postgres plus the quantized 0.5B LLM | Yes, ESTIMATE | Yes, ESTIMATE |
 | Cost | Free | Free | Free | Free |
 | Role | Baseline | Optional zero-shot ceiling | Retrieval (recall@20) | Alternative retrieval |
@@ -37,16 +46,30 @@ Sources:
 | Row | Adaptation | Purpose |
 |---|---|---|
 | Zero-shot | None; threshold chosen on TRAIN_VAL only | Shows what off-the-shelf gets you |
-| Fine-tuned | Trained on TRAIN_VAL (697 pairs) | Fair baseline; the LLM also sees TRAIN_VAL |
+| Fine-tuned | Trained on TRAIN_VAL (672 distinct pairs, 665 after dropping S) | Fair baseline; the LLM also sees TRAIN_VAL |
 
 Zero-shot alone would be a strawman, because the LoRA model is adapted on the same data.
 
 Rules for fairness:
-1. Split TRAIN_VAL into train and validation at product level (CLAUDE.md rule 3).
+1. Split TRAIN_VAL into train and validation at product level (CLAUDE.md rule 3), deduplicated to
+   672 distinct pairs first (same first-occurrence-in-display-order rule as the eval view).
 2. Tune the threshold and epochs on validation only.
 3. Touch the 287 TEST pairs once per model.
-4. Drop S labels from scoring and report the count.
+4. **Drop S labels and report the count: 3 in TEST, 7 in TRAIN_VAL** (`docs/learned/phase3-eval-view.json`).
 5. Report per-error-class results (size variant, breed-size code, life stage, flavour).
+6. **Per-tier reportability rule** — precision/recall/F1 is not computable on every tier. A tier
+   with fewer than 5 positives reports **false-positive rate (FP / N) with a Wilson 95% CI** and an
+   explicit "recall not computable, n_pos = X" note; never print `recall = 0.000` for a tier with
+   zero positives. On TEST (`docs/learned/phase3-eval-view.json`, per-tier positives): full
+   precision/recall/F1 is meaningful only on `proxy_key_collision` (74 pos) and
+   `blocked_retrieval_candidate` (15 pos). Below the 5-positive floor: `same_capacity_diff_breedsize`
+   (4 pos) and `capacity_differs_cross_shop` (1 pos) — FP rate + CI, "recall not computable" note.
+   `same_capacity_diff_flavour` (0/26), `capacity_differs_within_shop` (0/22) and
+   `diff_brand_similar_title` (0/16) have **zero** positives — FP rate + CI only, recall undefined.
+7. **Dominance caveat.** 74 of 97 TEST positives (76.3%) sit in `proxy_key_collision`, and 13 of
+   those 74 are the duplicated `trivial_spot_check` pairs (near-identical titles, all `M`). Always
+   report overall recall **alongside recall excluding those 13** — otherwise the headline number
+   reads as harder-won than it is.
 
 ## What would change my mind
 
