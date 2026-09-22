@@ -3081,3 +3081,115 @@ annotator. (5) The 22/25 self-agreement is labelled pre-reconciliation; the (f) 
 other label, so no fresh self-agreement is computable after review. Known, not changed:
 `FROZEN_QUEUE_SHA256` is CRLF-dependent in the checker (not run in CI); `make status` does not yet
 show freeze state.
+
+## ADR-0028 addendum #16 — pre-baseline audit fixes (2026-09-22)
+
+**Context.** An architect audit recomputed every headline Phase 3 figure directly from
+`phase3-labels.json`, confirmed all of them, and found seven defects to fix before item 5 (the
+cross-encoder baseline) starts. This session fixes them. It does not start the baseline and does
+not run `scripts/freeze_labels.py --freeze`. **No label was changed.** Proof:
+`phase3-labels.json` SHA-256 at the start and end of this session — raw
+`9ba2775c8165245261c6abe22628d73e329baa0aaa8afb8be11664e95cb9b4e2`, LF-normalised
+`6d514651ed5fa836a5c5de28af7b5d747096beb01ea2331354db01bc029f3fb3` — identical both times, and
+`phase3-annotation-queue.json`/`phase3-annotation-split.json` show as unmodified in every commit's
+diff.
+
+**1. Phase 1's 7-consecutive-days box — re-measured against the real database, MET, Phase 1
+CLOSED.** Ran `select date(started_at) as day, source, status, count(*) from scrape_runs group by
+1, 2, 3 order by 1, 2` via the pg8000 workaround (addendum #5 — `psycopg` blocked by Application
+Control); full output and both definitions (strict: every in-scope source ok that day, longest run
+9 days 2026-09-13→2026-09-21; weak: any source ok, 10 days 2026-09-12→2026-09-21) are quoted
+verbatim in `STATE.md`. The strict definition clears the ≥7 target, so this was the last open box
+on Phase 1's gate — **Phase 1 is now CLOSED.**
+
+**2. CRLF-dependent frozen-queue hash guard — fixed in `check_label_rule_consistency.py` and
+`freeze_labels.py` only.** `.gitattributes` normalises the repo to LF, so any Linux checkout
+(a hosted GPU notebook for the fine-tune, CI if it ever runs this checker, the Phase 7 VPS) would
+see `QUEUE_JSON.read_bytes()` hash differently than the constant recorded on this Windows/CRLF
+worktree, and get refused with a false "frozen queue hash mismatch" even though nothing changed.
+Added a shared `sha256_lf()` helper, moved `FROZEN_QUEUE_SHA256` to the LF-normalised value, and
+used it for both the checker's guard and `freeze_labels.blocking_findings()` (via `clc.sha256_lf`).
+The relabel-queue JSON output keeps its old raw-hash fields (`tools/annotate.html`'s review mode
+hashes the same checkout in-browser, so raw vs LF never diverges there) and adds explicit
+`_raw`/`_lf` fields for traceability. A regression test builds a CRLF and an LF queue variant and
+asserts the guard accepts both — verified to fail against the pre-fix code first.
+**Deliberately out of scope, left as-is, and now a known follow-up:** `tests/test_annotation_split.py`,
+`tests/test_predict_label_parity.py`, `scripts/split_annotation_queue.py` and
+`scripts/ingest_labels.py` each carry their own independent raw-hash copy of the same
+`FROZEN_QUEUE_SHA256` constant/guard and were NOT touched this session (the task scoped this fix to
+exactly two files). Practical consequence, stated plainly: those raw-hash guards still fail on any
+Linux checkout today; `make test` is not yet green on Linux. A future session should either extend
+`sha256_lf()` to those four files or accept the raw-CRLF guard there deliberately, but not leave the
+same constant name meaning two different hash conventions across the repo indefinitely.
+
+**3. The canonical evaluation view.** `scripts/build_eval_view.py` materialises the ADR-0028
+addendum #12 evaluation rules — one entry per distinct `pair_id` per split, a repeated pair's label
+from the FIRST decision in display order, always attributed to tier `proxy_key_collision`, `S`
+labels kept with `scored: false` — into `docs/learned/phase3-eval-view.json`. `--assert-pre-review`
+reproduces the architect's independently-computed table exactly: TEST 287 pairs (97 M / 187 N / 3
+S, 284 scored), TRAIN_VAL 672 pairs (226 M / 439 N / 7 S, 665 scored), every per-tier row matching
+— two independent derivations agreeing, not one asserted. Hardened after review to refuse on a
+decision whose `occurrence_id` the frozen queue doesn't have, and on a repeat whose two occurrences
+disagree on split; a regression test pins the three pairs whose two occurrences carry different
+labels, so a regression to file-order resolution (which would leave every count unchanged and only
+flip those three labels) fails loudly instead of passing silently.
+
+**4. Self-agreement and class-(d) framing corrected, not softened.** All 38 repeated pairs are
+exactly the `trivial_spot_check` pairs, re-drawn once under `proxy_key_collision` — self-agreement
+("TEST 13/13 = 100%, TRAIN_VAL 22/25 = 88%", quoted in STATE.md, README.md and this file's addendum
+#15) was therefore measured only on the easiest pairs in the dataset, never the hard negatives. The
+informative reading of TRAIN_VAL is a **12% self-disagreement rate on trivially easy pairs**, and
+both files now carry that qualifier at every quote site. Separately, class (d)'s "tier description
+was overstated" framing (addendum #15) reads as softer than the measured fact: across the full
+`trivial_spot_check`-class population (`phase3-eval-view.json`), blind TEST is **15/15 correct**
+and assisted TRAIN_VAL is **31/35 correct, 4/35 failed** — zero failures where the engine showed no
+suggestion, all four where it did. That is a measured **anchoring effect on the engine's
+suggestion**, reported as such in STATE.md and this file.
+
+**5. Baseline-doc corrections (`docs/phase3-baseline-model-choice.md`).** "fine-tuned on the 697
+TRAIN_VAL pairs" was wrong twice — 697 is the row count, and training on rows double-weights 25
+repeated pairs and, pre-review, feeds three pairs two contradictory labels. Corrected to the 672
+distinct pairs from the eval view (665 after dropping 7 `S`). Added the per-tier reportability rule
+(a tier with fewer than 5 positives reports FP rate with a Wilson 95% CI, never
+`recall = 0.000` for zero positives — on TEST only `proxy_key_collision` (74 pos) and
+`blocked_retrieval_candidate` (15 pos) clear the floor) and the dominance caveat (74 of 97 TEST
+positives sit in `proxy_key_collision`, 13 of those are the duplicated `trivial_spot_check` pairs,
+so overall recall must be reported alongside recall excluding those 13).
+
+**6. The `per_tier_counts` trap in `phase3-annotation-split.json` — documented, deliberately not
+fixed.** That block's `test_pair_ids`/`train_val_pair_ids` fields are mislabelled: they hold ROW
+counts (e.g. `proxy_key_collision.test_pair_ids: 86` is the same number as `.test_rows: 86`) and
+sum to 300/697, not the 287/672 distinct-pair counts. The file is frozen and its hash is recorded
+in three other files (`tests/test_annotation_split.py`, `phase3-repeat-first-occurrence.json`, the
+checker's own guard), so it is **not edited** — the trap is recorded here and pointed at from
+`phase3-test-eval-denominators.md`, and `phase3-eval-view.json` is now the only source of per-tier
+pair-count denominators.
+
+**7. README status/results and `.gitignore`.** README's status line was stale ("Phase 0
+complete"); updated to the real state after items 1–5 above. The candidate-retrieval recall@20 cell
+was empty under a caption saying empty means undone — filled with 88.0% (44/50), Wilson 95% CI
+[76.2%, 94.4%], since the work was done and the cell was empty only because the figure is a
+measurement-power finding. Three untracked files added to `.gitignore` with per-file reasons
+(not deleted, not committed): `Claude outputs/` (Claude Code's own session-output directory, tool
+scratch); `docs/learned/fisa-adnotare-pricepilot.html` (the annotator's own Romanian working sheet
+— not a repo doc this project authors, so the English-only rule doesn't apply, but it isn't
+disposable either); `docs/learned/phase3-q3-extension-draw.json` (a superseded scratch draw from
+extending the retrieval eval set).
+
+**Alternatives rejected.** Extending the CRLF fix to the other four raw-hash call sites this
+session (scope creep beyond what was asked — recorded as a follow-up instead, item 2 above).
+Deleting the three newly-gitignored files instead of ignoring them (the annotation sheet and the
+`Claude outputs/` directory are working artefacts, not garbage). Adjusting `EXPECTED_PRE_REVIEW` in
+`build_eval_view.py` to match a mismatch had one occurred (the instruction was explicit: two
+independent derivations disagreeing is a finding, not a nuisance to paper over — moot here, since
+`--assert-pre-review` matched exactly on the first real run).
+
+**Verification, same session.** `uv run python scripts/check_label_rule_consistency.py` — a:2 b:0
+c:0 d:4 e:3 f:6, 15 flags / 12 occurrences, both hash fields present, unchanged from before the fix.
+`uv run python scripts/build_eval_view.py --assert-pre-review` — exact match. `uv run python
+scripts/freeze_labels.py` (no `--freeze`) — still reports `UNFROZEN`, does not crash on the queue
+guard. `uv run pytest -q` — **500 passed, 1 skipped** (the skip is `test_labels_frozen.py`'s own
+"labels not frozen yet", expected while UNFROZEN). `uv run ruff check . && uv run ruff format
+--check .`, `uv run mypy` — clean. `git status --porcelain` at the end of the session shows no unexpected untracked or
+modified files, and neither `phase3-labels.json`, `phase3-annotation-queue.json` nor
+`phase3-annotation-split.json` appears in any commit's diff.

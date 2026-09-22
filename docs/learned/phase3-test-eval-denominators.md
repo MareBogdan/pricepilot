@@ -98,6 +98,17 @@ the hard negatives, and must never be quoted without that qualifier. The same co
 TRAIN_VAL's 22/25 = 88% is a **12% self-disagreement rate on trivially easy pairs**, which is the
 more informative reading of the two.
 
+## Addendum (2026-09-22, DECISIONS.md ADR-0028 addendum #16)
+
+`docs/learned/phase3-eval-view.json` (`scripts/build_eval_view.py`) now materialises the rules
+above into a file, verified byte-for-byte against this table via `--assert-pre-review`. It is the
+**only source of per-tier pair-count denominators from here on** — never
+`phase3-annotation-split.json`'s own `per_tier_counts` block, whose `test_pair_ids`/
+`train_val_pair_ids` fields are mislabelled (they hold ROW counts, e.g. `proxy_key_collision`
+`test_pair_ids: 86` is the same number as `test_rows: 86`, and the whole block sums to 300/697 —
+rows — not 287/672 — distinct pairs). That file is frozen and hashed in three other places, so the
+trap is documented here rather than fixed in place.
+
 ## Tier purity note (not a defect to fix, a caveat to state)
 
 TEST pair `00f775f25237_6a81b0d8429b` sits in `capacity_differs_cross_shop` although the two sides

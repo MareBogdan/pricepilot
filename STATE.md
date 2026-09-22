@@ -4,24 +4,46 @@ Phase: 1 — Collection, **CLOSED 2026-09-22** (last box, ≥7 consecutive days,
 progress below), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open
 since 2026-09-15.**
 
-**Current state, 2026-09-21 (evening) — read this paragraph first; everything below is history,
-not status.** Phase 3 items 1-4 of CLAUDE.md §7 are done: (1) candidate retrieval closed at
-**recall@20 = 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%]** — a measurement-power finding, neither
-met nor missed; (2) annotation tool built; (3) **annotation COMPLETE: 997/997 labels, M 359 /
-N 628 / S 10**, all by Bogdan (`C` pressed 0 times — every decision is his own, recorded as an
-override); (4) product-level split: **blind TEST 300 rows / 287 distinct pairs** (no suggestion
-ever shown) and **assisted TRAIN_VAL 697 rows** (suggestion shown). Self-agreement on repeated
-pairs: **TEST 13/13 = 100%, TRAIN_VAL 22/25 = 88%** (pre-reconciliation, measured at ingest; the 3 disagreements are TRAIN_VAL only).
-**Qualifier that must travel with these numbers (2026-09-22 correction):** all 38 repeated pairs
-are exactly the `trivial_spot_check` pairs, re-drawn once under `proxy_key_collision` — these
-figures measure annotator consistency **on near-identical titles only, never on the hard
-negatives**. The more informative reading of TRAIN_VAL is a **12% self-disagreement rate on
-trivially easy pairs**, not "88% agreement" read in isolation.
+**Current state, 2026-09-22 — read this paragraph first; everything below is history,
+not status.** **Phase 1 is CLOSED** (re-measured this session against the real database, last
+box — ≥7 consecutive days — MET: strict definition 9 consecutive days, 2026-09-13→2026-09-21; see
+the Gate progress section below for the full query output). **Phase 2 is CLOSED.** **Phase 3 is
+open**, items 1-4 of CLAUDE.md §7 done: (1) candidate retrieval closed at **recall@20 = 88.0%
+(44/50), Wilson 95% CI [76.2%, 94.4%]** — a measurement-power finding, neither met nor missed; (2)
+annotation tool built; (3) **annotation COMPLETE: 997/997 labels, M 359 / N 628 / S 10**, all by
+Bogdan (`C` pressed 0 times — every decision is his own, recorded as an override); (4)
+product-level split: **blind TEST 300 rows / 287 distinct pairs**, **assisted TRAIN_VAL 697 rows /
+672 distinct pairs**. Self-agreement on the 38 repeated pairs — **TEST 13/13 = 100%, TRAIN_VAL
+22/25 = 88%** (pre-reconciliation, measured at ingest; the 3 disagreements are TRAIN_VAL only) —
+measures consistency on the `trivial_spot_check` pairs only (near-identical titles), never the hard
+negatives; TRAIN_VAL's more informative reading is a **12% self-disagreement rate on trivially easy
+pairs**.
+**Labels are still UNFROZEN, deliberately.** The mechanical checker
+(`scripts/check_label_rule_consistency.py`) still reports 15 flags across 12 distinct occurrences
+— composition: a-only 2, d-only 1, d+f 3, f-only 3, e-only 3. `scripts/freeze_labels.py --freeze`
+refuses on any a/b/c/d/f finding (`blocking_findings()` deliberately excludes class e — a stored
+`normalize/species.py` data defect, never a labelling error, so it can never block or justify a
+label change) — **9 of the 12 occurrences actually block the freeze; the 3 e-only ones do not.**
+**The annotator's next action, unchanged, is still the review pass** over all 12 queued
+occurrences (`tools/annotate.html?review=docs/learned/phase3-relabel-queue.json`, e-only ones shown
+for awareness, not action), then re-ingest, re-run the checker, then freeze.
+**`docs/learned/phase3-eval-view.json` (`scripts/build_eval_view.py`) now exists as the single
+source of per-tier pair-count denominators for item 5** (the baseline) — TEST 287 distinct pairs
+(97 M / 187 N / 3 S, 284 scored), TRAIN_VAL 672 distinct pairs (226 M / 439 N / 7 S, 665 scored),
+verified byte-for-byte against an independent architect derivation via `--assert-pre-review`.
+Never read `phase3-annotation-split.json`'s own `per_tier_counts` block for this — its
+`test_pair_ids`/`train_val_pair_ids` fields are mislabelled ROW counts (sum to 300/697, not
+287/672), a known trap left in that frozen file and documented rather than fixed (DECISIONS.md
+ADR-0028 addendum #16).
 Throughput (recomputed from `phase3-labels.json` `ms`): median **3.0s blind (n=300; 3.2s before the
 7 review revisions replaced their timings), 1.5s assisted (n=697), 1.8s overall** — against §7's
 untested 18s/decision assumption. Correction rate of the engine's suggestion in TRAIN_VAL: **104/697
 = 14.9%** overall; per tier in ADR-0028 addendum #15 (`diff_brand_similar_title` 38/39 = 97.4%).
-Queue frozen, SHA-256 `696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`.
+Queue frozen, SHA-256 (LF-normalised) `7da125e1856bc65514234d516e17d0a12363ee6ada9b324b3f00ca8bfa146d2a`
+— raw-CRLF value `696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`, still the
+constant four other files pin (`scripts/ingest_labels.py`, `scripts/split_annotation_queue.py`,
+`tests/test_annotation_split.py`, `tests/test_predict_label_parity.py` — DECISIONS.md ADR-0028
+addendum #16 item 2; not the same file changing, two hash conventions of the same unchanged file).
 **Caveat:** TRAIN_VAL decisions were faster and less self-consistent than blind ones, so TRAIN_VAL
 labels are more engine-shaped than TEST; the headline number comes from the blind TEST set alone.
 
@@ -90,7 +112,7 @@ false positives on wet wipes, not wet food; "semi-umeda" no longer false-positiv
 the `"creveti"`/shrimp flavour gap (52 titles) — each measured by population coverage, never by
 re-scoring the gate sample (that would be tuning on the test set; 93.2%/95.6% stay the frozen,
 un-re-measured figures of record). No Phase 1 box ticked this session.
-Updated: 2026-09-17
+Updated: 2026-09-22
 
 ## Gate progress
 
