@@ -12,9 +12,14 @@ Inputs (SHA-256 of the raw bytes as committed on the Windows worktree):
 | `docs/learned/phase3-annotation-split.json` | `a9a4c7583215769c8053d148b65525b88d8ebf0ed9d345cd82d3fa9d68280c29` |
 | `docs/learned/phase3-repeat-first-occurrence.json` | used for the repeat tie-break |
 
-**This table is pre-review.** It is the state of the labels *before* the annotator's review pass
-over the 12 queued occurrences. Regenerate it after ingest; only the Schesir occurrence
-(`3f574dad8b6e_b52acad20816_0`, currently `N`) can move a TEST cell.
+**This table is PRE-REVIEW** — the state of the labels *before* the annotator's review pass over
+the 12 queued occurrences. Kept unchanged below as the audit-trail baseline; **see the POST-REVIEW
+section near the end of this file for the current numbers.** The Schesir occurrence
+(`3f574dad8b6e_b52acad20816_0`) was the only one eligible to move a TEST cell, and it did not — its
+label is still `N`, unchanged, carried forward from a 2026-09-21 revision. **This is not the same
+as "the review pass confirmed it": its stored record shows no 2026-09-22 timestamp at all, meaning
+it was not actually re-examined this session. See POST-REVIEW for the full detail — this remains
+outstanding, not resolved.**
 
 ## Rules applied (DECISIONS.md ADR-0028 addendum #12)
 
@@ -108,6 +113,121 @@ above into a file, verified byte-for-byte against this table via `--assert-pre-r
 `test_pair_ids: 86` is the same number as `test_rows: 86`, and the whole block sums to 300/697 —
 rows — not 287/672 — distinct pairs). That file is frozen and hashed in three other places, so the
 trap is documented here rather than fixed in place.
+
+## POST-REVIEW table (2026-09-22, after the annotator's review pass, DECISIONS.md ADR-0028 addendum #17)
+
+12 occurrences were queued in `phase3-relabel-queue.json`. Re-ingested via
+`scripts/ingest_labels.py` over all five export files in `docs/learned/labels/` (per the runbook).
+**997 decisions in, 997 out** — a revision replaces, never adds; **zero occurrence_ids outside the
+12 queued ones changed.**
+
+**Only 11 of the 12 carry a fresh 2026-09-22 decision. The 12th — `3f574dad8b6e_b52acad20816_0`,
+the sole queued TEST occurrence — does not, and this is flagged here as outstanding, not glossed
+over.** Its stored record in the export
+(`docs/learned/labels/phase3-labels-20260922-1136.json`) still reads `decided_at:
+"2026-09-21T16:39:52.697Z"`, `revised_at: "2026-09-21T16:39:52.697Z"` — identical to before this
+session, with no 2026-09-22 timestamp anywhere on it. It was queued for review and is included in
+the export's full-state snapshot, but nothing in the stored data shows it was actually re-examined
+this session; the label (`N`) is simply carried forward from the prior session's revision —
+**the same revision `ARCHITECT_NOTES` already flagged as invalid** (rule 1 reads the title, not
+the `species` field; both titles say "pisici"/cat). **This is not resolved. It needs the
+annotator's attention, specifically, before this occurrence can be trusted as reviewed.** (A prior
+report described this session's review pass as "12/12" — that count does not match what is
+actually stored; 11/12 is what the data supports.)
+
+Of the **11** occurrences with a genuine 2026-09-22 decision, **6 actually changed label** relative
+to what was already merged (the other 5 were re-confirmed at their existing value). All 6 changes
+are in **TRAIN_VAL** — the TEST table above is byte-identical, pre- to post-review (including
+`3f574dad8b6e_b52acad20816_0` itself, whose value never moved).
+
+| occurrence_id | pair_id | class(es) | before | after |
+|---|---|---|---|---|
+| `1c0d1a45d509_614c9a4d1f42_0` | `1c0d1a45d509_614c9a4d1f42` | a | M | **N** |
+| `a960a4aea31a_cf3c9566947c_0` | `a960a4aea31a_cf3c9566947c` | a | M | **N** |
+| `01b880c1f365_33394df3427d_0` | `01b880c1f365_33394df3427d` | d, f | S | **N** |
+| `01b880c1f365_33394df3427d_1` | `01b880c1f365_33394df3427d` | f | M | **N** |
+| `3f12b3225e74_a0b2cb253771_0` | `3f12b3225e74_a0b2cb253771` | f | M | **N** |
+| `a19a1b41f49f_afc62890b6b5_1` | `a19a1b41f49f_afc62890b6b5` | f | M | **N** |
+
+The other 5 of the 11 genuinely-reviewed occurrences were re-confirmed unchanged (all still `N`):
+`2acc97947c1c_c8f4810554f2_0` (e), `84fe6219552b_e8343e4a08b2_0` (e),
+`a19a1b41f49f_afc62890b6b5_0` (d, f), `3f12b3225e74_a0b2cb253771_1` (d, f) and
+`33394df3427d_3ab75d311be0_0` (d). Plus the one occurrence above whose review status is
+unconfirmed: `3f574dad8b6e_b52acad20816_0` (e), also `N`.
+
+**Checker re-run:** class (a) 0, (b) 0, (c) 0, (d) **4**, (e) 3, (f) **0** — 7 flags / 7
+occurrences. Classes a and f fully resolved. **Class (d) did NOT resolve**: all four
+`trivial_spot_check`-tier pairs (the Royal Canin Kitten pairs, `01b880c1f365_33394df3427d`,
+`a19a1b41f49f_afc62890b6b5`, `3f12b3225e74_a0b2cb253771`, `33394df3427d_3ab75d311be0`) are labelled
+`N` — three of the four are repeats and are `N` on both occurrences; the fourth
+(`33394df3427d_3ab75d311be0`) has only one occurrence, also `N`. All four carry fresh 2026-09-22
+timestamps (genuinely re-examined, not just carried forward — contrast the Schesir occurrence
+above). **No rationale is recorded for any of the four**: `s_reason` is only ever populated for `S`
+answers, so its being `null` here is not itself evidence — check instead that no free-text note
+exists anywhere in the export
+(`docs/learned/labels/phase3-labels-20260922-1136.json`; the field doesn't survive into
+`phase3-labels.json` at all) — this doc does not know, and does not claim to know, why the
+annotator decided `N` on titles that read as the same product
+("Royal Canin Kitten, 10 kg" vs "ROYAL CANIN Kitten, hrană uscată pisici junior, 10kg", and
+similarly for the 400g/2kg pairs). **This is the same population DECISIONS.md ADR-0028 addendum
+#16 already characterised as a measured anchoring effect on the engine's suggestion** (assisted
+TRAIN_VAL 31/35 correct pre-review, these being 4 of the 35) — that framing is not retracted or
+softened here; it is the framing that stands. It is a real mechanical-rule violation the checker
+is right to keep flagging, and — unlike the 3f574dad8b6e_b52acad20816_0 case above — all four DO
+carry fresh 2026-09-22 timestamps, so these four genuinely were re-examined this session and kept
+at `N`.
+**Class e (3, unchanged) never blocks the freeze** (`freeze_labels.blocking_findings()` excludes
+it); **class d (4) does block it.** `scripts/freeze_labels.py --freeze` was **not run** this
+session — the dataset stays UNFROZEN.
+
+### TEST — unchanged from the pre-review table above (287 pairs, 97 M / 187 N / 3 S, 284 scored)
+
+Every per-tier cell matches the pre-review table exactly — verified by comparing
+`scripts/build_eval_view.py`'s per-tier TEST output directly against `EXPECTED_PRE_REVIEW["test"]`
+in code, tier by tier, zero mismatches. **Note on `--assert-pre-review` itself:** running it now
+correctly exits non-zero overall ("MISMATCH against the architect's table") because
+`EXPECTED_PRE_REVIEW` still pins the PRE-review TRAIN_VAL numbers and TRAIN_VAL has genuinely
+moved (see below) — that failure is expected and by design, not a bug; it is scoped to TRAIN_VAL
+only, TEST alone produces zero mismatch lines. S pairs unchanged: `458190b7d79e_8b7d069a7266`,
+`d5fcb235eb23_97a5d666acd4`, `687e29e4280d_a746795258cd`.
+
+### TRAIN_VAL — 672 distinct pairs, POST-REVIEW
+
+| Tier | pairs | M | N | S | scored (M+N) | Δ vs pre-review |
+|---|---:|---:|---:|---:|---:|---|
+| `proxy_key_collision` | 200 | 164 | 34 | 2 | 198 | M −2, N +3, S −1 |
+| `capacity_differs_cross_shop` | 146 | 0 | 146 | 0 | 146 | M −2, N +2 |
+| `blocked_retrieval_candidate` | 86 | 39 | 43 | 4 | 82 | unchanged |
+| `same_capacity_diff_flavour` | 59 | 0 | 59 | 0 | 59 | unchanged |
+| `capacity_differs_within_shop` | 53 | 0 | 53 | 0 | 53 | unchanged |
+| `same_capacity_diff_lifestage` | 46 | 1 | 45 | 0 | 46 | unchanged |
+| `diff_brand_similar_title` | 39 | 4 | 35 | 0 | 39 | unchanged |
+| `same_capacity_diff_breedsize` | 33 | 5 | 28 | 0 | 33 | unchanged |
+| `trivial_spot_check` | 10 | 9 | 1 | 0 | 10 | unchanged |
+| **TOTAL** | **672** | **222** (was 226) | **444** (was 439) | **6** (was 7) | **666** (was 665) | M −4, N +5, S −1 |
+
+Only `proxy_key_collision` and `capacity_differs_cross_shop` moved — the eval-view TIER of the
+changed pair (post rule 3 repeat re-attribution), not necessarily the QUEUE tier of the changed
+occurrence itself: `01b880c1f365_33394df3427d_0`'s own occurrence tier is `trivial_spot_check`,
+and it is reported under `proxy_key_collision` only because rule 3 attributes every repeated pair
+to that tier regardless of its first occurrence's tier. S pairs, post-review (6, was 7 —
+`01b880c1f365_33394df3427d` moved S→N): `337b68ef4d83_0b356dfb4b69`, `381ad6bf4e5c_98bff2af651c`,
+`48fd1f2f7142_db48d6e143a2`, `4b716da37ec2_fcebb06c2a34`, `889e719216a5_ea6d5f153b94`,
+`bce9992b1579_d38a575da629`.
+
+**665 trainable pairs (672 − 6 S) is now 666.** `docs/phase3-baseline-model-choice.md` has already
+been updated in this same session (all "665" occurrences now read "666", the TRAIN_VAL S-count rule
+updated 7→6) — this is a record of the change, not an open TODO for a future session. Phase 3 item
+5 itself has still not started.
+
+### Files regenerated this session
+
+`docs/learned/labels/phase3-labels-20260922-1136.json` (the annotator's export, the input to
+everything below), `docs/learned/phase3-labels.json` (997 decisions, 6 label changes),
+`phase3-label-qa-20260922.md`
+(new QA report), `phase3-relabel-queue.json` (now 7 flags), `phase3-eval-view.json` (this table's
+source). `phase3-annotation-queue.json` and `phase3-annotation-split.json` are unchanged (not
+touched, not re-run).
 
 ## Tier purity note (not a defect to fix, a caveat to state)
 

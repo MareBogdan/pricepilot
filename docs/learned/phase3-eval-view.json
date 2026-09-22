@@ -1,7 +1,7 @@
 {
  "built_from": "scripts/build_eval_view.py",
- "generated_at": "2026-09-22T08:17:53.956486+00:00",
- "labels_sha256_lf": "6d514651ed5fa836a5c5de28af7b5d747096beb01ea2331354db01bc029f3fb3",
+ "generated_at": "2026-09-22T08:40:20.341032+00:00",
+ "labels_sha256_lf": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
  "queue_sha256_lf": "7da125e1856bc65514234d516e17d0a12363ee6ada9b324b3f00ca8bfa146d2a",
  "split_sha256_lf": "a9a4c7583215769c8053d148b65525b88d8ebf0ed9d345cd82d3fa9d68280c29",
  "frozen": false,
@@ -2647,8 +2647,8 @@
    "pair_id": "01b880c1f365_33394df3427d",
    "split": "train_val",
    "tier": "proxy_key_collision",
-   "label": "S",
-   "scored": false,
+   "label": "N",
+   "scored": true,
    "first_occurrence_id": "01b880c1f365_33394df3427d_0",
    "is_repeat": true
   },
@@ -3610,7 +3610,7 @@
    "pair_id": "1c0d1a45d509_614c9a4d1f42",
    "split": "train_val",
    "tier": "capacity_differs_cross_shop",
-   "label": "M",
+   "label": "N",
    "scored": true,
    "first_occurrence_id": "1c0d1a45d509_614c9a4d1f42_0",
    "is_repeat": false
@@ -5320,7 +5320,7 @@
    "pair_id": "3f12b3225e74_a0b2cb253771",
    "split": "train_val",
    "tier": "proxy_key_collision",
-   "label": "M",
+   "label": "N",
    "scored": true,
    "first_occurrence_id": "3f12b3225e74_a0b2cb253771_0",
    "is_repeat": true
@@ -7507,7 +7507,7 @@
    "pair_id": "a19a1b41f49f_afc62890b6b5",
    "split": "train_val",
    "tier": "proxy_key_collision",
-   "label": "M",
+   "label": "N",
    "scored": true,
    "first_occurrence_id": "a19a1b41f49f_afc62890b6b5_1",
    "is_repeat": true
@@ -7723,7 +7723,7 @@
    "pair_id": "a960a4aea31a_cf3c9566947c",
    "split": "train_val",
    "tier": "capacity_differs_cross_shop",
-   "label": "M",
+   "label": "N",
    "scored": true,
    "first_occurrence_id": "a960a4aea31a_cf3c9566947c_0",
    "is_repeat": false

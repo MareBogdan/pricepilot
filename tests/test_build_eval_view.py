@@ -11,9 +11,12 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import build_eval_view as bev  # noqa: E402
 import check_label_rule_consistency as clc  # noqa: E402
 
 EVAL_VIEW_JSON = ROOT / "docs" / "learned" / "phase3-eval-view.json"
@@ -118,12 +121,16 @@ def test_view_entry_count_is_959() -> None:
     assert len(view["entries"]) == 959
 
 
-def test_repeat_resolution_uses_display_order_not_file_order() -> None:
-    """Regression pin (reviewer finding, ADR-0028 addendum #16): if build_entries() ever regressed
-    to `first_occ = occ_ids[0]` (file order) instead of the repeat lookup's display-first
-    occurrence, entry/repeat counts and tier attribution would all stay unchanged -- only the
-    LABEL of these three pairs, which disagree between their two occurrences, would silently flip.
-    Pinned directly against the repeat-first-occurrence lookup, an independent source.
+def test_repeat_resolution_consistent_with_lookup_on_real_data() -> None:
+    """Consistency check against the real committed files, NOT a regression guard on its own
+    (ADR-0028 addendum #17 correction to addendum #16's overclaim). In the real
+    `phase3-labels.json`, `decisions` happens to already be stored in display order for every one
+    of the 38 repeats -- verified: `occ_ids[0]` (file order) equals the lookup's
+    `first_occurrence_id` for all 38, including the 15 whose display-first is the `_1`
+    occurrence. So file order and display order are NOT independent on this file, and a
+    regression to `first_occ = occ_ids[0]` would produce byte-identical output here -- this test
+    would not catch it. See `test_repeat_resolution_uses_display_order_not_file_order_synthetic`
+    below for the actual regression guard, which constructs a case where the two orders diverge.
     """
     view = _load_view()
     entries_by_pair = {e["pair_id"]: e for e in view["entries"]}
@@ -134,24 +141,99 @@ def test_repeat_resolution_uses_display_order_not_file_order() -> None:
     )["lookup"]
     labels = json.loads(LABELS_JSON.read_text(encoding="utf-8"))["decisions"]
 
+    assert len(lookup) == 38
+    for pair_id, e in lookup.items():
+        entry = entries_by_pair[pair_id]
+        assert entry["first_occurrence_id"] == e["first_occurrence_id"], (
+            f"{pair_id}: view resolved first_occurrence_id={entry['first_occurrence_id']!r}, "
+            f"expected the DISPLAY-first occurrence {e['first_occurrence_id']!r} (file-order "
+            f"fallback would pick a different occurrence whenever display order != file order)"
+        )
+        assert entry["label"] == labels[e["first_occurrence_id"]]["label"]
+
     disagreeing = [
         pid
         for pid, e in lookup.items()
         if labels[e["first_occurrence_id"]]["label"] != labels[e["second_occurrence_id"]]["label"]
     ]
-    assert len(disagreeing) == 3, (
-        f"expected exactly 3 repeats with disagreeing labels across occurrences, got "
-        f"{len(disagreeing)}: {disagreeing}"
-    )
     for pair_id in disagreeing:
         first_occ = lookup[pair_id]["first_occurrence_id"]
         expected_label = labels[first_occ]["label"]
         entry = entries_by_pair[pair_id]
-        assert entry["first_occurrence_id"] == first_occ
         assert entry["label"] == expected_label, (
             f"{pair_id}: view resolved to {entry['label']!r}, expected the DISPLAY-first "
             f"occurrence {first_occ!r}'s label {expected_label!r}"
         )
+
+
+def test_repeat_resolution_uses_display_order_not_file_order_synthetic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The actual regression guard (reviewer finding on ADR-0028 addendum #16's original version,
+    fixed here): constructs a repeat whose two occurrences are stored FILE-first-second in the
+    OPPOSITE order to their DISPLAY-first-second designation, so `first_occ = occ_ids[0]` (file
+    order, the bug) and `first_occ = repeat_lookup[pair_id]["first_occurrence_id"]` (display
+    order, correct) pick different occurrences with different labels -- something the real
+    committed data can never exercise (see the test above).
+    """
+    learned = tmp_path / "docs" / "learned"
+    learned.mkdir(parents=True)
+
+    queue_path = learned / "queue.json"
+    queue_bytes = json.dumps(
+        {"pairs": [{"pair_id": "SYN_REPEAT"}, {"pair_id": "SYN_REPEAT"}]}, indent=1
+    ).encode("utf-8")
+    queue_path.write_bytes(queue_bytes)
+
+    labels_path = learned / "labels.json"
+    # FILE order: SYN_REPEAT_1 first, SYN_REPEAT_0 second -- the OPPOSITE of display order below.
+    labels_path.write_text(
+        json.dumps(
+            {
+                "decisions": {
+                    "SYN_REPEAT_1": {"pair_id": "SYN_REPEAT", "label": "M", "split": "test"},
+                    "SYN_REPEAT_0": {"pair_id": "SYN_REPEAT", "label": "N", "split": "test"},
+                }
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
+
+    lookup_path = learned / "repeat_lookup.json"
+    lookup_path.write_text(
+        json.dumps(
+            {
+                "lookup": {
+                    "SYN_REPEAT": {
+                        "first_occurrence_id": "SYN_REPEAT_0",
+                        "second_occurrence_id": "SYN_REPEAT_1",
+                    }
+                }
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(bev, "LABELS_JSON", labels_path)
+    monkeypatch.setattr(bev, "REPEAT_FIRST_OCCURRENCE_JSON", lookup_path)
+    monkeypatch.setattr(clc, "QUEUE_JSON", queue_path)
+    monkeypatch.setattr(clc, "FROZEN_QUEUE_SHA256", clc.sha256_lf(queue_bytes))
+
+    entries = bev.build_entries()
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry["first_occurrence_id"] == "SYN_REPEAT_0", (
+        "resolved to the FILE-first occurrence (SYN_REPEAT_1) instead of the DISPLAY-first one "
+        "(SYN_REPEAT_0) -- this is exactly the occ_ids[0] file-order regression"
+    )
+    assert entry["label"] == "N", (
+        f"resolved label {entry['label']!r} came from the FILE-first occurrence's label (M), "
+        "not the DISPLAY-first occurrence's label (N) -- occ_ids[0] file-order regression"
+    )
+    assert entry["tier"] == "proxy_key_collision"
+    assert entry["is_repeat"] is True
 
 
 def test_view_frozen_flag_matches_test_labels_frozen_state() -> None:

@@ -12,8 +12,13 @@ repeats of a pair already shown once under `trivial_spot_check`; the distinct pa
 **672**. Training on rows double-weights those 25 pairs and, pre-review, would feed three pairs
 two contradictory labels (the pair repeated, disagreed on both occurrences). Train on the **672
 distinct pairs from `docs/learned/phase3-eval-view.json`** (`scripts/build_eval_view.py`), which
-already applies the repeat-resolution rule (first decision in display order); drop `S` (7 of 672)
-for **665 trainable pairs**.
+already applies the repeat-resolution rule (first decision in display order); drop `S` for
+trainable pairs.
+
+**Correction 2 (2026-09-22, post-review, ADR-0028 addendum #17):** the annotator's review pass
+over 12 flagged occurrences moved 1 pair from `S` to `N` (`01b880c1f365_33394df3427d`) — **6 of
+672 pairs are `S` (was 7), so 666 trainable pairs (was 665).** Every "665" figure in this doc below
+is updated to 666. This is not a starting point yet — Phase 3 item 5 has not started this session.
 
 ## Candidates
 
@@ -22,7 +27,7 @@ for **665 trainable pairs**.
 | Params | 0.1B (card rounds; exact UNVERIFIED) | 0.6B | 0.1B (card rounds; exact UNVERIFIED) | UNVERIFIED (12 layers, 384-dim) |
 | Licence | Apache 2.0 | Apache 2.0 | Apache 2.0 | UNVERIFIED (not retrievable) |
 | Romanian | 15 languages, machine-translated MS MARCO; Romanian listed: UNVERIFIED | "Multilingual"; Romanian not confirmed | "50 languages"; Romanian not explicitly listed | 100 languages claimed |
-| Dev PC (CPU) | Yes, ESTIMATE: fine-tuning 665 pairs is minutes | Inference yes; fine-tuning slow, ESTIMATE | Yes | Yes |
+| Dev PC (CPU) | Yes, ESTIMATE: fine-tuning 666 pairs is minutes | Inference yes; fine-tuning slow, ESTIMATE | Yes | Yes |
 | CX22 (2 vCPU / 4 GB) | Yes, ESTIMATE (~0.4 GB fp32 = 0.1B x 4 bytes) | Doubtful: ~2.4 GB fp32 (0.6B x 4 bytes, ESTIMATE) competes with Postgres plus the quantized 0.5B LLM | Yes, ESTIMATE | Yes, ESTIMATE |
 | Cost | Free | Free | Free | Free |
 | Role | Baseline | Optional zero-shot ceiling | Retrieval (recall@20) | Alternative retrieval |
@@ -46,7 +51,7 @@ Sources:
 | Row | Adaptation | Purpose |
 |---|---|---|
 | Zero-shot | None; threshold chosen on TRAIN_VAL only | Shows what off-the-shelf gets you |
-| Fine-tuned | Trained on TRAIN_VAL (672 distinct pairs, 665 after dropping S) | Fair baseline; the LLM also sees TRAIN_VAL |
+| Fine-tuned | Trained on TRAIN_VAL (672 distinct pairs, 666 after dropping S) | Fair baseline; the LLM also sees TRAIN_VAL |
 
 Zero-shot alone would be a strawman, because the LoRA model is adapted on the same data.
 
@@ -55,7 +60,7 @@ Rules for fairness:
    672 distinct pairs first (same first-occurrence-in-display-order rule as the eval view).
 2. Tune the threshold and epochs on validation only.
 3. Touch the 287 TEST pairs once per model.
-4. **Drop S labels and report the count: 3 in TEST, 7 in TRAIN_VAL** (`docs/learned/phase3-eval-view.json`).
+4. **Drop S labels and report the count: 3 in TEST, 6 in TRAIN_VAL** (post-review; was 7 pre-review — `01b880c1f365_33394df3427d` moved S→N — `docs/learned/phase3-eval-view.json`).
 5. Report per-error-class results (size variant, breed-size code, life stage, flavour).
 6. **Per-tier reportability rule** — precision/recall/F1 is not computable on every tier. A tier
    with fewer than 5 positives reports **false-positive rate (FP / N) with a Wilson 95% CI** and an
