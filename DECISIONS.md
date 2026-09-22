@@ -3193,3 +3193,114 @@ guard. `uv run pytest -q` — **500 passed, 1 skipped** (the skip is `test_label
 --check .`, `uv run mypy` — clean. `git status --porcelain` at the end of the session shows no unexpected untracked or
 modified files, and neither `phase3-labels.json`, `phase3-annotation-queue.json` nor
 `phase3-annotation-split.json` appears in any commit's diff.
+
+## ADR-0028 addendum #17 — annotator review-pass ingest; freeze BLOCKED; one occurrence outstanding (2026-09-22)
+
+**Context.** The annotator completed a review pass over the 12 occurrences queued in
+`phase3-relabel-queue.json`. This session ingested the export, re-ran the checker, regenerated the
+evaluation view, and — because the checker did not come back clean — did **not** run
+`scripts/freeze_labels.py --freeze`. The dataset stays **UNFROZEN**.
+
+**Ingest.** `uv run python scripts/ingest_labels.py` over all five files in `docs/learned/labels/`
+(the runbook's prescribed form, replaying the full history, never just the newest file). **997
+decisions in, 997 out** — a revision replaces, never adds; **zero occurrence_ids outside the 12
+queued ones changed.** New QA report: `docs/learned/phase3-label-qa-20260922.md`.
+
+**Only 11 of the 12 queued occurrences carry a genuine 2026-09-22 decision — not 12, contrary to
+this session's own opening summary.** The 12th, `3f574dad8b6e_b52acad20816_0` (the sole queued TEST
+occurrence, tier `blocked_retrieval_candidate`), has `decided_at = revised_at =
+"2026-09-21T16:39:52.697Z"` in the export — identical to before this session, no 2026-09-22
+timestamp anywhere. It was queued and included in the export's full-state snapshot, but nothing in
+the stored data shows it was actually re-examined. Its label (`N`) is simply the prior session's
+revision, carried forward — **the same revision `ARCHITECT_NOTES` already flagged as invalid**
+(rule 1 reads the title, not the `species` field; both titles say "pisici"/cat). **This is
+outstanding, not resolved, and needs the annotator's explicit attention** before this occurrence —
+the only one in blind TEST — can be trusted either way. Two consequences, stated plainly rather
+than glossed: (1) whether blind TEST is genuinely 287/287 blind or has one non-blind exception is
+open, not settled (README's dataset section corrected to say so); (2) this is why the dataset
+cannot be declared fully reviewed even though 11/12 is a high completion rate.
+**Not a tool constraint on class e specifically** — the other two class-e occurrences
+(`2acc97947c1c_c8f4810554f2_0`, `84fe6219552b_e8343e4a08b2_0`) both carry fresh 2026-09-22
+timestamps, so the review tool does let class-e entries be re-decided; `3f574dad8b6e_b52acad20816_0`
+missing one is a genuine gap in this session's coverage, not something structural about its class.
+
+**Of the 11 genuinely re-decided, 6 actually changed label** (5 were re-confirmed at their existing
+value). All 6 changes are in TRAIN_VAL:
+
+| occurrence_id | pair_id | class(es) | before | after |
+|---|---|---|---|---|
+| `1c0d1a45d509_614c9a4d1f42_0` | `1c0d1a45d509_614c9a4d1f42` | a | M | N |
+| `a960a4aea31a_cf3c9566947c_0` | `a960a4aea31a_cf3c9566947c` | a | M | N |
+| `01b880c1f365_33394df3427d_0` | `01b880c1f365_33394df3427d` | d, f | S | N |
+| `01b880c1f365_33394df3427d_1` | `01b880c1f365_33394df3427d` | f | M | N |
+| `3f12b3225e74_a0b2cb253771_0` | `3f12b3225e74_a0b2cb253771` | f | M | N |
+| `a19a1b41f49f_afc62890b6b5_1` | `a19a1b41f49f_afc62890b6b5` | f | M | N |
+
+**Checker re-run: a 0, b 0, c 0, d 4, e 3, f 0 — 7 flags / 7 occurrences.** Classes a and f fully
+resolved. **Class d did NOT resolve** — the four `trivial_spot_check`-tier "Royal Canin Kitten"
+pairs (`01b880c1f365_33394df3427d`, `a19a1b41f49f_afc62890b6b5`, `3f12b3225e74_a0b2cb253771`,
+`33394df3427d_3ab75d311be0`) are all `N`; three are repeats and agree `N` on both occurrences, the
+fourth has a single occurrence. All four carry fresh 2026-09-22 timestamps, so genuinely
+re-examined — `s_reason: null` in the export is not itself evidence of that (the field is only
+ever populated for `S` answers; it is null on every `N`/`M` row in the file, revised or not), the
+timestamp is the evidence. No rationale for the `N` decision is recorded anywhere. **This is the
+same population addendum
+#16 already characterised as a measured anchoring effect on the engine's suggestion** (assisted
+TRAIN_VAL 31/35 correct pre-review, these being 4 of the 35) — that framing stands, not retracted.
+Class e (3, unchanged) never blocks the freeze (`freeze_labels.blocking_findings()` excludes it by
+construction); **class d (4) does block it — this is why `--freeze` was not run.**
+
+**Evaluation view regenerated** (`scripts/build_eval_view.py`, no `--assert-pre-review` — that flag
+now correctly fails by design, since it pins the PRE-review numbers and TRAIN_VAL has genuinely
+moved; TEST alone still produces zero mismatch lines against it). **TEST unchanged, byte-identical
+to pre-review**: 287 pairs, 97 M / 187 N / 3 S, 284 scored, every per-tier cell identical — expected,
+since the one queued TEST occurrence never actually moved. **TRAIN_VAL: 672 pairs, 222 M / 444 N /
+6 S, 666 scored** (was 226/439/7/665) — only `proxy_key_collision` (200: 164 M / 34 N / 2 S) and
+`capacity_differs_cross_shop` (146: 0 M / 146 N / 0 S) moved. **666 trainable pairs, not 665** —
+`docs/phase3-baseline-model-choice.md` updated in this same session (all three "665" occurrences
+now read "666"; the S-count rule updated 7→6 TRAIN_VAL). Full detail, including the before/after
+table and per-tier deltas: `docs/learned/phase3-test-eval-denominators.md`'s new POST-REVIEW
+section.
+
+**Self-agreement NOT recomputed (deliberately).** The review pass reconciled the 3 pairs that
+previously disagreed, so a fresh self-agreement figure would be circular — of course post-review
+agreement approaches 100% once disagreements are force-resolved by the same process being
+measured. `docs/learned/phase3-label-qa-20260922.md`'s own auto-generated report does compute a
+new figure (TRAIN_VAL 25/25 = 100%) — that is an artifact of the review process, not a fresh
+independent measurement, and must not be quoted as one. **The 13/13 and 22/25 figures stay exactly
+as they were, labelled "pre-reconciliation, measured at ingest 2026-09-21", everywhere they
+appear** (STATE.md, README.md, DECISIONS.md addendum #16, `phase3-test-eval-denominators.md`) — none
+of them were changed this session.
+
+**Test suite regression, found and fixed.** The regression test added in addendum #16
+(`test_repeat_resolution_uses_display_order_not_file_order`) pinned "exactly 3 repeats disagree" —
+true pre-review, now false (0 disagree post-reconciliation), so the test failed for the right
+reason (stale data assumption, not a real defect) and was updated. A reviewer further found that
+the file's decisions dict happens to already be stored in display order for all 38 repeats, so
+*no* real-data-based test — pre- or post-review — can ever exercise the file-order-fallback
+regression the test claims to guard against; addendum #16's claim that its regression test "pins"
+this is corrected here as an overclaim. Replaced with
+`test_repeat_resolution_uses_display_order_not_file_order_synthetic`, which monkeypatches a
+synthetic repeat where file order and display order are constructed to diverge (opposite labels on
+each side) — verified by hand to pass against the current code and fail when
+`build_eval_view.py`'s `first_occ` resolution is temporarily reverted to `occ_ids[0]` (script
+restored from a scratch backup afterward, confirmed clean via `git status --porcelain`).
+
+**Not touched this session, confirmed:** `docs/learned/phase3-annotation-queue.json`,
+`docs/learned/phase3-annotation-split.json`, `scripts/split_annotation_queue.py` were not run or
+modified. No label was changed by hand or by any script other than `scripts/ingest_labels.py`'s
+normal merge of the annotator's own export — every changed value in `phase3-labels.json` traces to
+one of the five files in `docs/learned/labels/`.
+
+**Files committed this session, together per the runbook:** the export
+`docs/learned/labels/phase3-labels-20260922-1136.json`, the regenerated `phase3-labels.json`, and
+the QA report `phase3-label-qa-20260922.md`.
+
+**Alternatives rejected.** Freezing anyway, on the reasoning that class e's 3 occurrences (which
+never block) plus 3f574dad8b6e's unresolved status "don't really count" — class d's 4 occurrences
+are a genuine, unwaived mechanical-rule violation and the freeze script correctly refuses regardless
+of anyone's read on class d's merits. Silently treating `3f574dad8b6e_b52acad20816_0` as resolved
+because its label happens not to have changed — the absence of a 2026-09-22 timestamp is the
+relevant fact, not the absence of a label change. Inventing a rationale for the four class-(d) `N`
+labels to make the checker's continued flagging feel resolved — no rationale is recorded in the
+data, and none is asserted here.

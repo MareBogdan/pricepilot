@@ -4,41 +4,64 @@ Phase: 1 — Collection, **CLOSED 2026-09-22** (last box, ≥7 consecutive days,
 progress below), Phase 2 — Normalization, **CLOSED 2026-09-14**, and **Phase 3 — Matching, open
 since 2026-09-15.**
 
-**Current state, 2026-09-22 — read this paragraph first; everything below is history,
-not status.** **Phase 1 is CLOSED** (re-measured this session against the real database, last
-box — ≥7 consecutive days — MET: strict definition 9 consecutive days, 2026-09-13→2026-09-21; see
-the Gate progress section below for the full query output). **Phase 2 is CLOSED.** **Phase 3 is
-open**, items 1-4 of CLAUDE.md §7 done: (1) candidate retrieval closed at **recall@20 = 88.0%
-(44/50), Wilson 95% CI [76.2%, 94.4%]** — a measurement-power finding, neither met nor missed; (2)
-annotation tool built; (3) **annotation COMPLETE: 997/997 labels, M 359 / N 628 / S 10**, all by
-Bogdan (`C` pressed 0 times — every decision is his own, recorded as an override); (4)
-product-level split: **blind TEST 300 rows / 287 distinct pairs**, **assisted TRAIN_VAL 697 rows /
-672 distinct pairs**. Self-agreement on the 38 repeated pairs — **TEST 13/13 = 100%, TRAIN_VAL
-22/25 = 88%** (pre-reconciliation, measured at ingest; the 3 disagreements are TRAIN_VAL only) —
-measures consistency on the `trivial_spot_check` pairs only (near-identical titles), never the hard
-negatives; TRAIN_VAL's more informative reading is a **12% self-disagreement rate on trivially easy
-pairs**.
-**Labels are still UNFROZEN, deliberately.** The mechanical checker
-(`scripts/check_label_rule_consistency.py`) still reports 15 flags across 12 distinct occurrences
-— composition: a-only 2, d-only 1, d+f 3, f-only 3, e-only 3. `scripts/freeze_labels.py --freeze`
-refuses on any a/b/c/d/f finding (`blocking_findings()` deliberately excludes class e — a stored
-`normalize/species.py` data defect, never a labelling error, so it can never block or justify a
-label change) — **9 of the 12 occurrences actually block the freeze; the 3 e-only ones do not.**
-**The annotator's next action, unchanged, is still the review pass** over all 12 queued
-occurrences (`tools/annotate.html?review=docs/learned/phase3-relabel-queue.json`, e-only ones shown
-for awareness, not action), then re-ingest, re-run the checker, then freeze.
-**`docs/learned/phase3-eval-view.json` (`scripts/build_eval_view.py`) now exists as the single
-source of per-tier pair-count denominators for item 5** (the baseline) — TEST 287 distinct pairs
-(97 M / 187 N / 3 S, 284 scored), TRAIN_VAL 672 distinct pairs (226 M / 439 N / 7 S, 665 scored),
-verified byte-for-byte against an independent architect derivation via `--assert-pre-review`.
-Never read `phase3-annotation-split.json`'s own `per_tier_counts` block for this — its
-`test_pair_ids`/`train_val_pair_ids` fields are mislabelled ROW counts (sum to 300/697, not
-287/672), a known trap left in that frozen file and documented rather than fixed (DECISIONS.md
-ADR-0028 addendum #16).
-Throughput (recomputed from `phase3-labels.json` `ms`): median **3.0s blind (n=300; 3.2s before the
-7 review revisions replaced their timings), 1.5s assisted (n=697), 1.8s overall** — against §7's
-untested 18s/decision assumption. Correction rate of the engine's suggestion in TRAIN_VAL: **104/697
-= 14.9%** overall; per tier in ADR-0028 addendum #15 (`diff_brand_similar_title` 38/39 = 97.4%).
+**Current state, 2026-09-22 (after the annotator's review-pass ingest) — read this paragraph
+first; everything below is history, not status.** **Phase 1 is CLOSED** (re-measured this session
+against the real database: strict definition 9 consecutive days, 2026-09-13→2026-09-21; see Gate
+progress below for the full query output). **Phase 2 is CLOSED.** **Phase 3 is open**, items 1-4 of
+CLAUDE.md §7 done: (1) candidate retrieval closed at **recall@20 = 88.0% (44/50), Wilson 95% CI
+[76.2%, 94.4%]** — a measurement-power finding, neither met nor missed; (2) annotation tool built;
+(3) **annotation COMPLETE: 997/997 labels, M 354 / N 634 / S 9** (post-review; was M 359/N 628/S 10
+pre-review — 6 labels moved: 5 M→N, 1 S→N), all by Bogdan; (4) product-level split: **blind TEST 300 rows / 287 distinct
+pairs**, **assisted TRAIN_VAL 697 rows / 672 distinct pairs**. Self-agreement on the 38 repeated
+pairs — **TEST 13/13 = 100%, TRAIN_VAL 22/25 = 88%** (pre-reconciliation, measured at ingest
+2026-09-21; not recomputed post-review — the review pass reconciled the 3 disagreements by
+construction, so a fresh figure would be circular, not a real second measurement; see DECISIONS.md
+ADR-0028 addendum #17) — measures consistency on the `trivial_spot_check` pairs only
+(near-identical titles), never the hard negatives; TRAIN_VAL's more informative reading is a **12%
+self-disagreement rate on trivially easy pairs**.
+
+**Labels are still UNFROZEN — the annotator's review pass ran this session (11 of 12 queued
+occurrences genuinely re-decided, 6 changed label), but the checker still finds a real blocking
+problem, so `scripts/freeze_labels.py --freeze` was correctly refused, not attempted.** Checker
+re-run: **a 0, b 0, c 0, d 4, e 3, f 0 — 7 flags / 7 occurrences** (was 15 flags / 12 occurrences
+pre-review; a and f fully resolved). **Class d (4) blocks the freeze** — four `trivial_spot_check`
+"Royal Canin Kitten" pairs are labelled `N` with no rationale recorded, contradicting the tier's
+own "trivially the same" assumption (DECISIONS.md ADR-0028 addendum #16 already characterised this
+population as a measured anchoring effect on the engine's suggestion, not a labelling oversight —
+that framing stands). Class e (3) never blocks (`freeze_labels.blocking_findings()` excludes it by
+construction — a stored `normalize/species.py` data defect, never a labelling error).
+
+**One occurrence needs the annotator's explicit attention before anything else — this is the real
+next action, not "run the review pass again":** `3f574dad8b6e_b52acad20816_0`, the *only* queued
+occurrence in the blind TEST split, was **not actually re-examined this session** despite being
+queued — its stored `decided_at`/`revised_at` is still `2026-09-21T16:39:52.697Z`, with no
+2026-09-22 timestamp anywhere, and its label (`N`) is simply the prior session's revision carried
+forward — **the same revision ARCHITECT_NOTES already flagged as invalid** (rule 1 reads the
+title, not the `species` field; both titles say "pisici"/cat). Whether blind TEST is genuinely
+287/287 blind or has one non-blind exception is open until this is resolved (README corrected to
+say so, not to assert either way). Full detail: DECISIONS.md ADR-0028 addendum #17.
+
+**`docs/learned/phase3-eval-view.json` (`scripts/build_eval_view.py`) is the single source of
+per-tier pair-count denominators for item 5** (the baseline, not started) — post-review: **TEST 287
+distinct pairs (97 M / 187 N / 3 S, 284 scored) — byte-identical to pre-review, nothing in TEST
+moved**; **TRAIN_VAL 672 distinct pairs (222 M / 444 N / 6 S, 666 scored)** — was 226/439/7/665;
+only `proxy_key_collision` and `capacity_differs_cross_shop` tiers moved. `--assert-pre-review` now
+correctly fails (it pins the pre-review numbers, and TRAIN_VAL has genuinely moved) — that failure
+is expected, not a bug. Never read `phase3-annotation-split.json`'s own `per_tier_counts` block for
+denominators — its `test_pair_ids`/`train_val_pair_ids` fields are mislabelled ROW counts (sum to
+300/697, not 287/672), a known trap left in that frozen file, documented not fixed (ADR-0028
+addendum #16). `docs/phase3-baseline-model-choice.md` updated to 666 trainable pairs (was 665, all
+three occurrences) and the TRAIN_VAL S-count rule (6, was 7).
+
+Throughput (recomputed from `phase3-labels.json` `ms`, post-review): median **3.0s blind (n=300),
+1.5s assisted (n=697), 1.8s overall** — unchanged from pre-review, against §7's untested
+18s/decision assumption. Correction rate of the engine's suggestion in TRAIN_VAL, post-review:
+**96/697 = 13.8%** overall (was 104/697 = 14.9% pre-review — this recomputation folds in the
+review pass's own label changes); per-tier breakdown pre-review in ADR-0028 addendum #15
+(`diff_brand_similar_title` 38/39 = 97.4%). The new QA report's own "review-mode revisions" count
+(**13**, cumulative across every export ever ingested) is a different metric from the 6
+label-changing revisions this session — 7 revisions were merged in earlier sessions, 6 more this
+one; full detail in `phase3-label-qa-20260922.md` and DECISIONS.md ADR-0028 addendum #17.
 Queue frozen, SHA-256 (LF-normalised) `7da125e1856bc65514234d516e17d0a12363ee6ada9b324b3f00ca8bfa146d2a`
 — raw-CRLF value `696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011`, still the
 constant four other files pin (`scripts/ingest_labels.py`, `scripts/split_annotation_queue.py`,
@@ -46,6 +69,20 @@ constant four other files pin (`scripts/ingest_labels.py`, `scripts/split_annota
 addendum #16 item 2; not the same file changing, two hash conventions of the same unchanged file).
 **Caveat:** TRAIN_VAL decisions were faster and less self-consistent than blind ones, so TRAIN_VAL
 labels are more engine-shaped than TEST; the headline number comes from the blind TEST set alone.
+
+## Blocked on Bogdan
+
+- **`3f574dad8b6e_b52acad20816_0` needs a real, confirmed re-decision.** It was queued for the
+  2026-09-22 review pass but its stored data shows it was never actually touched. It carries a
+  known-invalid M→N revision. Open the review tool at
+  `tools/annotate.html?review=docs/learned/phase3-relabel-queue.json` and make sure this occurrence
+  specifically gets a fresh, deliberate decision — not just that the review screen was opened.
+- **The 4 class-d occurrences** (Royal Canin Kitten pairs, all `N`, all genuinely re-examined) are
+  a real mechanical-rule violation blocking the freeze. Either they are correct and the `d` rule's
+  "trivial_spot_check must be M" assumption needs a documented exception for this specific case, or
+  they should be reconsidered. Either way this needs a decision, not another automated pass.
+- After both are resolved: re-run `scripts/check_label_rule_consistency.py`, confirm it's clean,
+  then `scripts/freeze_labels.py --freeze`.
 
 **This session — final mechanical pass over all 997, nothing relabelled.**
 `scripts/check_label_rule_consistency.py` over 997: (a) 2, (b) 0, (c) 0, (d) 4, (e) 3, (f) 6 —
@@ -524,8 +561,13 @@ FROZEN, assisted annotation flow built. Full detail: DECISIONS.md ADR-0028 adden
    DECISIONS.md ADR-0028 addendum #10.
 
 [ ] Baseline (classical cross-encoder) — not started.
-[x] 997 pairs annotated by Bogdan — M 359 / N 628 / S 10; TEST 300 blind, TRAIN_VAL 697 assisted.
-    [ ] final review pass over the 12 flagged occurrences, then dataset freeze (pending).
+[x] 997 pairs annotated by Bogdan — M 354 / N 634 / S 9 (post-review, 2026-09-22; was M 359 / N 628
+    / S 10 pre-review); TEST 300 blind, TRAIN_VAL 697 assisted.
+    [x] review pass over the 12 flagged occurrences RAN 2026-09-22 — 11/12 genuinely re-decided, 6
+        labels moved. [ ] NOT complete: `3f574dad8b6e_b52acad20816_0` was queued but never actually
+        re-examined (no 2026-09-22 timestamp) and needs the annotator's explicit attention; 4
+        class-d occurrences still block the freeze. Dataset freeze still pending — see "Blocked on
+        Bogdan" at the top of this file and DECISIONS.md ADR-0028 addendum #17.
 [ ] Fine-tuned matcher — not started.
 [ ] Serving benchmark (CPU-quantized vs. cross-encoder vs. hosted API) — not started.
 
