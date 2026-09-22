@@ -237,6 +237,48 @@ def test_repeat_resolution_uses_display_order_not_file_order_synthetic(
 
 
 def test_view_frozen_flag_matches_test_labels_frozen_state() -> None:
+    """Bug fix (Phase 3 item 5 harness session): the original version of this test checked
+    whether the literal string `FROZEN_LABELS_SHA256 = "UNFROZEN"` appeared ANYWHERE in
+    tests/test_labels_frozen.py's full text -- but that file's own test fixtures embed that exact
+    string as indented Python source (inside `t.write_text(...)` calls) to test write_hash()'s
+    UNFROZEN case, so the substring is always present regardless of the real constant's current
+    value. The check therefore always evaluated to the same thing and produced a false pass: with
+    the dataset genuinely frozen and the constant reading the real hash, the naive check still
+    computed `not in text -> False` (the fixtures keep the string present) and matched a STALE
+    `view["frozen"] == False` in the committed file -- exactly the drift this test exists to
+    catch, silently missed. Fixed by delegating to build_eval_view.py's own anchored parser
+    (`^FROZEN_LABELS_SHA256 = "..."`, MULTILINE -- only matches the real top-level constant, never
+    an indented fixture line) instead of re-implementing a fragile substring check here."""
     view = _load_view()
-    text = (ROOT / "tests" / "test_labels_frozen.py").read_text(encoding="utf-8")
-    assert view["frozen"] == ('FROZEN_LABELS_SHA256 = "UNFROZEN"' not in text)
+    assert view["frozen"] == bev._frozen_state()
+
+
+def test_view_records_the_frozen_hash_it_saw() -> None:
+    """`frozen_labels_sha256` must be the CURRENT, live value of the
+    `FROZEN_LABELS_SHA256` constant, not merely a boolean -- so a reader (or a downstream scoring
+    script) can confirm which exact freeze this view was generated against without cross-checking
+    a second file by hand."""
+    view = _load_view()
+    assert view["frozen_labels_sha256"] == bev._frozen_marker()
+
+
+def test_frozen_marker_ignores_an_indented_fixture_line_even_when_it_precedes_the_real_constant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression guard for the anchor itself (reviewer finding on the fix above): the real
+    committed test_labels_frozen.py happens to have its constant BEFORE its fixture lines, so
+    `_frozen_marker()` would return the right answer even completely unanchored, by luck of file
+    order. This test constructs the file the other way around -- an indented fixture-shaped line
+    FIRST, the real column-0 constant SECOND -- so a regression that drops the `^`/MULTILINE
+    anchor (or otherwise stops requiring column 0) would pick the fixture's "UNFROZEN" and fail
+    this test, even though it would still pass against the real repo file."""
+    real_hash = "cd" * 32
+    synthetic = tmp_path / "test_labels_frozen.py"
+    synthetic.write_text(
+        '    t.write_text(\'FROZEN_LABELS_SHA256 = "UNFROZEN"\\n\', encoding="utf-8")\n'
+        f'FROZEN_LABELS_SHA256 = "{real_hash}"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(bev, "TEST_LABELS_FROZEN_FILE", synthetic)
+    assert bev._frozen_marker() == real_hash
+    assert bev._frozen_state() is True

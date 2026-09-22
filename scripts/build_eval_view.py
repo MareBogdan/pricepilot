@@ -101,12 +101,21 @@ EXPECTED_TOTALS = {
 }
 
 
-def _frozen_state() -> bool:
+def _frozen_marker() -> str:
+    """The exact value of the `FROZEN_LABELS_SHA256` module-level constant in
+    tests/test_labels_frozen.py -- "UNFROZEN" or the frozen hash. Anchored to the start of a line
+    (`^`, MULTILINE) so this can never match one of that file's own test fixtures, which embed the
+    literal string `FROZEN_LABELS_SHA256 = "UNFROZEN"` as indented Python source inside a
+    `t.write_text(...)` call, never at column 0."""
     text = TEST_LABELS_FROZEN_FILE.read_text(encoding="utf-8")
-    m = re.search(r'FROZEN_LABELS_SHA256\s*=\s*"([^"]*)"', text)
+    m = re.search(r'^FROZEN_LABELS_SHA256\s*=\s*"([^"]*)"', text, re.MULTILINE)
     if m is None:
         raise SystemExit(f"FROZEN_LABELS_SHA256 not found in {TEST_LABELS_FROZEN_FILE}")
-    return m.group(1) != "UNFROZEN"
+    return m.group(1)
+
+
+def _frozen_state() -> bool:
+    return _frozen_marker() != "UNFROZEN"
 
 
 def build_entries() -> list[dict[str, Any]]:
@@ -263,6 +272,7 @@ def main() -> int:
         "queue_sha256_lf": clc.sha256_lf(clc.QUEUE_JSON.read_bytes()),
         "split_sha256_lf": clc.sha256_lf(SPLIT_JSON.read_bytes()),
         "frozen": _frozen_state(),
+        "frozen_labels_sha256": _frozen_marker(),
         "entries": entries,
     }
     OUTPUT_JSON.write_text(json.dumps(view, indent=1, ensure_ascii=False), encoding="utf-8")

@@ -1,10 +1,11 @@
 {
  "built_from": "scripts/build_eval_view.py",
- "generated_at": "2026-09-22T08:40:20.341032+00:00",
+ "generated_at": "2026-09-22T15:00:48.728007+00:00",
  "labels_sha256_lf": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
  "queue_sha256_lf": "7da125e1856bc65514234d516e17d0a12363ee6ada9b324b3f00ca8bfa146d2a",
  "split_sha256_lf": "a9a4c7583215769c8053d148b65525b88d8ebf0ed9d345cd82d3fa9d68280c29",
- "frozen": false,
+ "frozen": true,
+ "frozen_labels_sha256": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
  "entries": [
   {
    "pair_id": "006fb9eb7e29_458febbc891a",

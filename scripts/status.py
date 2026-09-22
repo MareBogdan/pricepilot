@@ -160,11 +160,21 @@ def freeze_state() -> tuple[bool, str]:
     labels_json = ROOT / "docs" / "learned" / "phase3-labels.json"
     if not test_file.exists() or not labels_json.exists():
         return False, "unknown (missing tests/test_labels_frozen.py or the labels file)"
-    m = re.search(r'FROZEN_LABELS_SHA256\s*=\s*"([^"]*)"', test_file.read_text(encoding="utf-8"))
-    recorded = m.group(1) if m else "unknown"
+    sys.path.insert(0, str(ROOT / "scripts"))
+    # Shares build_eval_view's own anchored parser (^FROZEN_LABELS_SHA256 = "...", MULTILINE)
+    # rather than keeping a second, separately-written copy of the same regex here -- one parser
+    # for one fact. This module's docstring says a status command that crashes is worse than
+    # useless, so a parse failure degrades to "unknown" rather than raising: _frozen_marker()
+    # itself raises SystemExit on a missing constant (build_eval_view.py is a script, meant to
+    # stop), which would otherwise take the whole dashboard down over one unrelated line.
+    from build_eval_view import _frozen_marker  # local import: keeps this cheap elsewhere
+
+    try:
+        recorded = _frozen_marker()
+    except SystemExit:
+        return False, "unknown (FROZEN_LABELS_SHA256 constant not found)"
     if recorded == "UNFROZEN":
         return False, "UNFROZEN"
-    sys.path.insert(0, str(ROOT / "scripts"))
     from check_label_rule_consistency import sha256_lf  # local import: keeps this cheap elsewhere
 
     actual = sha256_lf(labels_json.read_bytes())
