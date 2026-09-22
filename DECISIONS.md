@@ -3304,3 +3304,152 @@ because its label happens not to have changed — the absence of a 2026-09-22 ti
 relevant fact, not the absence of a label change. Inventing a rationale for the four class-(d) `N`
 labels to make the checker's continued flagging feel resolved — no rationale is recorded in the
 data, and none is asserted here.
+
+## ADR-0028 addendum #18 — dataset FROZEN: cache investigation, review-tool fix, acknowledgements, final denominators (2026-09-22)
+
+**Context.** Final session of the label-finalisation sequence. Addendum #17 left the dataset
+UNFROZEN, blocked on class d (4) and on `3f574dad8b6e_b52acad20816_0` never actually being
+re-examined despite being queued. This addendum closes both, fixes a real defect in the review
+tool that explains why the Schesir occurrence was skipped, and records the freeze.
+
+**1. The `.pytest_cache/lastfailed` entries — investigated with source-level proof, not waved
+away.** `.pytest_cache/v/cache/lastfailed` carried two entries naming
+`test_food_form[...Royal Canin...-wet]` and `test_breed_size[...PET'S DESSERT...-XS-XL]`.
+**Addendum #17 was written while these entries sat in the cache and said nothing about them** —
+an omission recorded here rather than silently corrected, per instruction. Investigation, this
+session:
+- Neither node-id exists as a collectible test today: running either by exact node-id returns
+  `ERROR: not found` (pytest exit code 4), not a failure. `test_food_form`'s row for the Royal
+  Canin/"plic" title has read `"pouch"` (never `"wet"`) in every commit since it was first added
+  (`a060ef9`/`e080bc8`, 2026-09-13/14 — confirmed via `git log -p --follow`, no removal line for
+  `"wet"` anywhere in the file's history). `test_breed_size`'s row for the PET'S DESSERT title
+  read `"XS-XL"` from `a060ef9` (2026-09-13 20:54:07) until `8ec799b` (2026-09-15 14:46:48,
+  "Phase 3: species signal, breed-size canonicalization... findings 4/5/6/7") changed it to
+  `None` — finding 6, documented in the test file's own comment: "XS-XL" is
+  `pentruanimale_ro`'s "fits any breed size" marker (100% of 985 occurrences, 0 from the other two
+  sources), not a real breed-size claim. That change is a week old, well before this or the prior
+  session.
+- Read `_pytest/cacheprovider.py` (the installed pytest 9.1.1's own source, not assumed):
+  `LFPlugin.pytest_runtest_logreport` (line 348) only pops an entry from `lastfailed` when a test
+  with that exact node-id actually runs and passes; `pytest_sessionfinish` (line 415-423) only
+  rewrites the cache file at all when `saved_lastfailed != self.lastfailed`. A node-id that no
+  longer exists is never collected, never executed, never reported, and therefore can never be
+  popped by any normal run — the entry is structurally permanent until the cache file is deleted
+  by hand, regardless of whether the code or test it once named is fine. This is exactly why
+  `.pytest_cache/v/cache/nodeids` (rewritten unconditionally every session, since it just records
+  the current collected set) had a fresh mtime while `lastfailed` (rewritten only on a content
+  change, and this dict's content structurally cannot change) did not — the two files' different
+  mtimes are explained by this mechanism, not by "the same two tests are still failing".
+- **Verdict: STALE CACHE, not a code or test regression.** `uv run pytest -q` is fully green
+  (exit 0, 502 passed, one unrelated skip, zero `F`/`E` in the progress output) both before and
+  after this investigation; the current, correct node-ids (`...-pouch`, `...-None`) pass
+  explicitly when run by name. Nothing under `src/normalize/` or `tests/` was touched for this
+  item — there was nothing to fix.
+
+**2. Review-mode skip defect in `tools/annotate.html` — found, fixed, regression-tested.** Cause:
+`reviewFirstUnrevisedIndex()` and three sibling call sites treated ANY truthy `revised_at` on an
+occurrence as "already re-decided this review session" — but `revised_at` does not record WHICH
+review pass (which relabel-queue file, identified by its own `generated_at`) produced it. This is
+exactly why `3f574dad8b6e_b52acad20816_0` was silently skipped in the 2026-09-22 review pass
+addendum #17 described: it carried a `revised_at` from the *previous* session's review pass, so
+the tool treated it as already done and never rendered it, while the completion screen still
+reported "12/12 flagged pair(s) re-decided" — a false completion count. Fix (commit `ee35956`):
+added `REVIEW_GENERATED_AT` (the currently-loaded review file's own `generated_at`) and
+`isRevisedUnderCurrentReview()`, which requires both a `revised_at` AND a matching
+`revised_under_review_generated_at`; every session-scoped "already done" check
+(`currentPhaseInfo()`, `updateTopbar()`'s count, `reviewFirstUnrevisedIndex()`,
+`showDone()`'s completion count) now uses it. `assistedFlowReport()`'s cross-session `revised_at`
+filters were deliberately left as bare truthy checks — that function reports totals across all
+history, a different, correct semantic. New regression test
+(`tests/js/annotate_review_stale_revision.test.mjs`) shown failing against the pre-fix code
+(`1 !== 0`) and passing after, covering the stale case, the current-file case, and the realistic
+legacy shape (a `revised_at` with no `revised_under_review_generated_at` key at all, which is what
+real pre-fix localStorage held — the exact path the Schesir occurrence actually took).
+
+**3. The Schesir occurrence — recorded as a stated, unreviewed limitation, not silently
+resolved.** Given the defect above, `3f574dad8b6e_b52acad20816_0` genuinely was never re-rendered
+in the 2026-09-22 review pass — not an ambiguous case. The annotator, informed of exactly this,
+decided on 2026-09-22 to let its existing `N` label (the 2026-09-21 revision addendum #15 already
+judged to rest on an invalid ground — rule 1 reads the TITLE, and both titles state "pisici",
+while the stored `species` field, a known `normalize/species.py` defect, says "dog") stand rather
+than reopen it. Recorded verbatim in `docs/learned/phase3-freeze-acknowledgements.json` (commit
+`0e59be5`):
+
+> "Class e only, which never blocks the freeze. The occurrence was NOT re-rendered in the
+> 2026-09-22 review pass: the tool's stale-revision defect (fixed in ee35956) skipped it while
+> reporting 12/12 done. Its label N is the revision recorded on 2026-09-21, which ADR-0028
+> addendum #15 judged to rest on an invalid ground -- convention rule 1 reads the TITLE, and both
+> titles state 'pisici'. The annotator decided on 2026-09-22 to let N stand rather than reopen
+> it. Recorded as a stated limitation on 1 of 287 TEST pairs, never as 'reviewed'."
+
+This is class (e) only (`species_title_field_mismatch`), which `freeze_labels.blocking_findings()`
+excludes unconditionally regardless of the acknowledgement file — the entry is documentation of
+the decision, not a mechanism that changes any outcome. Blind TEST's status is now settled, not
+open: 286 of 287 pairs are unambiguously blind, and this one pair's label is a stated, disclosed
+exception rather than an undisclosed gap.
+
+**4. The four class-(d) `trivial_spot_check` occurrences — recorded as deliberate annotator
+acknowledgements, not resolved by relabelling.** `01b880c1f365_33394df3427d_0`,
+`a19a1b41f49f_afc62890b6b5_0`, `3f12b3225e74_a0b2cb253771_1`, `33394df3427d_3ab75d311be0_0` — all
+four "Royal Canin Kitten" pairs, all genuinely re-examined with a 2026-09-22 timestamp (addendum
+#17), all `N`. The checker keeps flagging them because `classify_tier`'s `trivial_spot_check`
+tier compares only brand, line, capacity, pack and bonus weight — a tier-definition signal, not a
+labelling verdict. No label was changed to make this go away; the annotator's `N` stands, recorded
+in `docs/learned/phase3-freeze-acknowledgements.json` (commit `c5cc07e`) with the reason quoted in
+full there. The checker never overrides the annotator (CLAUDE.md: labelled, not generated) — its
+own class counts are unaffected by the acknowledgement file (it never reads it); only
+`freeze_labels.blocking_findings()` consults it, per occurrence_id, to decide what still blocks a
+freeze.
+
+**5. Freeze.** With `uv run pytest -q` fully green immediately before, `check_label_rule_consistency.py`
+reporting 997 decisions / a:0 b:0 c:0 d:4 e:3 f:0 (d acknowledged, e never blocks), and
+`freeze_labels.blocking_findings()` returning `{}`: ran `uv run python scripts/freeze_labels.py
+--freeze`. **Frozen labels SHA-256 (LF-normalised): `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4`**,
+written identically into `tests/test_labels_frozen.py`'s `FROZEN_LABELS_SHA256` constant and
+STATE.md's marker line. `test_frozen_labels_hash_unchanged` now runs (not skipped) and passes. No
+label may change after this without a reason recorded in STATE.md first.
+
+**6. Final per-tier denominators, both splits (`docs/learned/phase3-eval-view.json`, post-review —
+identical to addendum #17's post-review numbers; nothing in the labels moved between review-pass
+ingest and freeze, so re-running `build_eval_view.py` after the freeze reproduces every cell here.
+The committed artifact's own `generated_at`/`frozen` fields predate the freeze by a few hours and
+are not re-generated by this addendum; only the pair-level numbers are the claim being made here).**
+
+TEST — 287 distinct pairs, 97 M / 187 N / 3 S, 284 scored:
+
+| tier | n | M | N | S |
+|---|---:|---:|---:|---:|
+| `proxy_key_collision` | 86 | 74 | 12 | 0 |
+| `capacity_differs_cross_shop` | 63 | 1 | 62 | 0 |
+| `blocked_retrieval_candidate` | 37 | 15 | 21 | 1 |
+| `same_capacity_diff_flavour` | 26 | 0 | 26 | 0 |
+| `capacity_differs_within_shop` | 23 | 0 | 22 | 1 |
+| `same_capacity_diff_lifestage` | 20 | 1 | 18 | 1 |
+| `diff_brand_similar_title` | 16 | 0 | 16 | 0 |
+| `same_capacity_diff_breedsize` | 14 | 4 | 10 | 0 |
+| `trivial_spot_check` | 2 | 2 | 0 | 0 |
+
+TRAIN_VAL — 672 distinct pairs, 222 M / 444 N / 6 S, 666 scored:
+
+| tier | n | M | N | S |
+|---|---:|---:|---:|---:|
+| `proxy_key_collision` | 200 | 164 | 34 | 2 |
+| `capacity_differs_cross_shop` | 146 | 0 | 146 | 0 |
+| `blocked_retrieval_candidate` | 86 | 39 | 43 | 4 |
+| `same_capacity_diff_flavour` | 59 | 0 | 59 | 0 |
+| `capacity_differs_within_shop` | 53 | 0 | 53 | 0 |
+| `same_capacity_diff_lifestage` | 46 | 1 | 45 | 0 |
+| `diff_brand_similar_title` | 39 | 4 | 35 | 0 |
+| `same_capacity_diff_breedsize` | 33 | 5 | 28 | 0 |
+| `trivial_spot_check` | 10 | 9 | 1 | 0 |
+
+**Alternatives rejected.** Deleting or manually editing `.pytest_cache/v/cache/lastfailed` to make
+the discrepancy disappear — investigating and explaining it in the record is more valuable than a
+clean-looking cache, and the file is gitignored regardless (it was never going to be committed
+either way). Fixing the review-tool defect by keying session identity on a hash of the review
+file's `flagged` content instead of its `generated_at` timestamp — rejected as a bigger change
+than the bug needed and a design question of its own (documented in a code comment at the fix
+site: re-running the generator is treated as a new pass, deliberately, matching how every other
+regeneration in this pipeline is treated). Freezing before the acknowledgement file existed, or
+before this session's own `pytest -q` re-run — both would have violated the explicit prohibition
+against freezing while any test is failing or before the acknowledgements were recorded.

@@ -68,29 +68,43 @@ cells are empty because the work has not been done — not because the number wa
 
 ## Dataset
 
-The matching dataset is **hand-labelled, not generated**: 997 decisions by one annotator
-(M match 354 / N no-match 634 / S skip 9, post-review) over 959 distinct pairs drawn from three
+The matching dataset is **hand-labelled, not generated, and FROZEN**: 997 decisions by one
+annotator (M match 354 / N no-match 634 / S skip 9) over 959 distinct pairs drawn from three
 Romanian pet-shop catalogues, deliberately including hard negatives (same line, different
-size/flavour/life stage).
+size/flavour/life stage). **Frozen 2026-09-22, SHA-256
+`540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4`** (`tests/test_labels_frozen.py`)
+— no label changes after this point without a reason recorded in `STATE.md` first.
 
-- **Split is product-level** (no listing appears on both sides): **TEST 300 rows / 287 distinct pairs**,
-  **TRAIN_VAL 697 rows**.
-- **TEST is blind**: no rules-engine suggestion was ever shown while labelling it, so the headline
-  metric is computed on labels the engine could not have shaped. **One occurrence's status is
-  unresolved, not a confirmed exception:** TEST occurrence `3f574dad8b6e_b52acad20816_0` was
-  queued for the 2026-09-22 review pass with an explanatory note on screen, but its stored decision
-  carries no 2026-09-22 timestamp — nothing in the data confirms it was actually shown to or
-  re-decided by the annotator this session (DECISIONS.md ADR-0028 addendum #17). Whether this row
-  is genuinely blind (287/287) or has 1 non-blind exception is open until the annotator explicitly
-  revisits it. TRAIN_VAL is **assisted** (a suggestion is shown; the annotator overrode it on
-  96/697 = 13.8% of pairs, post-review — was 104/697 = 14.9% pre-review).
-- 38 pairs were shown twice as a self-consistency check: agreement TEST 13/13, TRAIN_VAL 22/25 (pre-reconciliation, measured at ingest 2026-09-21; the review pass resolves the 3 disagreements).
+- **Split is product-level** (no listing appears on both sides): **TEST 300 rows / 287 distinct
+  pairs**, **TRAIN_VAL 697 rows / 672 distinct pairs**.
+- **TEST is blind**: no rules-engine suggestion was ever shown while labelling it — true for all
+  287 pairs, enforced three independent ways, and mechanically unaffected by the next point.
+  **One TEST pair carries a disclosed label-provenance exception, not a blindness exception:**
+  `3f574dad8b6e_b52acad20816_0`'s label rests on a
+  2026-09-21 revision that DECISIONS.md ADR-0028 addendum #15 judged to rest on an invalid ground
+  (rule 1 reads the title, and both titles say "pisici"/cat; the stored `species` field disagrees,
+  a known `normalize/species.py` defect). That revision was **never re-examined** — a tool defect
+  in `tools/annotate.html`'s review mode silently skipped it while reporting all other queued
+  pairs done (fixed; see `docs/learned/phase3-freeze-acknowledgements.json`). Once the defect was
+  found, the annotator was asked and **explicitly decided to let the label stand rather than
+  reopen it**, recorded verbatim in that file — this is a stated limitation on 1 of 287 TEST
+  pairs, not a re-decision that happened. The other 286 TEST pairs carry no such caveat. TRAIN_VAL
+  is **assisted** (a suggestion is shown; the annotator overrode it on 96/697 = 13.8% of pairs).
+- Four pairs the checker's `trivial_spot_check_not_M` rule flags (all in TRAIN_VAL) are labelled
+  `N` despite that tier's "trivially the same" assumption; the mechanical consistency checker still
+  flags them, and the annotator's `N` stands as a deliberate decision — the checker never overrides
+  the annotator (`docs/learned/phase3-freeze-acknowledgements.json`). Three of the four are repeats
+  that `docs/learned/phase3-eval-view.json` attributes to `proxy_key_collision` by its own
+  repeat-resolution rule, so that file's own `trivial_spot_check` row shows only 1 N, not 4 — both
+  counts are correct under their own definitions.
+- 38 pairs were shown twice as a self-consistency check: agreement TEST 13/13, TRAIN_VAL 22/25 (pre-reconciliation, measured at ingest 2026-09-21; the review pass resolved the 3 disagreements).
   **Qualifier:** all 38 repeated pairs are exactly the `trivial_spot_check` pairs (near-identical
   titles), so these numbers measure consistency on the easiest pairs in the dataset, not on the
   hard negatives — TRAIN_VAL's 22/25 is more informatively read as a **12% self-disagreement rate
   on trivially easy pairs**.
 - Reproduce: `uv run python scripts/ingest_labels.py` (QA report: `docs/learned/phase3-label-qa-20260922.md`),
-  `uv run python scripts/check_label_rule_consistency.py`.
+  `uv run python scripts/check_label_rule_consistency.py`, `uv run python scripts/freeze_labels.py`
+  (reports frozen/unfrozen status, never re-freezes).
 
 | Component | Baseline (cross-encoder) | Fine-tuned 0.5B (LoRA) | Metric |
 |---|---|---|---|
