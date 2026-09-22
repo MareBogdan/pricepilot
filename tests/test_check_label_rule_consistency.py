@@ -304,6 +304,60 @@ def test_queue_sha256_mismatch_refused(tmp_path: Path, monkeypatch: pytest.Monke
     assert exit_code == 1
 
 
+def test_frozen_queue_hash_guard_accepts_crlf_and_lf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression for the CRLF-dependent guard (DECISIONS.md ADR-0028 addendum #16): the same
+    queue content, checked out with CRLF line endings (Windows) or LF (`.gitattributes` normalises
+    to LF on Linux -- Kaggle, the Phase 7 VPS, CI if it ever runs this checker), must pass the
+    frozen-queue guard either way. Against the pre-fix code (guard hashed
+    `QUEUE_JSON.read_bytes()` raw and compared it to a constant recorded on a Windows/CRLF
+    checkout) this test's LF variant failed with "REFUSING TO RUN: frozen queue hash ... does not
+    match" -- verified by hand against the pre-fix module before the fix landed.
+    """
+    clean_pairs = [p for p in FIXTURE_PAIRS if p["pair_id"] != "FIXTURE_e"]
+    decisions = {k: v for k, v in FIXTURE_DECISIONS_CLEAN.items() if k != "FIXTURE_e_0"}
+
+    lf_bytes = json.dumps({"pairs": clean_pairs, "shuffle_seed": 1}, indent=1).encode("utf-8")
+    assert b"\r\n" not in lf_bytes
+    crlf_bytes = lf_bytes.replace(b"\n", b"\r\n")
+    assert crlf_bytes != lf_bytes
+
+    frozen_sha256 = clc.sha256_lf(lf_bytes)
+    assert frozen_sha256 == clc.sha256_lf(crlf_bytes), "LF-normalised hash must agree on both"
+    # the RAW hashes genuinely differ -- this is the defect LF-normalisation guards against
+    assert hashlib.sha256(lf_bytes).hexdigest() != hashlib.sha256(crlf_bytes).hexdigest()
+
+    for variant_name, queue_bytes in (("lf", lf_bytes), ("crlf", crlf_bytes)):
+        learned = tmp_path / variant_name / "docs" / "learned"
+        learned.mkdir(parents=True)
+        queue_path = learned / "FIXTURE-queue.json"
+        queue_path.write_bytes(queue_bytes)
+        split_path = learned / "FIXTURE-split.json"
+        split_path.write_bytes(b"{}")
+        labels_path = learned / "FIXTURE-labels.json"
+        labels_path.write_text(
+            json.dumps(
+                {"ingested_at": "2026-09-21T00:00:00+00:00", "decisions": decisions}, indent=1
+            ),
+            encoding="utf-8",
+        )
+        relabel_queue_path = learned / "FIXTURE-relabel-queue.json"
+
+        monkeypatch.setattr(clc, "QUEUE_JSON", queue_path)
+        monkeypatch.setattr(clc, "SPLIT_JSON", split_path)
+        monkeypatch.setattr(clc, "LABELS_JSON", labels_path)
+        monkeypatch.setattr(clc, "RELABEL_QUEUE_JSON", relabel_queue_path)
+        monkeypatch.setattr(clc, "ROOT", tmp_path)
+        monkeypatch.setattr(clc, "FROZEN_QUEUE_SHA256", frozen_sha256)
+
+        exit_code = clc.main()
+        assert exit_code == 0, f"{variant_name} variant was refused by the frozen-queue guard"
+        relabel = json.loads(relabel_queue_path.read_text(encoding="utf-8"))
+        assert relabel["queue_sha256_lf"] == frozen_sha256
+        assert "queue_sha256_raw" in relabel
+
+
 def test_class_f_self_agreement_and_class_e_revert_hint() -> None:
     clean = next(p for p in FIXTURE_PAIRS if p["pair_id"] == "FIXTURE_clean")
     e_pair = next(p for p in FIXTURE_PAIRS if p["pair_id"] == "FIXTURE_e")

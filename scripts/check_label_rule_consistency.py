@@ -64,9 +64,21 @@ SPLIT_JSON = ROOT / "docs" / "learned" / "phase3-annotation-split.json"
 LABELS_JSON = ROOT / "docs" / "learned" / "phase3-labels.json"
 RELABEL_QUEUE_JSON = ROOT / "docs" / "learned" / "phase3-relabel-queue.json"
 
+
+def sha256_lf(data: bytes) -> str:
+    """CRLF->LF before hashing, so a Windows worktree (CRLF) and a Linux checkout (`.gitattributes`
+    normalises to LF -- Kaggle, the Phase 7 VPS, CI if it ever runs this checker) agree on the same
+    file's hash. Used for every guard/traceability hash in this module and in
+    scripts/freeze_labels.py (via `clc.sha256_lf`) -- never hash committed JSON raw for a guard."""
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
 # Same constant as scripts/split_annotation_queue.py, scripts/ingest_labels.py,
 # tests/test_annotation_split.py -- the value recorded the moment the queue was frozen.
-FROZEN_QUEUE_SHA256 = "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011"
+# This is the LF-NORMALISED hash (differs from those other files' raw-CRLF constant of the same
+# name -- see DECISIONS.md ADR-0028 addendum #16 for why this module's guard was moved to LF and
+# the others were not touched in this session).
+FROZEN_QUEUE_SHA256 = "7da125e1856bc65514234d516e17d0a12363ee6ada9b324b3f00ca8bfa146d2a"
 
 _WET_FOOD_FORMS = frozenset({"wet", "tin", "pouch"})
 
@@ -328,21 +340,32 @@ def main() -> int:
         return 2
 
     queue_raw = QUEUE_JSON.read_bytes()
-    actual_queue_sha256 = hashlib.sha256(queue_raw).hexdigest()
-    print(f"frozen queue SHA-256: {actual_queue_sha256}")
-    if actual_queue_sha256 != FROZEN_QUEUE_SHA256:
+    queue_sha256_raw = hashlib.sha256(queue_raw).hexdigest()
+    queue_sha256_lf = sha256_lf(queue_raw)
+    print(f"frozen queue SHA-256 (raw): {queue_sha256_raw}")
+    print(f"frozen queue SHA-256 (LF):  {queue_sha256_lf}")
+    if queue_sha256_lf != FROZEN_QUEUE_SHA256:
         print(
-            f"REFUSING TO RUN: frozen queue hash does not match the recorded value "
-            f"({FROZEN_QUEUE_SHA256}). Investigate before checking labels against data this "
+            f"REFUSING TO RUN: frozen queue hash (LF-normalised) does not match the recorded "
+            f"value ({FROZEN_QUEUE_SHA256}). Investigate before checking labels against data this "
             f"script was not written against.",
             file=sys.stderr,
         )
         return 1
+    # kept for backward compatibility with callers that pass this hash on -- see below
+    actual_queue_sha256 = queue_sha256_raw
 
-    split_sha256 = (
-        hashlib.sha256(SPLIT_JSON.read_bytes()).hexdigest() if SPLIT_JSON.exists() else None
-    )
-    print(f"split file SHA-256: {split_sha256}")
+    if SPLIT_JSON.exists():
+        split_raw = SPLIT_JSON.read_bytes()
+        split_sha256_raw = hashlib.sha256(split_raw).hexdigest()
+        split_sha256_lf = sha256_lf(split_raw)
+    else:
+        split_sha256_raw = None
+        split_sha256_lf = None
+    print(f"split file SHA-256 (raw): {split_sha256_raw}")
+    print(f"split file SHA-256 (LF):  {split_sha256_lf}")
+    # kept for backward compatibility with callers that read this key
+    split_sha256 = split_sha256_raw
 
     queue = json.loads(queue_raw.decode("utf-8"))
     pairs = queue["pairs"]
@@ -402,8 +425,17 @@ def main() -> int:
     relabel_queue = {
         "built_from": "scripts/check_label_rule_consistency.py",
         "generated_at": datetime.now(UTC).isoformat(),
+        # "queue_sha256"/"split_sha256" (raw) kept for existing consumers (tools/annotate.html's
+        # review mode compares these against its own in-browser hash of the same checkout, where
+        # raw and LF never diverge). "_raw"/"_lf" are the explicit, traceable pair added this
+        # session (DECISIONS.md ADR-0028 addendum #16) -- the LF value is what the frozen-queue
+        # guard above actually checks.
         "queue_sha256": actual_queue_sha256,
+        "queue_sha256_raw": queue_sha256_raw,
+        "queue_sha256_lf": queue_sha256_lf,
         "split_sha256": split_sha256,
+        "split_sha256_raw": split_sha256_raw,
+        "split_sha256_lf": split_sha256_lf,
         "labels_ingested_at": labels_data.get("ingested_at"),
         "class_legend": CLASS_LABELS,
         "class_counts": class_counts,

@@ -15,7 +15,6 @@ of the constant back to UNFROZEN -- deliberately not a flag.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import sys
@@ -38,13 +37,13 @@ _STATE_RE = re.compile(r"^(Frozen labels SHA-256:\s*)`[^`]*`", re.MULTILINE)
 
 def labels_sha256(path: Path = LABELS_JSON) -> str:
     # CRLF->LF so a Windows worktree and a Linux CI checkout (.gitattributes eol=lf) agree.
-    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    return clc.sha256_lf(path.read_bytes())
 
 
 def blocking_findings() -> dict[str, int]:
     """Findings still open. An occurrence listed in ACK_JSON ({occurrence_id: reason}) was reviewed
     and its label deliberately kept -- the checker never overrides the annotator."""
-    queue_sha = hashlib.sha256(clc.QUEUE_JSON.read_bytes()).hexdigest()
+    queue_sha = clc.sha256_lf(clc.QUEUE_JSON.read_bytes())
     if queue_sha != clc.FROZEN_QUEUE_SHA256:
         raise SystemExit("REFUSING: frozen queue hash mismatch.")
     acked: dict[str, str] = (
