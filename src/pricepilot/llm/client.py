@@ -3,24 +3,38 @@
 ruff bans importing `anthropic` / `openai` anywhere else (see pyproject.toml), so this is
 enforced by CI rather than by memory.
 
-Phase 0 ships the *guard rails* only — the budget cap, the cache key, and the call log.
-The transport is deliberately not implemented yet: the first paid call happens in Phase 2
-and must be preceded by a `SPEND:` approval (CLAUDE.md §5). Per-token prices are not
-hardcoded here because no number in this repo may be invented (CLAUDE.md §0.4); they are
-filled in from the provider's published price list in the same commit as the first call.
+The guard rails are the budget cap, the cache key and the call log; `complete()` is the
+transport that uses all three. Every paid call is preceded by a `SPEND:` approval (CLAUDE.md §5).
+Per-token prices below are copied from the provider's published price list
+(docs/phase3-serving-prices.md, retrieved 2026-09-23) -- no number here is invented (§0.4).
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
+import time
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
+from typing import Any
 
 from sqlalchemy import select
 
 from pricepilot.config import get_settings
 from pricepilot.db import session_scope
 from pricepilot.models import LlmCall
+
+# USD per million tokens (input, output). Source: https://platform.claude.com/docs/en/about-claude/pricing
+# retrieved 2026-09-23, recorded in docs/phase3-serving-prices.md. A model missing from this table
+# cannot be called: we never guess a price.
+PRICES_USD_PER_MTOK: dict[str, tuple[Decimal, Decimal]] = {
+    "claude-sonnet-5": (Decimal("2"), Decimal("10")),
+    "claude-haiku-4-5-20251001": (Decimal("1"), Decimal("5")),
+}
+
+# Content-addressed response cache. `data/` is gitignored, so cached model output never enters git.
+DEFAULT_CACHE_DIR = Path(__file__).resolve().parents[3] / "data" / "llm-cache"
 
 
 class BudgetExceeded(RuntimeError):
@@ -102,8 +116,120 @@ def log_call(
         )
 
 
-def complete(*_args: object, **_kwargs: object) -> str:
-    """Transport. Implemented in Phase 2, behind an explicit SPEND approval."""
-    raise NotImplementedError(
-        "No LLM transport before Phase 2. Phases 0, 1 and 4 must cost $0 (CLAUDE.md §5)."
+def cost_usd(model: str, input_tokens: int, output_tokens: int) -> Decimal:
+    """Cost from the published per-token prices. Raises for a model without a recorded price."""
+    if model not in PRICES_USD_PER_MTOK:
+        raise KeyError(f"no published price recorded for model {model!r}; refusing to guess one")
+    price_in, price_out = PRICES_USD_PER_MTOK[model]
+    return (price_in * input_tokens + price_out * output_tokens) / Decimal(1_000_000)
+
+
+def make_sdk_client() -> Any:
+    """The one place the SDK client is built. Callers making many calls should build it ONCE and
+    pass it to `complete`, so per-call latency is not inflated by a new TLS handshake each time."""
+    import anthropic  # the ONLY module allowed to import the SDK (ruff TID251 enforces it)
+
+    api_key = get_settings().anthropic_api_key
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set in .env; cannot make a paid call")
+    # max_retries=0: the SDK's silent retries could bill a response twice while writing one log
+    # row, and would hide inside the measured latency. A failed call raises loudly.
+    return anthropic.Anthropic(api_key=api_key, max_retries=0, timeout=60.0)
+
+
+@dataclass(frozen=True)
+class Completion:
+    text: str
+    usage: Usage
+    cache_hit: bool
+    latency_ms: float | None  # wall-clock of the API call; None for a cache hit
+
+
+def complete(
+    *,
+    model: str,
+    prompt: str,
+    max_tokens: int,
+    phase: str,
+    purpose: str,
+    temperature: float = 0.0,
+    system: str | None = None,
+    estimated_input_tokens: int | None = None,
+    sdk_client: Any | None = None,
+    cache_dir: Path | None = None,
+) -> Completion:
+    """The only path to a paid LLM call.
+
+    1. cache lookup by content hash -- a hit costs 0, is logged as a hit, and never calls the API;
+    2. `assert_within_budget` BEFORE the call -- raises `BudgetExceeded`, never degrades;
+    3. the call; 4. cache write (so a crash while logging cannot cause a second paid call);
+    5. `log_call` with model, tokens, cost and latency.
+    """
+    cache_root = cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR
+    key = cache_key(model, str(max_tokens), repr(temperature), system or "", prompt)
+    cache_path = cache_root / f"{key}.json"
+
+    if cache_path.exists():
+        cached = json.loads(cache_path.read_text(encoding="utf-8"))
+        usage = Usage(
+            model=model,
+            input_tokens=cached["input_tokens"],
+            output_tokens=cached["output_tokens"],
+            cached_input_tokens=0,
+            cost_usd=Decimal("0"),
+        )
+        log_call(phase=phase, purpose=purpose, usage=usage, key=key, cache_hit=True)
+        return Completion(text=cached["text"], usage=usage, cache_hit=True, latency_ms=None)
+
+    # Pessimistic pre-call estimate: caller's token estimate (else ~1 token per 3 characters) plus
+    # the full max_tokens of output.
+    est_input = (
+        estimated_input_tokens if estimated_input_tokens is not None else len(prompt) // 3 + 1
     )
+    assert_within_budget(cost_usd(model, est_input, max_tokens))
+
+    if sdk_client is None:
+        sdk_client = make_sdk_client()
+
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if system is not None:
+        kwargs["system"] = system
+    started = time.perf_counter()
+    response = sdk_client.messages.create(**kwargs)
+    latency_ms = (time.perf_counter() - started) * 1000.0
+
+    text = "".join(b.text for b in response.content if getattr(b, "type", None) == "text")
+    in_tok, out_tok = int(response.usage.input_tokens), int(response.usage.output_tokens)
+    usage = Usage(
+        model=model,
+        input_tokens=in_tok,
+        output_tokens=out_tok,
+        cached_input_tokens=0,
+        cost_usd=cost_usd(model, in_tok, out_tok),
+    )
+    cache_root.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(
+        json.dumps({"text": text, "input_tokens": in_tok, "output_tokens": out_tok}),
+        encoding="utf-8",
+    )
+    try:
+        log_call(
+            phase=phase,
+            purpose=purpose,
+            usage=usage,
+            key=key,
+            cache_hit=False,
+            latency_ms=round(latency_ms),
+        )
+    except Exception as e:
+        # Money was spent and is NOT in llm_calls: say so loudly instead of leaving a silent gap.
+        raise RuntimeError(
+            f"PAID CALL NOT LOGGED (${usage.cost_usd}, key {key}): {e!r}. The response is cached, "
+            "so a rerun will not pay again -- add this cost to docs/COSTS.md by hand."
+        ) from e
+    return Completion(text=text, usage=usage, cache_hit=False, latency_ms=latency_ms)

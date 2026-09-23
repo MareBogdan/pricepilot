@@ -23,10 +23,11 @@ def test_settings_defaults_are_safe() -> None:
     assert s.llm_budget_usd >= 0
 
 
-def test_no_llm_transport_before_phase_2() -> None:
-    """Phases 0, 1 and 4 must cost $0 (CLAUDE.md §5). The transport does not exist yet."""
-    with pytest.raises(NotImplementedError):
-        complete("anything")
+def test_transport_refuses_an_unpriced_model_before_any_call() -> None:
+    """No number in this repo may be invented (CLAUDE.md §0.4): a model without a recorded
+    published price cannot be called, and the refusal happens before the DB or the network."""
+    with pytest.raises(KeyError):
+        complete(model="unpriced-model", prompt="x", max_tokens=1, phase="t", purpose="t")
 
 
 def test_cache_key_is_stable_and_unambiguous() -> None:
