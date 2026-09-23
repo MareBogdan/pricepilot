@@ -3815,3 +3815,30 @@ no-op. **The run log will contain the `ENV COMPAT: ... NEUTRALISED` line by desi
 `torch_dtype` -> `dtype` in `from_pretrained` (falls back on TypeError for older transformers), to
 silence the deprecation warning. Template, `build_pair_text()`, the REFUSING guards and the
 preflight are unchanged.
+
+**Update, third Kaggle attempt: CUDA OOM in the smoke run's backward pass.**
+`OutOfMemoryError: Tried to allocate 2.16 GiB. GPU 0 has a total capacity of 14.56 GiB of which
+462.81 MiB is free.` **Cause (arithmetic; the exact tensor was not identified):** Qwen2.5-0.5B's vocabulary is
+151,936 tokens and the standard HuggingFace causal-LM forward materialises logits at every position
+even though our loss is masked to one answer token. At batch 8 and the 565-token maximum that is
+8 x 565 x 151,936 x 4 bytes = 2.75 GB (2.56 GiB) for one fp32 logits copy, and the loss/backward
+path holds several logits-sized tensors (upcast, shifted copy, log-softmax, gradients), not just
+two; the reported 2.16 GiB failed allocation corresponds to ~477 tokens at batch 8, i.e. the same
+order, not an exact match. The weights themselves are only ~1-2 GB (ESTIMATE). **Fix:** `BATCH_SIZE`
+8 -> 2 and `GRAD_ACCUM` 2 -> 8 (effective batch 16 either way, asserted in the notebook; not
+bit-identical maths — each epoch's final partial step has 5 examples, which the old split weighted
+1/10 each and the new one weights 1/16 x4 plus 1/8 for the last example; 1 of 34 steps, small,
+clipped at 1.0); gradient checkpointing enabled on the base model before peft wraps it, with
+`enable_input_require_grads()` so the adapter still receives gradient; `use_cache` off; the probe
+resets CUDA peak-memory stats so its reported peak is its own; a failed run needs a kernel restart
+before retrying;
+`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` set before torch imports (fragmentation only,
+not the fix); the base model asserted to load as fp16 (the LoRA weights stay fp32); base dtype and
+trainable-parameter count printed once; and a one-batch memory probe (longest training example, at
+the configured batch size) before the smoke run that refuses with the computed logits size and the
+next step down. Fallback if it still OOMs: `BATCH_SIZE=1`, `GRAD_ACCUM=16`. **Considered and
+deliberately declined:** rewriting the forward pass to compute last-position-only logits. It is the
+principled fix (it would permit batch 8) but bypasses the standard loss path for a training-speed
+gain that affects no deliverable -- item 8 benchmarks CPU inference, not training. Known
+inefficiency, accepted. `build_pair_text()`, the template, the preflight and the REFUSING guards
+are unchanged.

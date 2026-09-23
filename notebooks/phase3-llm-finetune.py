@@ -23,6 +23,7 @@ import contextlib
 import glob
 import json
 import math
+import os
 import random
 import shutil
 import subprocess
@@ -31,10 +32,19 @@ import time
 from pathlib import Path
 from typing import Any
 
+# Must be set BEFORE torch is imported (the CUDA allocator reads it at first CUDA use). It only
+# reduces memory fragmentation -- it is NOT the OOM fix (that is the batch split and gradient
+# checkpointing below).
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 import torch
 import torch.nn.functional as F
 from peft import LoraConfig, PeftModel, get_peft_model
-from transformers import AutoModelForCausalLM, AutoTokenizer, get_linear_schedule_with_warmup
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    get_linear_schedule_with_warmup,
+)
 
 # ---------------------------------------------------------------------------
 # ENVIRONMENT COMPATIBILITY -- Kaggle's image ships torchao 0.10.0, but the installed peft only
@@ -108,8 +118,17 @@ LR = 1e-4
 WARMUP_FRACTION = 0.10
 GRAD_CLIP = 1.0
 MAX_EPOCHS = 8
-BATCH_SIZE = 8
-GRAD_ACCUM = 2
+# Effective batch = BATCH_SIZE * GRAD_ACCUM = 16, unchanged from the original 8 x 2 -- only how it
+# is split across forward/backward passes changed, so no optimisation hyperparameter moved (the
+# one exception: the final partial step of each epoch, 5 examples, weights its last example
+# double -- 1 of 34 steps, clipped at 1.0). The split exists because Qwen2.5's 151,936-token
+# vocabulary makes the (unavoidable, standard-loss-path) fp32 logits tensor 8 x 565 x 151936 x 4
+# bytes = 2.75 GB (2.56 GiB) per copy at the old batch of 8, with several more logits-sized
+# tensors in the loss/backward path: that OOMed a 14.56 GiB T4. Fallback if it still OOMs:
+# BATCH_SIZE=1, GRAD_ACCUM=16 (effective batch still 16) -- RESTART THE KERNEL first.
+BATCH_SIZE = 2
+GRAD_ACCUM = 8
+assert BATCH_SIZE * GRAD_ACCUM == 16, "effective batch must stay 16"
 # Character lengths measured over all 959 pairs: the instruction wrapper is 1181 chars, repeated
 # on every example, and pair text is median 539 / p95 662 / max 941 chars, so the median prompt is
 # ~1720 chars and the longest ~2122. Token counts are ESTIMATES from those (roughly 520 median and
@@ -493,9 +512,29 @@ def _load_base_model() -> Any:
         return AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=TORCH_DTYPE)
 
 
+_MODEL_FACTS_PRINTED: list[bool] = []
+
+
 def build_fresh_model() -> Any:
     base = _load_base_model()
     base.to(device)
+    base_dtype = next(base.parameters()).dtype
+    if base_dtype != TORCH_DTYPE:
+        raise SystemExit(
+            f"REFUSING TO RUN: base model loaded as {base_dtype}, expected {TORCH_DTYPE} -- an "
+            "accidental upcast doubles the weight memory."
+        )
+    # Gradient checkpointing: recompute activations in backward instead of storing them. Must be
+    # enabled on the base model BEFORE peft wraps it, and enable_input_require_grads() makes the
+    # embedding output require grad so checkpointed segments still route gradient to the adapter
+    # (otherwise the LoRA weights can silently receive no gradient). use_cache is off: it is
+    # incompatible with checkpointing and unused (we never generate).
+    base.config.use_cache = False
+    try:
+        base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    except TypeError:  # older transformers: no kwargs argument
+        base.gradient_checkpointing_enable()
+    base.enable_input_require_grads()
     lora_config = LoraConfig(
         r=LORA_R,
         lora_alpha=LORA_ALPHA,
@@ -510,7 +549,65 @@ def build_fresh_model() -> Any:
     for param in peft_model.parameters():
         if param.requires_grad:
             param.data = param.data.float()
+    if not _MODEL_FACTS_PRINTED:
+        _MODEL_FACTS_PRINTED.append(True)
+        trainable = sum(p.numel() for p in peft_model.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in peft_model.parameters())
+        print(
+            f"MODEL: base dtype={base_dtype}  trainable params={trainable:,} / {total:,} "
+            f"({100 * trainable / total:.2f}%)  "
+            f"gradient checkpointing={base.is_gradient_checkpointing}"
+        )
     return peft_model
+
+
+def memory_probe(model: Any) -> None:
+    """One forward+backward on the LONGEST training example at the configured BATCH_SIZE, before
+    the smoke run, so an OOM is a report in seconds rather than a crash mid-epoch. Worst case for
+    memory: a batch made entirely of the longest example."""
+    if device != "cuda":
+        print("MEMORY PROBE: skipped (no CUDA)")
+        return
+    longest = max(
+        train_pairs,
+        key=lambda p: len(
+            tokenizer(build_llm_prompt(p["text_a"], p["text_b"]), add_special_tokens=False)[
+                "input_ids"
+            ]
+        ),
+    )
+    ids, mask, lab = build_tensors([longest] * BATCH_SIZE)
+    seq = int(mask[0].sum().item())
+    vocab = int(model.config.vocab_size)
+    logits_gib = BATCH_SIZE * seq * vocab * 4 / 2**30
+    print(
+        f"MEMORY PROBE: batch {BATCH_SIZE} x {seq} tokens x vocab {vocab} -> fp32 logits "
+        f"{logits_gib:.2f} GiB per copy"
+    )
+    model.train()
+    torch.cuda.reset_peak_memory_stats()  # the reported peak must be this probe's, not earlier
+    outputs = None
+    try:
+        with torch.autocast(device_type=device, dtype=torch.float16):
+            outputs = model(
+                input_ids=ids[:, :seq].to(device),
+                attention_mask=mask[:, :seq].to(device),
+                labels=lab[:, :seq].to(device),
+            )
+        (outputs.loss / GRAD_ACCUM).backward()
+        peak = torch.cuda.max_memory_allocated() / 2**30
+        print(f"MEMORY PROBE: OK, peak allocated {peak:.2f} GiB")
+    except torch.cuda.OutOfMemoryError:
+        raise SystemExit(
+            f"REFUSING TO RUN: OOM in the memory probe (logits alone {logits_gib:.2f} GiB per "
+            f"copy). BATCH_SIZE={BATCH_SIZE}, GRAD_ACCUM={GRAD_ACCUM}. Next step down: "
+            f"BATCH_SIZE={max(1, BATCH_SIZE // 2)}, GRAD_ACCUM={GRAD_ACCUM * 2} (effective batch "
+            "stays 16)."
+        ) from None
+    finally:
+        model.zero_grad(set_to_none=True)
+        del outputs
+        torch.cuda.empty_cache()
 
 
 def run_training_epoch(
@@ -532,9 +629,7 @@ def run_training_epoch(
     for batch_i, start in enumerate(range(0, n, BATCH_SIZE)):
         idx = order[start : start + BATCH_SIZE]
         # Right-padded, so trimming to this batch's longest real example is lossless. Avoids
-        # materialising 151k-vocab logits for all MAX_LENGTH positions on every example. Memory is still
-        # a T4 risk at batch 8 with ~600+ token batches (ESTIMATE ~12-20 GB peak); the smoke run's
-        # first batches will show it. Fallback if it OOMs: BATCH_SIZE=4, GRAD_ACCUM=4 (same effective 16).
+        # materialising 151k-vocab logits for all MAX_LENGTH positions on every example.
         trim = int(attention_mask[idx].sum(dim=1).max().item())
         with torch.autocast(device_type=device, dtype=torch.float16, enabled=device == "cuda"):
             outputs = model(
@@ -572,6 +667,7 @@ print("=" * 70)
 smoke_pairs = train_pairs[:SMOKE_EXAMPLE_COUNT]
 smoke_ids, smoke_mask, smoke_labels = build_tensors(smoke_pairs)
 smoke_model = build_fresh_model()
+memory_probe(smoke_model)
 smoke_optimizer = torch.optim.AdamW(smoke_model.parameters(), lr=LR)
 smoke_total_steps = math.ceil(len(smoke_pairs) / (BATCH_SIZE * GRAD_ACCUM)) * SMOKE_EPOCHS
 smoke_scheduler = get_linear_schedule_with_warmup(

@@ -31,6 +31,16 @@ few minutes. Script: `notebooks/phase3-llm-finetune.py`.
    - The final `RUN SUMMARY` block.
 7. If the loss prints `nan`, stop and bring the log back -- do not rerun blind.
 
+## Expected batch settings and memory
+
+`BATCH_SIZE=2`, `GRAD_ACCUM=8` (effective batch 16, same as the original 8 x 2), gradient
+checkpointing on. The log prints `MODEL: base dtype=torch.float16 trainable params=...` once and a
+`MEMORY PROBE: ... OK, peak allocated ...` line before the smoke run. If the probe refuses with
+OOM, the documented fallback is `BATCH_SIZE=1`, `GRAD_ACCUM=16` (effective batch still 16) --
+edit those two constants, nothing else -- and **restart the Kaggle session/kernel before
+rerunning** (the allocator setting only applies before torch first loads, and the failed attempt's
+GPU memory stays held until then).
+
 ## Known environment issue (expected, not a warning to act on)
 
 Kaggle's image ships torchao 0.10.0; the installed peft requires >= 0.16.0 and raises instead of
