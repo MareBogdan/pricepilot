@@ -1,0 +1,171 @@
+{
+ "built_from": "scripts/score_predictions.py",
+ "generated_at": "2026-09-23T13:27:18.435380+00:00",
+ "model_id": "mmarco-mMiniLMv2-zeroshot",
+ "threshold": 0.86,
+ "frozen_labels_sha256": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
+ "n_scored": 284,
+ "s_dropped": 3,
+ "confusion_matrix": {
+  "tp": 91,
+  "fp": 174,
+  "fn": 6,
+  "tn": 13
+ },
+ "precision": {
+  "value": 0.3433962264150943,
+  "n": 265,
+  "ci_95_lower": 0.28882891766708446,
+  "ci_95_upper": 0.4024389382503413
+ },
+ "recall_all_positives": {
+  "value": 0.9381443298969072,
+  "n": 97,
+  "ci_95_lower": 0.8715621680383414,
+  "ci_95_upper": 0.9713451142842817
+ },
+ "recall_excluding_13_repeat_positives": {
+  "value": 0.9404761904761905,
+  "n": 84,
+  "ci_95_lower": 0.8681173717738189,
+  "ci_95_upper": 0.9743094389085045
+ },
+ "n_repeat_positives_excluded": 13,
+ "accuracy": {
+  "value": 0.36619718309859156,
+  "n": 284,
+  "ci_95_lower": 0.31229900944546984,
+  "ci_95_upper": 0.42366675340406157
+ },
+ "f1": {
+  "value": 0.5027624309392266,
+  "note": "no independent Wilson CI -- F1 is a harmonic mean of precision and recall, two different proportions, not itself a single binomial proportion Wilson's assumptions apply to."
+ },
+ "per_tier": {
+  "proxy_key_collision": {
+   "n_pos": 74,
+   "n_neg": 12,
+   "reportable": true,
+   "precision": {
+    "value": 0.85,
+    "n": 80,
+    "ci_95_lower": 0.7558677143867665,
+    "ci_95_upper": 0.9120595949383645
+   },
+   "recall": {
+    "value": 0.918918918918919,
+    "n": 74,
+    "ci_95_lower": 0.8341805755644218,
+    "ci_95_upper": 0.9623101498061737
+   },
+   "f1": 0.8831168831168831,
+   "tp": 68,
+   "fp": 12,
+   "fn": 6
+  },
+  "capacity_differs_cross_shop": {
+   "n_pos": 1,
+   "n_neg": 62,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 1",
+   "false_positive_rate": {
+    "value": 0.8225806451612904,
+    "n": 62,
+    "ci_95_lower": 0.7095843311430364,
+    "ci_95_upper": 0.8979356223399492
+   }
+  },
+  "blocked_retrieval_candidate": {
+   "n_pos": 15,
+   "n_neg": 21,
+   "reportable": true,
+   "precision": {
+    "value": 0.4166666666666667,
+    "n": 36,
+    "ci_95_lower": 0.2714056205144606,
+    "ci_95_upper": 0.5779974842512834
+   },
+   "recall": {
+    "value": 1.0,
+    "n": 15,
+    "ci_95_lower": 0.7961166989641515,
+    "ci_95_upper": 1.0
+   },
+   "f1": 0.5882352941176471,
+   "tp": 15,
+   "fp": 21,
+   "fn": 0
+  },
+  "same_capacity_diff_flavour": {
+   "n_pos": 0,
+   "n_neg": 26,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 0",
+   "false_positive_rate": {
+    "value": 1.0,
+    "n": 26,
+    "ci_95_lower": 0.8712710781407846,
+    "ci_95_upper": 1.0
+   }
+  },
+  "capacity_differs_within_shop": {
+   "n_pos": 0,
+   "n_neg": 22,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 0",
+   "false_positive_rate": {
+    "value": 1.0,
+    "n": 22,
+    "ci_95_lower": 0.8513451253913791,
+    "ci_95_upper": 1.0
+   }
+  },
+  "same_capacity_diff_lifestage": {
+   "n_pos": 1,
+   "n_neg": 18,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 1",
+   "false_positive_rate": {
+    "value": 0.9444444444444444,
+    "n": 18,
+    "ci_95_lower": 0.7424269921812741,
+    "ci_95_upper": 0.990124809021697
+   }
+  },
+  "diff_brand_similar_title": {
+   "n_pos": 0,
+   "n_neg": 16,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 0",
+   "false_positive_rate": {
+    "value": 1.0,
+    "n": 16,
+    "ci_95_lower": 0.8063923194655637,
+    "ci_95_upper": 1.0
+   }
+  },
+  "same_capacity_diff_breedsize": {
+   "n_pos": 4,
+   "n_neg": 10,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 4",
+   "false_positive_rate": {
+    "value": 0.9,
+    "n": 10,
+    "ci_95_lower": 0.5958499732047615,
+    "ci_95_upper": 0.9821237869049271
+   }
+  },
+  "trivial_spot_check": {
+   "n_pos": 2,
+   "n_neg": 0,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 2",
+   "false_positive_rate": {
+    "value": null,
+    "n": 0,
+    "note": "undefined (denominator is 0)"
+   }
+  }
+ }
+}
