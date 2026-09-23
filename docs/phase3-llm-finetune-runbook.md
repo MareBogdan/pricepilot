@@ -31,6 +31,14 @@ few minutes. Script: `notebooks/phase3-llm-finetune.py`.
    - The final `RUN SUMMARY` block.
 7. If the loss prints `nan`, stop and bring the log back -- do not rerun blind.
 
+## Known environment issue (expected, not a warning to act on)
+
+Kaggle's image ships torchao 0.10.0; the installed peft requires >= 0.16.0 and raises instead of
+returning False. The notebook uninstalls torchao (best effort; return code is printed) and
+neutralises peft's probe in both places it is bound, and prints one `ENV COMPAT: peft's torchao probe NEUTRALISED ...` line. That
+line is in the run log by design. If instead you see `ENV COMPAT: ... patch not applied`, bring the
+log back.
+
 ## Bring back
 
 8. Download from `/kaggle/working`:

@@ -19,11 +19,14 @@ edit `llm_prompt.py` first, then copy its template block back into this file ver
 
 from __future__ import annotations
 
+import contextlib
 import glob
 import json
 import math
 import random
 import shutil
+import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -32,6 +35,51 @@ import torch
 import torch.nn.functional as F
 from peft import LoraConfig, PeftModel, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_linear_schedule_with_warmup
+
+# ---------------------------------------------------------------------------
+# ENVIRONMENT COMPATIBILITY -- Kaggle's image ships torchao 0.10.0, but the installed peft only
+# supports torchao >= 0.16.0 and RAISES ImportError (instead of returning False) from
+# is_torchao_available() when it probes an older one, inside get_peft_model ->
+# peft/tuners/lora/torchao.py::dispatch_torchao. This project does not use torchao at all; peft
+# only probes it while choosing which layer class to wrap. So: try to uninstall it, then force the
+# probe to report False. BOTH bindings are patched: peft.tuners.lora.torchao imports the name
+# `is_torchao_available` into its own namespace at import time, so patching peft.import_utils
+# alone would leave the old reference in place and the raise would still happen.
+# On a future image without the problem this block is a harmless no-op (the patched probe just
+# says "no torchao", which is true for our purposes).
+# ---------------------------------------------------------------------------
+# Best effort only; the patch below is what guarantees safety.
+_uninstall_rc: int | str = "not attempted"
+with contextlib.suppress(Exception):
+    _uninstall_rc = subprocess.run(
+        [sys.executable, "-m", "pip", "uninstall", "-y", "torchao"],
+        capture_output=True,
+        timeout=120,
+        check=False,
+    ).returncode
+print(f"ENV COMPAT: pip uninstall torchao return code: {_uninstall_rc}")
+
+try:
+    import peft.import_utils
+    import peft.tuners.lora.torchao as _lora_torchao
+
+    def _no_torchao(*_a: Any, **_k: Any) -> bool:
+        return False
+
+    peft.import_utils.is_torchao_available = _no_torchao  # type: ignore[assignment]
+    _patched = ["peft.import_utils"]
+    if hasattr(_lora_torchao, "is_torchao_available"):
+        _lora_torchao.is_torchao_available = _no_torchao  # type: ignore[assignment]
+        _patched.append("peft.tuners.lora.torchao")
+    print(
+        f"ENV COMPAT: peft's torchao probe NEUTRALISED (is_torchao_available -> False in "
+        f"{' and '.join(_patched)}). Reason: Kaggle ships torchao 0.10.0, peft requires >= 0.16.0 "
+        "and raises instead of returning False. Expected; not used here."
+    )
+    if len(_patched) < 2:
+        print("ENV COMPAT: WARNING -- lora.torchao has no is_torchao_available binding to patch.")
+except Exception as _compat_err:
+    print(f"ENV COMPAT: torchao probe patch not applied ({_compat_err!r}); continuing.")
 
 # ---------------------------------------------------------------------------
 # Fixed run facts -- printed in the final summary block (TASK 2 item 10) so DECISIONS.md
@@ -437,8 +485,16 @@ def select_best_threshold(
 # ---------------------------------------------------------------------------
 
 
+def _load_base_model() -> Any:
+    """Newer transformers deprecate `torch_dtype` in favour of `dtype`; older ones reject `dtype`."""
+    try:
+        return AutoModelForCausalLM.from_pretrained(BASE_MODEL, dtype=TORCH_DTYPE)
+    except TypeError:
+        return AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=TORCH_DTYPE)
+
+
 def build_fresh_model() -> Any:
-    base = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=TORCH_DTYPE)
+    base = _load_base_model()
     base.to(device)
     lora_config = LoraConfig(
         r=LORA_R,
@@ -641,7 +697,7 @@ print(
 # ---------------------------------------------------------------------------
 
 best_epoch_dir = WORKING_DIR / f"adapter-epoch-{best['epoch']}"
-scoring_base = AutoModelForCausalLM.from_pretrained(BASE_MODEL, torch_dtype=TORCH_DTYPE).to(device)
+scoring_base = _load_base_model().to(device)
 scoring_model = PeftModel.from_pretrained(scoring_base, str(best_epoch_dir))
 scoring_model.eval()
 

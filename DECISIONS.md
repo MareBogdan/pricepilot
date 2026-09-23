@@ -3794,3 +3794,24 @@ preflight block that tokenises all 959 prompts and prints min/median/p95/p99/max
 run, refusing there if any exceed the cap. `build_pair_text()` and the prompt template are
 unchanged (pair text must stay byte-identical to what the cross-encoder consumed). Decision 4's
 "max_length 512" above is superseded by this correction; the original text is left as written.
+
+**Update, same day (second Kaggle attempt).** The preflight passed on the real tokenizer, figures
+as reported by the annotator from the Kaggle run log (no log file is committed):
+**n=959, min 418, median 444, p95 490, p99 512, max 565 tokens, 0 over `MAX_LENGTH=1024`** — the
+max is 565, ~55% of the 1024 cap. The original 512 cap equalled p99, so at most 9 of 959 prompts
+(<1%) exceeded it (nearest-rank p99; the exact count was not printed) — yet it still refused,
+because one of those few was the first pair hit. So the ESTIMATED "median ~520" above was too
+high (measured 444) and "more than half exceeded 512" was wrong. The run then died in `get_peft_model` with `ImportError: Found an
+incompatible version of torchao. Found version 0.10.0, but only versions above 0.16.0 are
+supported`, raised from `peft.import_utils.is_torchao_available()` via
+`peft/tuners/lora/torchao.py::dispatch_torchao`. Cause: a Kaggle image incompatibility, not a code
+defect — the image's torchao is too old for the installed peft, which raises rather than returning
+False, and this project never uses torchao (peft only probes it while choosing the LoRA layer
+class). **Fix:** the notebook tries `pip uninstall -y torchao`, then forces the probe to return
+False in BOTH `peft.import_utils` and `peft.tuners.lora.torchao` — the latter binds
+`is_torchao_available` into its own namespace at import time, so patching only `peft.import_utils`
+would leave the raising reference in place. On an image without the problem the block is a harmless
+no-op. **The run log will contain the `ENV COMPAT: ... NEUTRALISED` line by design.** Also:
+`torch_dtype` -> `dtype` in `from_pretrained` (falls back on TypeError for older transformers), to
+silence the deprecation warning. Template, `build_pair_text()`, the REFUSING guards and the
+preflight are unchanged.
