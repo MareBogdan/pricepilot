@@ -3909,3 +3909,53 @@ proven; recorded as an observation. Cases 5 and 9 are LoRA-only misses (weight 8
 
 **Cost.** $0.00 (Kaggle free tier).
 
+
+---
+
+## ADR-0028 addendum #23 — Phase 3 item 8, session 1: CE weights lost and retrained (verdict), protocol pre-registered, serving notebook, first paid LLM call (2026-09-23)
+
+**Weights lost.** The fine-tuned cross-encoder's epoch-6 weights were never saved: the original
+Kaggle notebook (`notebook87be682cf2`) wrote only four `preds-*.json` files; the best state lived in
+memory. Item 8 needs the weights to export and quantize them.
+
+**Reproduction rule written BEFORE the retrain ran** (`docs/phase3-ce-reproduction-rule.md`,
+committed with the retrain outputs; the parity test pins that the retrain's training cell is
+byte-identical to the original's). **Verdict: REPRODUCED** — best epoch 6, 0 decision flips at
+0.89 across 959 fine-tuned pairs, max and mean |score diff| exactly 0 on all four files. The
+retrained weights (SHA-256 `e8843e39…dc1fc`, verified against the zip) ARE
+`mmarco-mMiniLMv2-finetuned-ep6`: no new ledger entry, no TEST touch. Retrain env: torch 2.10.0+cpu,
+transformers 5.0.0, Xeon 2.20GHz, 4 vCPU. `scripts/check_ce_reproduction.py` reads no label file.
+
+**Protocol pre-registered** (`docs/phase3-serving-benchmark-protocol.md`) before any benchmark code
+existed; deviations added later as §5.10 without altering the original text: int8 default
+`reduce_range`; warm-up pairs also among the measured; `torch.onnx.export` with a two-logit wrapper
+instead of `optimum`; RSS per fresh child; and the hosted temperature (below).
+
+**Why G1 compares against an in-notebook fp32 reference,** not the committed LoRA predictions: those
+were computed in fp16 on a T4 GPU, so a diff against them would mix export error with precision
+error. G1b reports the fp16-vs-fp32 gap separately, ungated.
+
+**LoRA zip.** `models/adapter-lora.zip` holds ONE flat adapter (SHA-256 `a3bfe7f3…a285`); it cannot
+say whether Kaggle's `adapter/` and `adapter-epoch-8/` are identical. The serving notebook hashes
+both and stops if they differ.
+
+**Prices** (`docs/phase3-serving-prices.md`): Sonnet 5 $2/$10 and Haiku 4.5 $1/$5 per Mtok; CX22 is
+no longer sold, its 2 vCPU / 4 GB successor CX23 is EUR 0.0088/h (EUR 5.49/month, excl. VAT and
+IPv4) and is currently listed as unavailable to order; ECB EUR->USD 1.1411. **The Phase 7 hosting
+reserve (~$15 for three months at ~EUR 4/mo, CLAUDE.md §5) must be re-checked**: the plan is ~40%
+dearer than budgeted and cannot be ordered today.
+
+**Hosted baseline (first paid call).** `claude-sonnet-5`, `llm-prompt-v1`, 287 TEST pairs, fixed
+threshold 0.5 (not selected), ledger id `hosted-claude-sonnet-5-zeroshot`: **F1 0.9082**, P 0.8990
+(n=99), R 0.9175 (n=97), TP 89 FP 10 FN 8 TN 177. **Zero-shot — not a fair accuracy comparison with
+the two fine-tuned models** (5.1c); it is a cost/latency data point. Caveats: the API rejects
+`temperature` for this model (400), so it was not sent; 40 of 287 replies were empty within
+`max_tokens=5`, scored 0.0 and not retried, so recall is understated by an unknown amount. Latency
+from Romania, incl. network: p50 1258 ms, p95 1883 ms, p99 2788 ms (n=287). **Cost: $0.400858 actual
+(`llm_calls`, 194,734 in / 1,139 out tokens) vs $0.35 estimated** — the chars/3 token estimate ran
+~17% low.
+
+**Also.** `client.complete()` implemented (cap before call, content-hash file cache, log row, SDK
+retries off, one shared client); ruff excludes `notebooks/*.ipynb`. Kaggle smoke and full runs are
+the next manual step (`docs/phase3-serving-benchmark-runbook.md`); scoring and the headline table
+are session 2.

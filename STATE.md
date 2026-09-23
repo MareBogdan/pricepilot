@@ -3,15 +3,13 @@
 Phase: 3 — Matching (Phases 0-2 CLOSED)
 Updated: 2026-09-23
 
-**Where we are (2026-09-23):** Item 5 is CLOSED — cross-encoder baseline TEST **F1 0.8737**
-(P 0.8925 n=93, R 0.8557 n=97, threshold 0.89 chosen on validation; zero-shot 0.5028, non-
-discriminating). Items 6 and 7 are CLOSED: the LoRA
-Qwen2.5-0.5B scored **TEST F1 0.8796** (P 0.8936 n=94, R 0.8660 n=97; val-selected threshold 0.86)
-vs the cross-encoder's 0.8737 — **a tie: CIs overlap on every metric, McNemar 8 vs 9 discordant,
-p = 1.0000**; no win claimed. Ledger holds exactly 3 entries. Next: item 8, the serving benchmark
-(quantized CPU p50/p95 latency, accuracy, $/1,000 vs the cross-encoder and a hosted API), which
-under CLAUDE.md §7's tie rule is now the headline. Spend $0.00. Details: DECISIONS.md ADR-0028
-addendum #22, `docs/learned/phase3-model-comparison.md`, `docs/learned/phase3-failure-analysis.md`.
+**Where we are (2026-09-23):** Items 1-7 are CLOSED (item 5 cross-encoder TEST F1 0.8737; item 6
+LoRA 0.8796; a tie, McNemar p = 1.0000). Item 8 session 1 is done: the cross-encoder retrain
+**REPRODUCED** (0 flips / 959 pairs), the serving protocol is pre-registered, the Kaggle serving
+notebook is built (not yet run), and the hosted zero-shot baseline ran: `claude-sonnet-5` TEST
+**F1 0.9082 @ fixed 0.5, zero-shot, not a fair accuracy comparison**, $0.40 spent, p50 1258 ms.
+Next: Bogdan runs the Kaggle smoke then full run (`docs/phase3-serving-benchmark-runbook.md`);
+session 2 scores the outputs. Ledger: 4 entries. Details: DECISIONS.md ADR-0028 addendum #23.
 
 ## Gate progress
 
@@ -86,7 +84,8 @@ ADR-0027.
     label noise). Reproduce: `uv run python scripts/compare_models.py`,
     `uv run python scripts/select_failure_cases.py`.
 [ ] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
-    hosted API — not started.
+    hosted API — CE reproduced, protocol pre-registered, hosted baseline done ($0.40); blocked on
+    Bogdan: Kaggle smoke + full run.
 
 **Dataset FROZEN 2026-09-22.** SHA-256 (of `docs/learned/phase3-labels.json`, LF-normalised)
 `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` — recorded identically in
@@ -131,6 +130,8 @@ Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7
    into this file's History section.
 
 ## Open issues
+
+- **Item 8 artefacts:** protocol `docs/phase3-serving-benchmark-protocol.md` (+ §5.10 deviations); prices `docs/phase3-serving-prices.md`; reproduction verdict `docs/learned/results/ce-reproduction-check.json`; notebook `notebooks/phase3-serving-benchmark.ipynb`; hosted results `docs/learned/results/predictions/{preds,latency}-hosted*.json` + `hosted-claude-sonnet-5-zeroshot-metrics.json`. The notebook has never run on Kaggle; the Qwen ONNX export is the likeliest failure (smoke run catches it). Hosted run: 40/287 empty replies, temperature not sendable.
 
 - **Flagged 2026-09-23: `pytest` (the console-script `.exe`) is blocked by this machine's Windows
   Application Control policy** — `uv run python -m pytest` works and was used throughout this
@@ -269,6 +270,8 @@ Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7
   on both shops this session. Needs to reach the Phase 3 annotation set.
 
 ## Blocked on Bogdan
+
+**Item 8: run the Kaggle serving benchmark** — smoke first, then full; follow `docs/phase3-serving-benchmark-runbook.md` exactly. Outputs go in `docs/learned/results/serving/`. Also: the Phase 7 hosting reserve must be re-checked (CX22 no longer sold; CX23 EUR 5.49/mo and unavailable to order today).
 
 **Nothing right now.** Both prior "Blocked on Bogdan" sections are merged here; every item either
 one of them raised is now resolved, and this is the one place that answer lives.
