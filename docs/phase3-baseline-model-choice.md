@@ -79,3 +79,23 @@ Rules for fairness:
 ## What would change my mind
 
 - If fine-tuning the mMiniLM cross-encoder does not beat zero-shot on validation, switch the headline to bge-reranker-v2-m3 and check the CX22 memory figure by measurement.
+
+## Decision rule for the LoRA comparison (written BEFORE the result exists)
+
+Recorded 2026-09-23, before the Qwen2.5-0.5B-Instruct LoRA run has produced a single number.
+The bar is the cross-encoder's TEST F1 of **0.8737** (P 0.8925, R 0.8557, threshold 0.89 chosen
+on validation). The LoRA model is scored the same way: epoch and threshold chosen on the 133
+validation pairs, then TEST scored once.
+
+- **If the LoRA 0.5B does not beat 0.8737 on TEST, that is the finding.** It is reported as-is in
+  the README results table, with error analysis. It is not tuned toward, re-thresholded on TEST,
+  or re-run until it wins.
+- **Two legitimate follow-ups, and only these:**
+  1. A **documented second attempt at Qwen2.5-1.5B**, as a separate, labelled experiment with its
+     own ledger entry -- never a silent swap of the base model.
+  2. The **item 8 cost/latency comparison** (CPU quantized p50/p95, cost per 1,000 comparisons),
+     which may favour the smaller model even at equal or slightly lower F1, per CLAUDE.md §7's
+     tie rule.
+- **Not a legitimate follow-up: weakening the cross-encoder baseline** -- fewer epochs, a worse
+  threshold, dropping the epoch-6 checkpoint, or restricting the comparison to tiers where it does
+  worse. The baseline stays exactly as recorded.
