@@ -99,3 +99,14 @@ validation pairs, then TEST scored once.
 - **Not a legitimate follow-up: weakening the cross-encoder baseline** -- fewer epochs, a worse
   threshold, dropping the epoch-6 checkpoint, or restricting the comparison to tiers where it does
   worse. The baseline stays exactly as recorded.
+
+### Verdict (recorded 2026-09-23, after the LoRA TEST result)
+
+LoRA Qwen2.5-0.5B (epoch 8, validation-selected threshold 0.86): TEST F1 **0.8796**, P 0.8936
+(84/94), R 0.8660 (84/97). Cross-encoder: 0.8737. The point estimate is 0.0059 higher, **but the
+confidence intervals overlap on every metric and McNemar's exact test gives 8 vs 9 discordant pairs,
+p = 1.0000** (`scripts/compare_models.py`, `docs/learned/phase3-model-comparison.md`). **Verdict: a
+tie on F1.** No claim that the fine-tune beat the baseline is made. Under CLAUDE.md §7's tie rule the
+item 8 serving benchmark is the result. The cross-encoder baseline was not re-run, retuned or
+weakened.
+

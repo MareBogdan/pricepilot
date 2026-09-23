@@ -84,3 +84,27 @@ def find_invalid_prediction_values(predictions: Mapping[str, Any]) -> dict[str, 
         elif isinstance(value, float) and not math.isfinite(value):
             bad[pair_id] = f"not finite: {value!r}"
     return bad
+
+
+def mcnemar_exact_p(b: int, c: int) -> float:
+    """Exact two-sided McNemar p-value from the two discordant counts of a paired comparison
+    (`b` = pairs only model A got right, `c` = pairs only model B got right).
+
+    Under H0 (the two models are equally likely to be the one that is right on a pair they
+    disagree on) the smaller discordant count is Binomial(b + c, 0.5); the two-sided p-value is
+    2 * P(X <= min(b, c)), capped at 1. Exact rather than the chi-square approximation because
+    the discordant counts here are small (single digits to low tens), where chi-square is
+    unreliable. Implemented from the binomial formula directly -- no scipy.
+    """
+    if b < 0 or c < 0:
+        raise ValueError("discordant counts must be non-negative")
+    n = b + c
+    if n == 0:
+        return 1.0
+    tail = sum(math.comb(n, k) for k in range(min(b, c) + 1)) / 2**n
+    return float(min(1.0, 2 * tail))
+
+
+def intervals_overlap(a: tuple[float, float], b: tuple[float, float]) -> bool:
+    """True iff the closed intervals [a0, a1] and [b0, b1] share at least one point."""
+    return a[0] <= b[1] and b[0] <= a[1]
