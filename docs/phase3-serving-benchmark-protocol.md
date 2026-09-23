@@ -94,3 +94,29 @@ artefact size | proxy note.
 ## 5.9 If G1 fails for the LoRA export
 
 Stop and report. No silent fallback to PyTorch-on-CPU latency.
+
+## 5.10 Stated deviations (added 2026-09-23, after the protocol commit; sections above unchanged)
+
+Recorded here, in the open, so no number is quoted without them.
+
+1. **int8 uses ORT's default `reduce_range`** (`quantize_dynamic`, QInt8 weights, per-tensor). On
+   CPUs without VNNI this can saturate; `env-facts.json` records `avx512_vnni` / `avx_vnni` so the
+   result can be read against the actual CPU. If G2 flips look odd, that is the first suspect.
+2. **The 10 warm-up pairs are also among the 287 measured pairs** (the first 10 in `pair_id`
+   order). ONNX Runtime has no cross-call result cache, so no bias is expected.
+3. **Export is `torch.onnx.export` with a two-logit wrapper, not `optimum`** (5.1a's wording):
+   `optimum` exports standard heads only, and 5.2 requires a graph that outputs just the two readout
+   logits. One runtime (ONNX Runtime) still serves both models.
+4. **Peak RSS** is measured in a fresh child process per ONNX variant that loads only that one
+   session (`ru_maxrss` is process-lifetime). Two figures per variant: after batch-1 latency, and
+   after the batch-16 throughput pass; plus RSS right after session load.
+5. **Hosted temperature (5.7) could NOT be 0.** `claude-sonnet-5`'s API rejected the parameter:
+   `400 invalid_request_error: "temperature is deprecated for this model"` (request
+   `req_011CfM2h7y8RASFkHdhMxhkc`; a rejected request, nothing billed). The hosted run sends no
+   temperature, so the model's default sampling applies. Everything else in 5.7 is as registered.
+6. **Hosted result caveat, observed:** 40 of 287 replies came back empty within `max_tokens=5`. Per
+   5.7 they are counted, scored 0.0 and NOT retried; the hosted recall is therefore understated by
+   an unknown amount. The hosted F1 stays a zero-shot cost/latency data point, not a fair accuracy
+   comparison (5.1c).
+7. **VPS price basis:** CX22 is no longer listed; CX23 (same specs) at EUR 0.0088/h is used, and it
+   is currently unavailable to order (`docs/phase3-serving-prices.md`).

@@ -101,3 +101,18 @@ def test_stage_names_and_exact_output_names_are_present() -> None:
         '"throughput.json"', '"model-facts.json"', '"env-facts.json"', '"stage-status.json"',
     ):  # fmt: skip
         assert name in src, name
+
+
+def test_every_measurement_runs_in_a_fresh_single_model_worker() -> None:
+    """ru_maxrss is process-lifetime: a bench job must load one ORT session in its own child and
+    must not also score (scoring is a separate, unpinned child), and the worker has no torch."""
+    src = "\n".join(_cells())
+    bench_calls = [ln for ln in src.splitlines() if 'run_worker(f"' in ln and "-bench-" in ln]
+    assert len(bench_calls) == 2  # one helper line each for the ce and llm bench loops
+    for i, ln in enumerate(src.splitlines()):
+        if 'run_worker(f"' in ln and "-bench-" in ln:
+            block = "\n".join(src.splitlines()[i : i + 3])
+            assert "pin=True" in block and "bench=" in block and "score=" not in block
+    assert 'subprocess.run([sys.executable, str(TMP / "worker.py")' in src
+    assert "peak_rss_mb_after_session_load" in src
+    assert '"avx512_vnni"' in src and '"avx_vnni"' in src
