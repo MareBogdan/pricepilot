@@ -3842,3 +3842,70 @@ principled fix (it would permit batch 8) but bypasses the standard loss path for
 gain that affects no deliverable -- item 8 benchmarks CPU inference, not training. Known
 inefficiency, accepted. `build_pair_text()`, the template, the preflight and the REFUSING guards
 are unchanged.
+
+## ADR-0028 addendum #22 — Phase 3 items 6 and 7: LoRA run, TEST result, comparison (2026-09-23)
+
+**Run facts, verbatim (from the annotator's Kaggle log).** base model Qwen/Qwen2.5-0.5B-Instruct;
+llm prompt version llm-prompt-v1; frozen labels sha256
+`540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4`; pair_text_version pair-text-v1
+(both splits); LoRA r/alpha/dropout 16/32/0.05; lr 1e-4; batch x accum 2 x 8; max_length 1024;
+device cuda; seed 20260923; real run 15.0 minutes; 272 optimisation steps; train/val pairs
+533/133; adapter 35.24 MB; best epoch 8, validation F1/P/R 0.8941/0.9744/0.8261, validation
+threshold 0.86. Per-epoch validation F1 at each epoch's own best threshold: e1 0.876 (t=0.36), e2
+0.884 (0.41), e3 0.891 (0.04), e4 0.851 (0.94), e5 0.892 (0.03), e6 0.892 (0.80), e7 0.886 (0.77),
+e8 0.894 (0.86). Reload check: max |score diff| 0.00000, in-loop and reloaded validation F1
+identical. Smoke run: 200 examples, 1 epoch, 36.6 s, loss first-half 1.0853 -> second-half 0.6357.
+Predictions committed unmodified: preds-llm-trainval.json sha256
+`c9cb925129ac16de0d2ad6bb458033ed568d40de0fc7a1be30dac88f732c5749`, preds-llm-test.json sha256
+`8f3a4b3dd35cf942be4773b56d725f45325b4151458e2c665f6bdc32bd7ff934`.
+
+**Notebook defects found by the real run (fixed):** FileLinks with absolute paths returned 404
+(now relative to /kaggle/working); `Run All` does not restart the Kaggle kernel, so models from
+failed attempts stayed on the GPU and cost two runs to CUDA OOM (the memory probe saw 0.60 GiB of
+logits while 14.11 GiB was already held) — the notebook now prints allocated/reserved memory at
+startup and warns to restart, and the runbook says so plainly.
+
+**Threshold.** `scripts/select_threshold.py` (the only place a threshold is chosen) picked **0.86**
+on the 133 validation pairs: F1 0.8941 (P 0.9744, TP 38, FP 1, FN 8, TN 86). It equals the
+notebook's own 0.86 because the notebook ports the same algorithm (same grid, same midpoint-of-the-
+widest-tying-run rule); F1 ties across 0.84-0.89 and the midpoint is 0.865, rounded to 0.86.
+
+**Validation caveats.** 0.894 is a *selection maximum* on 133 pairs with 46 positives: epoch and
+threshold were both chosen on those pairs, so it is optimistic. Against the cross-encoder's
+validation F1 of 0.840 the 0.055 gap (0.8941 vs 0.8395) is 4 pairs (true positives 34 -> 38 at the same single false
+positive; the task brief said "2-3 pairs" — the arithmetic gives 4), and is not significant. Epochs
+3, 5, 6 and 8 (0.891, 0.892, 0.892, 0.894) are statistically indistinguishable — the spread is under
+one pair — so epoch 8 is a tie-break, not a finding. The per-epoch best thresholds ranged from 0.03
+to 0.94, evidence of a flat F1 surface: on the final sweep F1 stays within 0.867-0.894 for every
+threshold from 0.2 to 0.99, so the threshold barely matters and should not be over-read.
+
+**TEST result (scored once, ledger now 3 entries, no --rescore).** threshold 0.86; F1 **0.8796**;
+precision 0.8936 (84/94, CI [0.8151, 0.9412]); recall 0.8660 (84/97, CI [0.7841, 0.9200]); recall
+excluding the 13 repeat positives 0.8452 (71/84, CI [0.7530, 0.9073]); accuracy 0.9190 (261/284,
+CI [0.8814, 0.9454]); TP 84 FP 10 FN 13 TN 177.
+
+**Comparison** (`scripts/compare_models.py`; `docs/learned/phase3-model-comparison.md`). Every
+metric's CI overlaps the cross-encoder's. McNemar's exact test, paired on the same 284 pairs:
+cross-encoder-only-right 8, LoRA-only-right 9, both right 252, both wrong 15; **p = 1.0000**
+(positives 5 vs 6, negatives 3 vs 3). The entire F1 gap is one pair (261 vs 260 correct). Per tier,
+LoRA is ahead on `blocked_retrieval_candidate` (30/36 vs 25/36, discordant 6 vs 1, p = 0.125) and
+behind on `proxy_key_collision` (77/86 vs 80/86, discordant 2 vs 5, p = 0.453) — post-hoc,
+uncorrected, hypotheses only. Size-variant hard negatives (the two capacity-differs tiers, n=85,
+1 positive so F1 undefined): cross-encoder 83/85, LoRA 82/85.
+
+**Verdict against the pre-registered rule: a TIE on F1.** The LoRA point estimate is 0.0059
+higher, inside overlapping intervals with McNemar p = 1.0; no win is claimed. Per CLAUDE.md §7's
+tie rule the item 8 serving benchmark (quantized CPU accuracy, p50/p95 latency, $/1,000) is the
+result and F1 is the parity claim. The cross-encoder baseline was not re-run, retuned or weakened.
+
+**Failure analysis** (`scripts/select_failure_cases.py`, deterministic rule stated in the script and
+the document). The LoRA model made 23 TEST errors (10 FP, 13 FN). Four of its ten selected cases
+(2, 3, 6, 7) are pairs labelled M whose extracted attributes differ in a way the project's rules
+read as NOT the same unit (cases 3, 6, 7: life stage, Rule 3; case 2: different breed lines, a
+different product rather than an enumerated rule), and the cross-encoder also called all four N —
+consistent with label noise in TEST, which the frozen labels do not allow us to correct and which
+depresses both models equally (case 8, life stage missing on one side, is a grey zone). Not
+proven; recorded as an observation. Cases 5 and 9 are LoRA-only misses (weight 8 kg vs 800 g; 'M-XL' vs 'Medium').
+
+**Cost.** $0.00 (Kaggle free tier).
+

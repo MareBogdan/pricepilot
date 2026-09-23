@@ -5,10 +5,13 @@ Updated: 2026-09-23
 
 **Where we are (2026-09-23):** Item 5 is CLOSED — cross-encoder baseline TEST **F1 0.8737**
 (P 0.8925 n=93, R 0.8557 n=97, threshold 0.89 chosen on validation; zero-shot 0.5028, non-
-discriminating). Item 6 is PREPARED and **waiting on the annotator's Kaggle run**: prompt
-`src/pricepilot/matching/llm_prompt.py`, notebook `notebooks/phase3-llm-finetune.py`, runbook
-`docs/phase3-llm-finetune-runbook.md` (check Accelerator = GPU before Run All). Nothing trained,
-TEST untouched, ledger unchanged, spend $0.00. Design: DECISIONS.md ADR-0028 addendum #21.
+discriminating). Items 6 and 7 are CLOSED: the LoRA
+Qwen2.5-0.5B scored **TEST F1 0.8796** (P 0.8936 n=94, R 0.8660 n=97; val-selected threshold 0.86)
+vs the cross-encoder's 0.8737 — **a tie: CIs overlap on every metric, McNemar 8 vs 9 discordant,
+p = 1.0000**; no win claimed. Ledger holds exactly 3 entries. Next: item 8, the serving benchmark
+(quantized CPU p50/p95 latency, accuracy, $/1,000 vs the cross-encoder and a hosted API), which
+under CLAUDE.md §7's tie rule is now the headline. Spend $0.00. Details: DECISIONS.md ADR-0028
+addendum #22, `docs/learned/phase3-model-comparison.md`, `docs/learned/phase3-failure-analysis.md`.
 
 ## Gate progress
 
@@ -71,10 +74,17 @@ ADR-0027.
     DECISIONS.md ADR-0028 addendum #20. **Next concrete step: item 6 — LoRA/QLoRA fine-tune of a
     0.5B-1.5B instruct model on the same TRAIN_VAL/TEST split, setup session on Opus** (this is
     core ML/architecture work per CLAUDE.md §4's sub-agent rule, staying in the main session).
-[ ] 6. Fine-tune with LoRA, same TEST set — **PREPARED, not run.** Qwen2.5-0.5B-Instruct, two-token
-    readout, answer-token-only loss, smoke run first. Waiting on the annotator's Kaggle run
-    (`docs/phase3-llm-finetune-runbook.md`). ADR-0028 addendum #21.
-[ ] 7. Comparison table + error analysis of 10 representative failures — not started.
+[x] 6. Fine-tune with LoRA, same TEST set — **DONE, 2026-09-23.** Qwen2.5-0.5B-Instruct, r=16,
+    epoch 8 (a tie-break among statistically indistinguishable epochs), val-selected threshold
+    0.86 (validation F1 0.8941, a selection maximum). **TEST F1 0.8796**, P 0.8936 (84/94, CI
+    [0.815, 0.941]), R 0.8660 (84/97, CI [0.784, 0.920]), accuracy 0.9190 (261/284, CI [0.881,
+    0.945]). ADR-0028 addenda #21, #22.
+[x] 7. Comparison table + error analysis of 10 representative failures — **DONE, 2026-09-23.**
+    Verdict vs the pre-registered rule: **TIE on F1** (0.8796 vs 0.8737; CIs overlap on every
+    metric; McNemar exact 8 vs 9 discordant, p = 1.0000). `docs/learned/phase3-model-comparison.md`,
+    `docs/learned/phase3-failure-analysis.md` (10 cases chosen by a deterministic rule; 4 look like
+    label noise). Reproduce: `uv run python scripts/compare_models.py`,
+    `uv run python scripts/select_failure_cases.py`.
 [ ] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
     hosted API — not started.
 

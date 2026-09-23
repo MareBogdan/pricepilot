@@ -13,6 +13,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 |---|---|---|---|---|---|---|
 | 2026-09-12 | 0 | Foundation: scaffold, schema, mock store, tracking | $0.00 | **$0.00** | $0.00 | n/a |
 | 2026-09-23 | 3 | Item 5 baseline: cross-encoder run (zero-shot + 8-epoch fine-tune) on Kaggle's free-tier hosted notebook, CPU | $0.00 | **$0.00** | $0.00 | n/a — Kaggle's free tier, no paid API/GPU rental used |
+| 2026-09-23 | 3 | Item 6 run: LoRA Qwen2.5-0.5B fine-tune on Kaggle's free-tier T4 (smoke + 15.0 min real run) | $0.00 | **$0.00** | $0.00 | n/a — Kaggle free tier, no paid API/GPU rental used |
 | 2026-09-23 | 3 | Item 6 prep: prompt template, Kaggle notebook, runbook (no training run yet) | $0.00 | **$0.00** | $0.00 | n/a — nothing executed; the Kaggle run itself will be free tier |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
