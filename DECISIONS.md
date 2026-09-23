@@ -3778,3 +3778,19 @@ loss (trains on listing text).
 
 **Limits owed.** The notebook has never been executed; fp16/peft behaviour on Kaggle (and the
 T4 memory fit) is untested until the annotator's smoke run. Nothing here is a result.
+
+### Correction to addendum #21 (2026-09-23): MAX_LENGTH=512 was wrong
+
+The first Kaggle run refused to start: `REFUSING TO RUN: prompt+answer is 518 tokens, over
+max_length=512`. **Cause: `max_length=512` was specified in this addendum without measuring the
+template.** Measured over all 959 pairs, in characters: the instruction wrapper is 1181 on every
+example; pair text (text_a + text_b) is median 539 / p95 662 / max 941; so the median prompt is
+~1720 characters and the longest ~2122. Token counts are ESTIMATES (~520 median, ~760 max at
+2.8-3.3 chars/token), so "more than half the dataset exceeded 512" is an estimate too, not a
+tokenizer measurement — the only real token measurement was the 518-token prompt that tripped the
+guard; the preflight's printed distribution is the authoritative figure. The over-length guard caught it before any training happened; nothing was
+trained and no TEST pair was scored. **Fix:** `MAX_LENGTH = 1024`, the guard kept unchanged, and a
+preflight block that tokenises all 959 prompts and prints min/median/p95/p99/max before the smoke
+run, refusing there if any exceed the cap. `build_pair_text()` and the prompt template are
+unchanged (pair text must stay byte-identical to what the cross-encoder consumed). Decision 4's
+"max_length 512" above is superseded by this correction; the original text is left as written.

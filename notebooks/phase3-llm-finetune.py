@@ -62,7 +62,13 @@ GRAD_CLIP = 1.0
 MAX_EPOCHS = 8
 BATCH_SIZE = 8
 GRAD_ACCUM = 2
-MAX_LENGTH = 512
+# Character lengths measured over all 959 pairs: the instruction wrapper is 1181 chars, repeated
+# on every example, and pair text is median 539 / p95 662 / max 941 chars, so the median prompt is
+# ~1720 chars and the longest ~2122. Token counts are ESTIMATES from those (roughly 520 median and
+# 760 max at 2.8-3.3 chars/token); the one real token measurement was a 518-token prompt tripping
+# the original 512 cap. 512 was specified without measuring the template and was too tight. The
+# PREFLIGHT block below measures the true token distribution on the actual tokenizer every run.
+MAX_LENGTH = 1024
 SMOKE_EXAMPLE_COUNT = 200
 SMOKE_EPOCHS = 1
 
@@ -270,6 +276,39 @@ print(f"YES_TOKEN_ID={YES_TOKEN_ID}  NO_TOKEN_ID={NO_TOKEN_ID}")
 
 
 # ---------------------------------------------------------------------------
+# PREFLIGHT -- measure every prompt's token length BEFORE the smoke run, so a length problem is a
+# report in the first seconds rather than a crash mid-training. Length is prompt + 1 answer token,
+# exactly what encode_example checks (that REFUSING guard stays as the second line of defence).
+# ---------------------------------------------------------------------------
+
+
+def _percentile(sorted_values: list[int], q: float) -> int:
+    return sorted_values[min(len(sorted_values) - 1, math.ceil(q * len(sorted_values)) - 1)]
+
+
+_all_pairs = [*train_val_payload["pairs"], *test_payload["pairs"]]
+_token_lengths = sorted(
+    len(
+        tokenizer(build_llm_prompt(p["text_a"], p["text_b"]), add_special_tokens=False)["input_ids"]
+    )
+    + 1
+    for p in _all_pairs
+)
+_over = sum(1 for n in _token_lengths if n > MAX_LENGTH)
+print("PREFLIGHT token lengths (prompt + answer token) over all TEST + TRAIN_VAL pairs:")
+print(
+    f"  n={len(_token_lengths)}  min={_token_lengths[0]}  median={_percentile(_token_lengths, 0.5)}  "
+    f"p95={_percentile(_token_lengths, 0.95)}  p99={_percentile(_token_lengths, 0.99)}  "
+    f"max={_token_lengths[-1]}  over MAX_LENGTH({MAX_LENGTH}): {_over}"
+)
+if _over:
+    raise SystemExit(
+        f"REFUSING TO RUN: {_over} of {len(_token_lengths)} prompts exceed max_length={MAX_LENGTH} "
+        "(distribution above). Raise MAX_LENGTH; do NOT shorten the template or pair text."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Example encoding -- TASK 2 item 5: loss on the ANSWER TOKEN ONLY.
 #
 # input_ids = <prompt tokens> + <answer token>, padded to MAX_LENGTH.
@@ -437,7 +476,9 @@ def run_training_epoch(
     for batch_i, start in enumerate(range(0, n, BATCH_SIZE)):
         idx = order[start : start + BATCH_SIZE]
         # Right-padded, so trimming to this batch's longest real example is lossless. Avoids
-        # materialising 151k-vocab logits for 512 positions on every example (T4 OOM risk).
+        # materialising 151k-vocab logits for all MAX_LENGTH positions on every example. Memory is still
+        # a T4 risk at batch 8 with ~600+ token batches (ESTIMATE ~12-20 GB peak); the smoke run's
+        # first batches will show it. Fallback if it OOMs: BATCH_SIZE=4, GRAD_ACCUM=4 (same effective 16).
         trim = int(attention_mask[idx].sum(dim=1).max().item())
         with torch.autocast(device_type=device, dtype=torch.float16, enabled=device == "cuda"):
             outputs = model(

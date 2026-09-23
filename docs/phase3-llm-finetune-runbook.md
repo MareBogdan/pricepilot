@@ -20,6 +20,9 @@ few minutes. Script: `notebooks/phase3-llm-finetune.py`.
 5. Run All. The script refuses to start (with a `REFUSING TO RUN` message) on a wrong hash,
    wrong row counts, a stale `pair_text_version`, or any label-shaped field in the TEST file -- do not work around it; tell me.
 6. Watch for, in order:
+   - `PREFLIGHT token lengths ...` line (before the smoke run): min/median/p95/p99/max over all 959
+     prompts and the count over `MAX_LENGTH` (1024). Over = 0 is required. If it refuses, the
+     distribution is printed -- bring it back; do not edit the template or pair text.
    - `SMOKE RUN -- metrics discarded` banner, readout scores in [0,1]. A first-half loss below the second-half is a warning, not a stop
      (only ~13 steps); stop only on `nan`, an error, or a `REFUSING` message.
      The smoke numbers mean nothing; do not record them.
