@@ -47,16 +47,23 @@ ADR-0027.
     (697 rows)**, 0 listing overlap between splits. TEST is BLIND (no rules-engine suggestion ever
     shown). Post-freeze eval-view numbers (`docs/learned/phase3-eval-view.json`): TEST 97 M / 187 N
     / 3 S (284 scored), TRAIN_VAL 222 M / 444 N / 6 S (666 scored).
-[ ] 5. Baseline: classical cross-encoder, precision/recall/F1 — **scoring infrastructure ready,
-    the cross-encoder itself NOT STARTED.** `pricepilot.matching.pair_text.build_pair_text`
-    (shared, versioned text builder), `scripts/split_train_val.py` (product-level 80/20 split of
-    TRAIN_VAL, 538/134 pairs, 0 listing overlap), `scripts/export_model_inputs.py` (hosted-notebook
-    export with a leakage guard on the TEST file), `scripts/select_threshold.py` (threshold picked
-    on validation only) and `scripts/score_predictions.py` (TEST scored once per model, Wilson CIs,
-    per-tier reportability, TEST-touch ledger) are built, reviewed and tested. **Next concrete step:
-    run the cross-encoder from `docs/phase3-baseline-model-choice.md` on a hosted notebook** against
-    `docs/learned/model-inputs/phase3-inputs-test.json`/`phase3-inputs-train-val.json`, then feed
-    its predictions through `select_threshold.py` then `score_predictions.py`.
+[x] 5. Baseline: classical cross-encoder, precision/recall/F1 — **DONE, 2026-09-23.**
+    `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, run on a hosted Kaggle notebook (CPU, seed
+    20260923, 8 epochs), scored once on TEST via the item-5 harness (thresholds picked on
+    TRAIN_VAL's validation side only, never on TEST). **TEST F1 = 0.8737** — precision 0.8925
+    (n=93, Wilson 95% CI [0.8133, 0.9405]), recall 0.8557 (n=97, CI [0.7722, 0.9120]), accuracy
+    0.9155 (n=284, CI [0.8773, 0.9426]). F1 itself carries no independent Wilson CI by this
+    project's own convention — it is a harmonic mean of two different proportions, not a single
+    binomial proportion Wilson's assumptions apply to (its two input CIs are given instead). A
+    zero-shot run of the same model was also scored as a comparison point: F1 0.5028, and its
+    score distribution shows it is not weakly discriminating but not discriminating at all
+    (median ~1.0000 on both M and N labels) — the fine-tuned run is the real baseline, not the
+    zero-shot one. Full numbers, per-tier breakdown and named failure tiers:
+    `docs/learned/phase3-baseline-results.md`; run facts and limitations (selection-maximum
+    caveat, epoch tie-break, discarded under-trained run, device dependency):
+    DECISIONS.md ADR-0028 addendum #20. **Next concrete step: item 6 — LoRA/QLoRA fine-tune of a
+    0.5B-1.5B instruct model on the same TRAIN_VAL/TEST split, setup session on Opus** (this is
+    core ML/architecture work per CLAUDE.md §4's sub-agent rule, staying in the main session).
 [ ] 6. Fine-tune 0.5B-1.5B with LoRA/QLoRA, same TEST set — not started.
 [ ] 7. Comparison table + error analysis of 10 representative failures — not started.
 [ ] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
@@ -72,37 +79,37 @@ Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7
 
 ## Last done
 
-1. **Built the Phase 3 item 5 scoring harness end to end** (ADR-0028 addendum #19):
-   `scripts/split_train_val.py` (product-level 80/20 split of TRAIN_VAL, 538/134 pairs, 0 listing
-   `content_hash` overlap proven two independent ways), `scripts/export_model_inputs.py` (writes
-   `docs/learned/model-inputs/phase3-inputs-test.json`/`phase3-inputs-train-val.json` for a hosted
-   notebook, with a leakage guard on the TEST file enforced in code), `src/pricepilot/matching/
-   metrics.py` (`wilson_confidence_interval`, verified independently against a brute-force
-   definition by the reviewer), `scripts/select_threshold.py` (the one place a threshold is
-   chosen, validation-only) and `scripts/score_predictions.py` (TEST scored once per model, Wilson
-   CIs, per-tier reportability, TEST-touch ledger). Three commits, `reviewer` (Opus) on every diff
-   before each one.
-2. **Reviewer found and this session fixed six real issues**, most severe first: (a) a reportable
-   tier with undefined precision crashed `print_markdown` with a `TypeError` AFTER the TEST touch
-   had already happened, with the ledger written only afterward — fixed the formatter and moved
-   the ledger write to immediately after `score()` succeeds; (b) `score >= threshold` treated an
-   unvalidated NaN prediction as a confident "N" — added `find_invalid_prediction_values` (shared
-   in `metrics.py`) and wired a refusal into both scripts; (c) `--rescore` was unaudited beyond the
-   ledger's raw entries, letting a threshold change slip through as tuning-against-TEST-in-all-but-
-   name — added a stderr warning on threshold drift and stopped overwriting the first touch's
-   metrics file; (d) `select_threshold.py` picked the fragile low edge of an F1 tie-plateau instead
-   of its midpoint; (e) the two scripts disagreed on the undefined-F1 convention (0.0 vs None) for
-   the same input; (f) the TRAIN_VAL export silently dropped the `scored` flag for the 6 S-labelled
-   pairs, which `build_eval_view.py`'s own rule 4 requires never be dropped silently.
-3. **`docs/learned/phase3-train-val-split.json` and `docs/learned/model-inputs/*.json` are
-   committed, generated artefacts** — reproducible with `uv run python scripts/split_train_val.py`
-   / `scripts/export_model_inputs.py`, verified byte-identical (mod `generated_at`) to a fresh
-   rebuild.
-4. **Full verification suite green**: `uv run python -m pytest` — 605 passed (the `-m pytest`
-   form, not the blocked `pytest` exe wrapper — see Open issues); `uv run ruff check .` /
-   `ruff format --check .` clean; `uv run mypy` — success, 57 source files.
-5. Prior top item (2026-09-22): froze the Phase 3 label dataset, 997 decisions — see History for
-   the full account of that session.
+1. **Ran the Phase 3 item 5 baseline and scored it on TEST, once** (ADR-0028 addendum #20):
+   `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, hosted Kaggle notebook, CPU, seed 20260923.
+   Committed the four hosted-notebook prediction files unchanged (SHA-256 in the commit message,
+   independently re-verified — id sets, no NaN, no TEST leakage into TRAINVAL — before commit,
+   not just taken on trust); selected thresholds on TRAIN_VAL's validation side only (zero-shot
+   0.86, fine-tuned 0.89); scored both models on TEST exactly once each. **Fine-tuned TEST: F1
+   0.8737, P 0.8925 (CI [0.8133, 0.9405]), R 0.8557 (CI [0.7722, 0.9120]).** Four commits, one per
+   task (predictions / thresholds / scoring / analysis) — see item 3 below: the first three ran
+   without the required `reviewer` pass, caught and corrected before the fourth.
+2. **Wrote the honest analysis** (`docs/learned/phase3-baseline-results.md`): both recall
+   readings side by side (all 97 positives vs. excluding 13 duplicated `trivial_spot_check`
+   positives), per-tier P/R/F1 and raw tp/fp/fn/tn for every tier, and the zero-shot model's score
+   distribution showing it is not weakly discriminating but not discriminating at all (median
+   ~1.0000 on both M and N) — built a new script, `scripts/measure_score_distribution.py`, so
+   every number in the doc has a script behind it (CLAUDE.md §9).
+3. **Three reviewer rounds on this doc/script, not one** — the first found the median-score claim
+   had no script behind it (fixed by writing the script above); the second, after that fix, found
+   the script's new per-tier confusion output had been read out by hand rather than run, plus a
+   factual error (a 1-positive tier mislabelled "zero-positive") and a misleading "second-highest
+   FP rate" claim that ignored two actually-higher reportable-tier rates; the third confirmed all
+   fixes and found only small non-blocking wording/staleness issues, also fixed. **This session
+   also caught its own process lapse**: the first three commits (predictions, thresholds, scoring)
+   were made without the required `reviewer` pass — caught immediately after, and every commit
+   from that point on went through review first.
+4. **Full verification suite green throughout**: `uv run python -m pytest` — 605 passed; `ruff
+   check .` / `ruff format --check .` — clean; `uv run mypy` — success, 58 source files (was 57
+   before `measure_score_distribution.py`).
+5. Prior session (2026-09-22/23): built the Phase 3 item 5 scoring harness itself
+   (`split_train_val.py`, `export_model_inputs.py`, `select_threshold.py`,
+   `score_predictions.py`) — full account in DECISIONS.md ADR-0028 addendum #19, not duplicated
+   into this file's History section.
 
 ## Open issues
 

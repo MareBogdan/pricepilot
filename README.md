@@ -58,7 +58,7 @@ large hosted API model on accuracy, latency and cost per 1,000 comparisons.
 | Component | Baseline | Implemented | Metric | Status |
 |---|---|---|---|---|
 | Candidate retrieval | — | 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%] | recall@20 | Phase 3 — measurement-power finding, not "met" or "missed" (target 90% sits inside the CI) |
-| Matching | classical cross-encoder — _pending_ | fine-tuned 0.5B (LoRA) — _pending_ | precision / recall / F1 on 287 TEST pairs | Phase 3 |
+| Matching | cross-encoder (mmarco-mMiniLMv2, epoch-6 checkpoint of an 8-epoch fine-tune): F1 0.8737, P 0.8925 (n=93, CI [0.813, 0.941]), R 0.8557 (n=97, CI [0.772, 0.912]) | fine-tuned 0.5B (LoRA) — _pending_ | precision / recall / F1 on 287 TEST pairs (284 scored) | Phase 3 |
 | Serving | hosted API model | quantized 0.5B on CPU | p50/p95 latency, $/1k | Phase 3 |
 | Demand | naive 7-day average | PyTorch | MAE / MAPE, elasticity recovery error | Phase 4 |
 | Recommendations | — | RAG + guardrail | margin violations (must be 0) | Phase 5 |
@@ -108,11 +108,15 @@ size/flavour/life stage). **Frozen 2026-09-22, SHA-256
 
 | Component | Baseline (cross-encoder) | Fine-tuned 0.5B (LoRA) | Metric |
 |---|---|---|---|
-| Matching, TEST (287 pairs) | | | precision / recall / F1 |
+| Matching, TEST (287 pairs, 284 scored) | F1 0.8737; P 0.8925 (n=93, 95% CI [0.813, 0.941]); R 0.8557 (n=97, CI [0.772, 0.912]) | | precision / recall / F1 |
 | — size variant | | | F1 |
 | Serving on CPU | | | p50 / p95 latency, $/1k |
 
-*Empty until the models are run; no number appears here without a script behind it.*
+Full breakdown, both recall readings, per-tier results and the zero-shot comparison point:
+`docs/learned/phase3-baseline-results.md`.
+
+*Fine-tuned column empty until the LoRA model is run; no number appears here without a script
+behind it.*
 
 ## What this system does NOT do
 
