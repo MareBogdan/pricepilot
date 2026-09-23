@@ -3,6 +3,13 @@
 Phase: 3 — Matching (Phases 0-2 CLOSED)
 Updated: 2026-09-23
 
+**Where we are (2026-09-23):** Item 5 is CLOSED — cross-encoder baseline TEST **F1 0.8737**
+(P 0.8925 n=93, R 0.8557 n=97, threshold 0.89 chosen on validation; zero-shot 0.5028, non-
+discriminating). Item 6 is PREPARED and **waiting on the annotator's Kaggle run**: prompt
+`src/pricepilot/matching/llm_prompt.py`, notebook `notebooks/phase3-llm-finetune.py`, runbook
+`docs/phase3-llm-finetune-runbook.md` (check Accelerator = GPU before Run All). Nothing trained,
+TEST untouched, ledger unchanged, spend $0.00. Design: DECISIONS.md ADR-0028 addendum #21.
+
 ## Gate progress
 
 **Phase 0 — Foundation: CLOSED** (2026-09-12). All 8 gate boxes met (Docker compose up, migration
@@ -64,7 +71,9 @@ ADR-0027.
     DECISIONS.md ADR-0028 addendum #20. **Next concrete step: item 6 — LoRA/QLoRA fine-tune of a
     0.5B-1.5B instruct model on the same TRAIN_VAL/TEST split, setup session on Opus** (this is
     core ML/architecture work per CLAUDE.md §4's sub-agent rule, staying in the main session).
-[ ] 6. Fine-tune 0.5B-1.5B with LoRA/QLoRA, same TEST set — not started.
+[ ] 6. Fine-tune with LoRA, same TEST set — **PREPARED, not run.** Qwen2.5-0.5B-Instruct, two-token
+    readout, answer-token-only loss, smoke run first. Waiting on the annotator's Kaggle run
+    (`docs/phase3-llm-finetune-runbook.md`). ADR-0028 addendum #21.
 [ ] 7. Comparison table + error analysis of 10 representative failures — not started.
 [ ] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
     hosted API — not started.

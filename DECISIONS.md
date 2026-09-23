@@ -3712,3 +3712,69 @@ scoring runs below; 58 once `scripts/measure_score_distribution.py` was added af
 Limitation 4's median/tier-count evidence). Both `select_threshold.py` runs and both
 `score_predictions.py` runs shown in full in this session's record; `test-touch-ledger.json` holds
 exactly 2 entries, both `rescore: false`. `git status --porcelain` clean after each commit.
+
+## ADR-0028 addendum #21 — Phase 3 item 6: LoRA fine-tune prepared, not yet run (2026-09-23)
+
+**Context.** Item 5 closed with the cross-encoder at TEST F1 0.8737 (addendum #20). This session
+built everything the annotator needs to run item 6 on a hosted Kaggle GPU: the prompt
+(`src/pricepilot/matching/llm_prompt.py`), the notebook (`notebooks/phase3-llm-finetune.py`), a
+parity test, and `docs/phase3-llm-finetune-runbook.md`. **No model was trained, no TEST pair was
+touched, `score_predictions.py` was not run, the TEST-touch ledger is unchanged (2 entries).
+Spend: $0.00.**
+
+**Decisions.**
+1. **Base model: `Qwen/Qwen2.5-0.5B-Instruct`, not 1.5B.** Item 8 must serve the quantized model on
+   a Hetzner CX22 (2 vCPU / 4 GB) next to Postgres. 0.5B is ~1 GB in fp16 (ESTIMATE: 0.49B params
+   x 2 bytes) and roughly a third of that at 4-bit (ESTIMATE); 1.5B leaves little headroom once
+   Postgres, the app and the OS are counted. If 0.5B lands clearly below the cross-encoder, 1.5B is
+   a second, separately documented and separately ledgered attempt — never a silent swap.
+2. **Scoring: two-token readout, never parsed text.** The prompt ends with `Answer:`; the score is
+   softmax over the logits of exactly `" Yes"` and `" No"` at the final position, giving P(match)
+   in [0,1]. Both ids are resolved with the tokenizer and asserted to be single tokens (fail
+   loudly, no fallback). Parsing generated text yields a hard Yes/No — no continuous score, so the
+   validation threshold sweep (the selection procedure the baseline used) degenerates to one
+   point and the two models stop being comparable under the same procedure.
+3. **Loss on the answer token only.** Prompt positions are labelled -100; only the single
+   Yes/No token contributes. Otherwise the model is trained to reproduce listing text, which
+   dilutes the gradient with an unrelated language-modelling objective.
+4. **LoRA hyperparameters.** r=16, alpha=32, dropout 0.05, targets q/k/v/o/gate/up/down_proj;
+   lr 1e-4 AdamW, 10% warmup + linear decay, grad clip 1.0, up to 8 epochs, batch 8 x accum 2,
+   max_length 512 (over-length raises rather than truncates), fp16, seed 20260923. fp16 is
+   implemented as fp32 trainable adapter weights + `torch.autocast` + `GradScaler`
+   (`unscale_` before clipping) — a pure-fp16 adapter can silently stop learning.
+5. **Fairness.** Identical frozen split (533 train / 133 val scored pairs, 287 TEST), identical
+   `build_pair_text()` text (`PAIR_TEXT_VERSION`, asserted `pair-text-v1` at load) wrapped in the
+   instruction template. Epoch AND threshold are chosen on the 133 validation pairs with the same
+   tie-break as `scripts/select_threshold.py`; the resulting validation F1 is a selection maximum,
+   not an unbiased estimate. TEST is scored once, later, through the ledgered harness.
+6. **Plain completion prompt, not a chat template** (readout-position and tokenizer-version
+   reasons: `llm_prompt.py` docstring). Instruction states none of tier, split, label counts or
+   sampling design.
+7. **Smoke run first (CLAUDE.md §5).** 200 examples, 1 epoch on a fresh model, metrics printed
+   under a "SMOKE RUN — metrics discarded" banner and thrown away; it proves data loads, LoRA
+   attaches, loss moves, readout is in [0,1], files write. The real run starts from a fresh model.
+8. **Template-parity test.** The notebook carries a verbatim copy of the template between
+   `# TEMPLATE-BEGIN`/`# TEMPLATE-END` lines; `tests/test_llm_prompt_notebook_parity.py` asserts it
+   is byte-identical to `llm_prompt.py`'s, and was run in this session against a deliberately
+   mutated notebook copy (it failed with the "drifted" message) and again after the revert (it
+   passed). The local suite cannot import torch/transformers/peft (Application Control), so it
+   cannot execute the notebook — parity of the one thing that would silently invalidate the
+   comparison is all it can check.
+9. **Guards in the notebook.** Refuses on non-finite training loss or validation scores every
+   epoch, on a training label outside M/N, and on a `pair_text_version` other than `pair-text-v1`;
+   batches are trimmed to the longest real example (T4 memory). After the best epoch's adapter is
+   reloaded from disk, its validation scores must match the in-loop scores (max abs diff <= 0.01,
+   F1 at the selected threshold within 0.01) or the prediction files are not written. T4 only:
+   P100 may lack kernels in recent torch builds.
+
+**Decision rule, pre-registered** (also in `docs/phase3-baseline-model-choice.md`): if the LoRA
+0.5B does not beat TEST F1 0.8737, that is reported as the finding. Legitimate follow-ups: a
+documented 1.5B second attempt; the item 8 cost/latency comparison. Weakening the cross-encoder
+baseline is not one.
+
+**Alternatives rejected.** 1.5B first (CX22 memory); parsing generated text (no continuous
+score); chat template (hidden version-dependent system prompt, different token ids); full-sequence
+loss (trains on listing text).
+
+**Limits owed.** The notebook has never been executed; fp16/peft behaviour on Kaggle (and the
+T4 memory fit) is untested until the annotator's smoke run. Nothing here is a result.
