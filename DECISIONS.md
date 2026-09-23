@@ -3609,3 +3609,106 @@ workaround, unrelated to this session's changes). `uv run ruff check .` / `ruff 
 — clean. `uv run mypy` — success, 57 source files. All three committed artefacts
 (`phase3-train-val-split.json`, both `model-inputs/*.json` files) reproduce byte-identical (mod
 `generated_at`) from a fresh run of their generating script.
+
+## ADR-0028 addendum #20 — Phase 3 item 5: cross-encoder baseline run, on TEST (2026-09-23)
+
+**Context.** The scoring harness (addendum #19) had no model to score yet. This session ran the
+actual baseline — `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` on a hosted Kaggle notebook — and
+fed its predictions through the harness. Four prediction files (zero-shot/fine-tuned ×
+test/trainval) committed unchanged, each independently re-verified in this session (not just
+taken on the notebook author's word) before commit: exact id-set match to the eval view's own
+test/train_val pair_ids (287/672), zero non-finite or non-numeric scores, zero TEST pair_ids
+present in either trainval file. Thresholds selected on validation only
+(`scripts/select_threshold.py`), TEST scored once per model
+(`scripts/score_predictions.py`) — ledger now holds exactly two entries, no `--rescore`. Full
+numbers: `docs/learned/phase3-baseline-results.md`.
+
+**Run facts, recorded verbatim.** Model `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`. Device
+**CPU** (the Kaggle accelerator reset to `None`; ~1 hour wall clock). Seed `20260923`. max_len 256,
+batch 16, lr 2e-5, AdamW, 8 epochs, 10% warmup + linear decay, grad-norm clip 1.0,
+BCEWithLogitsLoss, 272 optimisation steps. Train 533 / val 133 (S dropped), val positives 46/133.
+
+```
+zero-shot  @0.5      F1 0.514 P 0.346 R 1.000
+zero-shot  @best val F1 0.524 P 0.361 R 0.957  (t=0.8743)
+epoch 1  loss 2.3881  @best t=0.5469  F1 0.613 P 0.793 R 0.500
+epoch 2  loss 0.4808  @best t=0.5400  F1 0.780 P 0.722 R 0.848
+epoch 3  loss 0.2801  @best t=0.9632  F1 0.814 P 0.875 R 0.761
+epoch 4  loss 0.2337  @best t=0.8743  F1 0.825 P 0.971 R 0.717
+epoch 5  loss 0.1737  @best t=0.7796  F1 0.825 P 0.971 R 0.717
+epoch 6  loss 0.1135  @best t=0.8769  F1 0.840 P 0.971 R 0.739  <- selected
+epoch 7  loss 0.1015  @best t=0.8933  F1 0.840 P 0.971 R 0.739
+epoch 8  loss 0.0898  @best t=0.9298  F1 0.840 P 0.971 R 0.739
+```
+
+**Harness's own threshold selection differs from the notebook's, at the same operating point.**
+`select_threshold.py`, run against `preds-finetuned-trainval.json`, picked `t=0.89` (F1=0.8395,
+P=0.9714, R=0.7391, TP=34 FP=1 FN=12 TN=86) — not the notebook's `0.8769`, but identical
+TP/FP/FN/TN, hence identical P/R and F1 to three decimal places. The two thresholds sit inside the
+same F1 plateau; the harness sweeps its own 0.01 grid and picks the plateau's midpoint (a addendum
+#19 fix), the notebook swept every observed score. A difference here is informative about grid
+granularity, not alarming about disagreement — the harness's value (0.89) is what was used for the
+TEST touch and is the one used from here on. (Zero-shot: harness picked `t=0.86` vs. the notebook's
+`0.8743`, same TP/FN (44/2), one fewer FP — the same grid effect.)
+
+**Limitation 1 — the notebook's val F1 0.840 is a selection maximum, not an unbiased estimate.**
+Both the epoch (1-8) and the threshold within that epoch were chosen by sweeping every observed
+score against the *same* 133 validation pairs the F1 is then reported on. This is optimistically
+biased by construction — the true unbiased estimate of this model's quality is the TEST figure
+alone (F1 0.8737, P 0.8925, R 0.8557, computed on 284 pairs never touched during epoch or
+threshold selection), not the 0.840 validation number, which should never be quoted as a
+performance claim on its own.
+
+**Limitation 2 — epoch 6 is a first-wins tie-break, not a clear winner.** Epochs 6, 7 and 8
+produced byte-identical validation P/R/F1 (0.971/0.739/0.840) — the 133-point validation surface is
+too coarse to distinguish them. Epoch 6 was picked only because it was first among the tie; nothing
+in the numbers argues it generalises better than 7 or 8.
+
+**Limitation 3 — an earlier, discarded run was rejected as under-trained before any TEST touch.**
+A prior attempt (3 epochs, no LR scheduler, fixed threshold 0.5, 100 optimisation steps) reached
+val F1 0.684 and was rejected for being under-trained — before scoring anything against TEST.
+Deliberately strengthening the baseline (more epochs, a scheduler, a swept threshold) before
+comparing it to the fine-tuned LLM is the honest direction to err in: a weak baseline would flatter
+the fine-tune's margin over it, so the baseline was given every reasonable chance to be strong
+first.
+
+**Limitation 4 — the zero-shot median-score check was a file-sanity check run after every
+model/epoch/threshold decision was already fixed, so it could not have influenced any of them.**
+The architect computed median TEST scores per label class as a sanity check on the committed
+prediction files, after the zero-shot model choice, its threshold, and the fine-tuned model's
+epoch/threshold were all already fixed. Reproduced with a script written this session,
+`scripts/measure_score_distribution.py` (M: median 0.99998, N: median 0.99998; committed output
+`docs/learned/results/mmarco-mMiniLMv2-zeroshot-score-distribution.json`) rather than a one-off
+join, precisely so this number has the same "no metric without a script behind it" guarantee as
+everything else in the harness. It is reported in `phase3-baseline-results.md` as a finding about
+the zero-shot model's actual behaviour (it outputs ~1.0 for nearly every pair regardless of label
+— not weakly discriminating, not discriminating at all), not as evidence used to pick anything.
+The same script, given `--threshold`, also exposes raw per-tier tp/fp/fn/tn for every tier —
+including the ones rule 6 withholds a precision/recall RATE for at n_pos < 5 — since withholding a
+rate computed from too few positives is not the same as withholding the count itself; run for the
+fine-tuned model at its ledgered threshold (0.89), committed at
+`docs/learned/results/mmarco-mMiniLMv2-finetuned-ep6-score-distribution.json`. Neither run touches
+the TEST-touch ledger: both take an already-selected threshold as input and make no new M/N
+decision beyond what `score_predictions.py`'s one ledgered run per model already made.
+
+**Limitation 5 — reproducibility requires the same device.** The discarded 3-epoch run (Limitation
+3) ran on GPU; this run's accelerator reset to CPU mid-session on the hosted notebook. Exact
+reproduction of this run's numbers requires CPU, the stated seed, and the exact package versions
+the notebook used — not verified to reproduce on a different device, and not expected to
+necessarily reproduce bit-for-bit even on the same device given floating-point non-determinism
+across CPU kernel implementations.
+
+**Alternatives rejected.** Reporting the notebook's own selected threshold (0.8769) as the
+harness's threshold instead of re-running `select_threshold.py` — rejected, because
+`docs/phase3-baseline-model-choice.md` rule 2 makes the harness the only place a threshold may be
+chosen; using the notebook's value directly would bypass the one enforcement point that exists
+precisely to keep TEST out of threshold selection. Reporting only the inflated 97-positive recall
+figure — rejected in favour of showing both readings (addendum #19 decision 6) since the
+repeat-excluded figure moves 2.2pp for the fine-tuned model, a real signal the single figure hides.
+
+**Verification.** `uv run python -m pytest` — 605 passed. `uv run ruff check .` / `ruff format
+--check .` — clean. `uv run mypy` — success, 58 source files (57 at the point of the threshold/
+scoring runs below; 58 once `scripts/measure_score_distribution.py` was added afterward for
+Limitation 4's median/tier-count evidence). Both `select_threshold.py` runs and both
+`score_predictions.py` runs shown in full in this session's record; `test-touch-ledger.json` holds
+exactly 2 entries, both `rescore: false`. `git status --porcelain` clean after each commit.
