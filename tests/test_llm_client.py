@@ -153,7 +153,7 @@ def test_call_forwards_temperature_and_max_tokens(db: Any, tmp_path: Path) -> No
     sdk = FakeSdk(["Yes"])
     _call(sdk, tmp_path)
     (kw,) = sdk.calls
-    assert kw["model"] == MODEL and kw["max_tokens"] == 5 and kw["temperature"] == 0.0
+    assert kw["model"] == MODEL and kw["max_tokens"] == 5 and "extra_body" not in kw
     assert kw["messages"] == [{"role": "user", "content": "hello"}]
 
 

@@ -152,7 +152,7 @@ def complete(
     max_tokens: int,
     phase: str,
     purpose: str,
-    temperature: float = 0.0,
+    temperature: float | None = None,
     system: str | None = None,
     estimated_input_tokens: int | None = None,
     sdk_client: Any | None = None,
@@ -194,9 +194,13 @@ def complete(
     kwargs: dict[str, Any] = {
         "model": model,
         "max_tokens": max_tokens,
-        "temperature": temperature,
         "messages": [{"role": "user", "content": prompt}],
     }
+    if temperature is not None:
+        # anthropic 1.8.0's create() has no `temperature` parameter, so it goes in the body.
+        # claude-sonnet-5's API rejects it (400 "`temperature` is deprecated for this model"),
+        # so the item-8 hosted run passes None -- a recorded deviation from protocol 5.7.
+        kwargs["extra_body"] = {"temperature": temperature}
     if system is not None:
         kwargs["system"] = system
     started = time.perf_counter()

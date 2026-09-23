@@ -40,7 +40,10 @@ LATENCY_PATH = RESULTS_DIR / "predictions" / "latency-hosted.json"
 
 DEFAULT_MODEL = "claude-sonnet-5"
 MAX_TOKENS = 5
-TEMPERATURE = 0.0
+# Protocol 5.7 pre-registered temperature 0. claude-sonnet-5's API answers 400 "`temperature` is
+# deprecated for this model" (request_id req_011CfM2h7y8RASFkHdhMxhkc, nothing billed), so it is NOT
+# sent and the model's default sampling applies. Stated deviation; see the protocol doc.
+TEMPERATURE = None
 PHASE = "phase3"
 PURPOSE = "hosted-zeroshot-item8"
 EXPECTED_PAIRS = 287
@@ -105,7 +108,7 @@ def run(
         "built_from": "scripts/run_hosted_baseline.py",
         "model": model,
         "prompt_version": LLM_PROMPT_VERSION,
-        "temperature": TEMPERATURE,
+        "temperature": "NOT SENT: the API rejects it for this model (protocol 5.7 deviation)",
         "max_tokens": MAX_TOKENS,
         "threshold": 0.5,
         "threshold_note": "fixed at 0.5, NOT selected on any data",
@@ -146,7 +149,7 @@ def main() -> int:
     in_tokens, est = estimate(prompts, args.model)
     print(
         f"{len(prompts)} TEST prompts, {LLM_PROMPT_VERSION}, max_tokens={MAX_TOKENS}, "
-        f"temperature={TEMPERATURE}"
+        "temperature=not sent (API rejects it for this model)"
     )
     print(
         f"input tokens ~{in_tokens} (ESTIMATE: 1 token per 3 characters, no network call, not "

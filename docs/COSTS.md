@@ -3,7 +3,7 @@
 Every paid action in this project: date, what, estimated, actual, running total.
 Updated in the same commit as the work that spent the money (CLAUDE.md §11).
 
-**Running total: $0.00** (verified 2026-09-23: no paid action since the ledger began; Phase 3 annotation, the checker, the scoring-harness build, and this session's cross-encoder baseline run all cost nothing; `llm_calls` untouched)
+**Running total: $0.40** (read from `llm_calls`: 287 rows, $0.400858, 2026-09-23; the only paid action so far)
 **Budget available: $20.00 · project ceiling: $100.00 · realistic landing point: ~$30–50**
 
 The machine-checkable half of this ledger is `make cost`, which reads the `llm_calls` table.
@@ -15,6 +15,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 | 2026-09-23 | 3 | Item 5 baseline: cross-encoder run (zero-shot + 8-epoch fine-tune) on Kaggle's free-tier hosted notebook, CPU | $0.00 | **$0.00** | $0.00 | n/a — Kaggle's free tier, no paid API/GPU rental used |
 | 2026-09-23 | 3 | Item 6 run: LoRA Qwen2.5-0.5B fine-tune on Kaggle's free-tier T4 (smoke + 15.0 min real run) | $0.00 | **$0.00** | $0.00 | n/a — Kaggle free tier, no paid API/GPU rental used |
 | 2026-09-23 | 3 | Item 6 prep: prompt template, Kaggle notebook, runbook (no training run yet) | $0.00 | **$0.00** | $0.00 | n/a — nothing executed; the Kaggle run itself will be free tier |
+| 2026-09-23 | 3 | Item 8 hosted zero-shot baseline: `claude-sonnet-5`, 287 TEST pairs, `llm-prompt-v1`, max_tokens 5 (194,734 in / 1,139 out tokens; the first paid call in the project) | $0.35 | **$0.40** (`llm_calls` sum $0.400858) | $0.40 | yes — 2026-09-23, cap $5.00 (estimate was 1 token/3 chars, ~17% low) |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
 
