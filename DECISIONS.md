@@ -3453,3 +3453,159 @@ site: re-running the generator is treated as a new pass, deliberately, matching 
 regeneration in this pipeline is treated). Freezing before the acknowledgement file existed, or
 before this session's own `pytest -q` re-run — both would have violated the explicit prohibition
 against freezing while any test is failing or before the acknowledgements were recorded.
+
+## ADR-0028 addendum #19 — Phase 3 item 5 scoring harness: pair-text contract, train/val split, leakage guard, threshold discipline, TEST-touch ledger, per-tier reportability (2026-09-22/23)
+
+**Context.** Items 1-4 CLOSED, dataset FROZEN. Item 5 (baseline) needs infrastructure before it
+needs a model: a canonical way to turn two listings into the text a cross-encoder scores, a
+product-level split inside TRAIN_VAL (672 pairs, currently one undivided block), a way to get
+inputs to a hosted notebook without leaking TEST labels, and a scorer that can be trusted not to
+quietly let TEST get touched twice or a threshold get picked against it. The brief for this
+session named the risk directly: if the harness is wrong, both the cross-encoder baseline and the
+later LoRA fine-tune are wrong in the same direction, and the error is invisible because there is
+nothing to compare against. Built as three commits over two sessions (`47f7302`/`a591cd8` for the
+pair-text builder and a stale-flag fix; `bdbb7c0`/`9971517`/`efb2231` this session for the split,
+export and scorer), `reviewer` (Opus) on every diff before every commit, per CLAUDE.md §4.
+
+**Decision 1 — one canonical pair-text builder, `pricepilot.matching.pair_text.build_pair_text`.**
+The ONLY place any Phase 3 model's input text is constructed, called by both the baseline and the
+later fine-tune, so a gap between their scores reflects the model, not a difference in how their
+input was formatted. Reads the raw title plus ten fixed normalised attributes (brand,
+product_line, net_weight_g, net_volume_ml, pack_count, bonus_weight_g, breed_size_code,
+life_stage, food_form, flavour) via an allow-list, with an explicit `<missing>` marker distinct
+from a real value of zero. Structurally cannot read label, tier, split, pair_id or shop name — it
+only ever looks up the ten allow-listed keys on a listing record. Versioned
+(`PAIR_TEXT_VERSION`), recorded in every artefact downstream.
+
+**Decision 2 — train/validation split of TRAIN_VAL at the connected-component level over listing
+`content_hash`, component-cap + fractional-deficit greedy assignment.** CLAUDE.md rule 3 (product-
+level splits) applies inside TRAIN_VAL too: fine-tuning on all 672 pairs and picking a
+threshold/epoch count from the same 672 would leak training data into the number used to tune the
+model. `scripts/split_train_val.py` partitions TRAIN_VAL only (never TEST, never the frozen
+annotation queue/split) into 276 connected components over listing `content_hash`; the dominant
+component (268 of 672 pairs, 39.9%) is forced into train unconditionally
+(`VAL_COMPONENT_CAP_FRACTION = 0.30`), and every other component is assigned by comparing each
+side's remaining deficit as a **fraction** of its own target, not a raw pair count. A first version
+compared raw counts, and a reviewer caught that this doesn't just place the giant component in
+train — since train's absolute target (538) is always larger than val's (134), every component
+down to singletons deterministically won train's larger deficit too, starving val down to 106 of
+120 components being isolated singletons/pairs and an M-rate 5 points off TEST's. Fixed with the
+fractional comparison: val's largest remaining component is now 15 pairs (41 of 62 singletons),
+M-rate within 0.4pp of TEST's scored rate (46/133 = 34.6% vs. TEST's 97/284 = 34.2%). Result:
+train 538 pairs (M176/N357/S5), val 134 pairs (M46/N87/S1), seed `20260922`, 0 listing
+`content_hash` overlap proven two independent ways (exact-partition check + direct cross-check).
+Deferred, real limitation, recorded not fixed: the split only unions edges from TRAIN_VAL's own
+672 pairs — two listings of the same product that were never paired with each other by the
+annotation queue, and share no path through it, can land on opposite sides. Measured with the
+CLAUDE.md §1 proxy key over the actual committed split: exactly one collision, and it is a real
+hard negative (tin vs. pouch), not a leak — so no live defect in the committed split, but the
+guarantee is "no shared edge", not "no shared product" in the fullest sense.
+
+**Decision 3 — hosted-notebook export with leakage enforced in code, not documented.**
+`scripts/export_model_inputs.py` writes `phase3-inputs-test.json` (287 pairs: pair_id, text_a,
+text_b — nothing else) and `phase3-inputs-train-val.json` (672 pairs, with labels — this file
+never leaves the machine, so it carries them). `_assert_test_payload_has_no_leakage` walks the
+whole TEST payload recursively before it is written and refuses on a label-shaped key name or a
+value exactly equal to "M"/"N"/"S". A reviewer pushed on how airtight this actually is (question:
+"think adversarially about what could leak a label the current check would miss") and found real
+gaps, fixed this session: (1) the TRAIN_VAL export silently dropped `build_eval_view.py`'s own
+`scored` flag for the 6 S-labelled pairs — a downstream notebook building `y = 1 if label == "M"
+else 0` would have treated them as hard negatives instead of excluding them, exactly the "S
+counted in a metric" CLAUDE.md rule 4 forbids; fixed by adding `scored` to every TRAIN_VAL pair.
+(2) the only byte-for-byte text-reconstruction test covered one TRAIN_VAL pair, none of the 287
+TEST rows that actually leave the machine — added full reconstruction of all 287 from the frozen
+annotation queue (a source with no labels at all), which is the one check in the suite genuinely
+independent of what a label happens to be, rather than independent only in its traversal code
+while sharing the leakage guard's own forbidden-name/forbidden-value policy. (3) the guard's value
+check is exact string equality against `{"M","N","S"}`, which would miss a label embedded as a
+substring (`"... | flavour: tuna | label: M"`) — added a substring scan. (4) nothing rebuilt the
+committed payload and compared it to a fresh run, so an upstream change to `pair_text.py` without
+bumping `PAIR_TEXT_VERSION` could leave the committed export silently describing a stale text
+format while every test stayed green — added a freshness test.
+
+**Decision 4 — threshold discipline as two scripts with disjoint responsibilities, not one script
+with a flag.** `scripts/select_threshold.py` is the ONE place a threshold may be chosen, swept
+0.00-1.00 against TRAIN_VAL's 134-pair validation side only (`_assert_no_test_pair_ids` refuses on
+any TEST pair_id present, whether or not its label would have been used). `scripts/
+score_predictions.py` only ever reads `--threshold` as a required CLI argument with no default; it
+has no code path that selects one. Splitting responsibility this way, rather than one script that
+can optionally sweep, makes "did this run ever see TEST while choosing anything" a question
+answerable by reading which script ran, not by auditing call arguments. A reviewer verified this
+structurally (checked `score()`'s `threshold` parameter has no default, pinned by a test) and
+found one real gap in the *policy* around it, not the code path itself: `--rescore` on
+`score_predictions.py` was unaudited beyond the ledger's raw entries — nothing noticed a rescore
+picking a **different** threshold than the model's first TEST touch, which is tuning a threshold
+against TEST in all but name. Fixed with a loud stderr warning on threshold drift (not a refusal —
+a legitimate bug-fix rescore may need a different threshold) and by no longer overwriting the
+first touch's metrics file on rescore (suffixed `{model_id}-rescoreN-metrics.json` instead, so
+every touch the ledger references still has evidence on disk). Also fixed in `select_threshold.py`
+itself: `max(sweep, key=...)` picked the FIRST threshold on an F1 tie-plateau — the lowest, and
+therefore the most fragile point of it, sitting one grid step above the highest validation
+negative. Now picks the midpoint of the widest tying run (verified on a hand-built plateau:
+0.31-0.80 → 0.56, not 0.31), which absorbs the same range of TEST scores with margin on both sides
+instead of the least margin possible.
+
+**Decision 5 — TEST-touch ledger as an append-only, code-enforced gate, not a convention.**
+`docs/phase3-baseline-model-choice.md` rule 3 says TEST is touched once per model.
+`_check_ledger_permission` in `score_predictions.py` reads `docs/learned/results/
+test-touch-ledger.json` before any scoring happens and refuses a second run for a `model_id`
+unless `--rescore` is passed with `--reason`, both recorded in the new entry. A reviewer found a
+real bypass, BLOCKING severity: a reportable tier (n_pos >= 5) can still have undefined precision
+if the model made zero positive predictions inside it (`tp+fp == 0`); `print_markdown` formatted
+that `None` with `:.3f` unconditionally and crashed with `TypeError` — **after** `score()` had
+already read TEST, but the ledger was only appended to **after** `print_markdown` returned. A
+crash there left TEST touched with no ledger record, so a retry without `--rescore` was silently
+let back in — an ordinary bug defeating the once-per-model rule, not an adversarial call pattern.
+Fixed two ways: the formatter now renders "undefined" instead of crashing, and `_append_to_ledger`
+now runs immediately after `score()` succeeds, before any printing or file writing — "touched"
+means TEST was read and scored, not that the report finished rendering.
+
+**Decision 6 — per-tier reportability rule computed dynamically, never from a hardcoded table.**
+`docs/phase3-baseline-model-choice.md` rule 6: a tier with fewer than `MIN_POSITIVES_FOR_FULL_
+METRICS = 5` positives reports FP rate (+ Wilson CI) and an explicit "recall not computable, n_pos
+= X" note instead of precision/recall/F1 — computed from the real positives count every run, so a
+future review pass moving a pair between tiers can't silently go stale against a hardcoded table.
+Real committed TEST positives per tier: `proxy_key_collision` 74, `blocked_retrieval_candidate`
+15, `same_capacity_diff_breedsize` 4, `trivial_spot_check` 2, `same_capacity_diff_lifestage` 1,
+`capacity_differs_cross_shop` 1, `same_capacity_diff_flavour` 0, `capacity_differs_within_shop` 0,
+`diff_brand_similar_title` 0 — only the first two clear the threshold and get full precision/
+recall/F1. Overall recall is reported TWICE: over all 97 positives, and excluding the 13
+duplicated `proxy_key_collision` positives the eval view attributes to `trivial_spot_check`
+occurrences, proven genuinely different (not aliased) by a test that fails exactly those 13 and
+shows the two numbers diverge (84/97 vs. 97/97).
+
+**Decision 7 — `wilson_confidence_interval` implemented from the closed-form formula directly, no
+scipy/statsmodels dependency**, because the harness must run with zero installed model/stats
+libraries beyond what this project already has (ADR-0028 addendum #7's `sentence-transformers`
+Application Control block is the reason this constraint exists at all). Verified independently by
+the reviewer twice: once against three hand-worked closed-form cases (x=0, x=n, the textbook
+n=100/x=50 case) in the test file itself, once by brute-forcing the Wilson definition
+`(p̂-p)² <= z²p(1-p)/n` at 2e6 resolution across 7 points including the harness's real numbers (a
+literal independent re-derivation, not a second call to the function under test) — no defect
+found. A reviewer finding, shared across both `select_threshold.py` and `score_predictions.py`:
+`score >= threshold` treats an unvalidated NaN as a confident "N" (`NaN >= t` is always `False`),
+and Python's `json.loads` accepts bare `NaN`/`Infinity` by default, so a model wrapper emitting NaN
+on failed pairs would silently produce a clean, wrong, quotable "recall 0.0" result rather than a
+refused run. Fixed by adding `find_invalid_prediction_values` to `metrics.py` (rejects non-finite
+floats, non-numeric types, and JSON booleans — `bool` is an `int` subclass in Python, so a stray
+`true`/`false` would otherwise silently pass as 1/0) and wiring a refusal into both scripts ahead
+of scoring/selection.
+
+**Alternatives rejected.** A single script with an optional `--select-threshold` flag instead of
+two scripts with disjoint responsibilities — rejected because it makes "did this run see TEST
+while choosing anything" a question about call arguments instead of about which file ran, which is
+exactly the kind of thing a future session skims past. Refusing a `--rescore` at a different
+threshold outright instead of warning — rejected because a legitimate bug-fix rescore (a model
+wrapper bug found and fixed) may genuinely need a different threshold; a loud, ledger-recorded
+warning preserves the audit trail without blocking a real correction. Extracting the duplicated
+`_load_eval_view`/confusion-matrix logic between `select_threshold.py` and `score_predictions.py`
+into a shared module now — deferred (STATE.md Open issues), not urgent enough to justify a larger
+refactor under this session's time budget, but flagged as the exact drift risk that already
+produced the F1-convention mismatch this session fixed.
+
+**Verification.** `uv run python -m pytest` — 605 passed (`pytest`'s own console-script `.exe` is
+blocked by this machine's Application Control policy; `python -m pytest` is the standing
+workaround, unrelated to this session's changes). `uv run ruff check .` / `ruff format --check .`
+— clean. `uv run mypy` — success, 57 source files. All three committed artefacts
+(`phase3-train-val-split.json`, both `model-inputs/*.json` files) reproduce byte-identical (mod
+`generated_at`) from a fresh run of their generating script.

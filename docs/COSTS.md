@@ -3,7 +3,7 @@
 Every paid action in this project: date, what, estimated, actual, running total.
 Updated in the same commit as the work that spent the money (CLAUDE.md §11).
 
-**Running total: $0.00** (verified 2026-09-21: no paid action since the ledger began; Phase 3 annotation and the checker cost nothing; `llm_calls` untouched)
+**Running total: $0.00** (verified 2026-09-23: no paid action since the ledger began; Phase 3 annotation, the checker, and this session's scoring-harness build all cost nothing; `llm_calls` untouched)
 **Budget available: $20.00 · project ceiling: $100.00 · realistic landing point: ~$30–50**
 
 The machine-checkable half of this ledger is `make cost`, which reads the `llm_calls` table.

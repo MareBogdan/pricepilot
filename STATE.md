@@ -1,7 +1,7 @@
 # STATE
 
 Phase: 3 — Matching (Phases 0-2 CLOSED)
-Updated: 2026-09-22
+Updated: 2026-09-23
 
 ## Gate progress
 
@@ -47,8 +47,16 @@ ADR-0027.
     (697 rows)**, 0 listing overlap between splits. TEST is BLIND (no rules-engine suggestion ever
     shown). Post-freeze eval-view numbers (`docs/learned/phase3-eval-view.json`): TEST 97 M / 187 N
     / 3 S (284 scored), TRAIN_VAL 222 M / 444 N / 6 S (666 scored).
-[ ] 5. Baseline: classical cross-encoder, precision/recall/F1 — **NOT STARTED, next action.**
-    Brief: `docs/phase3-baseline-model-choice.md`.
+[ ] 5. Baseline: classical cross-encoder, precision/recall/F1 — **scoring infrastructure ready,
+    the cross-encoder itself NOT STARTED.** `pricepilot.matching.pair_text.build_pair_text`
+    (shared, versioned text builder), `scripts/split_train_val.py` (product-level 80/20 split of
+    TRAIN_VAL, 538/134 pairs, 0 listing overlap), `scripts/export_model_inputs.py` (hosted-notebook
+    export with a leakage guard on the TEST file), `scripts/select_threshold.py` (threshold picked
+    on validation only) and `scripts/score_predictions.py` (TEST scored once per model, Wilson CIs,
+    per-tier reportability, TEST-touch ledger) are built, reviewed and tested. **Next concrete step:
+    run the cross-encoder from `docs/phase3-baseline-model-choice.md` on a hosted notebook** against
+    `docs/learned/model-inputs/phase3-inputs-test.json`/`phase3-inputs-train-val.json`, then feed
+    its predictions through `select_threshold.py` then `score_predictions.py`.
 [ ] 6. Fine-tune 0.5B-1.5B with LoRA/QLoRA, same TEST set — not started.
 [ ] 7. Comparison table + error analysis of 10 representative failures — not started.
 [ ] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
@@ -64,31 +72,55 @@ Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7
 
 ## Last done
 
-1. **Froze the Phase 3 label dataset** (`uv run python scripts/freeze_labels.py --freeze`) — 997
-   decisions, class counts a:0 b:0 c:0 d:4 e:3 f:0 (4 class-d acknowledged, class-e never blocks by
-   construction). Hash `540a4fd6...` written identically into `tests/test_labels_frozen.py` and
-   this file; `test_frozen_labels_hash_unchanged` now runs and passes instead of skipping.
-2. **Recorded the Schesir occurrence** (`3f574dad8b6e_b52acad20816_0`, the only queued TEST
-   occurrence) **as a stated, unreviewed limitation** in
-   `docs/learned/phase3-freeze-acknowledgements.json`, per the annotator's explicit 2026-09-22
-   decision to let its N label stand rather than reopen it — recorded honestly, never as
-   "reviewed".
-3. **Recorded the four class-(d) `trivial_spot_check` occurrences as deliberate annotator
-   acknowledgements** in the same file — `freeze_labels.blocking_findings()` now returns `{}`; the
-   checker's own class counts are unaffected (it never reads the acknowledgement file).
-4. **Fixed the review-mode skip defect in `tools/annotate.html`.** A `revised_at` timestamp from
-   an OLDER review file no longer counts as "already re-decided this session" — this is the exact
-   defect that silently skipped the Schesir occurrence while the completion screen still reported
-   12/12 done. New regression test shown failing against the pre-fix code and passing after.
-5. **Confirmed two `.pytest_cache/lastfailed` entries were stale, not real failures, with
-   source-level proof, not just history.** The two recorded node-ids do not exist in any commit of
-   `tests/test_normalize_attributes.py` (one was never committed with that expected value; the
-   other was changed by `8ec799b`, 2026-09-15) — confirmed both are `ERROR: not found` when run
-   directly, and confirmed from `_pytest/cacheprovider.py`'s own source that `lastfailed` only pops
-   an entry when the test actually executes, which an orphaned node-id structurally never does.
+1. **Built the Phase 3 item 5 scoring harness end to end** (ADR-0028 addendum #19):
+   `scripts/split_train_val.py` (product-level 80/20 split of TRAIN_VAL, 538/134 pairs, 0 listing
+   `content_hash` overlap proven two independent ways), `scripts/export_model_inputs.py` (writes
+   `docs/learned/model-inputs/phase3-inputs-test.json`/`phase3-inputs-train-val.json` for a hosted
+   notebook, with a leakage guard on the TEST file enforced in code), `src/pricepilot/matching/
+   metrics.py` (`wilson_confidence_interval`, verified independently against a brute-force
+   definition by the reviewer), `scripts/select_threshold.py` (the one place a threshold is
+   chosen, validation-only) and `scripts/score_predictions.py` (TEST scored once per model, Wilson
+   CIs, per-tier reportability, TEST-touch ledger). Three commits, `reviewer` (Opus) on every diff
+   before each one.
+2. **Reviewer found and this session fixed six real issues**, most severe first: (a) a reportable
+   tier with undefined precision crashed `print_markdown` with a `TypeError` AFTER the TEST touch
+   had already happened, with the ledger written only afterward — fixed the formatter and moved
+   the ledger write to immediately after `score()` succeeds; (b) `score >= threshold` treated an
+   unvalidated NaN prediction as a confident "N" — added `find_invalid_prediction_values` (shared
+   in `metrics.py`) and wired a refusal into both scripts; (c) `--rescore` was unaudited beyond the
+   ledger's raw entries, letting a threshold change slip through as tuning-against-TEST-in-all-but-
+   name — added a stderr warning on threshold drift and stopped overwriting the first touch's
+   metrics file; (d) `select_threshold.py` picked the fragile low edge of an F1 tie-plateau instead
+   of its midpoint; (e) the two scripts disagreed on the undefined-F1 convention (0.0 vs None) for
+   the same input; (f) the TRAIN_VAL export silently dropped the `scored` flag for the 6 S-labelled
+   pairs, which `build_eval_view.py`'s own rule 4 requires never be dropped silently.
+3. **`docs/learned/phase3-train-val-split.json` and `docs/learned/model-inputs/*.json` are
+   committed, generated artefacts** — reproducible with `uv run python scripts/split_train_val.py`
+   / `scripts/export_model_inputs.py`, verified byte-identical (mod `generated_at`) to a fresh
+   rebuild.
+4. **Full verification suite green**: `uv run python -m pytest` — 605 passed (the `-m pytest`
+   form, not the blocked `pytest` exe wrapper — see Open issues); `uv run ruff check .` /
+   `ruff format --check .` clean; `uv run mypy` — success, 57 source files.
+5. Prior top item (2026-09-22): froze the Phase 3 label dataset, 997 decisions — see History for
+   the full account of that session.
 
 ## Open issues
 
+- **Flagged 2026-09-23: `pytest` (the console-script `.exe`) is blocked by this machine's Windows
+  Application Control policy** — `uv run python -m pytest` works and was used throughout this
+  session instead; a low-friction workaround, not a blocker. `mypy` and `selectolax` (used by the
+  scraper adapters) were also transiently blocked earlier in this same session and resolved
+  themselves mid-session without any code or config change — consistent with the policy's known
+  scan-then-allow behaviour on first use of a given binary/DLL, not a regression.
+- **Flagged 2026-09-23 (deferred, not fixed): `scripts/select_threshold.py` and
+  `scripts/score_predictions.py` duplicate `_load_eval_view` byte-for-byte**, and each has its own
+  confusion-matrix/precision/recall computation (`_f1_at_threshold` vs `score()`). A reviewer
+  finding during this session's own work — the two scripts already disagreed on the undefined-F1
+  convention as a direct result of this duplication (fixed this session), which is exactly the
+  drift risk of having the same logic in two places. Worth extracting into
+  `src/pricepilot/matching/` alongside `metrics.py` and `pair_text.py` before Phase 3 item 6
+  (fine-tune) adds a third caller of the same logic — not urgent enough to justify a larger
+  refactor under this session's own time budget.
 - **Flagged 2026-09-21 (ADR-0028 addendum #13, TASK 5): `species` field disagrees with its own
   title on 53/10,532 `norm_listings` rows (0.50%)** — 46 `animax_ro`, 7 `petmax_ro`, 0
   `pentruanimale_ro` (structurally impossible there — see below). A `normalize/species.py`
