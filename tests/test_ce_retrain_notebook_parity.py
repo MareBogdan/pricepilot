@@ -28,8 +28,7 @@ def test_retrain_first_code_cell_is_byte_identical_to_the_original() -> None:
     retrain = _code_cells(RETRAIN)
     assert len(retrain) >= 2, "retrain must have the training cell plus the appended save cell"
     assert retrain[0].encode("utf-8") == original.encode("utf-8"), (
-        "retrain cell 1 differs from the original training cell: the reproduction premise "
-        "is broken"
+        "retrain cell 1 differs from the original training cell: the reproduction premise is broken"
     )
 
 

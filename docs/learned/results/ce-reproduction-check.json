@@ -1,0 +1,55 @@
+{
+ "built_from": "scripts/check_ce_reproduction.py",
+ "rule": "docs/phase3-ce-reproduction-rule.md",
+ "generated_at": "2026-09-23T20:28:09.949663+00:00",
+ "verdict": "REPRODUCED",
+ "consequence": "The retrained weights ARE mmarco-mMiniLMv2-finetuned-ep6 for item 8. No new ledger entry.",
+ "cross_encoder_id_for_item_8": "mmarco-mMiniLMv2-finetuned-ep6",
+ "retrain_best_epoch": 6,
+ "expected_best_epoch": 6,
+ "finetuned_pairs_compared": 959,
+ "finetuned_flips_total": 0,
+ "thresholds_from_ledger": {
+  "finetuned": 0.89,
+  "zeroshot": 0.86
+ },
+ "weights_sha256": "e8843e39f154419de57c18fda3647434b0feebabf019659631fac8d0ee4dc1fc",
+ "files": {
+  "preds-finetuned-test": {
+   "pairs": 287,
+   "threshold": 0.89,
+   "max_abs_diff": 0.0,
+   "mean_abs_diff": 0.0,
+   "flips": 0,
+   "flipped_pair_ids": [],
+   "gated_in_verdict": true
+  },
+  "preds-finetuned-trainval": {
+   "pairs": 672,
+   "threshold": 0.89,
+   "max_abs_diff": 0.0,
+   "mean_abs_diff": 0.0,
+   "flips": 0,
+   "flipped_pair_ids": [],
+   "gated_in_verdict": true
+  },
+  "preds-zeroshot-test": {
+   "pairs": 287,
+   "threshold": 0.86,
+   "max_abs_diff": 0.0,
+   "mean_abs_diff": 0.0,
+   "flips": 0,
+   "flipped_pair_ids": [],
+   "gated_in_verdict": false
+  },
+  "preds-zeroshot-trainval": {
+   "pairs": 672,
+   "threshold": 0.86,
+   "max_abs_diff": 0.0,
+   "mean_abs_diff": 0.0,
+   "flips": 0,
+   "flipped_pair_ids": [],
+   "gated_in_verdict": false
+  }
+ }
+}
