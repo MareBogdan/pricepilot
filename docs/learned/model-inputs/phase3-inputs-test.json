@@ -1,0 +1,1443 @@
+{
+ "built_from": "scripts/export_model_inputs.py",
+ "generated_at": "2026-09-23T10:23:05.119446+00:00",
+ "frozen_labels_sha256": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
+ "pair_text_version": "pair-text-v1",
+ "pairs": [
+  {
+   "pair_id": "006fb9eb7e29_458febbc891a",
+   "text_a": "title: ROYAL CANIN Persian Kitten, hrană uscată pisici junior, 400g | brand: royal canin | line: Persian Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Persian Kitten hrana uscata pisica junior, 2 kg | brand: royal canin | line: Persian Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "006fb9eb7e29_d2215849da87",
+   "text_a": "title: ROYAL CANIN Persian Kitten, hrană uscată pisici junior, 400g | brand: royal canin | line: Persian Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Persian Kitten hrana uscata pisica junior, 400 g | brand: royal canin | line: Persian Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "006fb9eb7e29_dde289e42199",
+   "text_a": "title: ROYAL CANIN Persian Kitten, hrană uscată pisici junior, 400g | brand: royal canin | line: Persian Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Kitten Persian 400g | brand: royal canin | line: Kitten Persian | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "00f775f25237_6a81b0d8429b",
+   "text_a": "title: ROYAL CANIN Instinctive 7+, hrană umedă pisici, (în sos), 85g | brand: royal canin | line: Instinctive 7+, (în sos) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: <missing>",
+   "text_b": "title: Royal Canin Instinctive 7+, plic hrană umedă pisici, (în sos), 1x85g | brand: royal canin | line: Instinctive 7+, (în sos) | weight_g: 85 | volume_ml: <missing> | pack: 1 | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: <missing>"
+  },
+  {
+   "pair_id": "011d2aef1c51_9525e9cb55fc",
+   "text_a": "title: PET'S DESSERT Pure Doggie Delight Hypoallergenic, XS-XL, Iepure, punguță recompense monoproteice fără cereale câini, alergii, 80g | brand: pet's dessert | line: Pure Doggie Delight Hypoallergenic, XS-XL, Iepure, punguță recompense monoproteice fără cereale câini, alergii | weight_g: 80 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: rabbit",
+   "text_b": "title: Pet's Dessert Dog Soft Beef Slice 80 Gr | brand: pet's dessert | line: Dog Soft Beef Slice | weight_g: 80 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: beef"
+  },
+  {
+   "pair_id": "03c89d94a8c8_c919165d92e3",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Fit 2kg | brand: royal canin | line: Fit | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Fit 32, 2 kg | brand: royal canin | line: Fit 32 | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "0430382e0b69_3b6dd195dd27",
+   "text_a": "title: Advance Dog Maxi Puppy Protect, 12 kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Advance Dog Maxi Puppy Protect 3kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "0430382e0b69_be66fdf59608",
+   "text_a": "title: Advance Dog Maxi Puppy Protect, 12 kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Advance Dog Maxi Puppy Protect 12 kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "0430382e0b69_dbf6599cd527",
+   "text_a": "title: Advance Dog Maxi Puppy Protect, 12 kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ADVANCE Sensitive Care Medium & Maxi, M-XL, Somon și Orez, hrană uscată câini, sistem digestiv, 12kg | brand: advance | line: Sensitive Care Medium & Maxi, M-XL, Somon și Orez, sistem digestiv | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: M-XL | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "04ea6737f201_45d78c52ceb8",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Persian 2 Kg | brand: royal canin | line: Persian | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 2kg | brand: royal canin | line: Persian Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "04ea6737f201_e78f8525c049",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Persian 2 Kg | brand: royal canin | line: Persian | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Persian Adult hrana uscata pisica, 2 kg | brand: royal canin | line: Persian Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "05dec600a825_63f43c145df9",
+   "text_a": "title: GOURMET Perle, Pui, plic hrană umedă pisici, (în sos), 85g | brand: gourmet | line: Perle, Pui, (în sos) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Gourmet Perle Pui in Sos 85g | brand: gourmet | line: Perle Pui in Sos | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "07014717d472_b3a7c37ff84f",
+   "text_a": "title: Hrana uscata pentru pisici Wellness Core Dry cu curcan si pui 300g | brand: wellness core | line: Dry cu curcan si pui | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: turkey+chicken",
+   "text_b": "title: Wellness Core Dry cu Curcan si Pui, 300 g | brand: wellness core | line: Dry cu Curcan si Pui | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: turkey+chicken"
+  },
+  {
+   "pair_id": "07014717d472_c943ec95fe66",
+   "text_a": "title: Hrana uscata pentru pisici Wellness Core Dry cu curcan si pui 300g | brand: wellness core | line: Dry cu curcan si pui | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: turkey+chicken",
+   "text_b": "title: Hrana Uscata Wellness Core Dry Sterilised cu Somon, 300 g | brand: wellness core | line: Hrana Uscata Dry Sterilised cu Somon | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "090ea847e079_7da252bf664d",
+   "text_a": "title: Hrana pentru caini Brit Salam Pui si Iepure 800g | brand: brit | line: Hrana pentru caini Salam Pui si Iepure | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: chicken+rabbit",
+   "text_b": "title: BRIT Pate & Meat, Pui, conservă hrană umedă fără cereale câini, (pate cu bucăți de carne), 800g | brand: brit | line: Pate & Meat, Pui, (pate cu bucăți de carne) | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "098a65eb345c_b9192a88311c",
+   "text_a": "title: Hrana uscata pentru pisici Sanabelle Light 400g | brand: sanabelle | line: Light | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Sanabelle Light, 10 kg | brand: sanabelle | line: Light | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "0aa64e7141e9_29f2bc3b9efb",
+   "text_a": "title: Monge BWild Pate Cat - Hrana umeda pisici super-premium - Cod - 100g | brand: monge | line: BWild Pate Cat - super-premium - Cod | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: cod",
+   "text_b": "title: MONGE Grill, XS-XL, Cod, plic hrană umedă câini, (în suc propriu), 100g | brand: monge | line: Grill, XS-XL, Cod, (în suc propriu) | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: cod"
+  },
+  {
+   "pair_id": "0aa64e7141e9_bf7fae4b15b4",
+   "text_a": "title: Monge BWild Pate Cat - Hrana umeda pisici super-premium - Cod - 100g | brand: monge | line: BWild Pate Cat - super-premium - Cod | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: cod",
+   "text_b": "title: MONGE Grill Plic hrana umeda pentru caini, cu Miel si Legume 100g | brand: monge | line: Grill cu Miel si Legume | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: lamb"
+  },
+  {
+   "pair_id": "0aa64e7141e9_cf8b25b8e20a",
+   "text_a": "title: Monge BWild Pate Cat - Hrana umeda pisici super-premium - Cod - 100g | brand: monge | line: BWild Pate Cat - super-premium - Cod | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: cod",
+   "text_b": "title: MONGE Grill, XS-XL, Somon, plic hrană umedă câini, (în suc propriu), 100g | brand: monge | line: Grill, XS-XL, Somon, (în suc propriu) | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: salmon"
+  },
+  {
+   "pair_id": "0bbabbae1139_43bb543a4d3c",
+   "text_a": "title: Royal Canin Urinary Care, 2 kg | brand: royal canin | line: Urinary Care | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 10 kg | brand: royal canin | line: Urinary Care | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "0bbabbae1139_82f447dcf4a0",
+   "text_a": "title: Royal Canin Urinary Care, 2 kg | brand: royal canin | line: Urinary Care | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 2 kg | brand: royal canin | line: Urinary Care | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "0d008008050b_3156616197c4",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 1kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 1 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "0d008008050b_72b31032505e",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 1kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 12 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "0d008008050b_cfcc39876672",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 1kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 3 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "0d1b95628ed0_8253b75f84d4",
+   "text_a": "title: BRIT Fresh Healthy Growth Puppy & Junior S-XL, Pui cu Cartof, hrană uscată conținut redus cereale câini junior, 12kg | brand: brit | line: Fresh Healthy Growth Puppy & Junior S-XL, Pui cu Cartof | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: S-XL | life_stage: puppy | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru caini, Brit Fresh Chicken and Potato Adult 12 kg | brand: brit | line: Fresh Chicken and Potato Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "0d52f8f5bc32_c537121d2733",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Starter Mother&Babydog 4kg | brand: royal canin | line: Mini Starter Mother&Babydog | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Mini Starter Mother&Babydog 8kg | brand: royal canin | line: Mini Starter Mother&Babydog | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "0e45d9b997f8_153c7e549d19",
+   "text_a": "title: PURINA Pro Plan Sterilised Maintenance, Ton și Somon, hrană umedă pisici sterilizate, (pate), bax, 85g x 24buc | brand: purina | line: Pro Plan Sterilised Maintenance, Ton și Somon, (pate) | weight_g: 85 | volume_ml: <missing> | pack: 24 | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: tuna+salmon",
+   "text_b": "title: PURINA Pro Plan Sterilised Maintenance, Ton și Somon, hrană umedă pisici sterilizate, (pate), 85g | brand: purina | line: Pro Plan Sterilised Maintenance, Ton și Somon, (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: tuna+salmon"
+  },
+  {
+   "pair_id": "0f1bbd9e204c_b0574edec4df",
+   "text_a": "title: ROYAL CANIN Sterilised Adult, hrană uscată pisici sterilizate, 4kg | brand: royal canin | line: Sterilised Adult | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Sterilised Adult, hrană uscată pisici sterilizate, 400g | brand: royal canin | line: Sterilised Adult | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "0f8590e47e76_4ec3fa06971b",
+   "text_a": "title: SCHESIR Complementary In Jelly, Pui, conservă hrană umedă pisici, (în aspic), 70g | brand: schesir | line: Complementary In Jelly, Pui, (în aspic) | weight_g: 70 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Schesir Pui Jelly 70g | brand: schesir | line: Pui Jelly | weight_g: 70 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "11f2f14e5058_27ee07f5e367",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin X-Small Junior 1.5 kg | brand: royal canin | line: X-Small Junior | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin X-Small Adult, hrană uscată câini, 1.5 kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "11f2f14e5058_5d22a53683e0",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin X-Small Junior 1.5 kg | brand: royal canin | line: X-Small Junior | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN X-Small Adult 8+, hrană uscată câini senior, 1.5kg | brand: royal canin | line: X-Small Adult 8+ | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult+8 | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "130fa96aef73_cb14f9d88f05",
+   "text_a": "title: Hill's SP Feline Adult Skin and Stomach Chicken 1.5 kg | brand: hill's | line: SP Feline Adult Skin and Stomach Chicken | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: chicken",
+   "text_b": "title: HILL'S SP No Grain, Kitten, Pui, hrană uscată fără cereale pisici junior, 1.5kg | brand: hill's | line: SP No Grain, Kitten, Pui | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "1391ee855f85_82bb1af96736",
+   "text_a": "title: Recompense delicioase pentru caini Agility, rulada de cod impletita cu carne de pui, 500g | brand: agility | line: rulada de cod impletita cu carne de pui | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: cod+chicken",
+   "text_b": "title: AGILITY Fâșii, XS-XL, Rață, găletușa recompense câini, 500g | brand: agility | line: Fâșii, XS-XL, Rață | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: duck"
+  },
+  {
+   "pair_id": "140bb948d9df_4d212d12259f",
+   "text_a": "title: ROYAL CANIN British Shorthair Kitten, hrană uscată pisici junior, 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin British Shorthair Kitten, 2 Kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "140bb948d9df_6e17d458cc36",
+   "text_a": "title: ROYAL CANIN British Shorthair Kitten, hrană uscată pisici junior, 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 2kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "140bb948d9df_dc2765730536",
+   "text_a": "title: ROYAL CANIN British Shorthair Kitten, hrană uscată pisici junior, 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "153c7e549d19_c054e709fc27",
+   "text_a": "title: PURINA Pro Plan Sterilised Maintenance, Ton și Somon, hrană umedă pisici sterilizate, (pate), 85g | brand: purina | line: Pro Plan Sterilised Maintenance, Ton și Somon, (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: tuna+salmon",
+   "text_b": "title: GOURMET GOLD CU PUI ȘI SOMON ÎN SOS, 85g | brand: purina | line: GOURMET GOLD CU PUI ȘI SOMON ÎN SOS | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken+salmon"
+  },
+  {
+   "pair_id": "165644fdbbdf_49adb0828774",
+   "text_a": "title: Hrana uscata pentru caini Remi Premium Junior Medium&Large Pui si Curcan 1kg | brand: remi | line: Premium Junior Medium&Large Pui si Curcan | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: junior | food_form: dry | flavour: chicken+turkey",
+   "text_b": "title: REMI PREMIUM Junior Small, XS-S, Pui și Curcan, hrană uscată câini junior, 1kg | brand: remi | line: PREMIUM Junior Small, XS-S, Pui și Curcan | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XS-S | life_stage: junior | food_form: dry | flavour: chicken+turkey"
+  },
+  {
+   "pair_id": "170832c4732b_684f59a026e0",
+   "text_a": "title: CAT CHOW Hrana uscata pentru pisici Adulte, cu Somon 15kg | brand: purina | line: Somon | weight_g: 15000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: ARATON, Somon, hrană uscată pisici, 15kg | brand: araton | line: Somon | weight_g: 15000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "186acfe83eee_1eb54b02498d",
+   "text_a": "title: Hrana uscata pentru pisici Sanabelle Pui 8kg | brand: sanabelle | line: Pui | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru pisici adulte Pure Nurture, cu pui, 8kg | brand: pure nurture | line: pui | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "186acfe83eee_28eac5244107",
+   "text_a": "title: Hrana uscata pentru pisici Sanabelle Pui 8kg | brand: sanabelle | line: Pui | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru pisici sterilizate Pure Nurture, cu pui, 8kg | brand: pure nurture | line: pui | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "198c154498ed_6a815f68ac81",
+   "text_a": "title: Royal Canin Golden Retriever Adult 3 Kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Puppy, hrană uscată câini junior, 3kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "198c154498ed_f1f58ea34bc9",
+   "text_a": "title: Royal Canin Golden Retriever Adult 3 Kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Adult, hrană uscată câini, 3kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "1a712f712e96_b9192a88311c",
+   "text_a": "title: Hrana uscata pentru pisici Sanabelle Light 10 kg | brand: sanabelle | line: Light | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Sanabelle Light, 10 kg | brand: sanabelle | line: Light | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "1d038c382b87_617618c67b89",
+   "text_a": "title: PETKULT Sensitive Care Adult Small Breed, XS-S, Miel și orez brun, hrană uscată câini, alergii, 12kg | brand: petkult | line: Sensitive Care Adult Small Breed, XS-S, Miel și orez brun, alergii | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XS-S | life_stage: adult | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mare Peste 12 kg | brand: petkult | line: Sensitive Adult Talie Mare Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "1d038c382b87_947c7308aba7",
+   "text_a": "title: PETKULT Sensitive Care Adult Small Breed, XS-S, Miel și orez brun, hrană uscată câini, alergii, 12kg | brand: petkult | line: Sensitive Care Adult Small Breed, XS-S, Miel și orez brun, alergii | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XS-S | life_stage: adult | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 12kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "1dcefe610f0d_3b38269de622",
+   "text_a": "title: REMI PREMIUM, XS-XL, Pui, conservă hrană umedă câini, (pate), 400g | brand: remi | line: PREMIUM, XS-XL, Pui, (pate) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Remi Premium Mousse Peste 400g | brand: remi | line: Premium Mousse Peste | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: fish"
+  },
+  {
+   "pair_id": "1dcefe610f0d_8c80b96b7fac",
+   "text_a": "title: REMI PREMIUM, XS-XL, Pui, conservă hrană umedă câini, (pate), 400g | brand: remi | line: PREMIUM, XS-XL, Pui, (pate) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru pisici Remi Premium Sterilized Somon 400g | brand: remi | line: Premium Sterilized Somon | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "1ecde7890f3e_31b7920d544b",
+   "text_a": "title: Hrana umeda pentru caini Stuzzy Pui 100g | brand: stuzzy | line: Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru caini adulti, CHARLI, pui, 100 G | brand: charli | line: pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "1ecde7890f3e_bdd58b334b2c",
+   "text_a": "title: Hrana umeda pentru caini Stuzzy Pui 100g | brand: stuzzy | line: Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken",
+   "text_b": "title: PETKULT Pui, plic hrană umedă fără cereale pisici, 100g | brand: petkult | line: Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: chicken"
+  },
+  {
+   "pair_id": "1f25d9a8f6a1_2155b541d27e",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 1kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 12 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "1f25d9a8f6a1_9cad53a38e85",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 1kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 1 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "204386d38023_9e9ed57fd44e",
+   "text_a": "title: Royal Canin Persian Adult hrana umeda pisica (pate), 1 x 85 g | brand: royal canin | line: Persian Adult (pate) | weight_g: 85 | volume_ml: <missing> | pack: 1 | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Adult, hrană umedă pisici, (pate), 85g | brand: royal canin | line: Persian Adult, (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "20821d976fc9_4d7caf8c8c84",
+   "text_a": "title: Hrana uscata pentru pisici Cat Chow Pui 1.5kg | brand: purina | line: Cat Chow Pui | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken",
+   "text_b": "title: Purina Cat Chow Pisica Adult cu Pui - 1,5 kg | brand: purina | line: Cat Chow Pisica Adult cu Pui | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: chicken"
+  },
+  {
+   "pair_id": "20beb02854e4_cdc4b814d283",
+   "text_a": "title: SCHESIR Complete Nutrition Ton, Pui și Șuncă, plic hrană umedă pisici, (în aspic), 85g | brand: schesir | line: Complete Nutrition Ton, Pui și Șuncă, (în aspic) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: tuna+chicken+ham",
+   "text_b": "title: Hrana umeda pentru caini Schesir Adult Small Pui-Cartof 85g | brand: schesir | line: Adult Small Pui-Cartof | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "2155b541d27e_30ec46eeb06d",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 12 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 3kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "2155b541d27e_8a63ed923ac9",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 12 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 12kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "21e8ccac7f62_c919165d92e3",
+   "text_a": "title: Royal Canin Fit 32, 400 g | brand: royal canin | line: Fit 32 | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Royal Canin Fit 32, 2 kg | brand: royal canin | line: Fit 32 | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "226b1e598156_516126b433d3",
+   "text_a": "title: Royal Canin Exigent Savour, 400 g | brand: royal canin | line: Exigent Savour | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Exigent Savour 10 kg | brand: royal canin | line: Exigent Savour | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "226b1e598156_8adae21099ab",
+   "text_a": "title: Royal Canin Exigent Savour, 400 g | brand: royal canin | line: Exigent Savour | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Exigent Savour 400g | brand: royal canin | line: Exigent Savour | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "228bac86aa61_f75e11bc28ed",
+   "text_a": "title: Hrana uscata pentru caini Brit Premium by Nature Junior XL 15 kg | brand: brit | line: Premium by Nature Junior XL | weight_g: 15000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XL | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Brit Premium by Nature Adult XL 15 kg | brand: brit | line: Premium by Nature Adult XL | weight_g: 15000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XL | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "2478fb25ffc4_ba7697639014",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Low Callories Adult&Senior Talie Mica 3kg | brand: petkult | line: Sensitive Low Callories Adult&Senior Talie Mica | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Low Callories Adult&Senior Talie Mica 12 kg | brand: petkult | line: Sensitive Low Callories Adult&Senior Talie Mica | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "27aa20bf14ce_c45e799122f8",
+   "text_a": "title: Recompense caini, Calibra Joy Dog Classic Duck Strips 80 g | brand: calibra | line: Joy Dog Classic Duck Strips | weight_g: 80 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: duck",
+   "text_b": "title: Recompense caini, Calibra Joy Dog Classic Duck Strips 500 g | brand: calibra | line: Joy Dog Classic Duck Strips | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: duck"
+  },
+  {
+   "pair_id": "27ee07f5e367_2dbe213797ba",
+   "text_a": "title: Royal Canin X-Small Adult, hrană uscată câini, 1.5 kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN X-Small Adult, hrană uscată câini, 1.5kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "27ee07f5e367_bd73470574eb",
+   "text_a": "title: Royal Canin X-Small Adult, hrană uscată câini, 1.5 kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin X-Small Adult 1.5 kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "2916abbd0af8_43bb543a4d3c",
+   "text_a": "title: Royal Canin Urinary Care, 4 kg | brand: royal canin | line: Urinary Care | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 10 kg | brand: royal canin | line: Urinary Care | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "2916abbd0af8_5c1bf7fa490e",
+   "text_a": "title: Royal Canin Urinary Care, 4 kg | brand: royal canin | line: Urinary Care | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana umeda pentru pisici Royal Canin Urinary Care 85g | brand: royal canin | line: Urinary Care | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "2916abbd0af8_82f447dcf4a0",
+   "text_a": "title: Royal Canin Urinary Care, 4 kg | brand: royal canin | line: Urinary Care | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 2 kg | brand: royal canin | line: Urinary Care | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "29640c7c5b3d_96cdfb810f82",
+   "text_a": "title: Hrana umeda Petkult Adult cu vita 400 g | brand: petkult | line: Hrana umeda Adult cu vita | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: beef",
+   "text_b": "title: Hrana umeda pentru caini Petkult Junior cu vita 400g | brand: petkult | line: Junior cu vita | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "29640c7c5b3d_cce0cd3382cd",
+   "text_a": "title: Hrana umeda Petkult Adult cu vita 400 g | brand: petkult | line: Hrana umeda Adult cu vita | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: beef",
+   "text_b": "title: Hrana umeda pentru caini Petkult Adult Vita 400g | brand: petkult | line: Adult Vita | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "29e98e8b9040_be66fdf59608",
+   "text_a": "title: Advance Dog Medium Light, 12 kg | brand: advance | line: Dog Medium Light | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Advance Dog Maxi Puppy Protect 12 kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "2d38db442675_617618c67b89",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mare Peste 12kg | brand: petkult | line: Sensitive Adult Talie Mare Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mare Peste 12 kg | brand: petkult | line: Sensitive Adult Talie Mare Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "2dbe213797ba_3b55967781dd",
+   "text_a": "title: ROYAL CANIN X-Small Adult, hrană uscată câini, 1.5kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Yorkshire Puppy 1.5 kg | brand: royal canin | line: Yorkshire Puppy | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "2dbe213797ba_f4d9c946486f",
+   "text_a": "title: ROYAL CANIN X-Small Adult, hrană uscată câini, 1.5kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin X-Small Adult, hrana uscata caini, 3kg | brand: royal canin | line: X-Small Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "2e13ca5f4269_6356d8c97fe4",
+   "text_a": "title: APPLAWS File, Ton și Brânză, conservă hrană umedă pisici, (în supă), 156g | brand: applaws | line: File, Ton și Brânză, (în supă) | weight_g: 156 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: tuna",
+   "text_b": "title: APPLAWS File, Ton și Brânză, conservă hrană umedă pisici, (în supă), 70g | brand: applaws | line: File, Ton și Brânză, (în supă) | weight_g: 70 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: tuna"
+  },
+  {
+   "pair_id": "2e660fe85dcf_5edaf3cd0f46",
+   "text_a": "title: Conserva Royal Canin Maxi Adult hrana umeda caini (pate), 1 x 410g | brand: royal canin | line: Conserva Maxi Adult (pate) | weight_g: 410 | volume_ml: <missing> | pack: 1 | bonus_g: <missing> | breed_size: Maxi | life_stage: adult | food_form: tin | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Maxi Adult hrană umedă câini (pate), 410g | brand: royal canin | line: Maxi Adult (pate) | weight_g: 410 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: adult | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "2f17cd43ea4f_9c36accdc5d0",
+   "text_a": "title: Asternut igienic pentru pisici bentonita Kotix, 5l, aroma Carbune Activ | brand: kotix | line: Asternut igienic pentru pisici bentonita, aroma Carbune Activ | weight_g: <missing> | volume_ml: 5000 | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Asternut igienic pentru pisici bentonita Kotix, 10l, aroma Carbune Activ | brand: kotix | line: Asternut igienic pentru pisici bentonita, aroma Carbune Activ | weight_g: <missing> | volume_ml: 10000 | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "30e5ced89544_771efcc0aaee",
+   "text_a": "title: OPTIMEAL Sterilised, Curcan, hrană uscată pisici sterilizate, 1.5kg | brand: optimeal | line: Sterilised, Curcan | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: turkey",
+   "text_b": "title: OPTIMEAL Sterilised, Curcan, hrană uscată pisici sterilizate, 700g | brand: optimeal | line: Sterilised, Curcan | weight_g: 700 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: turkey"
+  },
+  {
+   "pair_id": "30ec46eeb06d_9cad53a38e85",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 3kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 1 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "30ec46eeb06d_d5fcb235eb23",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 3kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 3 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "31b7920d544b_bdd58b334b2c",
+   "text_a": "title: Hrana umeda pentru caini adulti, CHARLI, pui, 100 G | brand: charli | line: pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: chicken",
+   "text_b": "title: PETKULT Pui, plic hrană umedă fără cereale pisici, 100g | brand: petkult | line: Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: chicken"
+  },
+  {
+   "pair_id": "31b7920d544b_efd91a46ba3d",
+   "text_a": "title: Hrana umeda pentru caini adulti, CHARLI, pui, 100 G | brand: charli | line: pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Petkult cu pui 100g | brand: petkult | line: pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "31b7920d544b_f52bd9a80e5d",
+   "text_a": "title: Hrana umeda pentru caini adulti, CHARLI, pui, 100 G | brand: charli | line: pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Miamor Pui 100g | brand: miamor | line: Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "321417089290_9ebc80a63852",
+   "text_a": "title: Hill's SP Canine Adult Healthy Mobility Small & Miniature Pui, 6 Kg | brand: hill's | line: SP Canine Adult Healthy Mobility Small & Miniature Pui | weight_g: 6000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: chicken",
+   "text_b": "title: Hill's SP Canine Senior Vitality Small and Mini Chicken 6 kg | brand: hill's | line: SP Canine Senior Vitality Small and Mini Chicken | weight_g: 6000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: senior | food_form: <missing> | flavour: chicken"
+  },
+  {
+   "pair_id": "34c3ca18a10b_70710182dac0",
+   "text_a": "title: Royal Canin Bichon Frise Adult, 1.5 kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Bichon Frise Adult 1.5 kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "34c3ca18a10b_8a863350ba8b",
+   "text_a": "title: Royal Canin Bichon Frise Adult, 1.5 kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 500g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "34d4a8e06ecc_ff26d2f8936e",
+   "text_a": "title: MIAU MIAU, Iepure, plic hrană umedă pisici, (în sos), 100g | brand: miau miau | line: Iepure, (în sos) | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: rabbit",
+   "text_b": "title: Hrana umeda pisici, Miau Miau, Somon, 100g | brand: miau miau | line: Somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: salmon"
+  },
+  {
+   "pair_id": "37459e3cbbb1_43bb543a4d3c",
+   "text_a": "title: Royal Canin Urinary Care, 10 kg | brand: royal canin | line: Urinary Care | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 10 kg | brand: royal canin | line: Urinary Care | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "37459e3cbbb1_5ccc5836e715",
+   "text_a": "title: Royal Canin Urinary Care, 10 kg | brand: royal canin | line: Urinary Care | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 400 g | brand: royal canin | line: Urinary Care | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "37459e3cbbb1_82f447dcf4a0",
+   "text_a": "title: Royal Canin Urinary Care, 10 kg | brand: royal canin | line: Urinary Care | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 2 kg | brand: royal canin | line: Urinary Care | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "3747121b25de_fad0975e7321",
+   "text_a": "title: HILL'S SCIENCE PLAN Senior Vitality 7+, M, Pui, hrană uscată câini senior, 14kg | brand: hill's | line: SCIENCE PLAN Senior Vitality 7+, M, Pui | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: M | life_stage: senior+7 | food_form: dry | flavour: chicken",
+   "text_b": "title: Hill's SP Canine Adult Healthy Mobility Medium 14 kg | brand: hill's | line: SP Canine Adult Healthy Mobility Medium | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: adult | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "3747121b25de_fce550933ea1",
+   "text_a": "title: HILL'S SCIENCE PLAN Senior Vitality 7+, M, Pui, hrană uscată câini senior, 14kg | brand: hill's | line: SCIENCE PLAN Senior Vitality 7+, M, Pui | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: M | life_stage: senior+7 | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru caini Hill's Science Plan Mature Medium Pui 14kg | brand: hill's | line: Science Plan Mature Medium Pui | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: <missing> | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "37bdf7ea04fa_45d78c52ceb8",
+   "text_a": "title: Royal Canin Persian Adult hrana uscata pisica, 10 kg | brand: royal canin | line: Persian Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 2kg | brand: royal canin | line: Persian Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "37bdf7ea04fa_5bd2eaa71f6d",
+   "text_a": "title: Royal Canin Persian Adult hrana uscata pisica, 10 kg | brand: royal canin | line: Persian Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Persian 10 kg | brand: royal canin | line: Persian | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "37bdf7ea04fa_d8e6ed17437c",
+   "text_a": "title: Royal Canin Persian Adult hrana uscata pisica, 10 kg | brand: royal canin | line: Persian Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 10kg | brand: royal canin | line: Persian Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "3841e4ee73ef_57beb5e9e5ad",
+   "text_a": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 1.5kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Bichon Frise Adult, 500 g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "3841e4ee73ef_70710182dac0",
+   "text_a": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 1.5kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Bichon Frise Adult 1.5 kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "3841e4ee73ef_acf8ff85a6ce",
+   "text_a": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 1.5kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Bichon Frise Adult 500 g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "39b24e4f4cbf_523714647355",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 800g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "39b24e4f4cbf_65e9aff77e81",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 800 g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "39b24e4f4cbf_6b2f34b37bdc",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "39b24e4f4cbf_7ee41572ef18",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 8kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "39b24e4f4cbf_a479d20bd164",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 4kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "39b24e4f4cbf_d421baa2c85c",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "3a902c0ebf84_72b31032505e",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 3kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 12 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "3a902c0ebf84_cfcc39876672",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 3kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 3 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "3a91b36a71c1_48c70b7d8577",
+   "text_a": "title: Hrana uscata pentru caini Brit Care Mini Grain Free Sensitive Vanat 400g | brand: brit | line: Care Mini Grain Free Sensitive Vanat | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: game",
+   "text_b": "title: BRIT Premium By Nature Junior, Curcan și Ficat, conservă hrană umedă fără cereale câini, (pate), 400g | brand: brit | line: Premium By Nature Junior, Curcan și Ficat, (pate) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: tin | flavour: turkey+liver"
+  },
+  {
+   "pair_id": "3b38269de622_da2907bb100e",
+   "text_a": "title: Hrana umeda pentru pisici Remi Premium Mousse Peste 400g | brand: remi | line: Premium Mousse Peste | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: fish",
+   "text_b": "title: REMI PREMIUM, Pește, conservă hrană umedă pisici, (mousse), 400g | brand: remi | line: PREMIUM, Pește, (mousse) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: fish"
+  },
+  {
+   "pair_id": "3b55967781dd_ac3b2ff9c5a0",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Yorkshire Puppy 1.5 kg | brand: royal canin | line: Yorkshire Puppy | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Neutered Adult Small Dog, 1.5 kg | brand: royal canin | line: Neutered Adult Small Dog | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "3b6dd195dd27_f3bd21dcedcb",
+   "text_a": "title: Hrana uscata pentru caini Advance Dog Maxi Puppy Protect 3kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Advance Dog Medium Puppy Protect - 3 kg | brand: advance | line: Dog Medium Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "3b6dd195dd27_ffb386986a96",
+   "text_a": "title: Hrana uscata pentru caini Advance Dog Maxi Puppy Protect 3kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ADVANCE Mini Adult, XS-S, Pui, hrană uscată câini, 3kg | brand: advance | line: Mini Adult, XS-S, Pui | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XS-S | life_stage: adult | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "3cf5a12a0219_bf9a904d27fa",
+   "text_a": "title: Asternut Igienic Silicat pentru pisici, Kotix Mar Verde, 3.8L | brand: kotix | line: Asternut Igienic Silicat pentru pisici, Mar Verde | weight_g: <missing> | volume_ml: 3800 | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Asternut Igienic Silicat pentru pisici, Kotix Mar Verde, 10L | brand: kotix | line: Asternut Igienic Silicat pentru pisici, Mar Verde | weight_g: <missing> | volume_ml: 10000 | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "3e9da6f6ccff_be33d2321c1b",
+   "text_a": "title: SAM'S FIELD Fresh Adult Large, L-XL, Pui și Cartofi, hrană uscată conținut redus cereale câini, 13kg | brand: sam's field | line: Fresh Adult Large, L-XL, Pui și Cartofi | weight_g: 13000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: L-XL | life_stage: adult | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana Uscata caini, Sam's field puppy lamb 13kg | brand: sam's field | line: puppy lamb | weight_g: 13000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "3f3a8d1d2b69_96aa964f7dc7",
+   "text_a": "title: ULTIMA Fit & Delicious Sterilised, Somon, plic hrană umedă pisici sterilizate, (în sos), 85g | brand: ultima | line: Fit & Delicious Sterilised, Somon, (în sos) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: salmon",
+   "text_b": "title: ULTIMA Fit & Delicious Sterilised, Somon, plic hrană umedă pisici sterilizate, (în sos), bax, 85g x 24buc | brand: ultima | line: Fit & Delicious Sterilised, Somon, (în sos) | weight_g: 85 | volume_ml: <missing> | pack: 24 | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: salmon"
+  },
+  {
+   "pair_id": "3f574dad8b6e_b52acad20816",
+   "text_a": "title: Hrana umeda pentru pisici Schesir Functions Digestive Topper Dovleac si grau 40g | brand: schesir | line: Functions Digestive Topper Dovleac si grau | weight_g: 40 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: <missing>",
+   "text_b": "title: SCHESIR Functions Digestive Topper, dovleac, plic hrană umedă fără cereale pisici, sistem digestiv, (topping), 40g | brand: schesir | line: Functions Digestive Topper, dovleac, sistem digestiv, (topping) | weight_g: 40 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: <missing>"
+  },
+  {
+   "pair_id": "407dd18a36ba_bfdb4786c774",
+   "text_a": "title: Hrana umeda pentru caini Brit Care Mini Puppy Miel File in sos 85g | brand: brit | line: Care Mini Puppy Miel File in sos | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: wet | flavour: lamb",
+   "text_b": "title: Brit Cat Delicate cu vita in Jelly 85 g | brand: brit | line: Cat Delicate cu vita in Jelly | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: beef"
+  },
+  {
+   "pair_id": "4231a550c308_7312f3ed2f4f",
+   "text_a": "title: REMI PREMIUM Vital, Vită și Pui, hrană uscată pisici, 400g | brand: remi | line: PREMIUM Vital, Vită și Pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: beef+chicken",
+   "text_b": "title: Hrana uscata pentru pisici Remi Premium Vital Vita si pui 400g | brand: remi | line: Premium Vital Vita si pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: beef+chicken"
+  },
+  {
+   "pair_id": "428d4ae778aa_dc2765730536",
+   "text_a": "title: Royal Canin British Shorthair Kitten, 10 Kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "42fee5310ce7_8a720ce00243",
+   "text_a": "title: Hill's SP Feline Kitten Pui, 7 Kg | brand: hill's | line: SP Feline Kitten Pui | weight_g: 7000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: chicken",
+   "text_b": "title: Hill's SP Feline Kitten Pui, 3 Kg | brand: hill's | line: SP Feline Kitten Pui | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: chicken"
+  },
+  {
+   "pair_id": "4336d7cc20c5_ab90b7283788",
+   "text_a": "title: Royal Canin Fussy Exigent hrana uscata pisici adulte apetit capricios 2 kg | brand: royal canin | line: Fussy Exigent apetit capricios | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Fussy Exigent hrana uscata pisici adulte apetit capricios 4 kg | brand: royal canin | line: Fussy Exigent apetit capricios | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "43bb543a4d3c_e9156ff33a7b",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 10 kg | brand: royal canin | line: Urinary Care | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Urinary Care, 400 g | brand: royal canin | line: Urinary Care | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "458190b7d79e_8b7d069a7266",
+   "text_a": "title: DR. CLAUDER'S, Vițel și Curcan, plic hrană umedă pisici, (în sos), 100g | brand: dr. clauder's | line: Vițel și Curcan, (în sos) | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: turkey",
+   "text_b": "title: DR. CLAUDER'S, Vițel și Curcan, plic hrană umedă pisici, (în sos), bax, 100g x 20buc | brand: dr. clauder's | line: Vițel și Curcan, (în sos) | weight_g: 100 | volume_ml: <missing> | pack: 20 | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: turkey"
+  },
+  {
+   "pair_id": "458febbc891a_4ebe58fd8baf",
+   "text_a": "title: Royal Canin Persian Kitten hrana uscata pisica junior, 2 kg | brand: royal canin | line: Persian Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Kitten, hrană uscată pisici junior, 2kg | brand: royal canin | line: Persian Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "45d78c52ceb8_e78f8525c049",
+   "text_a": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 2kg | brand: royal canin | line: Persian Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Persian Adult hrana uscata pisica, 2 kg | brand: royal canin | line: Persian Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "49bc3dd1f42b_a7c257d80d9f",
+   "text_a": "title: ROYAL CANIN Sensible Adult, hrană uscată pisici, digestie optimă, 4kg | brand: royal canin | line: Sensible Adult, digestie optimă | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Sensible Adult, hrană uscată pisici, digestie optimă, 2kg | brand: royal canin | line: Sensible Adult, digestie optimă | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "4a9ee8d65177_4e9366eee48f",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 2 kg | brand: royal canin | line: Mini Puppy | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 2 kg | brand: royal canin | line: Mini Puppy | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "4a9ee8d65177_65e9aff77e81",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 2 kg | brand: royal canin | line: Mini Puppy | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 800 g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "4a9ee8d65177_6b2f34b37bdc",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 2 kg | brand: royal canin | line: Mini Puppy | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "4a9ee8d65177_a479d20bd164",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 2 kg | brand: royal canin | line: Mini Puppy | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 4kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "4a9ee8d65177_d421baa2c85c",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 2 kg | brand: royal canin | line: Mini Puppy | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "4ad034f3660c_9d932a3d47a5",
+   "text_a": "title: TEO Plic hrana umeda pentru pisici, cu Vita 85g | brand: teo | line: Vita | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: beef",
+   "text_b": "title: Hrana umeda pentru pisici adulte KITTIX, vita, 85G | brand: kittix | line: vita | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "4b2cb18cab99_724b0a6ded05",
+   "text_a": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 12 kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 12kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "4b2cb18cab99_a61c68fd9e11",
+   "text_a": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 12 kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb",
+   "text_b": "title: PETKULT Sensitive Care Starter&Puppy All Breeds, XS-XL, Miel și orez brun, hrană uscată câini junior, alergii, 12kg | brand: petkult | line: Sensitive Care Starter&Puppy All Breeds, XS-XL, Miel și orez brun, alergii | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "4b87cb304758_c556c1640cef",
+   "text_a": "title: REMI PREMIUM, Pui, conservă hrană umedă pisici, (mousse), 400g | brand: remi | line: PREMIUM, Pui, (mousse) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Remi Premium Mousse Pui 400g | brand: remi | line: Premium Mousse Pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "4bb1bc562761_c943ec95fe66",
+   "text_a": "title: Hrana uscata pentru pisici Wellness Core Dry Sterilised cu somon 300 g | brand: wellness core | line: Dry Sterilised cu somon | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: Hrana Uscata Wellness Core Dry Sterilised cu Somon, 300 g | brand: wellness core | line: Hrana Uscata Dry Sterilised cu Somon | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "4cce3efcb547_72b31032505e",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Miel si orez 12kg | brand: petkult | line: Sensitive Adult Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 12 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "4d212d12259f_6e17d458cc36",
+   "text_a": "title: Royal Canin British Shorthair Kitten, 2 Kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 2kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "4d212d12259f_dc2765730536",
+   "text_a": "title: Royal Canin British Shorthair Kitten, 2 Kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "4d3cdf1e9e73_a73e323f9787",
+   "text_a": "title: Royal Canin Hrana Umeda Mini Puppy 85 g | brand: royal canin | line: Hrana Umeda Mini Puppy | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: wet | flavour: <missing>",
+   "text_b": "title: Hrana umeda pentru caini Royal Canin Mini Puppy 85g | brand: royal canin | line: Mini Puppy | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "4d3cdf1e9e73_de60bb9a0a5a",
+   "text_a": "title: Royal Canin Hrana Umeda Mini Puppy 85 g | brand: royal canin | line: Hrana Umeda Mini Puppy | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: wet | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Yorkshire Adult hrană umedă câini (pate), 85g | brand: royal canin | line: Yorkshire Adult (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "4d44162593c0_4bb1a1e929f3",
+   "text_a": "title: NATURES PROTECTION Superior Care Hypoallergenic, Somon, hrană uscată fără cereale câini, afecțiuni digestive și dermatologice, 1.5kg | brand: natures protection | line: Superior Care Hypoallergenic, Somon, afecțiuni digestive și dermatologice | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: NATURES PROTECTION Superior Care Hipoallergenic Adult All Breeds Grain Free, Somon, 1.5kg | brand: natures protection | line: Superior Care Hipoallergenic Adult All Breeds Grain Free, Somon | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: salmon"
+  },
+  {
+   "pair_id": "4d5402862de9_ac83c1eefb6f",
+   "text_a": "title: Hrana umeda pentru caini figaro dog pui in sos conserva 415 g | brand: figaro | line: dog pui in sos conserva | weight_g: 415 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru caini figaro dog pui in sos conserva 1240 g | brand: figaro | line: dog pui in sos conserva | weight_g: 1240 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "4d63c226009b_ecb98201aba3",
+   "text_a": "title: MIAU MIAU, Somon, hrană uscată pisici, 10kg | brand: miau miau | line: Somon | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: Matisse hrana uscata pentru pisici sterilizate cu somon 10 kg | brand: matisse | line: somon | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "4d63c226009b_ff26d2f8936e",
+   "text_a": "title: MIAU MIAU, Somon, hrană uscată pisici, 10kg | brand: miau miau | line: Somon | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: Hrana umeda pisici, Miau Miau, Somon, 100g | brand: miau miau | line: Somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: salmon"
+  },
+  {
+   "pair_id": "4d9abdd1155a_3b6dd195dd27",
+   "text_a": "title: ADVANCE Puppy Medium, M, Pui, hrană uscată câini junior, 3kg | brand: advance | line: Puppy Medium, M, Pui | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru caini Advance Dog Maxi Puppy Protect 3kg | brand: advance | line: Dog Maxi Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "4d9abdd1155a_93c12e9aee45",
+   "text_a": "title: ADVANCE Puppy Medium, M, Pui, hrană uscată câini junior, 3kg | brand: advance | line: Puppy Medium, M, Pui | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru caini Advance Mini Adult 3 kg | brand: advance | line: Mini Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "4e1ca2174875_5a45c3b12e50",
+   "text_a": "title: Royal Canin Feline Sterilised 37, 400 g | brand: royal canin | line: Feline Sterilised 37 | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Royal Canin Feline Sterilised 37, 10 kg | brand: royal canin | line: Feline Sterilised 37 | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "4e9366eee48f_a479d20bd164",
+   "text_a": "title: Royal Canin Mini Puppy 2 kg | brand: royal canin | line: Mini Puppy | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 4kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "4ebc3a6e6210_31cc6248c1de",
+   "text_a": "title: Hrana umeda Petkult Adult cu miel 400 g | brand: petkult | line: Hrana umeda Adult cu miel | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru pisici Petkult Cat Adult Indoor Miel 400g | brand: petkult | line: Cat Adult Indoor Miel | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "4ebe58fd8baf_e78f8525c049",
+   "text_a": "title: ROYAL CANIN Persian Kitten, hrană uscată pisici junior, 2kg | brand: royal canin | line: Persian Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Persian Adult hrana uscata pisica, 2 kg | brand: royal canin | line: Persian Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "515f3cfb46cc_e4fe2b3e6b68",
+   "text_a": "title: BRIT Premium Sterilised, Pui, plic hrană umedă pisici sterilizate, (în sos), 100g | brand: brit | line: Premium Sterilised, Pui, (în sos) | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Brit Premium cu vita si mazare 100g | brand: brit | line: Premium cu vita si mazare | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "523714647355_65e9aff77e81",
+   "text_a": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 800g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 800 g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "523714647355_6b2f34b37bdc",
+   "text_a": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 800g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "523714647355_bcdb2ca98b17",
+   "text_a": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 800g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 800g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "53a3242d6fc1_93ba2a2443f0",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Hair and Skin 2 kg | brand: royal canin | line: Hair and Skin | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Hair and Skin 10 kg | brand: royal canin | line: Hair and Skin | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "55a0320a4b6c_724b0a6ded05",
+   "text_a": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 1 kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 12kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "55a0320a4b6c_d342a4cc5dbe",
+   "text_a": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 1 kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 1kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "56f41ed6c281_61a37e1a8397",
+   "text_a": "title: Hill's SP Feline Kitten Tuna 300 g | brand: hill's | line: SP Feline Kitten Tuna | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: tuna",
+   "text_b": "title: Hill's SP Feline Mature Sterilised Pui, 300 g | brand: hill's | line: SP Feline Mature Sterilised Pui | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: chicken"
+  },
+  {
+   "pair_id": "57beb5e9e5ad_70710182dac0",
+   "text_a": "title: Royal Canin Bichon Frise Adult, 500 g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Bichon Frise Adult 1.5 kg | brand: royal canin | line: Bichon Frise Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "57beb5e9e5ad_8a863350ba8b",
+   "text_a": "title: Royal Canin Bichon Frise Adult, 500 g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 500g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "58585fa7ff32_aa029a8b23ae",
+   "text_a": "title: Advance Dog mini adult, 7 kg | brand: advance | line: Dog mini adult | weight_g: 7000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Advance Dog Mini Adult 7kg | brand: advance | line: Dog Mini Adult | weight_g: 7000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "5a9deaf4af24_e0c36b8023a7",
+   "text_a": "title: Hrana Umeda caine, Sam's Field True Meat Chicken & Carrot 400 g | brand: sam's field | line: Hrana Umeda caine, True Meat Chicken & Carrot | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken",
+   "text_b": "title: SAM'S FIELD True Meat, XS-XL, Pui și Morcov, conservă hrană umedă fără cereale câini, (în aspic), 400g | brand: sam's field | line: True Meat, XS-XL, Pui și Morcov, (în aspic) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: chicken"
+  },
+  {
+   "pair_id": "5b0b9957aaa8_a7b371362305",
+   "text_a": "title: Taste of the Wild Pacific Stream Adult, 2 kg | brand: taste of the wild | line: Pacific Stream Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Taste of the Wild Pacific Stream 2 kg | brand: taste of the wild | line: Pacific Stream | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "5b55bde984ba_a85dc11b2d22",
+   "text_a": "title: BRIT Care Mini Light & Sterilised, XS-S, Iepure, hrană uscată fără cereale câini sterilizați, 2Kg | brand: brit | line: Care Mini Light & Sterilised, XS-S, Iepure | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XS-S | life_stage: <missing> | food_form: dry | flavour: rabbit",
+   "text_b": "title: Hrana uscata pentru caini Brit Care Mini Grain Free Light & Sterilised 2kg | brand: brit | line: Care Mini Grain Free Light & Sterilised | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "5bd2eaa71f6d_d8e6ed17437c",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Persian 10 kg | brand: royal canin | line: Persian | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 10kg | brand: royal canin | line: Persian Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "5ccc5836e715_e9156ff33a7b",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Urinary Care 400 g | brand: royal canin | line: Urinary Care | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Urinary Care, 400 g | brand: royal canin | line: Urinary Care | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "5d22a53683e0_bd73470574eb",
+   "text_a": "title: ROYAL CANIN X-Small Adult 8+, hrană uscată câini senior, 1.5kg | brand: royal canin | line: X-Small Adult 8+ | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult+8 | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin X-Small Adult 1.5 kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "5e1296b9a5e1_65e9aff77e81",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 800 g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "5e1296b9a5e1_6b2f34b37bdc",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "5e1296b9a5e1_a479d20bd164",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 4kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "5e1296b9a5e1_d421baa2c85c",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "5e9256132754_8a863350ba8b",
+   "text_a": "title: Royal Canin X-Small Puppy hrana uscata caine junior, 500 g | brand: royal canin | line: X-Small Puppy hrana uscata caine junior | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 500g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "615c7c2c86e0_f2ecca53770b",
+   "text_a": "title: Hrana umeda pentru pisici Petkult cu somon 185g | brand: petkult | line: somon | weight_g: 185 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: salmon",
+   "text_b": "title: PETKULT Somon, plic hrană umedă fără cereale pisici, 100g | brand: petkult | line: Somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: salmon"
+  },
+  {
+   "pair_id": "617618c67b89_f451658b69fe",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mare Peste 12 kg | brand: petkult | line: Sensitive Adult Talie Mare Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mare Peste 3kg | brand: petkult | line: Sensitive Adult Talie Mare Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "61dca7be02ee_d342a4cc5dbe",
+   "text_a": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 3 kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 1kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "61dca7be02ee_fd501d04e6f2",
+   "text_a": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 3 kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 3kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "61de676f91af_8a720ce00243",
+   "text_a": "title: Hill's SP Feline Adult Sterilised Salmon 3 kg | brand: hill's | line: SP Feline Adult Sterilised Salmon | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: salmon",
+   "text_b": "title: Hill's SP Feline Kitten Pui, 3 Kg | brand: hill's | line: SP Feline Kitten Pui | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: chicken"
+  },
+  {
+   "pair_id": "61de676f91af_e695c2666030",
+   "text_a": "title: Hill's SP Feline Adult Sterilised Salmon 3 kg | brand: hill's | line: SP Feline Adult Sterilised Salmon | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: salmon",
+   "text_b": "title: Hill's SP Feline Adult Sterilised Salmon 1.5 kg | brand: hill's | line: SP Feline Adult Sterilised Salmon | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: salmon"
+  },
+  {
+   "pair_id": "650c49fab3b1_c47f64422b5e",
+   "text_a": "title: Perfect Snack, recompense delicioase pentru caini, Sandwich de pui– 80 g | brand: perfect snack | line: Sandwich de pui | weight_g: 80 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: chicken",
+   "text_b": "title: PERFECT SNACK Fâșii Moi, XS-XL, Rață, punguță recompense câini, 80g | brand: perfect snack | line: Fâșii Moi, XS-XL, Rață | weight_g: 80 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: duck"
+  },
+  {
+   "pair_id": "65e9aff77e81_a73e323f9787",
+   "text_a": "title: Royal Canin Mini Puppy 800 g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana umeda pentru caini Royal Canin Mini Puppy 85g | brand: royal canin | line: Mini Puppy | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "65e9aff77e81_bcdb2ca98b17",
+   "text_a": "title: Royal Canin Mini Puppy 800 g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Mini Puppy 800g | brand: royal canin | line: Mini Puppy | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "6776ceceb41a_ccd11a228a5d",
+   "text_a": "title: Royal Canin French Bulldog Puppy, 3 kg | brand: royal canin | line: French Bulldog Puppy | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN French Bulldog Puppy, hrană uscată câini junior, 3kg | brand: royal canin | line: French Bulldog Puppy | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "687e29e4280d_a746795258cd",
+   "text_a": "title: Dog Chow Senior cu Pui 14 kg | brand: purina | line: Senior cu Pui | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: senior | food_form: <missing> | flavour: chicken",
+   "text_b": "title: DOG CHOW Hrana uscata pt caini Adult ACTIVE, cu Pui si Orez, 14 Kg | brand: purina | line: Hrana uscata pt caini Adult ACTIVE, cu Pui si Orez | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "6940e55da9b7_aac55e6c4ff7",
+   "text_a": "title: Hrana uscata pentru caini Brit Premium Junior S 1kg | brand: brit | line: Premium Junior S | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: S | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: BRIT Care Hypoallergenic Junior Large Breed, L-XL, Miel, hrană uscată monoproteică câini junior, sistem imunitar & alergii, 1kg | brand: brit | line: Care Hypoallergenic Junior Large Breed, L-XL, Miel, sistem imunitar & alergii | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: L-XL | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "697cc96830a6_8a863350ba8b",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Yorkshire Puppy 500 g | brand: royal canin | line: Yorkshire Puppy | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 500g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "697cc96830a6_b4ed4378826f",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Yorkshire Puppy 500 g | brand: royal canin | line: Yorkshire Puppy | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Yorkshire Puppy, hrană uscată câini junior, 500g | brand: royal canin | line: Yorkshire Puppy | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "6a815f68ac81_856c4aaa1aaf",
+   "text_a": "title: ROYAL CANIN Golden Retriever Puppy, hrană uscată câini junior, 3kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Shih Tzu Adult hrana uscata caine, 3 kg | brand: royal canin | line: Shih Tzu Adult hrana uscata caine | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "6a815f68ac81_a777ff4041ae",
+   "text_a": "title: ROYAL CANIN Golden Retriever Puppy, hrană uscată câini junior, 3kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Golden Retriever Puppy 3 Kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "6a815f68ac81_c309854e7403",
+   "text_a": "title: ROYAL CANIN Golden Retriever Puppy, hrană uscată câini junior, 3kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Golden Retriever Puppy 1 Kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "6b2f34b37bdc_7ee41572ef18",
+   "text_a": "title: Royal Canin Mini Puppy 8 kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 8kg | brand: royal canin | line: Mini Puppy | weight_g: 8000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "6e17d458cc36_7dfe0693709e",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 2kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN British Shorthair Kitten, hrană uscată pisici junior, 2kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "70ec8132ff2b_79e1835fe2b5",
+   "text_a": "title: Royal Canin Labrador Retriever Puppy 12 Kg | brand: royal canin | line: Labrador Retriever Puppy | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Golden Retriever Adult 12 kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "70ec8132ff2b_b00b309bd8c4",
+   "text_a": "title: Royal Canin Labrador Retriever Puppy 12 Kg | brand: royal canin | line: Labrador Retriever Puppy | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Adult, hrană uscată câini, 12kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "7151ce30247c_b7963fadcc64",
+   "text_a": "title: Royal Canin Persian Adult hrana uscata pisica, 400 g | brand: royal canin | line: Persian Adult | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 400g | brand: royal canin | line: Persian Adult | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "7151ce30247c_bae7a3ec2db1",
+   "text_a": "title: Royal Canin Persian Adult hrana uscata pisica, 400 g | brand: royal canin | line: Persian Adult | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Persian 400g | brand: royal canin | line: Persian | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "7151ce30247c_d8e6ed17437c",
+   "text_a": "title: Royal Canin Persian Adult hrana uscata pisica, 400 g | brand: royal canin | line: Persian Adult | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 10kg | brand: royal canin | line: Persian Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "724b0a6ded05_a1b19c7ae455",
+   "text_a": "title: Hrana uscata pentru catei Petkult Sensitive Starter & Puppy Miel si Orez 12kg | brand: petkult | line: Sensitive Starter & Puppy Miel si Orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: lamb",
+   "text_b": "title: PETKULT Sensitive Care Adult Large Breed, L-XL, Miel și orez brun, hrană uscată câini, alergii, 12kg | brand: petkult | line: Sensitive Care Adult Large Breed, L-XL, Miel și orez brun, alergii | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: L-XL | life_stage: adult | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "72b31032505e_8a63ed923ac9",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 12 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 12kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "72b31032505e_947c7308aba7",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 12 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 12kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "768f97537860_55e8e0a4a0e5",
+   "text_a": "title: MONGE Grill Sterilised, Vițel, plic hrană umedă fără cereale pisici sterilizate, obezitate, apetit capricios, (în aspic), 85g | brand: monge | line: Grill Sterilised, Vițel, obezitate, apetit capricios, (în aspic) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: <missing>",
+   "text_b": "title: Monge Grill Chunkies Sterilised Cat - Hrana umeda pisici super-premium - Vitel - 85g | brand: monge | line: Grill Chunkies Sterilised Cat - super-premium - Vitel | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "77de3ab88bf1_bbe7b649cf73",
+   "text_a": "title: Nutraline Classic Pisica Pui, 100 g | brand: nutraline | line: Classic Pisica Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Nutraline Classic Junior 100gr | brand: nutraline | line: Classic Junior | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "794cdac35490_f451658b69fe",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mare Peste 3 kg | brand: petkult | line: Sensitive Adult Talie Mare Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mare Peste 3kg | brand: petkult | line: Sensitive Adult Talie Mare Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "79e1835fe2b5_b00b309bd8c4",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Golden Retriever Adult 12 kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Adult, hrană uscată câini, 12kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "79e1835fe2b5_b277fbd57ceb",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Golden Retriever Adult 12 kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Golden Retriever Adult 12 Kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "79e1835fe2b5_f1f58ea34bc9",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Golden Retriever Adult 12 kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Adult, hrană uscată câini, 3kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "7dfe0693709e_d7e51a8b7ba2",
+   "text_a": "title: ROYAL CANIN British Shorthair Kitten, hrană uscată pisici junior, 2kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin British Shorthair Kitten, 400 g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "7dfe0693709e_dc2765730536",
+   "text_a": "title: ROYAL CANIN British Shorthair Kitten, hrană uscată pisici junior, 2kg | brand: royal canin | line: British Shorthair Kitten | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "7e2fba88fb24_d29c06a82155",
+   "text_a": "title: Hrana uscata pentru pisici Devora Cat GF Curcan si rata 2kg | brand: devora | line: Cat GF Curcan si rata | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: turkey+duck",
+   "text_b": "title: DEVORA Sterilised, Pui și Curcan, hrană uscată fără cereale pisici sterilizate, 2kg | brand: devora | line: Sterilised, Pui și Curcan | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken+turkey"
+  },
+  {
+   "pair_id": "80bb9135e4f2_697cc96830a6",
+   "text_a": "title: Royal Canin Yorkshire Puppy hrana uscata caine junior, 500 g | brand: royal canin | line: Yorkshire Puppy hrana uscata caine junior | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Yorkshire Puppy 500 g | brand: royal canin | line: Yorkshire Puppy | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "80bb9135e4f2_acf8ff85a6ce",
+   "text_a": "title: Royal Canin Yorkshire Puppy hrana uscata caine junior, 500 g | brand: royal canin | line: Yorkshire Puppy hrana uscata caine junior | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Bichon Frise Adult 500 g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "80bb9135e4f2_b4ed4378826f",
+   "text_a": "title: Royal Canin Yorkshire Puppy hrana uscata caine junior, 500 g | brand: royal canin | line: Yorkshire Puppy hrana uscata caine junior | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Yorkshire Puppy, hrană uscată câini junior, 500g | brand: royal canin | line: Yorkshire Puppy | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "81cbd42e637d_d43346bd2ad0",
+   "text_a": "title: Royal Canin Shih Tzu Adult hrana umeda caine (pate), 85 g | brand: royal canin | line: Shih Tzu Adult hrana umeda caine (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: wet | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Kitten, hrană umedă pisici junior, (în sos), 85g | brand: royal canin | line: Kitten, (în sos) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: wet | flavour: <missing>"
+  },
+  {
+   "pair_id": "82c9c4aea9e7_4a8e164f43f2",
+   "text_a": "title: MONGE Grill, Iepure, plic hrană umedă fără cereale pisici, (în aspic), 85g | brand: monge | line: Grill, Iepure, (în aspic) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: rabbit",
+   "text_b": "title: Monge Grill Chunkies Cat - Hrana umeda pisici super-premium - Iepure - 85g | brand: monge | line: Grill Chunkies Cat - super-premium - Iepure | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: rabbit"
+  },
+  {
+   "pair_id": "82c9c4aea9e7_9a66cd082c57",
+   "text_a": "title: MONGE Grill, Iepure, plic hrană umedă fără cereale pisici, (în aspic), 85g | brand: monge | line: Grill, Iepure, (în aspic) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: rabbit",
+   "text_b": "title: Monge Grill Chunkies Senior Cat - Hrana umeda pisici super-premium - Macrou - 85g | brand: monge | line: Grill Chunkies Senior Cat - super-premium - Macrou | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: senior | food_form: wet | flavour: mackerel"
+  },
+  {
+   "pair_id": "849c8c66908e_97a5d666acd4",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Peste 3 kg | brand: petkult | line: Sensitive Adult Talie Medie Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Peste 3kg | brand: petkult | line: Sensitive Adult Talie Medie Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "849c8c66908e_aa62fb0b3653",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Peste 3 kg | brand: petkult | line: Sensitive Adult Talie Medie Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Peste 12kg | brand: petkult | line: Sensitive Adult Talie Medie Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "86b15ef26d9b_f1f39f06d1e7",
+   "text_a": "title: PURINA Pro Plan Delicate Digestion, Pui, conservă hrană umedă pisici, sistem digestiv, (pate), 85g | brand: purina | line: Pro Plan Delicate Digestion, Pui, sistem digestiv, (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: chicken",
+   "text_b": "title: GOURMET GOLD DOUBLE PLEASURE CU VITĂ ȘI PUI ÎN SOS, 85g | brand: purina | line: GOURMET GOLD DOUBLE PLEASURE CU VITĂ ȘI PUI ÎN SOS | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef+chicken"
+  },
+  {
+   "pair_id": "87f9beff8287_f57d49bb1013",
+   "text_a": "title: Hrana Uscata Pisici junior, Bravery Kitten, Pui, 2 kg | brand: bravery | line: Kitten, Pui | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: chicken",
+   "text_b": "title: APPLAWS Kitten, Pui, hrană uscată fără cereale pisici junior, 2kg | brand: applaws | line: Kitten, Pui | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "8a63ed923ac9_9cad53a38e85",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 12kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 1 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "8a863350ba8b_acf8ff85a6ce",
+   "text_a": "title: ROYAL CANIN Bichon Frise Adult, hrană uscată câini, 500g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Bichon Frise Adult 500 g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "8c80b96b7fac_9b85d923618f",
+   "text_a": "title: Hrana uscata pentru pisici Remi Premium Sterilized Somon 400g | brand: remi | line: Premium Sterilized Somon | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: REMI PREMIUM, Vită, conservă hrană umedă pisici, (mousse), 400g | brand: remi | line: PREMIUM, Vită, (mousse) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: beef"
+  },
+  {
+   "pair_id": "8c80b96b7fac_b15b553754f1",
+   "text_a": "title: Hrana uscata pentru pisici Remi Premium Sterilized Somon 400g | brand: remi | line: Premium Sterilized Somon | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: REMI PREMIUM Sterilized, Pui, hrană uscată pisici sterilizate, 400g | brand: remi | line: PREMIUM Sterilized, Pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "8eec308f7a7b_dc2add6543f4",
+   "text_a": "title: HILL'S Science Plan Sterilised, Somon, hrană uscată pisici sterilizate, 1.5kg | brand: hill's | line: Science Plan Sterilised, Somon | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: HILL'S Science Plan Sterilised, Somon, hrană uscată pisici sterilizate, 300g | brand: hill's | line: Science Plan Sterilised, Somon | weight_g: 300 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "8faf2a4c707f_4b87cb304758",
+   "text_a": "title: Hrana uscata pentru pisici Remi Premium Sterilized Pui 400g | brand: remi | line: Premium Sterilized Pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken",
+   "text_b": "title: REMI PREMIUM, Pui, conservă hrană umedă pisici, (mousse), 400g | brand: remi | line: PREMIUM, Pui, (mousse) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: chicken"
+  },
+  {
+   "pair_id": "8faf2a4c707f_b15b553754f1",
+   "text_a": "title: Hrana uscata pentru pisici Remi Premium Sterilized Pui 400g | brand: remi | line: Premium Sterilized Pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken",
+   "text_b": "title: REMI PREMIUM Sterilized, Pui, hrană uscată pisici sterilizate, 400g | brand: remi | line: PREMIUM Sterilized, Pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "938ee3410c9c_da3e5da57152",
+   "text_a": "title: EXTRU-CAN Standard Hipocaloric, XS-XL, Pui, hrană uscată câini, obezitate, 10kg | brand: extru-can | line: Standard Hipocaloric, XS-XL, Pui, obezitate | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana Uscata Extru-Can Adult, 10 kg | brand: extru-can | line: Hrana Uscata Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "96cdfb810f82_fc998263fa41",
+   "text_a": "title: Hrana umeda pentru caini Petkult Junior cu vita 400g | brand: petkult | line: Junior cu vita | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: wet | flavour: beef",
+   "text_b": "title: Hrana umeda Petkult Junior cu Vita 400 g | brand: petkult | line: Hrana umeda Junior cu Vita | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "986bff00505f_f00288840814",
+   "text_a": "title: ACANA Heritage Adult Small Breed, hrană uscată fără cereale câini, 6kg | brand: acana | line: Heritage Adult Small Breed | weight_g: 6000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Acana Heritage Adult Small Breed, 2 kg | brand: acana | line: Heritage Adult Small Breed | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "98e1e4ade522_e489c2dabc23",
+   "text_a": "title: PIPER Animals, XS-XL, Miel și Morcov, conservă hrană umedă fără cereale câini, (în aspic), 400g | brand: piper | line: Animals, XS-XL, Miel și Morcov, (în aspic) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: lamb",
+   "text_b": "title: PIPER Animals, XS-XL, Miel și Morcov, conservă hrană umedă fără cereale câini, (în aspic), 800g | brand: piper | line: Animals, XS-XL, Miel și Morcov, (în aspic) | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: lamb"
+  },
+  {
+   "pair_id": "993ee7484d4e_9d932a3d47a5",
+   "text_a": "title: Hrana umeda pentru pisici Felix Fantastic Vita 85g | brand: felix fantastic | line: Vita | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef",
+   "text_b": "title: Hrana umeda pentru pisici adulte KITTIX, vita, 85G | brand: kittix | line: vita | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "9a0119a2b53d_c8456dc455ea",
+   "text_a": "title: Hrana uscata pentru pisici Royal Canin Mother and Babycat 400g | brand: royal canin | line: Mother and Babycat | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Mother and Babycat 4 kg | brand: royal canin | line: Mother and Babycat | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "9a450c8fd848_bb42dbb736d2",
+   "text_a": "title: BRIT Jerky Rabbit Meaty Coins, recompense câini, Rondele carne Iepure, 80g | brand: brit | line: Jerky Rabbit Meaty Coins, Rondele carne Iepure | weight_g: 80 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: rabbit",
+   "text_b": "title: Brit Fish Dreams cu Ton in suc propiu, 80 g | brand: brit | line: Fish Dreams cu Ton in suc propiu | weight_g: 80 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: fish+tuna"
+  },
+  {
+   "pair_id": "9a79c2d699f8_8473189f6091",
+   "text_a": "title: Hill's SP Canine Puppy Medium Lamb&Rice, Value Pack, 18 Kg | brand: hill's | line: SP Canine Puppy Medium Lamb&Rice, Value Pack | weight_g: 18000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: <missing> | flavour: lamb",
+   "text_b": "title: Hill's SP Canine Puppy Medium Chicken 18 kg Value Pack | brand: hill's | line: SP Canine Puppy Medium Chicken Value Pack | weight_g: 18000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: <missing> | flavour: chicken"
+  },
+  {
+   "pair_id": "9ab0f0162689_bf00f54f7de7",
+   "text_a": "title: Petkult Sensitive cu vita si orez brun, hrana umeda pentru caini, 800 g | brand: petkult | line: Sensitive cu vita si orez brun | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef",
+   "text_b": "title: Hrana umeda pentru caini Petkult Sensitive cu vita si orez brun 800g | brand: petkult | line: Sensitive cu vita si orez brun | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "9b85d923618f_b89523f6edb7",
+   "text_a": "title: REMI PREMIUM, Vită, conservă hrană umedă pisici, (mousse), 400g | brand: remi | line: PREMIUM, Vită, (mousse) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: beef",
+   "text_b": "title: Hrana umeda pentru pisici Remi Premium Mousse Vita 400g | brand: remi | line: Premium Mousse Vita | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: beef"
+  },
+  {
+   "pair_id": "9e0b554a5d40_b804fde74c13",
+   "text_a": "title: FRESH FARM Mousse, Pește, conservă hrană umedă fără cereale pisici, (pate), 85g | brand: fresh farm | line: Mousse, Pește, (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: fish",
+   "text_b": "title: Hrana umeda pisici, Fresh Farm Mousse pate with white fish 85 gr | brand: fresh farm | line: Mousse pate with white fish | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: fish"
+  },
+  {
+   "pair_id": "9e0b554a5d40_e1428ab7d54b",
+   "text_a": "title: FRESH FARM Mousse, Pește, conservă hrană umedă fără cereale pisici, (pate), 85g | brand: fresh farm | line: Mousse, Pește, (pate) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: fish",
+   "text_b": "title: Hrana umeda pisici, Fresh Farm Mousse pate with chicken 85 gr | brand: fresh farm | line: Mousse pate with chicken | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "a36fec17b546_ff26d2f8936e",
+   "text_a": "title: Hrana umeda pentru pisici Petkult cu somon 100g | brand: petkult | line: somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: salmon",
+   "text_b": "title: Hrana umeda pisici, Miau Miau, Somon, 100g | brand: miau miau | line: Somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: salmon"
+  },
+  {
+   "pair_id": "a476eecd2a6b_c61cb52acc34",
+   "text_a": "title: Royal Canin Golden Retriever Puppy 12 Kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Puppy, hrană uscată câini junior, 12kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "a479d20bd164_d421baa2c85c",
+   "text_a": "title: ROYAL CANIN Mini Puppy, hrană uscată câini junior, 4kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "a73e323f9787_d421baa2c85c",
+   "text_a": "title: Hrana umeda pentru caini Royal Canin Mini Puppy 85g | brand: royal canin | line: Mini Puppy | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: wet | flavour: <missing>",
+   "text_b": "title: Royal Canin Mini Puppy 4 kg | brand: royal canin | line: Mini Puppy | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "ad4dbcc1a913_9a8b2207ee41",
+   "text_a": "title: Hrana umeda pentru caini Hill's Science Plan Puppy Pui 370g | brand: hill's | line: Science Plan Puppy Pui | weight_g: 370 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: wet | flavour: chicken",
+   "text_b": "title: Hill's SP Canine Puppy Chicken 370 g | brand: hill's | line: SP Canine Puppy Chicken | weight_g: 370 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: chicken"
+  },
+  {
+   "pair_id": "af9c46b9524a_bcfe44adfdf1",
+   "text_a": "title: Brit Care Dog Mini Salmon and Herring Sterilised Fillets in Gravy 85 g | brand: brit | line: Care Dog Mini Salmon and Herring Sterilised Fillets in Gravy | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: <missing> | flavour: salmon",
+   "text_b": "title: Hrana umeda pentru pisici Brit Care Fileuri de curcan si somon in sos 85g | brand: brit | line: Care Fileuri de curcan si somon in sos | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: turkey+salmon"
+  },
+  {
+   "pair_id": "b00b309bd8c4_b277fbd57ceb",
+   "text_a": "title: ROYAL CANIN Golden Retriever Adult, hrană uscată câini, 12kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Golden Retriever Adult 12 Kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "b018d42abb15_28acf769dd96",
+   "text_a": "title: Acana Puppy Small Breed Heritage 2 Kg | brand: acana | line: Puppy Small Breed Heritage | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Acana Dog Adult Small Breed 2 kg | brand: acana | line: Dog Adult Small Breed | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "b018d42abb15_b68e841d6273",
+   "text_a": "title: Acana Puppy Small Breed Heritage 2 Kg | brand: acana | line: Puppy Small Breed Heritage | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Acana Puppy Small Breed 2 kg | brand: acana | line: Puppy Small Breed | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "b018d42abb15_d65d8a447463",
+   "text_a": "title: Acana Puppy Small Breed Heritage 2 Kg | brand: acana | line: Puppy Small Breed Heritage | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ACANA Heritage Puppy Small Breed, hrană uscată fără cereale câini junior, 2kg | brand: acana | line: Heritage Puppy Small Breed | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "b018d42abb15_fd5fbfb64fd6",
+   "text_a": "title: Acana Puppy Small Breed Heritage 2 Kg | brand: acana | line: Puppy Small Breed Heritage | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Acana Dog Junior Medium 2kg | brand: acana | line: Dog Junior Medium | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: junior | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "b277fbd57ceb_f1f58ea34bc9",
+   "text_a": "title: Royal Canin Golden Retriever Adult 12 Kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Adult, hrană uscată câini, 3kg | brand: royal canin | line: Golden Retriever Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "b525800f07cc_7da46dd4087c",
+   "text_a": "title: NATURES PROTECTION Superior Care White Dogs Small&Mini, Pește Alb, hrană uscată fără cereale câini, reducerea petelor maronii la câinii albi, 1.5kg | brand: natures protection | line: Superior Care White Dogs Small&Mini, Pește Alb, reducerea petelor maronii la câinii albi | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: fish",
+   "text_b": "title: NATURES PROTECTION Superior Care White Dogs Small&Mini Grain Free, Peste Alb, ajuta la eliminarea lacrimarii excesive si reducerea petelor maronii de la ochi, 1.5kg | brand: natures protection | line: Superior Care White Dogs Small&Mini Grain Free, Peste Alb, ajuta la eliminarea lacrimarii excesive si reducerea petelor maronii de la ochi | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: <missing> | flavour: fish"
+  },
+  {
+   "pair_id": "b7963fadcc64_bae7a3ec2db1",
+   "text_a": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 400g | brand: royal canin | line: Persian Adult | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Persian 400g | brand: royal canin | line: Persian | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "bd73470574eb_d41015ad7eb0",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin X-Small Adult 1.5 kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin X-Small Adult, hrană uscată câini, 500 g | brand: royal canin | line: X-Small Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "bd73470574eb_f4d9c946486f",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin X-Small Adult 1.5 kg | brand: royal canin | line: X-Small Adult | weight_g: 1500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin X-Small Adult, hrana uscata caini, 3kg | brand: royal canin | line: X-Small Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "bdd58b334b2c_f52bd9a80e5d",
+   "text_a": "title: PETKULT Pui, plic hrană umedă fără cereale pisici, 100g | brand: petkult | line: Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: chicken",
+   "text_b": "title: Hrana umeda pentru pisici Miamor Pui 100g | brand: miamor | line: Pui | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "bedf3e4ede5a_cbbf5af9323c",
+   "text_a": "title: Recompense pentru caini Mr. Bandit SPORT MINI, menta, 150g | brand: mr bandit | line: Mr. Bandit SPORT MINI, menta | weight_g: 150 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: MR BANDIT Sport Mini Training Mix, XS-S, Carne, punguță recompense câini, 150g | brand: mr bandit | line: Sport Mini Training Mix, XS-S, Carne | weight_g: 150 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XS-S | life_stage: <missing> | food_form: pouch | flavour: <missing>"
+  },
+  {
+   "pair_id": "c309854e7403_c61cb52acc34",
+   "text_a": "title: Royal Canin Golden Retriever Puppy 1 Kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 1000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN Golden Retriever Puppy, hrană uscată câini junior, 12kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "c55327a4a4cb_ecc599237076",
+   "text_a": "title: MONGE Grill Sterilised, Păstrăv, plic hrană umedă fără cereale pisici sterilizate, obezitate, apetit capricios, (în aspic), bax, 85g x 28buc | brand: monge | line: Grill Sterilised, Păstrăv, obezitate, apetit capricios, (în aspic) | weight_g: 85 | volume_ml: <missing> | pack: 28 | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: <missing>",
+   "text_b": "title: MONGE Grill Sterilised, Păstrăv, plic hrană umedă fără cereale pisici sterilizate, obezitate, apetit capricios, (în aspic), 85g | brand: monge | line: Grill Sterilised, Păstrăv, obezitate, apetit capricios, (în aspic) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: <missing>"
+  },
+  {
+   "pair_id": "c68cb489e95f_e6d623aa0e58",
+   "text_a": "title: Hrana uscata pentru caini Royal Canin Bichon Maltese Adult 500g | brand: royal canin | line: Bichon Maltese Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Bichon Maltese Adult, 500 g | brand: royal canin | line: Bichon Maltese Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "c6ec8fd7fec9_ff26d2f8936e",
+   "text_a": "title: MIAU MIAU, Somon, hrană uscată pisici, 800g | brand: miau miau | line: Somon | weight_g: 800 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: Hrana umeda pisici, Miau Miau, Somon, 100g | brand: miau miau | line: Somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: salmon"
+  },
+  {
+   "pair_id": "caa5a29d77e0_ddb884a54b14",
+   "text_a": "title: Hrana uscata pentru pisici Petkult Cat Probiotics Kitten&Mother Fresh Miel 2kg | brand: petkult | line: Cat Probiotics Kitten&Mother Fresh Miel | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: lamb",
+   "text_b": "title: PETKULT Probiotic Care Kitten & Mother, Miel, hrană uscată pisici junior, sistem digestiv, 2kg | brand: petkult | line: Probiotic Care Kitten & Mother, Miel, sistem digestiv | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "cab4155eab2d_bbc5641f277a",
+   "text_a": "title: Hrana umeda pentru caini Brit Pate & Meat Pui 400g | brand: brit | line: Pate & Meat Pui | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken",
+   "text_b": "title: Brit Pate and Meat Chicken 400 g | brand: brit | line: Pate and Meat Chicken | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken"
+  },
+  {
+   "pair_id": "cc7f2bf2a4eb_e87a6f89855f",
+   "text_a": "title: REMI PREMIUM Junior Medium&Large, M-XL, Pui și Curcan, hrană uscată câini junior, 12.5kg | brand: remi | line: PREMIUM Junior Medium&Large, M-XL, Pui și Curcan | weight_g: 12500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: M-XL | life_stage: junior | food_form: dry | flavour: chicken+turkey",
+   "text_b": "title: Hrana uscata pentru caini Remi Premium Dog Junior Medium&Large Pui si Curcan 12.5kg | brand: remi | line: Premium Dog Junior Medium&Large Pui si Curcan | weight_g: 12500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: junior | food_form: dry | flavour: chicken+turkey"
+  },
+  {
+   "pair_id": "cd575374833a_cfcc39876672",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Miel si orez 3kg | brand: petkult | line: Sensitive Adult Talie Medie Miel si orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: lamb",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Junior Talie Medie Miel si orez 3 kg | brand: petkult | line: Sensitive Junior Talie Medie Miel si orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "d01092db7431_f09b11683581",
+   "text_a": "title: BRIT Care Mini Yorkshire, Somon, hrană uscată fără cereale câini, 2kg | brand: brit | line: Care Mini Yorkshire, Somon | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: salmon",
+   "text_b": "title: BRIT Care Mini Yorkshire, Somon, hrană uscată fără cereale câini, 400g | brand: brit | line: Care Mini Yorkshire, Somon | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: salmon"
+  },
+  {
+   "pair_id": "d2215849da87_140bb948d9df",
+   "text_a": "title: Royal Canin Persian Kitten hrana uscata pisica junior, 400 g | brand: royal canin | line: Persian Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: ROYAL CANIN British Shorthair Kitten, hrană uscată pisici junior, 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "d2215849da87_dde289e42199",
+   "text_a": "title: Royal Canin Persian Kitten hrana uscata pisica junior, 400 g | brand: royal canin | line: Persian Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin Kitten Persian 400g | brand: royal canin | line: Kitten Persian | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "d5fcb235eb23_97a5d666acd4",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 3 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Peste 3kg | brand: petkult | line: Sensitive Adult Talie Medie Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish"
+  },
+  {
+   "pair_id": "d5fcb235eb23_cd575374833a",
+   "text_a": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Mica Peste 3 kg | brand: petkult | line: Sensitive Adult Talie Mica Peste | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: fish",
+   "text_b": "title: Hrana uscata pentru caini Petkult Sensitive Adult Talie Medie Miel si orez 3kg | brand: petkult | line: Sensitive Adult Talie Medie Miel si orez | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "d65d8a447463_fd5fbfb64fd6",
+   "text_a": "title: ACANA Heritage Puppy Small Breed, hrană uscată fără cereale câini junior, 2kg | brand: acana | line: Heritage Puppy Small Breed | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Acana Dog Junior Medium 2kg | brand: acana | line: Dog Junior Medium | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: junior | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "d6762681f478_b360bd415ab6",
+   "text_a": "title: Hrana Umeda pisica, Sam's field cat plic with duck filets / jerusalem artichoke 85gr | brand: sam's field | line: cat plic with duck filets / jerusalem artichoke | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: duck",
+   "text_b": "title: SAM'S FIELD True Meat Fillets Kitten, Curcan și Broccoli, plic hrană umedă fără cereale pisici junior, (în sos), 85g | brand: sam's field | line: True Meat Fillets Kitten, Curcan și Broccoli, (în sos) | weight_g: 85 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: pouch | flavour: turkey"
+  },
+  {
+   "pair_id": "d6785efbc5df_e5592bd4d1e7",
+   "text_a": "title: Hrana umeda pentru pisici Schesir Pui&Sunca Jelly 70g | brand: schesir | line: Pui&Sunca Jelly | weight_g: 70 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: chicken+ham",
+   "text_b": "title: SCHESIR Complementary In Jelly, Pui și Biban, plic hrană umedă pisici, (în aspic), 70g | brand: schesir | line: Complementary In Jelly, Pui și Biban, (în aspic) | weight_g: 70 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: chicken"
+  },
+  {
+   "pair_id": "d6c3250eceec_f3bd21dcedcb",
+   "text_a": "title: Hrana uscata pentru caini Advance Dog Medium Puppy Protect 3kg | brand: advance | line: Dog Medium Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Advance Dog Medium Puppy Protect - 3 kg | brand: advance | line: Dog Medium Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "d6c3250eceec_fc0a8a0fe302",
+   "text_a": "title: Hrana uscata pentru caini Advance Dog Medium Puppy Protect 3kg | brand: advance | line: Dog Medium Puppy Protect | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Advance Dog Medium Puppy Protect, 12 kg | brand: advance | line: Dog Medium Puppy Protect | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "d6cd5233ad9a_f50a0d14b3ca",
+   "text_a": "title: Hrana Uscata Pisici, Bravery , Adult Pui, 2 kg | brand: bravery | line: Adult Pui | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru pisici Applaws Adult Pui 2 kg | brand: applaws | line: Adult Pui | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "d7e51a8b7ba2_dc2765730536",
+   "text_a": "title: Royal Canin British Shorthair Kitten, 400 g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru pisici Royal Canin British Shorthair Kitten 400g | brand: royal canin | line: British Shorthair Kitten | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "d8e6ed17437c_e78f8525c049",
+   "text_a": "title: ROYAL CANIN Persian Adult, hrană uscată pisici, 10kg | brand: royal canin | line: Persian Adult | weight_g: 10000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Persian Adult hrana uscata pisica, 2 kg | brand: royal canin | line: Persian Adult | weight_g: 2000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "da2907bb100e_fced2443703b",
+   "text_a": "title: REMI PREMIUM, Pește, conservă hrană umedă pisici, (mousse), 400g | brand: remi | line: PREMIUM, Pește, (mousse) | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: tin | flavour: fish",
+   "text_b": "title: Hrana umeda pentru caini Remi Premium Mousse Peste 400g | brand: remi | line: Premium Mousse Peste | weight_g: 400 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: fish"
+  },
+  {
+   "pair_id": "e1edbfd3d7da_fb3367b0ef58",
+   "text_a": "title: Hrana Umeda Wellness Core Signature Select cu Ton si Somon, in Supa, 79 g | brand: wellness core | line: Hrana Umeda Signature Select cu Ton si Somon, in Supa | weight_g: 79 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: tuna+salmon",
+   "text_b": "title: Hrana umeda pentru pisici Wellness Core Signature Select cu ton si somon in supa 79g | brand: wellness core | line: Signature Select cu ton si somon in supa | weight_g: 79 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: tuna+salmon"
+  },
+  {
+   "pair_id": "e6d623aa0e58_acf8ff85a6ce",
+   "text_a": "title: Royal Canin Bichon Maltese Adult, 500 g | brand: royal canin | line: Bichon Maltese Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: <missing> | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Bichon Frise Adult 500 g | brand: royal canin | line: Bichon Frise Adult | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "ea4980f0e293_f64c6c82fd0a",
+   "text_a": "title: Hill's SP Canine Senior Vitality Large Breed Chicken 14 kg | brand: hill's | line: SP Canine Senior Vitality Large Breed Chicken | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: senior | food_form: <missing> | flavour: chicken",
+   "text_b": "title: Hrana uscata pentru caini Hill's Science Plan Adult Large Breed cu pui 14kg | brand: hill's | line: Science Plan Adult Large Breed cu pui | weight_g: 14000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: adult | food_form: dry | flavour: chicken"
+  },
+  {
+   "pair_id": "eb7dab4ddee7_a476eecd2a6b",
+   "text_a": "title: ROYAL CANIN Rottweiller Puppy, hrană uscată câini junior, 12kg | brand: royal canin | line: Rottweiller Puppy | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Golden Retriever Puppy 12 Kg | brand: royal canin | line: Golden Retriever Puppy | weight_g: 12000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: puppy | food_form: <missing> | flavour: <missing>"
+  },
+  {
+   "pair_id": "ecc2bc5ca5cf_fa9671cb4e54",
+   "text_a": "title: ROYAL CANIN Mini Coat Care Adult, hrană uscată câini, 3kg | brand: royal canin | line: Mini Coat Care Adult | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: adult | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Medium Digestive Care hrana uscata caine, 3 kg | brand: royal canin | line: Medium Digestive Care hrana uscata caine | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "eccfb2f4adbb_fa9671cb4e54",
+   "text_a": "title: ROYAL CANIN Mini Digestive Care, hrană uscată câini, confort digestiv, 3kg | brand: royal canin | line: Mini Digestive Care, confort digestiv | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Mini | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Royal Canin Medium Digestive Care hrana uscata caine, 3 kg | brand: royal canin | line: Medium Digestive Care hrana uscata caine | weight_g: 3000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "f0fdd271103f_f4cfa20a83d1",
+   "text_a": "title: Hrana uscata caini, Calibra Dog Life Junior Large Fresh Beef 2,5 kg | brand: calibra | line: Dog Life Junior Large Fresh Beef | weight_g: 2500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: junior | food_form: dry | flavour: beef",
+   "text_b": "title: CALIBRA Life Junior Small & Medium Breed, XS-M, Miel, hrană uscată câini junior, 2.5kg | brand: calibra | line: Life Junior Small & Medium Breed, XS-M, Miel | weight_g: 2500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: XS-M | life_stage: junior | food_form: dry | flavour: lamb"
+  },
+  {
+   "pair_id": "f2ecca53770b_ff26d2f8936e",
+   "text_a": "title: PETKULT Somon, plic hrană umedă fără cereale pisici, 100g | brand: petkult | line: Somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: pouch | flavour: salmon",
+   "text_b": "title: Hrana umeda pisici, Miau Miau, Somon, 100g | brand: miau miau | line: Somon | weight_g: 100 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: wet | flavour: salmon"
+  },
+  {
+   "pair_id": "f7073b1708fc_fed65fee5316",
+   "text_a": "title: ROYAL CANIN Medium Starter Mother & Babydog, mama și puiul, hrană uscată câini, 4kg | brand: royal canin | line: Medium Starter Mother & Babydog, mama și puiul | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Medium | life_stage: <missing> | food_form: dry | flavour: <missing>",
+   "text_b": "title: Hrana uscata pentru caini Royal Canin Maxi Starter Mother and Babydog 4 kg | brand: royal canin | line: Maxi Starter Mother and Babydog | weight_g: 4000 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: Maxi | life_stage: <missing> | food_form: dry | flavour: <missing>"
+  },
+  {
+   "pair_id": "fb8333d8a5f8_c9c0cff27594",
+   "text_a": "title: Recompense delicioase pentru caini Agility, Plamani de miel, 500g | brand: agility | line: Plamani de miel | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: lamb",
+   "text_b": "title: AGILITY Chipsuri, XS-XL, Miel, găletușa recompense câini, 500g | brand: agility | line: Chipsuri, XS-XL, Miel | weight_g: 500 | volume_ml: <missing> | pack: <missing> | bonus_g: <missing> | breed_size: <missing> | life_stage: <missing> | food_form: <missing> | flavour: lamb"
+  }
+ ]
+}
