@@ -1,0 +1,25 @@
+{
+ "built_from": "scripts/measure_score_distribution.py",
+ "generated_at": "2026-09-23T13:38:09.667641+00:00",
+ "model_id": "mmarco-mMiniLMv2-zeroshot",
+ "frozen_labels_sha256": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
+ "high_water": 0.99,
+ "by_label": {
+  "M": {
+   "n": 97,
+   "median": 0.9999806880950928,
+   "min": 0.29795658588409424,
+   "max": 0.9999823570251465,
+   "frac_ge_0.99": 0.8865979381443299
+  },
+  "N": {
+   "n": 187,
+   "median": 0.9999784231185913,
+   "min": 0.18970976769924164,
+   "max": 0.9999823570251465,
+   "frac_ge_0.99": 0.9144385026737968
+  }
+ },
+ "threshold": null,
+ "per_tier_confusion": null
+}

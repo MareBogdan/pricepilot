@@ -1,0 +1,80 @@
+{
+ "built_from": "scripts/measure_score_distribution.py",
+ "generated_at": "2026-09-23T13:37:59.592764+00:00",
+ "model_id": "mmarco-mMiniLMv2-finetuned-ep6",
+ "frozen_labels_sha256": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
+ "high_water": 0.99,
+ "by_label": {
+  "M": {
+   "n": 97,
+   "median": 0.9987894892692566,
+   "min": 0.0022816727869212627,
+   "max": 0.9999018907546997,
+   "frac_ge_0.99": 0.711340206185567
+  },
+  "N": {
+   "n": 187,
+   "median": 0.005127466283738613,
+   "min": 9.402720024809241e-05,
+   "max": 0.9994452595710754,
+   "frac_ge_0.99": 0.03208556149732621
+  }
+ },
+ "threshold": 0.89,
+ "per_tier_confusion": {
+  "proxy_key_collision": {
+   "tp": 72,
+   "fp": 4,
+   "fn": 2,
+   "tn": 8
+  },
+  "capacity_differs_cross_shop": {
+   "tp": 1,
+   "fp": 0,
+   "fn": 0,
+   "tn": 62
+  },
+  "blocked_retrieval_candidate": {
+   "tp": 7,
+   "fp": 3,
+   "fn": 8,
+   "tn": 18
+  },
+  "same_capacity_diff_flavour": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 0,
+   "tn": 26
+  },
+  "capacity_differs_within_shop": {
+   "tp": 0,
+   "fp": 2,
+   "fn": 0,
+   "tn": 20
+  },
+  "same_capacity_diff_lifestage": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 1,
+   "tn": 18
+  },
+  "diff_brand_similar_title": {
+   "tp": 0,
+   "fp": 0,
+   "fn": 0,
+   "tn": 16
+  },
+  "same_capacity_diff_breedsize": {
+   "tp": 1,
+   "fp": 1,
+   "fn": 3,
+   "tn": 9
+  },
+  "trivial_spot_check": {
+   "tp": 2,
+   "fp": 0,
+   "fn": 0,
+   "tn": 0
+  }
+ }
+}
