@@ -5,6 +5,11 @@ few minutes. Script: `notebooks/phase3-llm-finetune.py`.
 
 ## Before you run
 
+**0. Restart the kernel before EVERY re-run (power icon, or Run > Restart).** `Run All` does
+**not** restart it, so models left on the GPU by an earlier failed attempt stay allocated. This
+cost two runs (CUDA OOM with 14.11 GiB already in use). The notebook prints `STARTUP GPU MEMORY`
+lines first and a loud warning if more than ~0.5 GiB is already held -- if you see it, restart.
+
 1. Kaggle -> new Notebook. Settings -> Accelerator -> **GPU T4 x2** (not P100: recent torch builds may lack its kernels). Settings -> Internet **On**
    (the model downloads from Hugging Face).
 2. **Check the Accelerator is a GPU before Run All.** The previous run silently fell back to CPU

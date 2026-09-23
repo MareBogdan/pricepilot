@@ -20,6 +20,7 @@ edit `llm_prompt.py` first, then copy its template block back into this file ver
 from __future__ import annotations
 
 import contextlib
+import gc
 import glob
 import json
 import math
@@ -45,6 +46,33 @@ from transformers import (
     AutoTokenizer,
     get_linear_schedule_with_warmup,
 )
+
+# ---------------------------------------------------------------------------
+# STARTUP GPU-MEMORY CHECK -- `Run All` does NOT restart the Kaggle kernel, so models left on the
+# GPU by an earlier failed attempt in the same session stay allocated. Two runs were lost to
+# exactly that: the memory probe reported 0.60 GiB of logits while 14.11 GiB was already in use.
+# Print what is held, free what can be freed, and warn loudly if a lot is still held (objects still
+# referenced by the previous run's globals cannot be freed from here -- only a restart clears them).
+# ---------------------------------------------------------------------------
+if torch.cuda.is_available():
+    _gib = 2**30
+    print(
+        f"STARTUP GPU MEMORY: allocated={torch.cuda.memory_allocated() / _gib:.2f} GiB  "
+        f"reserved={torch.cuda.memory_reserved() / _gib:.2f} GiB"
+    )
+    gc.collect()
+    torch.cuda.empty_cache()
+    _held = torch.cuda.memory_allocated() / _gib
+    print(
+        f"STARTUP GPU MEMORY after gc.collect + empty_cache: allocated={_held:.2f} GiB  "
+        f"reserved={torch.cuda.memory_reserved() / _gib:.2f} GiB"
+    )
+    if _held > 0.5:
+        print("!" * 70)
+        print(f"WARNING: {_held:.2f} GiB of GPU memory is ALREADY ALLOCATED at startup.")
+        print("This kernel still holds objects from an earlier run. RESTART THE KERNEL (power")
+        print("icon, or Run > Restart) and run again -- do NOT continue; it will likely OOM.")
+        print("!" * 70)
 
 # ---------------------------------------------------------------------------
 # ENVIRONMENT COMPATIBILITY -- Kaggle's image ships torchao 0.10.0, but the installed peft only
@@ -862,10 +890,16 @@ print(f"adapter saved to {final_adapter_dir} ({adapter_size_bytes / 1e6:.2f} MB)
 try:
     from IPython.display import FileLink, display
 
-    display(FileLink(str(trainval_preds_path)))
-    display(FileLink(str(test_preds_path)))
-except ImportError:
-    print(f"download manually: {trainval_preds_path}, {test_preds_path}")
+    # FileLink needs paths RELATIVE to /kaggle/working (the notebook's served root); absolute
+    # paths returned 404. The adapter is zipped so all three files are single-file downloads.
+    adapter_zip = Path(
+        shutil.make_archive(str(WORKING_DIR / "adapter-lora"), "zip", final_adapter_dir)
+    )
+    for _p in (trainval_preds_path, test_preds_path, adapter_zip):
+        display(FileLink(str(_p.relative_to(WORKING_DIR))))
+except Exception as _link_err:  # never let a zip/link problem hide the RUN SUMMARY below
+    print(f"download links failed ({_link_err!r}); files are in {WORKING_DIR}:")
+    print(f"  {trainval_preds_path}, {test_preds_path}, {final_adapter_dir}")
 
 
 # ---------------------------------------------------------------------------
