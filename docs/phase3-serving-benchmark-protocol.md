@@ -196,3 +196,58 @@ exceeds `1e-5`, since this is a fresh re-merge/re-export and must reproduce the 
 reference before any new int8 variant is trusted); quantize V2 and V3; score val+test for each
 (unpinned); latency+RSS for each (pinned, fresh worker per variant, `VmHWM`/`VmRSS` as fixed in
 this session's task 0). `SMOKE` flag defaults to `True`, as in the serving notebook.
+
+**Session 3 result (2026-09-24):** the full int8-variants run finished, all 9 stages ok, on a
+DIFFERENT CPU than the serving run (Intel Xeon @ 2.20GHz, AVX2, no VNNI -- the serving run was AMD
+EPYC 7B12, also no VNNI; the two runs' latency numbers must never be compared as same-hardware).
+`LLM-verify-fp32` PASSED, max|diff| 6.91e-06 <= 1e-5 on 133 pairs. Eligibility (validation only,
+`scripts/select_llm_int8_variant.py`): V2 median P(Yes) M=0.431 / N=0.326 -> NOT eligible (best val
+F1 0.535); V3 median M=0.322 / N=0.213 -> NOT eligible (best val F1 0.599); fp32 on the same pairs:
+best val F1 0.905. **NO VARIANT IS ELIGIBLE.** Finding: ORT dynamic int8 (three configurations --
+the default from the serving run, V2, V3) destroys this 0.5B decoder's discrimination on two
+AVX2-without-VNNI CPUs. This REFUTES the "AMD-specific" hypothesis (Intel failed too) and WEAKENS
+the "per-tensor/saturation only" hypothesis (per-channel + reduce_range did not fix it).
+Weight-only quantization (e.g. ONNX Runtime's `MatMulNBits`) was NOT tested here -- untested future
+work. No int8 LLM row exists in the headline table (5.8); the LLM is served and reported as ONNX
+fp32 CPU instead, one new TEST touch for `qwen2.5-0.5b-lora-ep8-onnxfp32-cpu` (session 3 task 2).
+
+## 5.12 Hosted v2 -- correcting session 2's empty-reply diagnosis (pre-registered 2026-09-24,
+BEFORE any v2 call)
+
+**Session 2's conclusion was wrong.** Commit `eb72250` (ADR-0028 addendum #24) concluded "no
+request-config defect reproduced" from ONE diagnostic call that happened to land on an easy
+validation pair (`stop_reason=end_turn`, reply `"No"`, 3 of 5 tokens used). That single clean
+sample does not override the actual evidence already in hand from the v1 run itself: **all 40
+empty-reply TEST pair_ids used `output_tokens == max_tokens == 5` with ZERO visible text returned**
+(`docs/learned/results/hosted-empty-reply-diagnostic.json`'s free part, unchanged by this
+correction). `pricepilot.llm.client.complete()` concatenates ONLY `type == "text"` content blocks
+(`src/pricepilot/llm/client.py` L224) -- so a reply that spent its whole 5-token budget on
+non-text content (or was cut off before any text token completed) is exactly what protocol 5.10
+item 6 and this session's own instructions call "non-text blocks / whitespace consuming
+`max_tokens`": a **request-config artifact**, not a reasoned conclusion about model behaviour.
+Session 2's "no rerun" call is retracted; **a v2 run is warranted.**
+
+**v2 specification -- identical to v1 (5.7) except:**
+- `max_tokens = 64` (was 5) -- enough room for a reply that previously got cut off mid-answer to
+  finish, without changing what counts as a valid answer.
+- **Every call's report records the raw `stop_reason` and every content block's `type`**, not only
+  what `llm_calls` already logs (model/tokens/cost/cache) -- this is what v1 was missing and what
+  this correction is FOR. `pricepilot.llm.client.complete()` is extended (backward compatible: an
+  old v1 cache entry without these fields reads back as `stop_reason=None`, `block_types=[]`) to
+  carry `stop_reason` and `block_types` on every call, cache hit or not, so this information is
+  never lost again.
+- **Parsing is UNCHANGED**: `pricepilot.matching.hosted_baseline.parse_answer` still requires the
+  stripped reply to be exactly `"Yes"` or `"No"`; anything else (including a reply that starts
+  with "Yes" but keeps going) is unparseable, scored 0.0, and NEVER retried into a better answer.
+  A longer `max_tokens` gives the model room to finish; it does not relax what counts as a valid
+  answer.
+- Fixed threshold 0.5, stated as NOT selected (same as v1; there is nothing to select against).
+- All 287 TEST pairs, one ledgered TEST touch as `hosted-claude-sonnet-5-zeroshot-v2` (a NEW
+  ledger entry -- v1's `hosted-claude-sonnet-5-zeroshot` stays recorded unchanged; both rows are
+  reported side by side, never merged or replaced).
+- Every call still goes through `client.py`'s budget cap and content-hash cache (the cache key
+  changes with `max_tokens`, so v2 makes genuinely fresh calls, never reads v1's cache).
+
+**Cost is announced before the call, as always:** `SPEND: hosted v2, claude-sonnet-5, 287 calls,
+max_tokens 64 -- est. $X.XX -- proceed?`, output priced at the full 64 tokens per call as the
+upper-bound estimate (the same convention v1 used at max_tokens 5). Requires an explicit yes.
