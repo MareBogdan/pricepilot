@@ -1,0 +1,56 @@
+[
+ {
+  "stage": "LLM-merge",
+  "ok": true,
+  "error": null,
+  "seconds": 16.4
+ },
+ {
+  "stage": "LLM-export",
+  "ok": true,
+  "error": null,
+  "seconds": 50.4
+ },
+ {
+  "stage": "LLM-verify-fp32",
+  "ok": true,
+  "error": null,
+  "seconds": 630.4
+ },
+ {
+  "stage": "LLM-int8-v2",
+  "ok": true,
+  "error": null,
+  "seconds": 63.6
+ },
+ {
+  "stage": "LLM-score-v2",
+  "ok": true,
+  "error": null,
+  "seconds": 971.2
+ },
+ {
+  "stage": "LLM-latency-v2",
+  "ok": true,
+  "error": null,
+  "seconds": 1070.0
+ },
+ {
+  "stage": "LLM-int8-v3",
+  "ok": true,
+  "error": null,
+  "seconds": 53.9
+ },
+ {
+  "stage": "LLM-score-v3",
+  "ok": true,
+  "error": null,
+  "seconds": 974.5
+ },
+ {
+  "stage": "LLM-latency-v3",
+  "ok": true,
+  "error": null,
+  "seconds": 1135.5
+ }
+]

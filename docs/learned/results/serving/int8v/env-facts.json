@@ -1,0 +1,39 @@
+{
+ "smoke": false,
+ "lscpu_model_name": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+ "lscpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           46 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               GenuineIntel\nModel name:                              Intel(R) Xeon(R) CPU @ 2.20GHz\nCPU family:                              6\nModel:                                   79\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                0\nBogoMIPS:                                4399.99\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch pti ssbd ibrs ibpb stibp fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap xsaveopt arat md_clear arch_capabilities\nHypervisor vendor:                       KVM\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                512 KiB (2 instances)\nL3 cache:                                55 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Indirect target selection: Mitigation; Aligned branch/return thunks\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Mitigation; PTE Inversion\nVulnerability Mds:                       Mitigation; Clear CPU buffers; SMT Host state unknown\nVulnerability Meltdown:                  Mitigation; PTI\nVulnerability Mmio stale data:           Vulnerable: Clear CPU buffers attempted, no microcode; SMT Host state unknown\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Mitigation; IBRS\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; IBRS; IBPB conditional; STIBP conditional; RSB filling; PBRSB-eIBRS Not affected; BHI SW loop, KVM SW loop\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Mitigation; Clear CPU buffers; SMT Host state unknown\nVulnerability Vmscape:                   Not affected\n",
+ "cpu_count": 4,
+ "affinity_at_start": [
+  0,
+  1,
+  2,
+  3
+ ],
+ "cpu_vnni": {
+  "avx2": true,
+  "avx512f": false,
+  "avx512_vnni": false,
+  "avx_vnni": false
+ },
+ "pinned_cpus_for_latency": [
+  0,
+  1
+ ],
+ "mem_total": "MemTotal:       32870488 kB",
+ "thread_siblings": {
+  "0": "0,2",
+  "1": "1,3",
+  "2": "0,2",
+  "3": "1,3"
+ },
+ "python": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+ "platform": "Linux-6.12.90+-x86_64-with-glibc2.35",
+ "torch": "2.10.0+cpu",
+ "transformers": "5.0.0",
+ "onnx": "1.22.0",
+ "onnxruntime": "1.30.0",
+ "peft": "0.19.1",
+ "tokenizers": "0.22.2",
+ "numpy": "2.0.2",
+ "optimum": "not used: the LoRA graph is custom (two readout logits only), so the export is torch.onnx.export"
+}

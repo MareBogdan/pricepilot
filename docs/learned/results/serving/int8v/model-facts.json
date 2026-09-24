@@ -1,0 +1,40 @@
+{
+ "lora_adapter_dirs": {
+  "adapter-epoch-8": {
+   "path": "/kaggle/input/notebooks/bogdanmare/notebookf26a8565eb/adapter-epoch-8",
+   "sha256": "84a4bbf508c3633dec5922d09193775dbfb66379589b5423f1527723f73c94d0"
+  },
+  "adapter": {
+   "path": "/kaggle/input/notebooks/bogdanmare/notebookf26a8565eb/adapter",
+   "sha256": "84a4bbf508c3633dec5922d09193775dbfb66379589b5423f1527723f73c94d0"
+  }
+ },
+ "llm_param_count_merged": 494032768,
+ "llm_adapter_used": "/kaggle/input/notebooks/bogdanmare/notebookf26a8565eb/adapter",
+ "llm_yes_no_token_ids": [
+  7414,
+  2308
+ ],
+ "llm_onnx_fp32": {
+  "bytes": 1977096964,
+  "sha256_graph": "5f425a363a3a2e7f80bca629cb6c82d048e609d5dda3c8d7274e63a1e74fcd48",
+  "sha256_data": "2d385a0ad162fafc32316a07fbcc49e8330691f9f1256c599e3ff86b61e8416c"
+ },
+ "llm_fp32_verify_vs_committed": {
+  "n": 133,
+  "max_abs_diff": 6.910241205471124e-06,
+  "smoke_subset": false
+ },
+ "llm_onnx_int8_v2": {
+  "bytes": 497307637,
+  "sha256_graph": "beba0972804b3c50159ec3c15b51c85203760bfe77c1d95c284765c3a9a46947",
+  "quantization": "onnxruntime quantize_dynamic, QInt8 weights, per_channel=True, reduce_range=True"
+ },
+ "llm_int8-v2_peak_rss_mb": 1320.16796875,
+ "llm_onnx_int8_v3": {
+  "bytes": 905711510,
+  "sha256_graph": "29601183feade56bf291e6a8c3446b4b0c573885de34dcf08e843b9648032999",
+  "quantization": "onnxruntime quantize_dynamic, QInt8 weights, per_channel=True, reduce_range=True, op_types_to_quantize=[MatMul] only"
+ },
+ "llm_int8-v3_peak_rss_mb": 1337.7109375
+}
