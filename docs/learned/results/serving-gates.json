@@ -1,0 +1,126 @@
+{
+ "built_from": "scripts/check_serving_gates.py",
+ "generated_at": "2026-09-24T12:09:55.177897+00:00",
+ "thresholds": {
+  "cross_encoder": 0.89,
+  "llm": 0.86
+ },
+ "g1_pass": true,
+ "g1_checks": [
+  {
+   "label": "CE onnxfp32 vs ptfp32 (test)",
+   "n": 287,
+   "threshold": 0.89,
+   "max_abs_diff": 4.352823219644364e-06,
+   "mean_abs_diff": 2.1320434936183316e-07,
+   "flips": 0
+  },
+  {
+   "label": "CE onnxfp32 vs ptfp32 (trainval)",
+   "n": 672,
+   "threshold": 0.89,
+   "max_abs_diff": 4.255140336195673e-06,
+   "mean_abs_diff": 1.6700088036188224e-07,
+   "flips": 0
+  },
+  {
+   "label": "LLM onnxfp32 vs ptfp32 (val)",
+   "n": 133,
+   "threshold": 0.86,
+   "max_abs_diff": 7.646131108485221e-06,
+   "mean_abs_diff": 2.1752417688020184e-07,
+   "flips": 0
+  },
+  {
+   "label": "LLM onnxfp32 vs ptfp32 (test)",
+   "n": 287,
+   "threshold": 0.86,
+   "max_abs_diff": 1.0948444873398744e-05,
+   "mean_abs_diff": 2.77489372175467e-07,
+   "flips": 0
+  }
+ ],
+ "g1_extra_ce_ptfp32_vs_committed": {
+  "label": "CE ptfp32 vs committed preds-finetuned-test.json",
+  "n": 287,
+  "threshold": 0.89,
+  "max_abs_diff": 2.592802047729492e-06,
+  "mean_abs_diff": 7.631102936238518e-08,
+  "flips": 0
+ },
+ "g1b_reported_not_gated": {
+  "label": "LLM ptfp32 CPU vs committed preds-llm-test.json (fp16 GPU)",
+  "n": 287,
+  "threshold": 0.86,
+  "max_abs_diff": 0.6538461223244667,
+  "mean_abs_diff": 0.016221658460061083,
+  "flips": 2
+ },
+ "g2_ce": [
+  {
+   "label": "CE int8 vs onnxfp32 (test)",
+   "n": 287,
+   "threshold": 0.89,
+   "max_abs_diff": 0.9655824728743055,
+   "mean_abs_diff": 0.11725754362270335,
+   "flips": 10
+  },
+  {
+   "label": "CE int8 vs onnxfp32 (trainval)",
+   "n": 672,
+   "threshold": 0.89,
+   "max_abs_diff": 0.9290303983077767,
+   "mean_abs_diff": 0.10089892797493238,
+   "flips": 24
+  }
+ ],
+ "g2_llm": [
+  {
+   "label": "LLM int8 vs onnxfp32 (val)",
+   "n": 133,
+   "threshold": 0.86,
+   "max_abs_diff": 0.9462820892398597,
+   "mean_abs_diff": 0.4070302695726788,
+   "flips": 36
+  },
+  {
+   "label": "LLM int8 vs onnxfp32 (test)",
+   "n": 287,
+   "threshold": 0.86,
+   "max_abs_diff": 0.9127616532596908,
+   "mean_abs_diff": 0.41881397205487303,
+   "flips": 95
+  }
+ ],
+ "g2_llm_diagnostics": {
+  "median_p_yes_by_true_validation_label": [
+   {
+    "variant": "int8",
+    "median_p_yes_true_M": 0.23452436495540588,
+    "median_p_yes_true_N": 0.25139002342432737,
+    "n_M": 46,
+    "n_N": 87
+   },
+   {
+    "variant": "onnxfp32",
+    "median_p_yes_true_M": 0.9949737797198511,
+    "median_p_yes_true_N": 0.00047544149485226307,
+    "n_M": 46,
+    "n_N": 87
+   }
+  ],
+  "best_validation_f1": [
+   {
+    "variant": "int8",
+    "best_threshold": 0.03,
+    "best_f1": 0.5139664804469274
+   },
+   {
+    "variant": "onnxfp32",
+    "best_threshold": 0.71,
+    "best_f1": 0.9047619047619047
+   }
+  ]
+ },
+ "ce_medians_diagnostic": null
+}

@@ -1,0 +1,70 @@
+[
+ {
+  "stage": "CE-reference",
+  "ok": true,
+  "error": null,
+  "seconds": 91.4
+ },
+ {
+  "stage": "CE-export",
+  "ok": true,
+  "error": null,
+  "seconds": 7.5
+ },
+ {
+  "stage": "CE-int8",
+  "ok": true,
+  "error": null,
+  "seconds": 6.1
+ },
+ {
+  "stage": "CE-score",
+  "ok": true,
+  "error": null,
+  "seconds": 143.2,
+  "note": "max|ptfp32-onnxfp32| on test = 4.35e-06"
+ },
+ {
+  "stage": "CE-latency",
+  "ok": true,
+  "error": null,
+  "seconds": 64.6
+ },
+ {
+  "stage": "LLM-merge",
+  "ok": true,
+  "error": null,
+  "seconds": 27.2
+ },
+ {
+  "stage": "LLM-reference",
+  "ok": true,
+  "error": null,
+  "seconds": 1341.3
+ },
+ {
+  "stage": "LLM-export",
+  "ok": true,
+  "error": null,
+  "seconds": 28.5
+ },
+ {
+  "stage": "LLM-int8",
+  "ok": true,
+  "error": null,
+  "seconds": 22.3
+ },
+ {
+  "stage": "LLM-score",
+  "ok": true,
+  "error": null,
+  "seconds": 1414.7,
+  "note": "max|ptfp32-onnxfp32| on test = 1.09e-05"
+ },
+ {
+  "stage": "LLM-latency",
+  "ok": true,
+  "error": null,
+  "seconds": 1595.4
+ }
+]
