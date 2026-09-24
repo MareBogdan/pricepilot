@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -143,6 +143,13 @@ class Completion:
     usage: Usage
     cache_hit: bool
     latency_ms: float | None  # wall-clock of the API call; None for a cache hit
+    # Protocol 5.12: v1's hosted run threw this information away (only `.text` survived), which is
+    # exactly what made session 2's empty-reply diagnosis wrong -- it had no way to tell a
+    # truncated non-text reply from a genuinely empty one. Carried on EVERY call, cache hit or
+    # not, so it is never lost again. `None`/`[]` on a cache entry written before this field
+    # existed (a v1 call cached under the old format) -- backward compatible, not a new call.
+    stop_reason: str | None = None
+    block_types: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -193,7 +200,14 @@ def complete(
             cost_usd=Decimal("0"),
         )
         log_call(phase=phase, purpose=purpose, usage=usage, key=key, cache_hit=True)
-        return Completion(text=cached["text"], usage=usage, cache_hit=True, latency_ms=None)
+        return Completion(
+            text=cached["text"],
+            usage=usage,
+            cache_hit=True,
+            latency_ms=None,
+            stop_reason=cached.get("stop_reason"),
+            block_types=cached.get("block_types", []),
+        )
 
     # Pessimistic pre-call estimate: caller's token estimate (else ~1 token per 3 characters) plus
     # the full max_tokens of output.
@@ -222,6 +236,8 @@ def complete(
     latency_ms = (time.perf_counter() - started) * 1000.0
 
     text = "".join(b.text for b in response.content if getattr(b, "type", None) == "text")
+    stop_reason = getattr(response, "stop_reason", None)
+    block_types = [getattr(b, "type", "?") for b in response.content]
     in_tok, out_tok = int(response.usage.input_tokens), int(response.usage.output_tokens)
     usage = Usage(
         model=model,
@@ -232,7 +248,15 @@ def complete(
     )
     cache_root.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(
-        json.dumps({"text": text, "input_tokens": in_tok, "output_tokens": out_tok}),
+        json.dumps(
+            {
+                "text": text,
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "stop_reason": stop_reason,
+                "block_types": block_types,
+            }
+        ),
         encoding="utf-8",
     )
     try:
@@ -250,7 +274,14 @@ def complete(
             f"PAID CALL NOT LOGGED (${usage.cost_usd}, key {key}): {e!r}. The response is cached, "
             "so a rerun will not pay again -- add this cost to docs/COSTS.md by hand."
         ) from e
-    return Completion(text=text, usage=usage, cache_hit=False, latency_ms=latency_ms)
+    return Completion(
+        text=text,
+        usage=usage,
+        cache_hit=False,
+        latency_ms=latency_ms,
+        stop_reason=stop_reason,
+        block_types=block_types,
+    )
 
 
 def complete_diagnostic(

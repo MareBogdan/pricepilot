@@ -4,6 +4,7 @@ guard rails are pinned here with a mocked SDK client and an in-memory SQLite `ll
 
 from __future__ import annotations
 
+import json
 import sys
 import warnings
 from collections.abc import Iterator
@@ -176,6 +177,60 @@ class FakeSdkRaw:
             stop_reason=stop_reason,
             usage=SimpleNamespace(input_tokens=in_tok, output_tokens=out_tok),
         )
+
+
+def test_complete_carries_stop_reason_and_block_types_on_a_fresh_call(
+    db: Any, tmp_path: Path
+) -> None:
+    """Protocol 5.12: this is what v1's hosted run was missing, and what made session 2's
+    empty-reply diagnosis wrong -- complete() must not throw this away."""
+    blocks = [SimpleNamespace(type="text", text=""), SimpleNamespace(type="thinking", text=None)]
+    sdk = FakeSdkRaw([("max_tokens", blocks, 500, 5)])
+    out = client.complete(
+        model=MODEL, prompt="hello", max_tokens=5, phase="p", purpose="t",
+        sdk_client=sdk, cache_dir=tmp_path,
+    )  # fmt: skip
+    assert out.stop_reason == "max_tokens"
+    assert out.block_types == ["text", "thinking"]
+    assert out.text == ""  # the non-text block contributes nothing to .text -- this IS the bug
+
+
+def test_complete_carries_stop_reason_and_block_types_on_a_cache_hit(
+    db: Any, tmp_path: Path
+) -> None:
+    blocks = [SimpleNamespace(type="text", text="Yes")]
+    sdk = FakeSdkRaw([("end_turn", blocks, 500, 1), ("end_turn", blocks, 500, 1)])
+    first = client.complete(
+        model=MODEL, prompt="hello", max_tokens=5, phase="p", purpose="t",
+        sdk_client=sdk, cache_dir=tmp_path,
+    )  # fmt: skip
+    second = client.complete(
+        model=MODEL, prompt="hello", max_tokens=5, phase="p", purpose="t",
+        sdk_client=sdk, cache_dir=tmp_path,
+    )  # fmt: skip
+    assert first.cache_hit is False and second.cache_hit is True
+    assert len(sdk.calls) == 1  # the second call read the cache, not the API
+    assert second.stop_reason == first.stop_reason == "end_turn"
+    assert second.block_types == first.block_types == ["text"]
+
+
+def test_a_pre_5_12_cache_entry_reads_back_as_none_and_empty(db: Any, tmp_path: Path) -> None:
+    """Backward compatibility: a cache file written by v1, before stop_reason/block_types
+    existed, must not crash complete() on the next read."""
+    key = client.cache_key(MODEL, "5", repr(None), "", "hello")
+    (tmp_path / f"{key}.json").write_text(
+        json.dumps({"text": "Yes", "input_tokens": 500, "output_tokens": 1}), encoding="utf-8"
+    )
+    sdk = FakeSdk(["should-never-be-used"])
+    out = client.complete(
+        model=MODEL, prompt="hello", max_tokens=5, phase="p", purpose="t",
+        sdk_client=sdk, cache_dir=tmp_path,
+    )  # fmt: skip
+    assert out.cache_hit is True
+    assert out.text == "Yes"
+    assert out.stop_reason is None
+    assert out.block_types == []
+    assert sdk.calls == []
 
 
 def test_diagnostic_call_returns_stop_reason_and_every_block(db: Any) -> None:
