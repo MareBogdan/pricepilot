@@ -174,11 +174,17 @@ fragile of the two under this config, not with the CPU being universally unusabl
    against TEST -- computing but not reading them is fine; reading them is the thing this rule
    exists to prevent.
 
-**Cross-encoder robustness check, produced alongside (not a second CE TEST touch):** V2 is also
-run for the cross-encoder, scored on validation and reported as a validation-only drift check next
-to the already-recorded CE int8 TEST result (task 2 of this session). The CE int8 TEST result
-stays `mmarco-mMiniLMv2-finetuned-ep6-int8` at threshold 0.83, F1 0.8235 -- unchanged by this
-check, whatever it shows.
+**Cross-encoder robustness check, deferred (not a second CE TEST touch, and not part of this
+notebook):** V2 is also intended for the cross-encoder, scored on validation and reported as a
+validation-only drift check next to the already-recorded CE int8 TEST result (task 2 of this
+session). `notebooks/phase3-llm-int8-variants.ipynb` (below) needs only the two inputs its runbook
+lists -- the CE weights input (`ce-ft-best/`, from `notebook87be682cf2`) is deliberately NOT one of
+them, so this check is not built into that notebook and has not been run as of this addendum. It
+is picked up as a small additional cell in `phase3-serving-benchmark.ipynb` (which already has the
+CE weights input) whenever that notebook is next run, or as its own tiny notebook -- whichever
+comes first. Whichever runs it, the rule is fixed now: the CE int8 TEST result stays
+`mmarco-mMiniLMv2-finetuned-ep6-int8` at threshold 0.83, F1 0.8235, unchanged by this check,
+whatever it shows.
 
 **Notebook** (`notebooks/phase3-llm-int8-variants.ipynb`, CPU accelerator, internet on): re-merges
 the LoRA adapter from `notebookf26a8565eb`'s output exactly as `phase3-serving-benchmark.ipynb`
