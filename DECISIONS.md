@@ -3965,3 +3965,75 @@ ImportError from ADR-0028 addendum #21 because the serving notebook lacked the t
 compatibility patch (now ported, byte-identity pinned by `tests/test_torchao_env_compat_notebook_parity.py`);
 and `peak_rss_mb` was reading the parent process's `ru_maxrss` instead of the child's, fixed by
 reading `VmHWM`/`VmRSS` from `/proc/self/status` (protocol §5.10 item 4).
+
+## ADR-0028 addendum #24 — Phase 3 item 8, session 2 part 1: gates, CE int8, LLM int8 failure + pre-registered variant rule, hosted diagnosis (2026-09-24)
+
+**Full serving run completed cleanly** after the two smoke-run fixes above: all 11 stages `ok`,
+RSS figures now sane and distinct per variant (e.g. CE fp32 963 MB vs int8 627 MB; LLM fp32
+2347 MB vs int8 1322 MB — nothing like the smoke run's identical 3341.918 MB bug). The 20 output
+files committed verbatim (`docs/learned/results/serving/`, SHA-256 unchanged before/after
+staging).
+
+**G1 PASSES for both models** (`scripts/check_serving_gates.py`, matches the architect's
+pre-check exactly): CE onnxfp32 vs in-notebook ptfp32 max|d| 4.35e-06 (test) / 4.26e-06
+(trainval), 0 flips @0.89; LLM max|d| 7.65e-06 (val) / 1.09e-05 (test), 0 flips @0.86. Every
+serving number below is therefore trustworthy per protocol 5.9. **G1b (reported):** LLM ptfp32
+CPU vs the committed fp16-GPU preds, max|d| 0.654, mean 0.016, 2/287 flips @0.86 — precision
+difference from a different dtype/hardware, not a bug. **G2 (reported):** CE int8 vs fp32 —
+10/287 test flips, 24/672 trainval flips @0.89, mean|d| ~0.11; LLM int8 vs fp32 — 36/133 val
+flips, 95/287 test flips, mean|d| ~0.41.
+
+**CE int8 — G3 + G4, one new TEST touch.** `select_threshold.py` on validation: best threshold
+0.83, F1 0.8478 (fp32: 0.840 @ 0.89). `score_predictions.py` on TEST, once, as
+`mmarco-mMiniLMv2-finetuned-ep6-int8`: **F1 0.8235** (fp32's ledgered 0.8737). McNemar exact
+paired vs fp32 on the same 284 scored TEST pairs (`scripts/compare_ce_int8_vs_fp32.py`): overall
+p=0.0042 (int8 significantly worse), driven entirely by the true-N side (p=0.0002 — fp32 right on
+13 pairs int8 gets wrong there, int8 right on 0 fp32 gets wrong): **default int8 quantization adds
+false positives to the cross-encoder.**
+
+**LLM int8 (default config) is NON-DISCRIMINATING — no TEST touch taken.** On the 133 validation
+pairs, median P(Yes) is 0.235 for true M and 0.251 for true N (fp32 on the same pairs: 0.995 /
+0.000) — the classes are no longer separated by score at all. Best validation F1 is 0.514, reached
+only by predicting M for everything. Probable cause (hypothesis): Kaggle's AMD EPYC 7B12 is
+AVX2-without-VNNI, where ORT's dynamic U8S8 path with `reduce_range=False` can saturate; the
+cross-encoder degrades under the same config but keeps discriminating, consistent with the LLM
+decoder being the more fragile of the two, not with the CPU being universally unusable for int8.
+
+**Protocol 5.11 pre-registered BEFORE any variants-notebook code** (commit `9cb46a6`, before
+`notebooks/phase3-llm-int8-variants.ipynb` existed): two candidate fixes, both ORT
+`quantize_dynamic`/QInt8 — V2 (`per_channel=True, reduce_range=True`) and V3 (V2 +
+`op_types_to_quantize=["MatMul"]` only) — with a fixed eligibility rule (validation median_M > 0.5
+> median_N), selection rule (highest eligible validation F1, ties within 0.005 broken by lower
+p50 latency), and a stated fallback (if neither is eligible: serve/report the LLM as ONNX fp32
+instead, one new TEST touch for `qwen2.5-0.5b-lora-ep8-onnxfp32-cpu`, no int8 LLM row). A CE V2
+robustness check is also pre-registered but **deferred** — not built into this notebook (its
+runbook adds only 2 Kaggle inputs, deliberately excluding the CE weights input).
+
+**`notebooks/phase3-llm-int8-variants.ipynb` built and reviewer-passed** (two rounds: first pass
+found that `run_stage()` catches `SystemExit`, so the fp32-verify gate's own `raise SystemExit` on
+divergence was only recorded as `ok: false` while the notebook carried on quantizing V2/V3 from an
+unverified export — fixed by re-raising outside `run_stage`, checking `STATUS[-1]["ok"]`, verified
+fixed on the second pass). Reuses the serving notebook's ENV-COMPAT block, `LLMWrap` export and
+worker script verbatim (byte-identity parity-tested, 17 tests,
+`tests/test_llm_int8_variants_notebook_parity.py`); gates a fresh re-export against the committed
+`preds-llm-onnxfp32-val.json` (embedded, sha256-checked) at 1e-5 before trusting V2/V3.
+Runbook: `docs/phase3-llm-int8-variants-runbook.md`.
+
+**Hosted empty-reply diagnosis** (protocol 5.10 item 6's 40 empty replies). Free: all 40 empty
+TEST pair_ids' `llm_calls` rows (matched by recomputed cache_key) show `output_tokens == 5 ==
+max_tokens` — every one of them hit the token budget. Paid (one call, $0.001406, on the first
+VALIDATION pair, never TEST, via a new `client.complete_diagnostic()` that exposes raw
+`stop_reason` and every content block instead of `complete()`'s collapsed `.text`): the call came
+back **normal** — `stop_reason=end_turn`, one `text` block, `"No"`. No request-config defect
+reproduced. Per the pre-registered decision rule: **no rerun**; the 40/287 (~14%) empty-reply rate
+is reported as a hosted-baseline finding, not chased with a second paid hosted run.
+
+**Ledger: 5 entries** (`mmarco-mMiniLMv2-zeroshot`, `mmarco-mMiniLMv2-finetuned-ep6`,
+`qwen2.5-0.5b-lora-ep8`, `hosted-claude-sonnet-5-zeroshot`, `mmarco-mMiniLMv2-finetuned-ep6-int8`).
+**No TEST touch for the default LLM int8** — the one thing this session's acceptance criteria
+required above everything else.
+
+**Next (session 2 part 2, blocked on Bogdan):** the LLM int8 variants Kaggle run
+(`docs/phase3-llm-int8-variants-runbook.md`). Only then: apply 5.11's selection rule, one TEST
+touch for whichever variant is selected (or the fp32 fallback), and only then the headline table
+and README — explicitly deferred out of this session.

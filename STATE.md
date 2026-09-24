@@ -1,15 +1,33 @@
 # STATE
 
 Phase: 3 — Matching (Phases 0-2 CLOSED)
-Updated: 2026-09-23
+Updated: 2026-09-24
 
-**Where we are (2026-09-23):** Items 1-7 are CLOSED (item 5 cross-encoder TEST F1 0.8737; item 6
-LoRA 0.8796; a tie, McNemar p = 1.0000). Item 8 session 1 is done: the cross-encoder retrain
-**REPRODUCED** (0 flips / 959 pairs), the serving protocol is pre-registered, the Kaggle serving
-notebook is built (not yet run), and the hosted zero-shot baseline ran: `claude-sonnet-5` TEST
-**F1 0.9082 @ fixed 0.5, zero-shot, not a fair accuracy comparison**, $0.40 spent, p50 1258 ms.
-Next: Bogdan runs the Kaggle smoke then full run (`docs/phase3-serving-benchmark-runbook.md`);
-session 2 scores the outputs. Ledger: 4 entries. Details: DECISIONS.md ADR-0028 addendum #23.
+**Where we are (2026-09-24):** Items 1-7 are CLOSED (item 5 cross-encoder TEST F1 0.8737; item 6
+LoRA 0.8796; a tie, McNemar p = 1.0000). Item 8 session 1 is done (cross-encoder retrain
+REPRODUCED, protocol pre-registered, hosted zero-shot baseline F1 0.9082 @ fixed 0.5). The Kaggle
+serving smoke run found and fixed two defects (torchao ImportError in the serving notebook, and
+`peak_rss_mb` reading the parent process's RSS instead of the child's); the full serving run then
+completed cleanly, all 11 stages ok, RSS numbers now sane and distinct.
+
+Item 8 session 2, part 1 (this session) is done: **G1 PASSES** for both models (both models'
+outputs reported are trustworthy). **CE int8 TEST-touched**: F1 0.8235 vs fp32's ledgered 0.8737,
+McNemar p=0.0042 (int8 significantly worse, driven by added false positives). **LLM int8 (default
+config) is NON-DISCRIMINATING on validation** (median P(Yes) 0.235 true-M / 0.251 true-N vs fp32's
+0.995/0.000) — **no TEST touch taken** for it. Protocol 5.11 pre-registers two fixes to try (V2:
+per_channel+reduce_range; V3: V2 + MatMul-only) with a fixed eligibility/selection rule, committed
+BEFORE `notebooks/phase3-llm-int8-variants.ipynb` (built, reviewed, 2-Kaggle-input runbook at
+`docs/phase3-llm-int8-variants-runbook.md`) was written. **Hosted empty-reply diagnosis done**: all
+40 empty TEST replies hit `output_tokens == max_tokens == 5`; one diagnostic call on a VALIDATION
+pair came back normal (`stop_reason=end_turn`, text "No") — no request-config defect reproduced,
+so the 40/287 (~14%) empty-reply rate is reported as a finding, no hosted rerun. Ledger: 5 entries.
+Details: DECISIONS.md ADR-0028 addendum #24.
+
+**Next: Bogdan runs the LLM int8 variants Kaggle notebook** (smoke then full,
+`docs/phase3-llm-int8-variants-runbook.md`, only 2 inputs). Session 2 part 2 then applies protocol
+5.11's selection rule to the V2/V3 results, scores the selected variant's TEST predictions once (or
+falls back to reporting the LLM as ONNX fp32 if neither variant is eligible), and only then writes
+the headline table and README (explicitly deferred, per this session's own instructions).
 
 ## Gate progress
 
@@ -271,10 +289,18 @@ Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7
 
 ## Blocked on Bogdan
 
-**Item 8: run the Kaggle serving benchmark** — smoke first, then full; follow `docs/phase3-serving-benchmark-runbook.md` exactly. Outputs go in `docs/learned/results/serving/`. Also: the Phase 7 hosting reserve must be re-checked (CX22 no longer sold; CX23 EUR 5.49/mo and unavailable to order today).
+**Item 8 session 2: run the LLM int8 variants Kaggle notebook** — smoke first, then full; follow
+`docs/phase3-llm-int8-variants-runbook.md` exactly (only 2 Kaggle inputs — do NOT add the
+cross-encoder weights notebook, this run doesn't use it). Outputs go in
+`docs/learned/results/serving/int8v/`. If `LLM-verify-fp32` fails (in `stage-status.json`), stop
+and send it — the notebook is designed to abort there and not quantize anything downstream of an
+unverified export.
 
-**Nothing right now.** Both prior "Blocked on Bogdan" sections are merged here; every item either
-one of them raised is now resolved, and this is the one place that answer lives.
+Also still open: the Phase 7 hosting reserve must be re-checked (CX22 no longer sold; CX23 EUR
+5.49/mo and unavailable to order today).
+
+(The prior "run the Kaggle serving benchmark" item here is done — session 1's serving run
+completed and session 2 part 1 scored it; see the header above.)
 
 Dropped, resolved:
 - *"`3f574dad8b6e_b52acad20816_0` needs a real, confirmed re-decision"* — resolved 2026-09-22: the
