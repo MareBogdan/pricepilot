@@ -1,7 +1,11 @@
-"""Runs the serving notebook's embedded ONNX worker as a real subprocess, with `onnxruntime` and
-`resource` replaced by stubs (the real ones only exist on Kaggle here). What this pins locally: the
-worker's tokenize -> pad -> run -> readout -> output-schema path, the Yes/No softmax arithmetic,
-padding-invariance of the last-real-token gather, and the latency/throughput bookkeeping."""
+"""Runs the serving notebook's embedded ONNX worker as a real subprocess, with `onnxruntime`
+replaced by a stub (the real one only exists on Kaggle here) and `/proc/self/status` replaced by a
+fixture file (the real one only exists on Linux; the worker reads it via job["proc_status_path"],
+which defaults to the real path and is overridden only here). What this pins locally: the worker's
+tokenize -> pad -> run -> readout -> output-schema path, the Yes/No softmax arithmetic,
+padding-invariance of the last-real-token gather, the latency/throughput bookkeeping, and the
+VmHWM/VmRSS parsing (ADR-0028 addendum #23: `ru_maxrss` was found to report the parent process's
+peak, not the child's, because it survives fork+execve on Linux)."""
 
 from __future__ import annotations
 
@@ -43,12 +47,9 @@ class InferenceSession:
         return [np.stack([n * 0.1, np.zeros_like(n)], axis=1)]
 __version__ = "stub"
 """
-STUB_RESOURCE = """
-RUSAGE_SELF = 0
-class _U:
-    ru_maxrss = 204800
-def getrusage(_who): return _U()
-"""
+# VmHWM 204800 kB -> 200.0 MB (peak), VmRSS 102400 kB -> 100.0 MB (current); real /proc/self/status
+# has more fields, the worker only reads these two by line prefix so the rest is irrelevant here.
+FAKE_PROC_STATUS = "VmHWM:\t  204800 kB\nVmRSS:\t  102400 kB\n"
 
 
 def _worker_src() -> str:
@@ -75,7 +76,9 @@ def _run(tmp_path: Path, job: dict) -> None:
     stubs = tmp_path / "stubs"
     stubs.mkdir(exist_ok=True)
     (stubs / "onnxruntime.py").write_text(STUB_ORT, encoding="utf-8")
-    (stubs / "resource.py").write_text(STUB_RESOURCE, encoding="utf-8")
+    status_path = tmp_path / "fake-proc-status"
+    status_path.write_text(FAKE_PROC_STATUS, encoding="utf-8")
+    job = {**job, "proc_status_path": str(status_path)}
     worker = tmp_path / "worker.py"
     worker.write_text(_worker_src(), encoding="utf-8")
     job_path = tmp_path / "job.json"
@@ -153,5 +156,10 @@ def test_bench_output_schema_counts_and_units(tmp_path: Path) -> None:
     assert lat["token_length"] == {"min": 4, "p50": 4.0, "p95": 4.0, "max": 4}
     assert lat["throughput"]["pairs"] == 32 and len(lat["throughput"]["batch_seconds"]) == 2
     assert lat["throughput"]["pairs_per_s"] > 0
-    assert lat["peak_rss_mb"] == 200.0  # stub: 204800 KB
+    assert lat["peak_rss_mb"] == 200.0  # fake VmHWM: 204800 kB
+    assert lat["current_rss_mb"] == 100.0  # fake VmRSS: 102400 kB
+    assert lat["peak_rss_mb_after_session_load"] == 200.0
+    assert lat["current_rss_mb_after_session_load"] == 100.0
+    assert lat["peak_rss_mb_after_batch1_latency"] == 200.0
+    assert lat["current_rss_mb_after_batch1_latency"] == 100.0
     assert set(lat["summary_e2e_ms"]) == {"p50", "p95", "p99", "mean", "n"}

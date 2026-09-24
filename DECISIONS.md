@@ -3959,3 +3959,9 @@ from Romania, incl. network: p50 1258 ms, p95 1883 ms, p99 2788 ms (n=287). **Co
 retries off, one shared client); ruff excludes `notebooks/*.ipynb`. Kaggle smoke and full runs are
 the next manual step (`docs/phase3-serving-benchmark-runbook.md`); scoring and the headline table
 are session 2.
+
+**Kaggle smoke run (2026-09-24)** found two defects, both fixed: `llm_merge` raised the torchao
+ImportError from ADR-0028 addendum #21 because the serving notebook lacked the training script's
+compatibility patch (now ported, byte-identity pinned by `tests/test_torchao_env_compat_notebook_parity.py`);
+and `peak_rss_mb` was reading the parent process's `ru_maxrss` instead of the child's, fixed by
+reading `VmHWM`/`VmRSS` from `/proc/self/status` (protocol §5.10 item 4).

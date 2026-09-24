@@ -74,6 +74,7 @@ if torch.cuda.is_available():
         print("icon, or Run > Restart) and run again -- do NOT continue; it will likely OOM.")
         print("!" * 70)
 
+# ENV-COMPAT-BEGIN
 # ---------------------------------------------------------------------------
 # ENVIRONMENT COMPATIBILITY -- Kaggle's image ships torchao 0.10.0, but the installed peft only
 # supports torchao >= 0.16.0 and RAISES ImportError (instead of returning False) from
@@ -118,6 +119,7 @@ try:
         print("ENV COMPAT: WARNING -- lora.torchao has no is_torchao_available binding to patch.")
 except Exception as _compat_err:
     print(f"ENV COMPAT: torchao probe patch not applied ({_compat_err!r}); continuing.")
+# ENV-COMPAT-END
 
 # ---------------------------------------------------------------------------
 # Fixed run facts -- printed in the final summary block (TASK 2 item 10) so DECISIONS.md

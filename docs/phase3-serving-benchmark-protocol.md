@@ -108,8 +108,15 @@ Recorded here, in the open, so no number is quoted without them.
    `optimum` exports standard heads only, and 5.2 requires a graph that outputs just the two readout
    logits. One runtime (ONNX Runtime) still serves both models.
 4. **Peak RSS** is measured in a fresh child process per ONNX variant that loads only that one
-   session (`ru_maxrss` is process-lifetime). Two figures per variant: after batch-1 latency, and
-   after the batch-16 throughput pass; plus the peak so far right after session load (`ru_maxrss`, so it includes the runtime imports).
+   session, read from `/proc/self/status` (`VmHWM` = peak, `VmRSS` = current) rather than
+   `ru_maxrss`: `ru_maxrss` is preserved across fork+execve on Linux, so a child started by
+   `subprocess.run` from the parent notebook process was reporting the *parent's* peak, not its
+   own (caught in the 2026-09-24 Kaggle smoke run: `latency-ce-onnxfp32.json` and
+   `latency-ce-int8.json` both reported `peak_rss_mb = 3341.918`, identical to the parent).
+   `VmHWM`/`VmRSS` belong to the `mm` this process got at exec, so they are this child's own.
+   Two figures per variant: after batch-1 latency, and after the batch-16 throughput pass; plus
+   the peak so far right after session load (so it includes the runtime imports). Current RSS
+   (`VmRSS`) is recorded alongside each peak reading, not just the peak.
 5. **Hosted temperature (5.7) could NOT be 0.** `claude-sonnet-5`'s API rejected the parameter:
    `400 invalid_request_error: "temperature is deprecated for this model"` (request
    `req_011CfM2h7y8RASFkHdhMxhkc`; a rejected request, nothing billed). The hosted run sends no
