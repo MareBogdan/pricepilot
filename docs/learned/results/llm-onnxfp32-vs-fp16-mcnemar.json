@@ -1,0 +1,35 @@
+{
+ "built_from": "scripts/compare_llm_onnxfp32_vs_fp16.py",
+ "generated_at": "2026-09-24T15:57:27.408938+00:00",
+ "fp16_gpu_model_id": "qwen2.5-0.5b-lora-ep8",
+ "onnxfp32_cpu_model_id": "qwen2.5-0.5b-lora-ep8-onnxfp32-cpu",
+ "thresholds": {
+  "qwen2.5-0.5b-lora-ep8": 0.86,
+  "qwen2.5-0.5b-lora-ep8-onnxfp32-cpu": 0.71
+ },
+ "n_scored": 284,
+ "mcnemar_all": {
+  "n": 284,
+  "both_right": 259,
+  "fp16_gpu_only_right": 2,
+  "onnxfp32_cpu_only_right": 1,
+  "both_wrong": 22,
+  "p_exact_two_sided": 1.0
+ },
+ "mcnemar_positives_only": {
+  "n": 97,
+  "both_right": 83,
+  "fp16_gpu_only_right": 1,
+  "onnxfp32_cpu_only_right": 1,
+  "both_wrong": 12,
+  "p_exact_two_sided": 1.0
+ },
+ "mcnemar_negatives_only": {
+  "n": 187,
+  "both_right": 176,
+  "fp16_gpu_only_right": 1,
+  "onnxfp32_cpu_only_right": 0,
+  "both_wrong": 10,
+  "p_exact_two_sided": 1.0
+ }
+}
