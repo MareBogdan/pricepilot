@@ -48,7 +48,9 @@ def _ledgered_thresholds() -> dict[str, float]:
     return {e["model_id"]: float(e["threshold"]) for e in ledger["entries"]}
 
 
-def compare(a: dict[str, float], b: dict[str, float], threshold: float, label: str) -> dict[str, Any]:
+def compare(
+    a: dict[str, float], b: dict[str, float], threshold: float, label: str
+) -> dict[str, Any]:
     """One paired comparison of two `{pair_id: score}` files at the SAME set of pair_ids: max/mean
     absolute diff, and decision flips at `threshold` (score >= threshold => M)."""
     if set(a) != set(b):
@@ -74,7 +76,7 @@ def g1_passes(comparison: dict[str, Any]) -> bool:
     return bool(comparison["max_abs_diff"] <= G1_MAX_ABS_DIFF and comparison["flips"] == 0)
 
 
-def _median_p_yes(preds: dict[str, float], labels: dict[str, str], label: str) -> dict[str, float]:
+def _median_p_yes(preds: dict[str, float], labels: dict[str, str], label: str) -> dict[str, Any]:
     m_scores = [preds[pid] for pid, lab in labels.items() if lab == "M"]
     n_scores = [preds[pid] for pid, lab in labels.items() if lab == "N"]
     return {
@@ -220,7 +222,9 @@ def main() -> int:
 
     print(f"G1 pass: {g1_pass}")
     for c in g1_checks:
-        print(f"  {c['label']}: max|d|={c['max_abs_diff']:.2e} flips={c['flips']}/{c['n']} (n={c['n']})")
+        print(
+            f"  {c['label']}: max|d|={c['max_abs_diff']:.2e} flips={c['flips']}/{c['n']} (n={c['n']})"
+        )
     print(
         f"  extra: {g1_extra_ce_vs_committed['label']}: "
         f"max|d|={g1_extra_ce_vs_committed['max_abs_diff']:.2e} "

@@ -1,0 +1,35 @@
+{
+ "built_from": "scripts/compare_ce_int8_vs_fp32.py",
+ "generated_at": "2026-09-24T12:11:45.580598+00:00",
+ "fp32_model_id": "mmarco-mMiniLMv2-finetuned-ep6",
+ "int8_model_id": "mmarco-mMiniLMv2-finetuned-ep6-int8",
+ "thresholds": {
+  "mmarco-mMiniLMv2-finetuned-ep6": 0.89,
+  "mmarco-mMiniLMv2-finetuned-ep6-int8": 0.83
+ },
+ "n_scored": 284,
+ "mcnemar_all": {
+  "n": 284,
+  "both_right": 246,
+  "fp32_only_right": 14,
+  "int8_only_right": 2,
+  "both_wrong": 22,
+  "p_exact_two_sided": 0.004180908203125
+ },
+ "mcnemar_positives_only": {
+  "n": 97,
+  "both_right": 82,
+  "fp32_only_right": 1,
+  "int8_only_right": 2,
+  "both_wrong": 12,
+  "p_exact_two_sided": 1.0
+ },
+ "mcnemar_negatives_only": {
+  "n": 187,
+  "both_right": 164,
+  "fp32_only_right": 13,
+  "int8_only_right": 0,
+  "both_wrong": 10,
+  "p_exact_two_sided": 0.000244140625
+ }
+}

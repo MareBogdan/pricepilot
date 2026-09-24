@@ -1,0 +1,171 @@
+{
+ "built_from": "scripts/score_predictions.py",
+ "generated_at": "2026-09-24T12:11:12.023909+00:00",
+ "model_id": "mmarco-mMiniLMv2-finetuned-ep6-int8",
+ "threshold": 0.83,
+ "frozen_labels_sha256": "540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4",
+ "n_scored": 284,
+ "s_dropped": 3,
+ "confusion_matrix": {
+  "tp": 84,
+  "fp": 23,
+  "fn": 13,
+  "tn": 164
+ },
+ "precision": {
+  "value": 0.7850467289719626,
+  "n": 107,
+  "ci_95_lower": 0.6980578396844189,
+  "ci_95_upper": 0.8522777535946121
+ },
+ "recall_all_positives": {
+  "value": 0.865979381443299,
+  "n": 97,
+  "ci_95_lower": 0.7841000614500552,
+  "ci_95_upper": 0.9199754331959006
+ },
+ "recall_excluding_13_repeat_positives": {
+  "value": 0.8452380952380952,
+  "n": 84,
+  "ci_95_lower": 0.7530135778901519,
+  "ci_95_upper": 0.9072668953473448
+ },
+ "n_repeat_positives_excluded": 13,
+ "accuracy": {
+  "value": 0.8732394366197183,
+  "n": 284,
+  "ci_95_lower": 0.8295015561579546,
+  "ci_95_upper": 0.9070150001038788
+ },
+ "f1": {
+  "value": 0.8235294117647058,
+  "note": "no independent Wilson CI -- F1 is a harmonic mean of precision and recall, two different proportions, not itself a single binomial proportion Wilson's assumptions apply to."
+ },
+ "per_tier": {
+  "proxy_key_collision": {
+   "n_pos": 74,
+   "n_neg": 12,
+   "reportable": true,
+   "precision": {
+    "value": 0.9012345679012346,
+    "n": 81,
+    "ci_95_lower": 0.8170349859835269,
+    "ci_95_upper": 0.9490998837312017
+   },
+   "recall": {
+    "value": 0.9864864864864865,
+    "n": 74,
+    "ci_95_lower": 0.9273464348015678,
+    "ci_95_upper": 0.9976105365965432
+   },
+   "f1": 0.9419354838709678,
+   "tp": 73,
+   "fp": 8,
+   "fn": 1
+  },
+  "capacity_differs_cross_shop": {
+   "n_pos": 1,
+   "n_neg": 62,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 1",
+   "false_positive_rate": {
+    "value": 0.0,
+    "n": 62,
+    "ci_95_lower": 0.0,
+    "ci_95_upper": 0.058344072101372484
+   }
+  },
+  "blocked_retrieval_candidate": {
+   "n_pos": 15,
+   "n_neg": 21,
+   "reportable": true,
+   "precision": {
+    "value": 0.5714285714285714,
+    "n": 14,
+    "ci_95_lower": 0.3259064457965074,
+    "ci_95_upper": 0.7861920109552588
+   },
+   "recall": {
+    "value": 0.5333333333333333,
+    "n": 15,
+    "ci_95_lower": 0.30116980025498397,
+    "ci_95_upper": 0.7519046463426261
+   },
+   "f1": 0.5517241379310344,
+   "tp": 8,
+   "fp": 6,
+   "fn": 7
+  },
+  "same_capacity_diff_flavour": {
+   "n_pos": 0,
+   "n_neg": 26,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 0",
+   "false_positive_rate": {
+    "value": 0.11538461538461539,
+    "n": 26,
+    "ci_95_lower": 0.04003244623610615,
+    "ci_95_upper": 0.2897590321171364
+   }
+  },
+  "capacity_differs_within_shop": {
+   "n_pos": 0,
+   "n_neg": 22,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 0",
+   "false_positive_rate": {
+    "value": 0.18181818181818182,
+    "n": 22,
+    "ci_95_lower": 0.07306884583422052,
+    "ci_95_upper": 0.38516607437126543
+   }
+  },
+  "same_capacity_diff_lifestage": {
+   "n_pos": 1,
+   "n_neg": 18,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 1",
+   "false_positive_rate": {
+    "value": 0.05555555555555555,
+    "n": 18,
+    "ci_95_lower": 0.009875190978303097,
+    "ci_95_upper": 0.25757300781872594
+   }
+  },
+  "diff_brand_similar_title": {
+   "n_pos": 0,
+   "n_neg": 16,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 0",
+   "false_positive_rate": {
+    "value": 0.0,
+    "n": 16,
+    "ci_95_lower": 0.0,
+    "ci_95_upper": 0.1936076805344365
+   }
+  },
+  "same_capacity_diff_breedsize": {
+   "n_pos": 4,
+   "n_neg": 10,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 4",
+   "false_positive_rate": {
+    "value": 0.1,
+    "n": 10,
+    "ci_95_lower": 0.017876213095072896,
+    "ci_95_upper": 0.4041500267952385
+   }
+  },
+  "trivial_spot_check": {
+   "n_pos": 2,
+   "n_neg": 0,
+   "reportable": false,
+   "note": "recall not computable, n_pos = 2",
+   "false_positive_rate": {
+    "value": null,
+    "n": 0,
+    "note": "undefined (denominator is 0)"
+   }
+  }
+ }
+}

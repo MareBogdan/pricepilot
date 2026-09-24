@@ -31,6 +31,14 @@
    "f1": 0.9081632653061225,
    "rescore": false,
    "reason": null
+  },
+  {
+   "model_id": "mmarco-mMiniLMv2-finetuned-ep6-int8",
+   "timestamp": "2026-09-24T12:11:12.023909+00:00",
+   "threshold": 0.83,
+   "f1": 0.8235294117647058,
+   "rescore": false,
+   "reason": null
   }
  ]
 }
