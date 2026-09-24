@@ -47,6 +47,14 @@
    "f1": 0.8749999999999999,
    "rescore": false,
    "reason": null
+  },
+  {
+   "model_id": "hosted-claude-sonnet-5-zeroshot-v2",
+   "timestamp": "2026-09-24T16:24:27.518742+00:00",
+   "threshold": 0.5,
+   "f1": 0.9035532994923858,
+   "rescore": false,
+   "reason": null
   }
  ]
 }
