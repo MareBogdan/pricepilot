@@ -1,0 +1,32 @@
+{
+ "built_from": "scripts/diagnose_hosted_empty_reply.py",
+ "free_part": {
+  "unparseable_total": 40,
+  "empty_reply_count": 40,
+  "empty_reply_rate_of_287_test": 0.13937282229965156,
+  "non_empty_but_unparseable_count": 0,
+  "matched_llm_calls_rows": 40,
+  "missing_pair_ids": [],
+  "distinct_output_tokens": [
+   5
+  ],
+  "all_empty_replies_hit_max_tokens": true
+ },
+ "diagnostic": {
+  "pair_id": "009591168d82_10e3017aee93",
+  "executed": true,
+  "estimated_cost_usd": "0.001228",
+  "stop_reason": "end_turn",
+  "content_blocks": [
+   {
+    "type": "text",
+    "text": "No"
+   }
+  ],
+  "input_tokens": 688,
+  "output_tokens": 3,
+  "cost_usd": "0.001406",
+  "latency_ms": 1437.5,
+  "note": "Captured from the actual --execute run (llm_calls id 288, 2026-09-24T12:29:17Z); this file was regenerated in --dry-run mode afterwards (adding OUTPUT_JSON support) and this block was filled in by hand from that logged row rather than spending on a second call for the SAME diagnostic purpose."
+ }
+}

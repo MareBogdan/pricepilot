@@ -145,6 +145,20 @@ class Completion:
     latency_ms: float | None  # wall-clock of the API call; None for a cache hit
 
 
+@dataclass(frozen=True)
+class ContentBlock:
+    type: str
+    text: str | None
+
+
+@dataclass(frozen=True)
+class DiagnosticCompletion:
+    stop_reason: str | None
+    blocks: list[ContentBlock]
+    usage: Usage
+    latency_ms: float
+
+
 def complete(
     *,
     model: str,
@@ -237,3 +251,71 @@ def complete(
             "so a rerun will not pay again -- add this cost to docs/COSTS.md by hand."
         ) from e
     return Completion(text=text, usage=usage, cache_hit=False, latency_ms=latency_ms)
+
+
+def complete_diagnostic(
+    *,
+    model: str,
+    prompt: str,
+    max_tokens: int,
+    phase: str,
+    purpose: str,
+    temperature: float | None = None,
+    system: str | None = None,
+    sdk_client: Any | None = None,
+) -> DiagnosticCompletion:
+    """A second, narrower path to a paid call, for diagnosing a reply `complete()` would score as
+    empty. `complete()` only ever returns `.text` -- the concatenation of "text"-type content
+    blocks -- so it cannot show WHY a reply came back empty: a non-text block type, or a "text"
+    block truncated by `stop_reason="max_tokens"` before any visible token. This returns the raw
+    `stop_reason` and every block's type/text instead.
+
+    Same budget check and `log_call` as `complete()`, so it is still capped and still traced in
+    `llm_calls`. Deliberately has NO disk cache: this is a one-off diagnostic call meant to run
+    once, not a scoring path meant to be replayed for free on a second run.
+    """
+    est_input = len(prompt) // 3 + 1
+    assert_within_budget(cost_usd(model, est_input, max_tokens))
+
+    if sdk_client is None:
+        sdk_client = make_sdk_client()
+
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if temperature is not None:
+        kwargs["extra_body"] = {"temperature": temperature}
+    if system is not None:
+        kwargs["system"] = system
+    started = time.perf_counter()
+    response = sdk_client.messages.create(**kwargs)
+    latency_ms = (time.perf_counter() - started) * 1000.0
+
+    blocks = [
+        ContentBlock(type=getattr(b, "type", "?"), text=getattr(b, "text", None))
+        for b in response.content
+    ]
+    in_tok, out_tok = int(response.usage.input_tokens), int(response.usage.output_tokens)
+    usage = Usage(
+        model=model,
+        input_tokens=in_tok,
+        output_tokens=out_tok,
+        cached_input_tokens=0,
+        cost_usd=cost_usd(model, in_tok, out_tok),
+    )
+    log_call(
+        phase=phase,
+        purpose=purpose,
+        usage=usage,
+        key=None,
+        cache_hit=False,
+        latency_ms=round(latency_ms),
+    )
+    return DiagnosticCompletion(
+        stop_reason=getattr(response, "stop_reason", None),
+        blocks=blocks,
+        usage=usage,
+        latency_ms=latency_ms,
+    )

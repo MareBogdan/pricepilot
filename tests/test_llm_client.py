@@ -157,6 +157,75 @@ def test_call_forwards_temperature_and_max_tokens(db: Any, tmp_path: Path) -> No
     assert kw["messages"] == [{"role": "user", "content": "hello"}]
 
 
+class FakeSdkRaw:
+    """Like FakeSdk, but returns caller-chosen content blocks and a stop_reason -- for
+    complete_diagnostic, which needs to see block types the FakeSdk/`Completion.text` path
+    collapses away."""
+
+    def __init__(self, replies: list[tuple[str, list[Any], int, int]]) -> None:
+        # each reply: (stop_reason, blocks, in_tokens, out_tokens); each block a SimpleNamespace
+        self.replies = list(replies)
+        self.calls: list[dict[str, Any]] = []
+        self.messages = SimpleNamespace(create=self._create)
+
+    def _create(self, **kwargs: Any) -> Any:
+        self.calls.append(kwargs)
+        stop_reason, blocks, in_tok, out_tok = self.replies.pop(0)
+        return SimpleNamespace(
+            content=blocks,
+            stop_reason=stop_reason,
+            usage=SimpleNamespace(input_tokens=in_tok, output_tokens=out_tok),
+        )
+
+
+def test_diagnostic_call_returns_stop_reason_and_every_block(db: Any) -> None:
+    blocks = [SimpleNamespace(type="text", text=""), SimpleNamespace(type="thinking", text=None)]
+    sdk = FakeSdkRaw([("max_tokens", blocks, 500, 5)])
+    out = client.complete_diagnostic(
+        model=MODEL, prompt="diag", max_tokens=5, phase="phase3", purpose="diag", sdk_client=sdk
+    )
+    assert out.stop_reason == "max_tokens"
+    assert [(b.type, b.text) for b in out.blocks] == [("text", ""), ("thinking", None)]
+    assert out.usage.output_tokens == 5
+
+
+def test_diagnostic_call_is_logged_and_never_cached(db: Any) -> None:
+    sdk = FakeSdkRaw(
+        [
+            ("end_turn", [SimpleNamespace(type="text", text="Yes")], 500, 1),
+            ("end_turn", [SimpleNamespace(type="text", text="Yes")], 500, 1),
+        ]
+    )
+    client.complete_diagnostic(
+        model=MODEL, prompt="diag", max_tokens=5, phase="phase3", purpose="diag", sdk_client=sdk
+    )
+    client.complete_diagnostic(
+        model=MODEL, prompt="diag", max_tokens=5, phase="phase3", purpose="diag", sdk_client=sdk
+    )
+    assert len(sdk.calls) == 2  # no disk cache -- a second identical call hits the API again
+    rows = _rows(db)
+    assert len(rows) == 2 and all(r.cache_hit is False for r in rows)
+
+
+def test_diagnostic_call_respects_the_budget_cap(db: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        client,
+        "get_settings",
+        lambda: SimpleNamespace(llm_budget_usd=0.0001, anthropic_api_key="k"),
+    )
+    sdk = FakeSdkRaw([("end_turn", [SimpleNamespace(type="text", text="Yes")], 500, 1)])
+    with pytest.raises(client.BudgetExceeded):
+        client.complete_diagnostic(
+            model=MODEL,
+            prompt="x" * 30_000,
+            max_tokens=5,
+            phase="phase3",
+            purpose="diag",
+            sdk_client=sdk,
+        )
+    assert sdk.calls == []
+
+
 def test_unknown_model_has_no_price() -> None:
     with pytest.raises(KeyError):
         client.cost_usd("some-unpriced-model", 1, 1)
