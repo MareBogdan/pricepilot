@@ -127,3 +127,66 @@ Recorded here, in the open, so no number is quoted without them.
    comparison (5.1c).
 7. **VPS price basis:** CX22 is no longer listed; CX23 (same specs) at EUR 0.0088/h is used, and it
    is currently unavailable to order (`docs/phase3-serving-prices.md`).
+
+## 5.11 LLM int8 is non-discriminating with the default config -- pre-registered variant rule
+(added 2026-09-24, session 2, BEFORE any code in `notebooks/phase3-llm-int8-variants.ipynb` exists)
+
+**Finding, from the committed serving run** (`scripts/check_serving_gates.py`'s G2 diagnostic,
+validation labels only): the default dynamic int8 quantization (`quantize_dynamic`, QInt8
+weights, per_channel=False, reduce_range=False -- protocol 5.10 item 1) destroys the LoRA model's
+discrimination. On the 133 validation pairs, median P(Yes) is 0.235 for true M and 0.251 for true
+N (fp32 on the same pairs: 0.995 / 0.000) -- the two classes are no longer separated by score at
+all. Best validation F1 is 0.514, achieved only by predicting M for everything. **No TEST touch
+follows for this configuration**: scoring a non-discriminating model against TEST would add a
+meaningless ledger row (protocol 5.4 G4 exists to report a real result, not to burn a TEST touch
+on a broken one).
+
+**Probable cause (hypothesis, to be tested by the variants below, not asserted as a finding):**
+the Kaggle CPU is an AMD EPYC 7B12, AVX2 WITHOUT VNNI (`env-facts.json`). ORT's dynamic U8S8 path
+on AVX2-without-VNNI can saturate in int16 accumulation with `reduce_range=False`; Qwen's
+activation outliers make per-tensor weight quantization fragile on top of that. The cross-encoder,
+scored with the SAME default config, degrades (G4: F1 0.8235 vs fp32's 0.8737, McNemar
+p=0.0042) but does not stop discriminating -- consistent with the LLM's decoder being the more
+fragile of the two under this config, not with the CPU being universally unusable for int8.
+
+**Candidate configurations, all ORT `quantize_dynamic`, QInt8 weights:**
+- **V1** = current default (`per_channel=False`, `reduce_range=False`) -- already measured above,
+  broken. Not re-run.
+- **V2** = `per_channel=True`, `reduce_range=True`.
+- **V3** = V2 + `op_types_to_quantize=["MatMul"]` only (the embedding `Gather` and everything else
+  stays fp32; only the matrix multiplies are quantized).
+
+**Selection rule**, applied on the 133 VALIDATION pairs only (never TEST):
+1. A variant is **eligible** only if its validation M/N median P(Yes) are separated:
+   `median_M > 0.5 > median_N`. A variant that fails this is not a candidate for TEST at all,
+   regardless of its F1 (V1 itself fails this test, which is exactly why it never reached TEST).
+2. Among eligible variants, the winner is the one with the **highest best-threshold F1** on the
+   133 validation pairs (found the same way `scripts/select_threshold.py` finds it).
+3. **Ties within 0.005 F1** are broken by the **lower p50 latency** (pinned, batch 1, as in 5.5).
+4. **If NO variant is eligible**, the finding is stated exactly as: "dynamic int8 destroys this
+   0.5B decoder on AVX2-without-VNNI." In that case the LLM is served and reported as **ONNX
+   fp32**, with one new TEST touch for `qwen2.5-0.5b-lora-ep8-onnxfp32-cpu` (`score_predictions.py`,
+   threshold re-selected on validation from the fp32 scores already committed), and **no int8 LLM
+   row exists** in the headline table.
+5. Only the SELECTED variant's TEST predictions are ever read, and only once, via
+   `scripts/score_predictions.py`, as `qwen2.5-0.5b-lora-ep8-int8-<v>` (`<v>` = `v2` or `v3`). The
+   other non-selected eligible variant's TEST predictions, if any were produced, are never scored
+   against TEST -- computing but not reading them is fine; reading them is the thing this rule
+   exists to prevent.
+
+**Cross-encoder robustness check, produced alongside (not a second CE TEST touch):** V2 is also
+run for the cross-encoder, scored on validation and reported as a validation-only drift check next
+to the already-recorded CE int8 TEST result (task 2 of this session). The CE int8 TEST result
+stays `mmarco-mMiniLMv2-finetuned-ep6-int8` at threshold 0.83, F1 0.8235 -- unchanged by this
+check, whatever it shows.
+
+**Notebook** (`notebooks/phase3-llm-int8-variants.ipynb`, CPU accelerator, internet on): re-merges
+the LoRA adapter from `notebookf26a8565eb`'s output exactly as `phase3-serving-benchmark.ipynb`
+does (same `ENV-COMPAT-BEGIN`/`END` block, same `LLMWrap` export, same worker script, verbatim --
+`notebookf26a8565eb`'s output is used again rather than depending on `notebook79d89ab24c`, which is
+not needed here). Stages: merge; export fp32 (gated -- refuses to continue if
+`max|diff|` against the already-committed `docs/learned/results/serving/preds-llm-onnxfp32-val.json`
+exceeds `1e-5`, since this is a fresh re-merge/re-export and must reproduce the committed fp32
+reference before any new int8 variant is trusted); quantize V2 and V3; score val+test for each
+(unpinned); latency+RSS for each (pinned, fresh worker per variant, `VmHWM`/`VmRSS` as fixed in
+this session's task 0). `SMOKE` flag defaults to `True`, as in the serving notebook.
