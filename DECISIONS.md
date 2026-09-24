@@ -4037,3 +4037,96 @@ required above everything else.
 (`docs/phase3-llm-int8-variants-runbook.md`). Only then: apply 5.11's selection rule, one TEST
 touch for whichever variant is selected (or the fp32 fallback), and only then the headline table
 and README — explicitly deferred out of this session.
+
+## ADR-0028 addendum #25 — Phase 3 item 8, session 3 (final): LLM int8 variants result, ONNX fp32 fallback TEST result, hosted v2 correction, headline table, item 8 CLOSED (2026-09-24)
+
+**LLM int8 variants ran on Kaggle** (`notebook95928d4ee4`, full run, not smoke; 9 stages ok;
+`docs/learned/results/serving/int8v/`, 11 files committed unmodified, SHA-256 unchanged before/
+after staging). CPU: Intel Xeon @ 2.20GHz, AVX2, no VNNI — a DIFFERENT CPU than session 1/2's
+serving run (AMD EPYC 7B12, also no VNNI); the two runs' latency numbers are never compared as
+same-hardware anywhere in this project's outputs. `LLM-verify-fp32` PASSED: the fresh re-export's
+val predictions vs the already-committed `preds-llm-onnxfp32-val.json`, max|diff| 6.91e-06 <=
+1e-5 — the re-merge reproduced the committed reference, so V2/V3 built from it can be trusted.
+
+**Protocol 5.11 applied by script** (`scripts/select_llm_int8_variant.py`, output matches the
+architect's pre-check exactly): V2 (`per_channel=True, reduce_range=True`) validation median
+P(Yes) M=0.431 / N=0.326 -- NOT eligible (fails `median_M > 0.5 > median_N`), best val F1 0.535.
+V3 (V2 + `op_types_to_quantize=["MatMul"]`) median M=0.322 / N=0.213 -- NOT eligible, best val F1
+0.599. **NO VARIANT IS ELIGIBLE.** Combined with the default config's failure on the AMD CPU
+(session 2), this REFUTES the "AMD-specific" hypothesis (Intel failed too) and WEAKENS the
+"per-tensor/saturation only" hypothesis (per-channel + reduce_range did not fix it). Weight-only
+quantization (e.g. ORT's `MatMulNBits`) was explicitly left as untested future work, not run. No
+TEST prediction file for any of V1/V2/V3 was ever read -- the whole point of 5.11's rule.
+
+**LoRA served as ONNX fp32 CPU (protocol 5.11's stated fallback) -- G3 + G4.**
+`select_threshold.py` on the committed val predictions: best threshold 0.71, F1 0.9048.
+`score_predictions.py` touched TEST once for `qwen2.5-0.5b-lora-ep8-onnxfp32-cpu`: **F1 0.8750**
+-- one new ledger entry, no rescore. `scripts/compare_llm_onnxfp32_vs_fp16.py`: McNemar exact
+paired vs the ledgered fp16-GPU fine-tune on the same 284 scored TEST pairs -- **p=1.0000
+overall and on both label subsets** (259/284 both right, 2 fp16-only-right, 1 onnxfp32-only-right):
+a parity result, exactly what re-exporting the same weights at a different precision on different
+hardware should look like.
+
+**Session 2's hosted empty-reply diagnosis was WRONG -- retracted.** Commit `eb72250` concluded
+"no request-config defect reproduced" from ONE diagnostic call that happened to land on an easy
+validation pair. That call's own cleanliness does not override the v1 run's own evidence, already
+in hand: all 40 empty TEST replies used `output_tokens == max_tokens == 5` with ZERO visible text,
+and `client.complete()` concatenates only `type == "text"` content blocks -- exactly the "non-text
+blocks ... consuming max_tokens" example the protocol itself pre-registers as a config artifact.
+Protocol 5.12 (committed BEFORE any v2 code existed, commit `eaac7f9`) corrected this and
+pre-registered a v2 run: identical to v1 except `max_tokens=64`, every call's raw `stop_reason`
+and content-block `type`s now captured (`client.complete()` extended with `stop_reason`/
+`block_types`, backward compatible with v1's pre-5.12 cache entries), parsing UNCHANGED (still
+exact-match "Yes"/"No"), new ledger id `hosted-claude-sonnet-5-zeroshot-v2`.
+
+**Hosted v2 executed** after an explicit `SPEND: ... — proceed?` / "yes" ($0.52 est., **$0.416178
+actual**, 287 calls, 0 cache hits). Result **strongly confirms** the corrected diagnosis: only
+**11/287 unparseable** (down from v1's 40). `stop_reason` counts: `end_turn` 276, `max_tokens` 11.
+Content block-type counts: `text` 276, **`thinking` 40** -- exactly v1's empty-reply count. The
+model was spending part of its token budget on an extended-thinking block before answering; at
+`max_tokens=5` that left zero room for any visible text on those 40 pairs, and at `max_tokens=64`
+all but 11 finished in time. `score_predictions.py` touched TEST once for
+`hosted-claude-sonnet-5-zeroshot-v2`: **F1 0.9036** (v1: 0.9082) -- both reported side by side,
+both zero-shot, neither a fair accuracy comparison (protocol 5.1c).
+
+**Headline table** (`scripts/build_serving_table.py` -> `docs/learned/phase3-serving-benchmark.md`,
+generated from committed files only; two reviewer rounds found and fixed real bugs -- wrong
+CPU-to-model attribution in the header, several numbers that had been hand-typed instead of read
+from committed files, `$/1,000` precision that hid the CE fp32-vs-int8 cost difference
+($0.000227 vs $0.000153, both rounding to $0.0002 at 4 decimals), a cache-hit undercounting bug,
+and a test that called the real `main()` against the real repo and would have broken -- and could
+have overwritten the real output -- the moment hosted v2 landed; now isolated against a fake
+`tmp_path` tree):
+
+| model | TEST F1 | p95 ms | $/1,000 | CPU |
+|---|---|---|---|---|
+| CE fp32 (ONNX CPU) | 0.8737 | 93 | $0.000227 | AMD EPYC 7B12 |
+| CE int8 (ONNX CPU) | 0.8235 | 65 | $0.000153 | AMD EPYC 7B12 |
+| LoRA fp16 (GPU, reference only) | 0.8796 | n/a | n/a | NVIDIA T4 |
+| LoRA ONNX fp32 CPU (served) | 0.8750 | 2242 | $0.007104 | AMD EPYC 7B12 |
+| Hosted v1 (max_tokens=5) | 0.9082 | 1883 | $1.396718 | Anthropic-hosted |
+| Hosted v2 (max_tokens=64) | 0.9036 | 2361 | $1.450098 | Anthropic-hosted |
+
+Local CPU serving is roughly **6,000-9,000x cheaper per 1,000 comparisons** than the hosted API at
+these prices -- the central serving-cost argument the project set out to demonstrate (CLAUDE.md
+§6's "small fine-tuned model for the narrow repetitive task" rule). K=20 (210,640 scorings) /
+K=100 (1,053,200) VPS wall-clock, per served local model: CE fp32 4.77h/23.85h, CE int8
+3.22h/16.09h, LoRA fp32 149.02h/745.08h -- the input ADR-0028 addendum #7 item 3's pending K
+decision was waiting for.
+
+**README updated**: the Results table's Serving row and the second Serving-on-CPU row now carry
+these numbers, both linking `docs/learned/phase3-serving-benchmark.md`. The Demand row is
+untouched (Phase 4, not started).
+
+**Cost, this session: $0.416178** (hosted v2 only -- the LLM int8 variants Kaggle run was free
+tier). **Project running total: $0.818442** (`llm_calls`, 575 rows), well inside the $20
+available / $100 ceiling. `docs/COSTS.md` updated in the same commit as the spend.
+
+**Ledger: 7 entries** (`mmarco-mMiniLMv2-zeroshot`, `mmarco-mMiniLMv2-finetuned-ep6`,
+`qwen2.5-0.5b-lora-ep8`, `hosted-claude-sonnet-5-zeroshot`, `mmarco-mMiniLMv2-finetuned-ep6-int8`,
+`qwen2.5-0.5b-lora-ep8-onnxfp32-cpu`, `hosted-claude-sonnet-5-zeroshot-v2`). No TEST touch for any
+LLM int8 variant (V1, V2 or V3) -- the one thing this session's acceptance criteria required above
+everything else.
+
+**Phase 3 item 8 is CLOSED. Phase 3 items 1-8 are all done.** Next: a context diet, then the
+architect's phase audit, before Phase 4 (Demand) starts.

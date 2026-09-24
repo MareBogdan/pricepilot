@@ -3,31 +3,21 @@
 Phase: 3 — Matching (Phases 0-2 CLOSED)
 Updated: 2026-09-24
 
-**Where we are (2026-09-24):** Items 1-7 are CLOSED (item 5 cross-encoder TEST F1 0.8737; item 6
-LoRA 0.8796; a tie, McNemar p = 1.0000). Item 8 session 1 is done (cross-encoder retrain
-REPRODUCED, protocol pre-registered, hosted zero-shot baseline F1 0.9082 @ fixed 0.5). The Kaggle
-serving smoke run found and fixed two defects (torchao ImportError in the serving notebook, and
-`peak_rss_mb` reading the parent process's RSS instead of the child's); the full serving run then
-completed cleanly, all 11 stages ok, RSS numbers now sane and distinct.
+**Where we are (2026-09-24): Phase 3 items 1-8 are all DONE.** Item 8 closed this session
+(session 3): the int8-variants Kaggle run confirmed protocol 5.11's fallback applies — LoRA int8
+is non-eligible on BOTH an AMD EPYC 7B12 and an Intel Xeon CPU (V2 median M=0.431/N=0.326, V3
+M=0.322/N=0.213, both fail `median_M > 0.5 > median_N`), refuting "AMD-specific" and weakening
+"per-tensor/saturation only". LoRA is served/reported as ONNX fp32 CPU instead (F1 0.8750, one new
+TEST touch, McNemar vs the fp16-GPU reference p=1.0000 — a parity result). Session 2's hosted
+empty-reply diagnosis (commit eb72250, "no request-config defect") was **wrong and retracted**: a
+corrected v2 hosted run at max_tokens=64 (protocol 5.12, $0.42 spent after an explicit yes) cut
+unparseable replies from 40/287 to 11/287, and 40 of the 287 calls used a `thinking` content block
+— exactly matching v1's empty-reply count, confirming those were truncated, not settled "no"
+answers. Final headline table: `docs/learned/phase3-serving-benchmark.md`
+(`scripts/build_serving_table.py`, reviewer-passed after two rounds that caught real bugs). Ledger:
+7 entries. Details: DECISIONS.md ADR-0028 addendum #25.
 
-Item 8 session 2, part 1 (this session) is done: **G1 PASSES** for both models (both models'
-outputs reported are trustworthy). **CE int8 TEST-touched**: F1 0.8235 vs fp32's ledgered 0.8737,
-McNemar p=0.0042 (int8 significantly worse, driven by added false positives). **LLM int8 (default
-config) is NON-DISCRIMINATING on validation** (median P(Yes) 0.235 true-M / 0.251 true-N vs fp32's
-0.995/0.000) — **no TEST touch taken** for it. Protocol 5.11 pre-registers two fixes to try (V2:
-per_channel+reduce_range; V3: V2 + MatMul-only) with a fixed eligibility/selection rule, committed
-BEFORE `notebooks/phase3-llm-int8-variants.ipynb` (built, reviewed, 2-Kaggle-input runbook at
-`docs/phase3-llm-int8-variants-runbook.md`) was written. **Hosted empty-reply diagnosis done**: all
-40 empty TEST replies hit `output_tokens == max_tokens == 5`; one diagnostic call on a VALIDATION
-pair came back normal (`stop_reason=end_turn`, text "No") — no request-config defect reproduced,
-so the 40/287 (~14%) empty-reply rate is reported as a finding, no hosted rerun. Ledger: 5 entries.
-Details: DECISIONS.md ADR-0028 addendum #24.
-
-**Next: Bogdan runs the LLM int8 variants Kaggle notebook** (smoke then full,
-`docs/phase3-llm-int8-variants-runbook.md`, only 2 inputs). Session 2 part 2 then applies protocol
-5.11's selection rule to the V2/V3 results, scores the selected variant's TEST predictions once (or
-falls back to reporting the LLM as ONNX fp32 if neither variant is eligible), and only then writes
-the headline table and README (explicitly deferred, per this session's own instructions).
+**Next: a context diet, then the architect's phase audit** before Phase 4 (Demand) starts.
 
 ## Gate progress
 
@@ -101,9 +91,14 @@ ADR-0027.
     `docs/learned/phase3-failure-analysis.md` (10 cases chosen by a deterministic rule; 4 look like
     label noise). Reproduce: `uv run python scripts/compare_models.py`,
     `uv run python scripts/select_failure_cases.py`.
-[ ] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
-    hosted API — CE reproduced, protocol pre-registered, hosted baseline done ($0.40); blocked on
-    Bogdan: Kaggle smoke + full run.
+[x] 8. Quantize the fine-tune + CPU benchmark (accuracy, p50/p95, $/1,000) vs. cross-encoder vs.
+    hosted API — **DONE, 2026-09-24.** CE int8 TEST-touched (F1 0.8235, significant drop vs fp32,
+    McNemar p=0.0042). LoRA int8 (three configs: default, V2, V3) NON-ELIGIBLE on both an AMD and
+    an Intel CPU (protocol 5.11) — served as ONNX fp32 CPU instead (F1 0.8750, one new TEST touch).
+    Hosted v1 (F1 0.9082, 40/287 empty) corrected by a v2 rerun at max_tokens=64 (F1 0.9036,
+    11/287 empty — confirms the empty replies were a request-config truncation, not model
+    behaviour). Headline table: `docs/learned/phase3-serving-benchmark.md`. Ledger: 7 entries.
+    Reproduce: `uv run python scripts/build_serving_table.py`.
 
 **Dataset FROZEN 2026-09-22.** SHA-256 (of `docs/learned/phase3-labels.json`, LF-normalised)
 `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` — recorded identically in
@@ -148,8 +143,6 @@ Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7
    into this file's History section.
 
 ## Open issues
-
-- **Item 8 artefacts:** protocol `docs/phase3-serving-benchmark-protocol.md` (+ §5.10 deviations); prices `docs/phase3-serving-prices.md`; reproduction verdict `docs/learned/results/ce-reproduction-check.json`; notebook `notebooks/phase3-serving-benchmark.ipynb`; hosted results `docs/learned/results/predictions/{preds,latency}-hosted*.json` + `hosted-claude-sonnet-5-zeroshot-metrics.json`. The notebook has never run on Kaggle; the Qwen ONNX export is the likeliest failure (smoke run catches it). Hosted run: 40/287 empty replies, temperature not sendable.
 
 - **Flagged 2026-09-23: `pytest` (the console-script `.exe`) is blocked by this machine's Windows
   Application Control policy** — `uv run python -m pytest` works and was used throughout this
@@ -289,15 +282,11 @@ Frozen labels SHA-256: `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7
 
 ## Blocked on Bogdan
 
-**Item 8 session 2: run the LLM int8 variants Kaggle notebook** — smoke first, then full; follow
-`docs/phase3-llm-int8-variants-runbook.md` exactly (only 2 Kaggle inputs — do NOT add the
-cross-encoder weights notebook, this run doesn't use it). Outputs go in
-`docs/learned/results/serving/int8v/`. If `LLM-verify-fp32` fails (in `stage-status.json`), stop
-and send it — the notebook is designed to abort there and not quantize anything downstream of an
-unverified export.
+**Nothing on item 8 — it is closed.** The int8-variants Kaggle run (session 2's blocking item)
+completed and session 3 scored it; see the header above.
 
-Also still open: the Phase 7 hosting reserve must be re-checked (CX22 no longer sold; CX23 EUR
-5.49/mo and unavailable to order today).
+Still open: the Phase 7 hosting reserve must be re-checked (CX22 no longer sold; CX23 EUR
+5.49/mo and unavailable to order today) — deferred to Phase 7, not blocking now.
 
 (The prior "run the Kaggle serving benchmark" item here is done — session 1's serving run
 completed and session 2 part 1 scored it; see the header above.)

@@ -59,7 +59,7 @@ large hosted API model on accuracy, latency and cost per 1,000 comparisons.
 |---|---|---|---|---|
 | Candidate retrieval | — | 88.0% (44/50), Wilson 95% CI [76.2%, 94.4%] | recall@20 | Phase 3 — measurement-power finding, not "met" or "missed" (target 90% sits inside the CI) |
 | Matching | cross-encoder (mmarco-mMiniLMv2, epoch-6 checkpoint of an 8-epoch fine-tune): F1 0.8737, P 0.8925 (n=93, CI [0.813, 0.941]), R 0.8557 (n=97, CI [0.772, 0.912]) | LoRA Qwen2.5-0.5B: F1 0.8796, P 0.8936 (n=94, CI [0.815, 0.941]), R 0.8660 (n=97, CI [0.784, 0.920]) — **a tie with the baseline (CIs overlap; McNemar p = 1.0)** | precision / recall / F1 on 287 TEST pairs (284 scored) | Phase 3 |
-| Serving | hosted API model | quantized 0.5B on CPU | p50/p95 latency, $/1k | Phase 3 |
+| Serving | hosted zero-shot `claude-sonnet-5`: F1 0.9036, p95 2361 ms, $1.450098/1k (zero-shot, not a fair accuracy comparison) | CE int8 on CPU: F1 0.8235 (significant drop vs fp32, McNemar p=0.0042), p95 65 ms, $0.000153/1k · LoRA served as ONNX fp32 CPU (no int8 variant was eligible): F1 0.8750, p95 2242 ms, $0.007104/1k | p50/p95 latency, $/1k comparisons | Phase 3 — [full table](docs/learned/phase3-serving-benchmark.md) |
 | Demand | naive 7-day average | PyTorch | MAE / MAPE, elasticity recovery error | Phase 4 |
 | Recommendations | — | RAG + guardrail | margin violations (must be 0) | Phase 5 |
 
@@ -110,13 +110,15 @@ size/flavour/life stage). **Frozen 2026-09-22, SHA-256
 |---|---|---|---|
 | Matching, TEST (287 pairs, 284 scored) | F1 0.8737; P 0.8925 (n=93, 95% CI [0.813, 0.941]); R 0.8557 (n=97, CI [0.772, 0.912]) | F1 0.8796; P 0.8936 (n=94, CI [0.815, 0.941]); R 0.8660 (n=97, CI [0.784, 0.920]) — statistically a tie (McNemar 8 vs 9 discordant, p = 1.0000) | precision / recall / F1 |
 | — size variant (capacity-differs tiers, n=85, 1 positive) | 83/85 correct (0.976, CI [0.918, 0.994]); F1 undefined | 82/85 correct (0.965, CI [0.901, 0.988]); F1 undefined | correct calls / n |
-| Serving on CPU | | | p50 / p95 latency, $/1k |
+| Serving on CPU (item 8) | CE int8: F1 0.8235, p95 65 ms, $0.000153/1k, 627 MB peak RSS | LoRA ONNX fp32 CPU: F1 0.8750, p95 2242 ms, $0.007104/1k, 2347 MB peak RSS (served; no int8 variant was eligible, protocol 5.11) | p50 / p95 latency, $/1k |
 
 Full breakdown, both recall readings, per-tier results and the zero-shot comparison point:
-`docs/learned/phase3-baseline-results.md`.
+`docs/learned/phase3-baseline-results.md`. Full serving benchmark, hosted v1/v2, LoRA int8 finding,
+K=20/K=100 VPS wall-clock: `docs/learned/phase3-serving-benchmark.md`.
 
-*Reproduce: `uv run python scripts/compare_models.py` (full comparison, McNemar, per-tier). Serving
-row empty until item 8; no number appears here without a script behind it.*
+*Reproduce: `uv run python scripts/compare_models.py` (full comparison, McNemar, per-tier);
+`uv run python scripts/build_serving_table.py` (serving table). No number appears here without a
+script behind it.*
 
 ## What this system does NOT do
 
