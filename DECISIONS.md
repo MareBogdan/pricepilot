@@ -60,8 +60,8 @@ onward actually need.
   3 S, 284 scored), TRAIN_VAL 672 distinct pairs (697 rows, 222 M / 444 N / 6 S, 666 scored), 0
   listing overlap between splits, TEST blind (no rules-engine suggestion ever shown, enforced three
   independent ways). (addendum #10, #16)
-- **S dropped from every trainable/scored count.** TRAIN_VAL's 672 distinct pairs -> 665 trainable
-  after dropping 7 S; TEST's 287 -> 284 scored after dropping 3 S. S is never a positive or a
+- **S dropped from every trainable/scored count.** TRAIN_VAL's 672 distinct pairs -> 666 trainable
+  after dropping 6 S; TEST's 287 -> 284 scored after dropping 3 S. S is never a positive or a
   negative — it is excluded, not miscounted as either. (addendum #16, #19)
 - **Threshold only via `select_threshold.py`, on validation only.** That script is the one place a
   threshold may be chosen, swept against TRAIN_VAL's 134-pair validation split only (never TEST).
@@ -126,4 +126,18 @@ onward actually need.
 Full text, every addendum, every retracted or superseded number:
 `docs/archive/DECISIONS-0028-phase3-full.md`.
 
-## ADR-0029 onward: full text (none yet)
+## ADR-0029 — Context diet: live files vs `docs/archive/`
+
+**Context.** CLAUDE.md (~9,500 tok), STATE.md (~27,600 tok) and DECISIONS.md (~79,700 tok) load
+on every turn/session; most of that was closed-phase history, and it was only going to keep
+growing every phase.
+**Decision.** Move closed-phase history to `docs/archive/` verbatim (nothing deleted); condense
+the live files to a hard line budget (CLAUDE.md <=400, STATE.md <=400, DECISIONS.md <=600),
+enforced by `tests/test_context_budget.py`; verify nothing was lost with
+`scripts/check_archive_integrity.py` (`tests/test_archive_integrity.py`).
+**Alternatives rejected.** Deleting old ADRs/history outright — CLAUDE.md section 11 keeps them
+for interview prep. A token-count-only budget with no test — a soft limit erodes one session at a
+time; a failing test is a limit that holds.
+**Date.** 2026-09-25
+
+## ADR-0030 onward: full text (none yet)
