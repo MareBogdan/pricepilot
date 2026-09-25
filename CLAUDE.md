@@ -138,13 +138,14 @@ The user is on a Pro plan and is budget-conscious with tokens.
 - Keep replies short. Long explanations go into `docs/`, not into chat.
 
 ### Sub-agents
-**The main session is the orchestrator and does most of the implementation itself.** Sub-agents fragment context and cost more tokens; they earn their keep only on genuinely isolated, repetitive or high-volume work. Phase 0 creates exactly these three in `.claude/agents/`:
+**The main session is the orchestrator and does most of the implementation itself.** Sub-agents fragment context and cost more tokens; they earn their keep only on genuinely isolated, repetitive or high-volume work.
 
 | Agent | Use it for | Why it's isolated |
 |---|---|---|
-| `scraper-engineer` | One source adapter at a time, against saved fixtures | Repetitive, self-contained, produces a lot of throwaway parsing detail |
 | `reviewer` | Reviewing a diff against §0 and §6 before merge | Needs a fresh perspective, not the context that produced the code |
 | `researcher` | Investigating an option and writing a doc | High token volume, single-document output |
+
+`scraper-engineer` retired after Phase 1 (archived in `docs/archive/agents/`).
 
 Do not create more agents. Do not delegate core ML, RAG or decision-engine work — that stays in the main session, because those decisions need full project context and are what the user most needs explained.
 
@@ -155,21 +156,18 @@ Do not create more agents. Do not delegate core ML, RAG or decision-engine work 
 This is the part where money gets wasted. Treat it as a hard engineering constraint.
 
 ### Scrapers
-1. **Never test a scraper against a live site in a loop.** First run fetches *one* page and saves the raw HTML to `tests/fixtures/<source>/`. All subsequent development and all tests run against those saved fixtures, offline.
-2. Every scraper has a `--limit` flag. Default is 5 items. Full runs are explicit.
-3. Every scraper has a `--dry-run` flag that parses and prints but writes nothing.
-4. Rate limit: minimum 2 seconds between requests, randomized. Respect `robots.txt`. Honest User-Agent with a contact.
-   **The contact address is never committed.** Scrapers read `SCRAPER_USER_AGENT` from `.env`; the repo
-   carries only `.env.example` with a placeholder. A scraper that finds no `SCRAPER_USER_AGENT` fails
-   loudly at startup rather than falling back to a default or an invented address.
-5. Self-hosted HTTP first (`httpx` + `selectolax`). Playwright only when a site genuinely requires JS. Paid scraping services (proxies, Apify-style) only if the user explicitly approves — assume €0 for these by default.
-6. Every run logs to a `scrape_runs` table: source, items found, errors, duration. If a source's item count drops more than 40% vs the previous run, raise an alert instead of silently ingesting.
+1. Fixtures only: first run saves raw HTML to `tests/fixtures/<source>/`; all later dev and tests run offline against those fixtures — never a live site in a loop.
+2. Every scraper has `--limit` (default 5) and `--dry-run` (parses/prints, writes nothing).
+3. Rate limit ≥2s randomized, respect `robots.txt`, honest User-Agent read from `SCRAPER_USER_AGENT` in `.env` (never a hardcoded or committed contact address — fails loudly at startup if unset).
+4. Self-hosted HTTP first (`httpx` + `selectolax`); Playwright only when a site genuinely requires JS; paid scraping services only with explicit approval.
+5. Every run logs to `scrape_runs` (source, items, errors, duration); a >40% item-count drop vs. the previous run raises an alert instead of silently ingesting.
+Full text (rationale, examples): `docs/archive/claude-md-condensed-sections.md`.
 
 ### LLM API calls
 1. **Cache by content hash.** Attribute extraction runs once per unique normalized title, never per scrape run. The price changes daily; the title almost never does. Re-extracting on every run multiplies cost by the number of days. This is the single largest cost risk in the project.
 2. Use the cheapest capable model for bulk work. Escalate only where quality demonstrably fails.
 3. Use prompt caching for the system prompt, and batch processing where latency doesn't matter.
-4. Every LLM call goes through **one wrapper module** (`src/llm/client.py`) which logs model, input tokens, output tokens and computed cost to a `llm_calls` table. No direct SDK calls anywhere else in the codebase.
+4. Every LLM call goes through **one wrapper module** (`src/pricepilot/llm/client.py`) which logs model, input tokens, output tokens and computed cost to a `llm_calls` table. No direct SDK calls anywhere else in the codebase.
 5. Implement a hard spend cap in that wrapper, read from `LLM_BUDGET_USD` in `.env`. On exceeding it, raise — never degrade silently.
 6. Before any batch job over 500 calls, print an estimate and require confirmation.
 7. `make cost` prints spend to date, broken down by phase and model.
@@ -179,39 +177,14 @@ Fine-tuning runs on rented GPU by the hour. Before any training run: state the e
 
 ### Spend schedule
 
-The user currently has **$20 available**. Ceiling for the whole project is **$100**, but the realistic landing point is around $50. Most of this project costs nothing.
+Ceiling **$100**; **$20 available**; spent **$0.82 to date** (`docs/COSTS.md`). Reserved in priority order — the deliverable is a public demo, hosting makes it visible:
 
-**Money is reserved in priority order, not spent in phase order.** The deliverable is a publicly
-reachable demo. Hosting is what makes the project visible to a recruiter; a fine-tuned model on a
-dead URL is worth nothing. So:
-
-| Priority | What | Reserve | Approval needed |
+| Priority | What | Reserve | Approval |
 |---|---|---|---|
-| **1 — reserved first** | VPS hosting, three months (Hetzner CX22 ~€4/mo) | **~$15** | yes, once, at Phase 7 |
-| **2** | LLM attribute extraction, Phase 2, cached by title hash | $2–3 | yes, before first batch |
-| **3** | Recommendation generation, Phase 5 | $5–8 | yes |
-| **4** | Optional pre-labelling assist, Phase 3 | $2–4 | yes |
-| **not committed** | GPU rental for LoRA fine-tuning | — | **separate decision at week 5** |
+| **1** | VPS hosting, three months | **~$15** | yes, once, at Phase 7 — CX22 no longer sold; CX23 pricing per `docs/phase3-serving-prices.md`, re-check the reserve then |
+| **2** | Recommendation generation, Phase 5 | $5–8 | yes |
 
-Phases 0, 1 and 4 cost nothing and are not in this table.
-
-**GPU fine-tuning is not a committed budget line.** It is a decision taken at week 5, on the
-evidence available then: whether the annotated dataset exists, whether the cross-encoder baseline
-is recorded, and whether a free tier (Colab / Kaggle T4) can carry the run. Treating it as
-committed now is what makes the $20-available arithmetic fail.
-
-**When that decision is taken, the first fine-tune is a deliberate smoke run.** Smallest model,
-~200 examples, a few minutes of wall clock, **~$1–2** — its purpose is to prove the pipeline runs
-end to end: dataset loads, LoRA attaches, training steps, checkpoint saves, eval harness scores it.
-The number it produces is discarded. Only after that succeeds does the real run get approved, as a
-second `SPEND:` line. Never start the real run first.
-
-**Rules that follow from this:**
-- Phases 0, 1 and 4 must be completed with zero spend. If a design needs money in those phases, the design is wrong.
-- Do not start any paid work until the free work around it is finished and tested.
-- Announce the cost *before* the action, in the format: `SPEND: <action> — est. $X.XX — proceed?`
-- After any paid action, report actual vs estimated.
-- Track everything in `docs/COSTS.md`, updated in the same commit as the work.
+Phases 0, 1, 4 cost $0. Announce cost first: `SPEND: <action> — est. $X.XX — proceed?`; report actual vs. estimated in `docs/COSTS.md`, same commit. Full text (week-5 GPU decision, smoke-run rationale): `docs/archive/claude-md-condensed-sections.md`.
 
 ---
 
@@ -240,6 +213,8 @@ second `SPEND:` line. Never start the real run first.
 
 **Deployment target (decided):** a single Hetzner CX22 VPS (~€4/month), Docker Compose, **Caddy** as reverse proxy for automatic HTTPS. Not Kubernetes, not a PaaS. The user has not deployed to a VPS before — explain each step: SSH keys, firewall, domain DNS, systemd unit, backups.
 
+Note (2026-09-24): CX22 is no longer sold; see `docs/phase3-serving-prices.md`. The serving model decision is re-taken at the Phase 3 audit (`docs/learned/phase3-serving-benchmark.md`).
+
 **Model serving (decided):** the fine-tuned 0.5B matching model runs **quantized on CPU on the same VPS**, in real time. This is a deliberate architectural choice and one of the strongest selling points of the project. Phase 3 must produce a benchmark table comparing the local model against a large hosted API model on: accuracy, p50/p95 latency, and cost per 1,000 comparisons. If CPU latency proves unworkable, fall back to nightly batch inference — but measure first, and record the measurement either way.
 
 ### Hard architectural rules
@@ -257,114 +232,13 @@ second `SPEND:` line. Never start the real run first.
 Each phase has an exit gate. Do not start the next phase until the gate is met and `STATE.md` records it.
 
 ### Phase 0 — Foundation
-Scaffold the repo, Docker Compose with Postgres + pgvector, initial schema and migration, `.env.example`, ruff + mypy + pre-commit, pytest, `make` targets, `STATE.md`, `docs/` structure, `.claude/agents/`, `.claude/commands/`.
-
-Also build `services/mock-store` — a small FastAPI service standing in for the user's own shop: a seeded product catalogue (SKU, title, brand, category, purchase cost, current price, stock), synthetic price and sales history, `GET /products`, `GET /products/{id}/history`, and `PATCH /products/{id}/price`. Keep it under ~300 lines. It is a fixture, not a feature — no cart, no checkout, no storefront. Its purpose is to give the pipeline a catalogue to price against and a real endpoint for Phase 6 tool calling to target, mirroring how a Shopify or WooCommerce integration would work.
-
-Also produce `docs/AUDIT.md`: your own critical review of this plan. What is underspecified, what is likely to fail, what you would change. Be blunt. The user wants disagreement, not agreement.
-
-**Gate:** `docker compose up` works, `/health` responds, mock-store serves a seeded catalogue and accepts a price update, `make test` passes, `make lint` passes. Zero dollars spent.
+CLOSED 2026-09-12, all 8 gate boxes met (Docker compose up, migration applied, pgvector live, `/health` ok, mock-store seeded, `make test`/`make lint` clean, $0 spent). Full text: `docs/archive/phases-0-2.md`.
 
 ### Phase 1 — Collection
-
-**Product scope — pet food and supplies.**
-
-Include: dry and wet food, treats, litter, grooming and hygiene products, accessories, toys. **Exclude anything regulated** — veterinary medicines, antiparasitics, prescription diets, vaccines. Those are pharmaceutical products and carry compliance questions this project does not need. Filter them out at ingest, not later.
-
-Include a listing only if it has a real manufacturer and a stable product identity another shop could also sell. Build a manufacturer allowlist from the data (Royal Canin, Purina, Pro Plan, Acana, Orijen, Hill's, Brit, Taste of the Wild, Advance, Josera, Calibra, Trixie, Bosch, Petkult, Smølke and so on) and record it in `docs/SOURCES.md`.
-
-**Why this category — the matching problem is genuinely hard.**
-
-No global product code appears in the titles, and the same product is written in fundamentally different title grammars across shops. Verified examples of the identical kind of product:
-
-- `animax.ro`: "Hrana uscata pentru caini Orijen Original Dog Adult Mini **4.5 kg**"
-- `zoomalia.ro`: "**12 kg** SMØLKE Hrană uscată Medium cu pui pentru câini seniori" — weight first, plus a price-per-kg figure
-- `petmax.ro`: "Recompense caini, Calibra Joy Dog Classic Duck Strips **80 g**"
-- `pentruanimale.ro`: "BRIT Premium By Nature Adult Large Breed, **L**, Pui, hrană uscată câini" — comma-separated attribute style
-
-The dominant hard negative is the size variant: same brand, same product line, different weight is **not** a match. Models get this wrong constantly, and it will likely be the largest error class in Phase 3. Related traps: pack counts ("3 pipete", "24x85 g"), dosage bands tied to animal weight ("10-25 kg"), and breed-size codes (Mini, Medium, Maxi, L, XS-XL).
-
-**Known structural difference between sources — handle it in the adapter.**
-`petmax.ro` lists each size as its own product row. `pentruanimale.ro` groups variants under one product and shows a price range ("38,01 lei - 62,00 lei", "Vezi 5 variante"). The adapter for grouped sources must expand variants into individual listings, which may require fetching the product page. Normalise to one row per purchasable variant before anything downstream sees the data.
-
-**Sources — verified, do not search the web for alternatives.**
-
-1. **`petmax.ro`** — Gomag platform, fully server-rendered. ✅ Verified. Raw HTML contains title, brand, previous price, current price, discount percentage, stock state and review count. Richest data of the set; use as the anchor source.
-2. **`pentruanimale.ro`** — server-rendered. ✅ Verified. Note the variant-grouping issue above.
-3. **`animax.ro`** — Magento, server-rendered product pages. ✅ Verified via indexed product pages carrying full titles and weights.
-4. **`magazindeanimale.ro`**, **`zoopoint.ro`** — carry the same catalogue, different title conventions. ✅ Overlap confirmed.
-5. **`zoomalia.ro`**, **`zoomania.ro`**, **`maxi-pet.ro`** — available, audit before implementing.
-6. **Affiliate product feeds** (Profitshare, 2Performant) where a shop offers one — structured CSV/XML built for third-party consumption, refreshed daily. Prefer these when available.
-
-**Cross-shop overlap is confirmed, not assumed.** The same product — Orijen Original Dog Adult Mini, 1.8 kg — appears as:
-- `animax.ro`: "Hrana uscata pentru caini Orijen Original Dog Adult Mini 1.8 kg"
-- `magazindeanimale.ro`: "Hrană uscată câini ORIJEN Original Dog Adult Mini 1,8 kg"
-- `zoopoint.ro`: "Orijen Original Dog Adult Mini" — **no weight in the title at all**; size is a separate variant
-- `petmax.ro`: names the line "Orijen Adult Original" — **word order reversed** inside the brand line
-
-Decimal comma versus point, diacritics present or absent, brand casing, weight in title versus weight as variant, and reordered line names. Shops also expose internal SKUs (`ORJ_D_OD_AMI_2`) that are useless across shops. Seed the annotation tool with pairs drawn from exactly these four shops.
-
-*Do not use:* **`shop4pet.ro`** — disallows automated access in `robots.txt`. ❌ Confirmed. Also avoid eMAG and other large marketplaces.
-
-**Before implementing any source,** fetch one page with `curl`, confirm titles and prices are in the raw response rather than injected by JS, read `robots.txt`, note the crawl-delay, and record all of it in `docs/SOURCES.md`. If prices are absent from the raw response, drop the source rather than reaching for a headless browser.
-
-Implement adapters behind a common `Scraper` protocol. Save fixtures. Schedule runs. Log every run and detect volume drops. Validate with Pydantic at the boundary.
-
-**Build order — one scraper first, on a schedule, before the others exist.**
-
-Do not build three adapters and then schedule them. Build **`petmax.ro` only**, put it on a daily
-schedule, and let it accumulate history while the other two adapters are written. History is
-wall-clock: a day not collected is a day that cannot be recovered later, and Phase 4 is the phase
-that pays for it. The other sources join the schedule as each one is finished. The cost of this
-ordering is nothing; the cost of the alternative is weeks.
-
-**Cross-shop overlap is a gate condition, not an assumption.**
-
-Phase 3 is a matching problem. If the same product does not appear on two shops, there is no
-positive class, and every downstream phase is unfounded. This must be measured while there is still
-time to react — in Phase 1, not in week 6.
-
-Measure it with a **cheap proxy key**, no matching model involved, just SQL: normalise
-`(brand, product-line tokens, net weight in grams)` and count keys that collide across two or more
-sources. The proxy will be wrong in both directions — it will miss real matches the model would
-find, and it will join a few products that are not the same. That is acceptable: it is a floor
-estimate used to make one decision, and a floor is exactly what is needed here. Do not build a
-matching model to compute it.
-
-If the count cannot reach **400**, **add a source before leaving Phase 1** — not later. That is the
-whole point of measuring it now. (2026-09-13, ADR-0023: the proxy key's own recall measured at
-~8% — too low to decide this on its own. The gate decision is now made from a hand-verified random
-sample instead; the proxy key stays a daily floor indicator, not the gate measurement. Threshold
-unchanged.)
-
-`make status` reports the overlap count from day one, alongside listings per source, so the number
-is visible as it grows rather than discovered at the gate.
-
-**Gate:**
-- ≥3,000 in-scope listings from ≥3 sources, at least one of them non-Shopify
-- ≥7 consecutive days of history
-- **≥400 products appearing on two or more shops** — the threshold, unchanged. Measured by the
-  proxy key above only as a first pass; the proxy key's own recall runs low enough (~8%, ADR-0023)
-  that it cannot decide this alone. The gate itself is met by a hand-verified random sample of
-  listings (method and evidence in DECISIONS.md ADR-0023), reported alongside the proxy key's own
-  count — which `make status` prints every day as a floor indicator, explicitly labelled as such,
-  never as the gate itself.
-- all adapters tested offline against fixtures
-- `docs/SOURCES.md` complete
-
-> Start collection as early as possible and let it run in the background. Phase 4 needs price history, and history cannot be backfilled.
+CLOSED 2026-09-22, gate MET: ≥3,000 in-scope listings, ≥3 sources (18,585/18,703, petmax non-Shopify); ≥7 consecutive days (9 days, 09-13→09-21); ≥400 cross-shop overlap (hand-verified sample, point 1,214–1,342, ADR-0023/ADR-0028 addendum #7). Full text: `docs/archive/phases-0-2.md`.
 
 ### Phase 2 — Normalization
-
-Extract only what is in the title or description: brand and product line, net weight or volume with unit, pack count, breed-size code (Mini, Medium, Maxi, XS-XL, L), life stage (Puppy, Junior, Adult, Senior), flavour or protein source, food form (dry, wet, tin, pouch), and dosage band where present.
-
-Regex and lookup tables first — weights, pack counts and dosage bands are trivially matched and running an LLM over them is wasted money. LLM fallback only for the rest, cached by content hash.
-
-**Unit normalisation is not optional here.** "4.5 kg", "4,5 kg", "4500 g" and "12 kg" as a leading token must all resolve to a comparable numeric field. Get this right and a large share of the matching problem becomes tractable; get it wrong and the fine-tuned model spends its capacity compensating.
-
-Also handle: Romanian descriptive prefixes the shop adds ("Hrana uscata pentru caini...", "Recompense caini, ..."), diacritic inconsistency, brand names with special characters (Smølke, Hill's), and price-per-unit figures that some shops append to the title area.
-
-**Gate:** ≥85% attribute accuracy on 100 manually verified listings, with weight parsing measured separately; the cache demonstrably prevents repeat calls on unchanged titles.
+CLOSED 2026-09-14, gate MET: 93.2% attribute accuracy (261/280 symmetric, brand excluded) vs. the 85% target; weight parsing 100% (82/82); cache proof shown. Full text: `docs/archive/phases-0-2.md`.
 
 ### Phase 3 — Matching ⭐ core of the project
 1. Candidate retrieval via embeddings, measured by recall@20 (target ≥90%)
@@ -433,6 +307,8 @@ MLP or GRU — no transformer needed. Compare against a naive 7-day-average base
 ### Phase 5 — Decision engine
 Write a 300–500 word pricing policy document. Index it. Build the recommendation prompt combining: product, matched competitor prices (SQL), estimated elasticity (model), relevant policy passages (RAG). Deterministic margin guardrail after the LLM. Full trace persisted.
 
+For Phase 5, the pricing policy document should cover realistic pet-retail rules: minimum margin per category (dry food carries thinner margins than accessories), brands with distributor pricing restrictions, products excluded from automatic discounting, daily maximum price movement, and rounding conventions. This is genuine natural-language policy — the correct use of RAG. The numbers it references (costs, current margins, stock) still come from SQL.
+
 **Gate:** 50 generated recommendations, zero margin violations.
 
 ### Phase 6 — Tool calling
@@ -464,7 +340,7 @@ Written incrementally, not at the end. Must contain:
 ## 9. Things that must never happen
 
 - A scraper hitting a live site during tests
-- An LLM call outside `src/llm/client.py`
+- An LLM call outside `src/pricepilot/llm/client.py`
 - Attribute extraction re-running on unchanged titles
 - A metric in the README with no script behind it
 - A margin check implemented inside a prompt
@@ -493,22 +369,18 @@ Four artefacts, created in Phase 0 and maintained from then on:
 **`STATE.md`** — the single source of truth, in the repo root. Rewritten (not appended) so it never grows stale. Structure:
 ```
 # STATE
-Phase: 3 — Matching
-Updated: 2026-09-20
+Phase: <current>   Updated: <date>
+**Where we are:** <= 8 lines, current only.
 
 ## Gate progress
-[x] candidate retrieval, recall@20 = 0.93
-[x] annotation tool built
-[ ] 1000 pairs annotated — 340 done
-[ ] baseline trained
-[ ] fine-tune trained
-[ ] serving benchmark
+Phases 0-3: one line each (CLOSED date + gate figure + pointer to docs/archive/).
+Current phase: its checklist, condensed to <= 2 lines per item + a pointer to its ADR addendum.
 
 ## Last done
 - <five most recent completed items, newest first>
 
 ## Open issues
-- <anything known-broken or deferred, with why>
+- <only still-open items, condensed, with why — resolved items move to docs/archive/STATE-history.md>
 
 ## Blocked on Bogdan
 - <decisions or manual steps waiting on him>
@@ -522,13 +394,7 @@ Updated: 2026-09-20
 
 Update `STATE.md` at the end of every work session, and `DECISIONS.md` whenever a choice gets made. If you finish a task and do not update tracking, the task is not finished.
 
-## 12. First session
-
-1. Read this file fully
-2. Write `docs/AUDIT.md` — your critical review of this plan. At least five specific concerns and what you would do differently. Be blunt; the user wants disagreement, not agreement.
-3. Build Phase 0 end to end, autonomously. Do not ask for approval on scaffolding.
-4. Report: what exists now, what the audit flagged, and the decisions you need from the user before Phase 1.
-
-Matching hard cases worth seeding the Phase 3 annotation tool with, so the dataset is not all easy pairs: the same food in different net weights, the same line in different breed sizes, the same product as tin versus pouch versus dry, pack-count differences, life-stage variants, flavour variants within one line, and the same product written by two shops in different title grammars (weight-first versus weight-last, comma-separated attributes versus prose).
-
-For Phase 5, the pricing policy document should cover realistic pet-retail rules: minimum margin per category (dry food carries thinner margins than accessories), brands with distributor pricing restrictions, products excluded from automatic discounting, daily maximum price movement, and rounding conventions. This is genuine natural-language policy — the correct use of RAG. The numbers it references (costs, current margins, stock) still come from SQL.
+**Context budget.** CLAUDE.md <= 400 lines, STATE.md <= 400 lines, DECISIONS.md <= 600 lines,
+enforced by `tests/test_context_budget.py`. When a phase closes: its §7 text moves to
+`docs/archive/phases-*.md`, its STATE history to `docs/archive/STATE-history.md`, and its ADR is
+condensed in DECISIONS.md with the full text moved to `docs/archive/`. Move, never delete.
