@@ -80,6 +80,8 @@ For ordinary application code (CRUD, API endpoints, Docker config), skip this �
 AUDIT → BUILD → VERIFY → REPORT → UPDATE STATE
 ```
 
+Decision rules and thresholds are written and committed before the numbers they judge exist.
+
 - **AUDIT** — read the relevant existing code and docs. Know what exists before adding to it. Do not assume.
 - **BUILD** — implement it. Small commits, one logical change each. Do not ask permission.
 - **VERIFY** — run the tests, run the code, show real output. Never report something as working without having executed it. If it fails, fix it and run again before reporting.
@@ -181,8 +183,8 @@ Ceiling **$100**; **$20 available**; spent **$0.82 to date** (`docs/COSTS.md`). 
 
 | Priority | What | Reserve | Approval |
 |---|---|---|---|
-| **1** | VPS hosting, three months | **~$15** | yes, once, at Phase 7 — CX22 no longer sold; CX23 pricing per `docs/phase3-serving-prices.md`, re-check the reserve then |
-| **2** | Recommendation generation, Phase 5 | $5–8 | yes |
+| **1** | VPS hosting, three months | **~$23 (ESTIMATE, ADR-0030)** | yes, once, at Phase 7 — CX23 pricing per `docs/phase3-serving-prices.md`; shortfall vs. available is a Phase 7 decision |
+| **2** | Recommendation generation, Phase 5 | ~$2 (ESTIMATE) | yes |
 
 Phases 0, 1, 4 cost $0. Announce cost first: `SPEND: <action> — est. $X.XX — proceed?`; report actual vs. estimated in `docs/COSTS.md`, same commit. Full text (week-5 GPU decision, smoke-run rationale): `docs/archive/claude-md-condensed-sections.md`.
 
@@ -211,11 +213,9 @@ Phases 0, 1, 4 cost $0. Announce cost first: `SPEND: <action> — est. $X.XX —
 - Docker + docker-compose; GitHub Actions for CI
 - Frontend: Next.js + Tailwind (the user is strong here — keep it minimal, it is not the point of the project)
 
-**Deployment target (decided):** a single Hetzner CX22 VPS (~€4/month), Docker Compose, **Caddy** as reverse proxy for automatic HTTPS. Not Kubernetes, not a PaaS. The user has not deployed to a VPS before — explain each step: SSH keys, firewall, domain DNS, systemd unit, backups.
+**Deployment target (decided):** a single Hetzner CX23-class VPS (4 GB RAM; plan and reserve re-checked at Phase 7, ADR-0030), Docker Compose, **Caddy** as reverse proxy for automatic HTTPS. Not Kubernetes, not a PaaS. The user has not deployed to a VPS before — explain each step: SSH keys, firewall, domain DNS, systemd unit, backups.
 
-Note (2026-09-24): CX22 is no longer sold; see `docs/phase3-serving-prices.md`. The serving model decision is re-taken at the Phase 3 audit (`docs/learned/phase3-serving-benchmark.md`).
-
-**Model serving (decided):** the fine-tuned 0.5B matching model runs **quantized on CPU on the same VPS**, in real time. This is a deliberate architectural choice and one of the strongest selling points of the project. Phase 3 must produce a benchmark table comparing the local model against a large hosted API model on: accuracy, p50/p95 latency, and cost per 1,000 comparisons. If CPU latency proves unworkable, fall back to nightly batch inference — but measure first, and record the measurement either way.
+**Model serving (decided, ADR-0030):** the fine-tuned cross-encoder (mMiniLMv2, ONNX fp32, threshold 0.89) runs on CPU on the VPS as an **incremental batch** after each daily collection run, scoring only new/changed `content_hash` pairs; K=100 candidates, at most one match per (our product, competitor shop), highest score wins. The full re-match (first deployment, model change) runs off the VPS on Kaggle CPU with the same ONNX file. The fine-tuned LoRA LLM tied on F1 but is 26x slower: a result, not a served component. Precision at K=100 is unmeasured until the Phase 7 hand-verified sample.
 
 ### Hard architectural rules
 1. **Numbers come from SQL, not from RAG.** Costs, margins, prices, inventory counts are queried. RAG is only for policy text and unstructured documents. Retrieving a number by semantic similarity is a bug, and an interviewer will spot it.
@@ -240,34 +240,8 @@ CLOSED 2026-09-22, gate MET: ≥3,000 in-scope listings, ≥3 sources (18,585/18
 ### Phase 2 — Normalization
 CLOSED 2026-09-14, gate MET: 93.2% attribute accuracy (261/280 symmetric, brand excluded) vs. the 85% target; weight parsing 100% (82/82); cache proof shown. Full text: `docs/archive/phases-0-2.md`.
 
-### Phase 3 — Matching ⭐ core of the project
-1. Candidate retrieval via embeddings, measured by recall@20 (target ≥90%)
-2. A local annotation tool — single HTML page, keyboard-driven (`M`/`N`/`S`), so 200 pairs/hour is realistic
-3. **The user annotates 800–1,000 pairs manually.** At least 40% hard cases: same model different capacity, single unit vs multipack, consecutive generations, same title different brand. This dataset is the most valuable artefact in the repo — it is not generated, it is labelled.
-4. Product-level train/val/test split
-5. Baseline: classical cross-encoder. Record precision/recall/F1.
-6. Fine-tune a 0.5B–1.5B instruct model with LoRA/QLoRA. Same test set.
-7. Comparison table + error analysis of 10 representative failures
-
-8. Quantize the fine-tuned model and benchmark it running on CPU: accuracy, p50/p95 latency, cost per 1,000 comparisons — against both the classical baseline and a large hosted API model
-
-**Gate:** documented baseline vs fine-tuned comparison on a held-out product-level test set, broken down by category as well as overall, plus the three-way serving benchmark above.
-
-> If fine-tuning does not beat the baseline, write that down honestly and analyse why. A correctly reported negative result is stronger evidence of competence than an unexplained good number.
-
-**Fine-tune versus cross-encoder is an uncertain bet, and that is accepted going in.** The fine-tune
-may not beat the classical cross-encoder on F1. That does not make the phase a failure, and it does
-not license quietly reframing the goal afterwards:
-
-- If the fine-tune **wins on F1** — report the margin, broken down by category, with error analysis.
-- If the two **tie on F1** — the serving benchmark is the result. A local quantized model matching a
-  cross-encoder at some cost per 1,000 comparisons and some p95 latency is a real, reportable finding,
-  and it is the engineering question a hiring manager actually cares about. Report cost and latency
-  as the headline, F1 as the parity claim it is.
-- If the fine-tune **loses** — say so, in the README results table, and analyse why.
-
-Whichever happens, report what actually happened. The decision rule is written down here, before the
-numbers exist, precisely so the numbers cannot choose the framing.
+### Phase 3 — Matching
+CLOSED 2026-09-25, gate MET as a **TIE on F1** (fine-tuned 0.5B LoRA 0.8796 vs fine-tuned cross-encoder 0.8737, McNemar p=1.0000). Served model: the cross-encoder, ONNX fp32 on CPU, threshold 0.89, incremental batch after each daily collection run (ADR-0030). LoRA int8 had no eligible config (protocol 5.11); its fp32 fallback scores 0.8750. Full text: `docs/archive/phases-3.md`; audit: `docs/audits/phase3-audit.md`.
 
 ### Phase 4 — Demand model (PyTorch)
 
@@ -317,7 +291,7 @@ Strict-schema tools: `update_price`, `flag_for_review`, `do_nothing`. Human appr
 **Gate:** one complete cycle end to end, visible in logs.
 
 ### Phase 7 — Production
-Full dockerization. Deployment to a Hetzner CX22 behind Caddy, on a real domain, walked through step by step with the user — this is new territory for him, so explain SSH hardening, firewall rules, DNS, volumes and database backups as you go, and write `docs/DEPLOYMENT.md` as you do it.
+Full dockerization. Deployment to the Hetzner VPS chosen at Phase 7 (ADR-0030) behind Caddy, on a real domain, walked through step by step with the user — this is new territory for him, so explain SSH hardening, firewall rules, DNS, volumes and database backups as you go, and write `docs/DEPLOYMENT.md` as you do it.
 
 Minimal dashboard: product list, matches found, pending recommendations with rationale, price history chart. Monitoring: per-source volumes, matching score distribution, latency, cost per recommendation. 60–80 tests. CI green.
 

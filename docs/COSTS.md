@@ -26,6 +26,23 @@ hosting is reserved first; a fine-tuned model on a dead URL is worth nothing.
 
 | Priority | What | Reserve | Approval |
 |---|---|---|---|
+| **1 — reserved first** | Hetzner CX23, three months | **~$23 (ESTIMATE, ADR-0030)** | required, once, at Phase 7 |
+| **2** | Recommendation generation, Phase 5 | **~$2 (ESTIMATE; re-estimated from real token counts at Phase 5)** | required |
+| — | LLM attribute extraction, Phase 2 | not used — phase closed at $0 | — |
+| — | Optional pre-labelling assist, Phase 3 | not used — phase closed at $0 | — |
+| — | GPU rental for LoRA fine-tuning | resolved: Kaggle free tier (Phase 3 items 5-6, 8) | — |
+
+Hosting arithmetic (ESTIMATE): CX23 3 x EUR 5.49 x 1.21 VAT x 1.1411 EUR/USD = ~$22.7 for three
+months (2 months ~$15.2); primary IPv4 cost UNVERIFIED and excluded. Available $20.00 - $0.82 =
+$19.18, so the shortfall is ~$4-6: a Phase 7 decision for Bogdan (host 2 months, or raise
+"available" by ~$5). CX23 availability re-checked at Phase 7.
+
+Phases 0, 1, 3 and 4 cost nothing beyond the ledger above (Phase 3's only spend is the hosted baseline).
+
+### Superseded 2026-09-25 (kept verbatim)
+
+| Priority | What | Reserve | Approval |
+|---|---|---|---|
 | **1 — reserved first** | Hetzner CX22, three months (~€4/mo) | **~$15** | required, once, at Phase 7 |
 | **2** | LLM attribute extraction, Phase 2, cached by title hash | $2–3 | required before first batch |
 | **3** | Recommendation generation, Phase 5 | $5–8 | required |

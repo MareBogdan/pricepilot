@@ -2832,3 +2832,16 @@ everything else.
 
 **Phase 3 item 8 is CLOSED. Phase 3 items 1-8 are all done.** Next: a context diet, then the
 architect's phase audit, before Phase 4 (Demand) starts.
+
+
+## Open questions as of 2026-09-25 (decided in ADR-0030)
+
+- **Open questions carried to the Phase 3 audit, not decided here:**
+  - Which model is actually served in production (CE fp32/int8, LoRA ONNX fp32, or hosted), given
+    the F1 tie and the serving-benchmark numbers above.
+  - K=20 vs. K=100 candidate generation — PROPOSED since addendum #7, still not decided: the
+    K-sweep shows blocked recall climbing from 74% (K=20) to 96% (K=100), and item 8's headline
+    table now prices the choice (K=20: 210,640 scorings; K=100: 1,053,200; VPS wall-clock per
+    served model — CE fp32 4.77h/23.85h, CE int8 3.22h/16.09h, LoRA fp32 149.02h/745.08h).
+  - The Phase 7 hosting reserve (~$15 assumed a Hetzner CX22, no longer sold; CX23 is EUR 5.49/mo
+    and currently listed as unavailable to order — re-check at Phase 7).

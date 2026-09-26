@@ -113,15 +113,7 @@ onward actually need.
   `SPEND:`/"yes") cut unparseable replies to 11/287 and showed 40 calls had used a `thinking`
   content block — exactly matching v1's empty-reply count, confirming truncation, not a settled
   "no". v2 TEST F1 0.9036. (addendum #23, #25)
-- **Open questions carried to the Phase 3 audit, not decided here:**
-  - Which model is actually served in production (CE fp32/int8, LoRA ONNX fp32, or hosted), given
-    the F1 tie and the serving-benchmark numbers above.
-  - K=20 vs. K=100 candidate generation — PROPOSED since addendum #7, still not decided: the
-    K-sweep shows blocked recall climbing from 74% (K=20) to 96% (K=100), and item 8's headline
-    table now prices the choice (K=20: 210,640 scorings; K=100: 1,053,200; VPS wall-clock per
-    served model — CE fp32 4.77h/23.85h, CE int8 3.22h/16.09h, LoRA fp32 149.02h/745.08h).
-  - The Phase 7 hosting reserve (~$15 assumed a Hetzner CX22, no longer sold; CX23 is EUR 5.49/mo
-    and currently listed as unavailable to order — re-check at Phase 7).
+- **Open questions carried to the Phase 3 audit:** decided in ADR-0030.
 
 Full text, every addendum, every retracted or superseded number:
 `docs/archive/DECISIONS-0028-phase3-full.md`.
@@ -140,4 +132,32 @@ for interview prep. A token-count-only budget with no test — a soft limit erod
 time; a failing test is a limit that holds.
 **Date.** 2026-09-25
 
-## ADR-0030 onward: full text (none yet)
+## ADR-0030 — Phase 3 closed: served model, K, hosting reserve
+
+**Context.** Phase 3 audit (`docs/audits/phase3-audit.md`, 2026-09-25) recomputed all 7 ledger F1s,
+the frozen hash and every serving-table cell: all reproduce. Fine-tuned LoRA 0.5B and fine-tuned
+cross-encoder TIE on F1 (0.8796 vs 0.8737, McNemar p=1.0000); the tie rule says cost and latency decide.
+**Decision.**
+- **D1 Served model:** cross-encoder mMiniLMv2 ep6, ONNX fp32, CPU, threshold 0.89 (TEST F1 0.8737,
+  p50 79 ms, 963 MB peak RSS). CE int8 is reported, not served (F1 drop, McNemar p=0.0042). LoRA is a
+  result, not a production component (tie on F1, 26x slower p50, 2347 MB peak RSS). Hosted is not used
+  for bulk matching. Mode: incremental batch after each daily collection run, only new/changed
+  `content_hash` pairs; not real-time per request.
+- **D2 Candidates:** K=100. The full re-match (first deployment, model change) runs off the VPS on
+  Kaggle's free CPU with the same ONNX file; the VPS scores only new/re-titled listings daily. At most
+  one match per (our product, competitor shop), highest score wins. Precision at K=100 on real
+  candidates is UNMEASURED; hand-verified sample of produced links at Phase 7 (as ADR-0023).
+- **D3 Hosting reserve:** ~$15 no longer covers 3 months. ESTIMATE: CX23 3 x EUR 5.49 x 1.21 VAT x
+  1.1411 = ~$22.7 (2 months ~$15.2), IPv4 UNVERIFIED and excluded; available $19.18. Reserve becomes
+  ~$23 (ESTIMATE); Phase 5 reserve ~$2 (ESTIMATE, re-estimated from real token counts). Shortfall
+  (~$4-6) is a Phase 7 decision for Bogdan: host 2 months, or raise "available" by ~$5.
+- **D4 Archive:** CLAUDE.md section 7 Phase 3 text moved verbatim to `docs/archive/phases-3.md`;
+  superseded CLAUDE.md lines in `docs/archive/claude-md-superseded-2026-09-25.md`.
+**Alternatives rejected.** CE int8 (13 extra false positives for 24 ms nobody waits for); LoRA ONNX
+fp32 (same accuracy, 26x slower, 2.3 GB on a 4 GB box shared with Postgres + API + Caddy); hosted
+zero-shot (F1 0.9036, not significant vs CE p=0.36 post-hoc; ~6,400x the CE cost per 1k, data leaves
+the box); K=20 (blocked recall 74% vs 96% at K=100); full re-match on the VPS (23.85 h at K=100 on
+the 2-thread proxy).
+**Date.** 2026-09-25
+
+## ADR-0031 onward: full text (none yet)
