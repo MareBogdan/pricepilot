@@ -88,6 +88,8 @@ def base_price(o: Obs) -> Decimal:
 
 def _pct_at_least(cur: Decimal, prev: Decimal, pct: Decimal) -> bool:
     # |cur/prev - 1| >= pct/100, in exact decimal arithmetic (no float rounding at exactly 2%).
+    if prev == 0:
+        return cur != 0
     return abs(cur - prev) * 100 >= pct * prev
 
 
@@ -181,38 +183,57 @@ def dist_summary(values: list[float]) -> dict[str, float | None]:
     }
 
 
-def project_remeasure(
-    days_now: int,
-    holdout_now: int,
-    train_now: int,
-    daily_rate: float,
-    today: date,
-) -> dict[str, Any]:
-    """ESTIMATE: project the combined daily evaluable-event rate forward linearly. Returns the
-    first date at which R1-R3 are projected to hold, or NEEDS ARCHITECT if R2 still fails at
-    PROJECTION_CAP_DAYS collection days. Per-source R1 and the per-cell part of R2 are checked
-    by the caller's verdict; this projection covers the counts (R1 length, R2/R3 totals)."""
-    # The holdout is a fixed 14-collection-day window ending at the newest day, so evaluable
-    # events in it scale with the rate: expected holdout events ~ rate * (14 - HORIZON + 1).
-    holdout_span = HOLDOUT_COLLECTION_DAYS - HORIZON_DAYS + 1
+def holdout_start(collection_days: set[date]) -> date:
+    """First day of the temporal holdout: the last 14 collection days of THIS source
+    (interpretation recorded in the write-up: the holdout is per source)."""
+    last = sorted(collection_days)[-HOLDOUT_COLLECTION_DAYS:]
+    return last[0] if last else date.max
 
-    def holdout_at(days: int) -> float:
-        return max(holdout_now, daily_rate * holdout_span) if days > days_now else holdout_now
 
-    def train_at(days: int) -> float:
-        extra = max(0, days - days_now)
-        return train_now + daily_rate * extra
+def eligible_days(collection_days_n: int) -> int:
+    """Collection days that can host an evaluable event: t needs 7 days before and 6 after."""
+    return max(0, collection_days_n - PRE_DAYS - (HORIZON_DAYS - 1))
 
-    for days in range(max(days_now, 1), PROJECTION_CAP_DAYS + 1):
-        if days < R1_MIN_DAYS:
-            continue
-        if holdout_at(days) >= R2_MIN_HOLDOUT and train_at(days) >= R3_MIN_TRAIN:
+
+def project_remeasure(sources: Mapping[str, Mapping[str, Any]], today: date) -> dict[str, Any]:
+    """ESTIMATE: first date at which R1-R3 are projected to hold, adding k collection days to
+    every source and projecting each (source x category) strict evaluable-event rate per
+    ELIGIBLE day (days that can host an event) linearly. `sources[s]` = {days, gaps,
+    cells: {category: strict evaluable events (training+holdout)}}. Gaps never close, so a
+    source with > 2 gaps can never satisfy R1. Returns the date, or a NEEDS ARCHITECT flag:
+    'movement too rare' only when R2 is projected to fail at PROJECTION_CAP_DAYS days."""
+    if sum(1 for s in sources.values() if s["gaps"] <= R1_MAX_GAPS) < R1_MIN_SOURCES:
+        return {"label": "ESTIMATE", "flag": "NEEDS ARCHITECT: R1 unreachable (gaps never close)"}
+    holdout_elig = HOLDOUT_COLLECTION_DAYS - (HORIZON_DAYS - 1)  # 8 days can host a holdout event
+    last_k = max(0, PROJECTION_CAP_DAYS - max((s["days"] for s in sources.values()), default=0))
+    r2_at_cap = False
+    for k in range(0, last_k + 1):
+        cells: dict[str, float] = {}
+        train = 0.0
+        r1_ok = 0
+        for name, s in sources.items():
+            days = s["days"] + k
+            if days >= R1_MIN_DAYS and s["gaps"] <= R1_MAX_GAPS:
+                r1_ok += 1
+            elig_now = eligible_days(s["days"])
+            for cat, n in s["cells"].items():
+                rate = n / elig_now if elig_now else 0.0
+                cells[f"{name}/{cat}"] = rate * min(holdout_elig, eligible_days(days))
+                train += rate * max(0, eligible_days(days) - holdout_elig)
+        r2 = sum(cells.values()) >= R2_MIN_HOLDOUT and (
+            sum(1 for v in cells.values() if v >= R2_CELL_MIN) >= R2_MIN_CELLS
+        )
+        if k == last_k:
+            r2_at_cap = r2
+        if r1_ok >= R1_MIN_SOURCES and r2 and train >= R3_MIN_TRAIN:
             return {
                 "label": "ESTIMATE",
-                "collection_days_needed": days,
-                "date": (today + timedelta(days=max(0, days - days_now))).isoformat(),
+                "collection_days_added": k,
+                "date": (today + timedelta(days=k)).isoformat(),
             }
-    return {"label": "ESTIMATE", "flag": "NEEDS ARCHITECT: movement too rare"}
+    if not r2_at_cap:
+        return {"label": "ESTIMATE", "flag": "NEEDS ARCHITECT: movement too rare"}
+    return {"label": "ESTIMATE", "flag": "R3 not projected to hold by 60 collection days"}
 
 
 # ---------------------------------------------------------------------------
@@ -302,8 +323,8 @@ def measure(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str
     for rid, src, ext, spid, url, d, price, cmp_, chash, cat in rows:
         lid = (src, ext)
         per_listing[lid].append((rid, d, make_obs(price, cmp_)))
-        if lid not in last_meta or rid > last_meta[lid][0]:
-            last_meta[lid] = (rid, cat)
+        if cat is not None and (lid not in last_meta or rid > last_meta[lid][0]):
+            last_meta[lid] = (rid, cat)  # latest NON-NULL category (title changes keep identity)
         if ext == spid:
             key_usage[src]["source_product_id"].add(ext)
         elif ext == url:
@@ -315,12 +336,16 @@ def measure(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str
             hash_first_day[hk] = d
 
     dropped_out_of_scope = 0
+    dropped_unclassified = 0  # no observation ever matched a norm_listings row
     multi_row_days = 0
     # source -> category -> per-listing stats
     stats: dict[str, dict[str, dict[str, Any]]] = defaultdict(lambda: defaultdict(_new_cell))
     for lid, obs_rows in per_listing.items():
         src = lid[0]
-        cat = last_meta[lid][1]
+        cat = last_meta[lid][1] if lid in last_meta else None
+        if cat is None:
+            dropped_unclassified += 1
+            continue
         if cat not in IN_SCOPE_CATEGORIES:
             dropped_out_of_scope += 1
             continue
@@ -344,13 +369,12 @@ def measure(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str
                 prev = series[day - timedelta(days=1)]
                 cur = series[day]
                 cell["base_change_abs_pct"].append(
-                    float(abs(base_price(cur) - base_price(prev)) / base_price(prev) * 100)
+                    float(abs(base_price(cur) - base_price(prev)) / (base_price(prev) or 1) * 100)
                 )
-        last14 = sorted(collection_days.get(src, set()))[-HOLDOUT_COLLECTION_DAYS:]
-        holdout_start = last14[0] if last14 else date.max
+        h_start = holdout_start(collection_days.get(src, set()))
         for lenient, key in ((False, "strict"), (True, "lenient")):
             for t in evaluable_events(series, lenient):
-                cell[key]["holdout" if t >= holdout_start else "training"] += 1
+                cell[key]["holdout" if t >= h_start else "training"] += 1
 
     # -- serialise per-source x category ----------------------------------------------------
     sources = sorted(collection_days)
@@ -422,21 +446,20 @@ def measure(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str
     }
     if not proceed:
         union_days = set().union(*collection_days.values()) if collection_days else set()
-        days_now = max((per_source[s]["collection_days"] for s in sources), default=0)
-        # Daily evaluable-event rate: strict evaluable events (training+holdout) per collection
-        # day, summed over sources (each source's observed rate, added). ESTIMATE input.
-        rate = sum(
-            sum(
-                v
-                for c in per_source[s]["categories"].values()
-                for v in c["evaluable_strict"].values()
-            )
-            / max(per_source[s]["collection_days"], 1)
-            for s in sources
-        )
         today = max(union_days) if union_days else datetime.now(UTC).date()
-        verdict["remeasure"] = project_remeasure(days_now, holdout_total, train_total, rate, today)
-        verdict["remeasure"]["combined_daily_evaluable_rate"] = rate
+        proj_in = {
+            s: {
+                "days": per_source[s]["collection_days"],
+                "gaps": len(per_source[s]["gaps"]),
+                "cells": {
+                    cat: sum(c["evaluable_strict"].values())
+                    for cat, c in per_source[s]["categories"].items()
+                },
+            }
+            for s in sources
+        }
+        verdict["remeasure"] = project_remeasure(proj_in, today)
+        verdict["remeasure"]["inputs"] = proj_in
         verdict["remeasure"]["basis_date"] = today.isoformat()
 
     # -- (e) D2: new content_hash per collection day per source -------------------------------
@@ -479,6 +502,17 @@ def measure(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str
         storage["limit_hit_date_ESTIMATE"] = (
             datetime.now(UTC).date() + timedelta(days=days_left)
         ).isoformat()
+        # norm_listings is a one-off (10.5k distinct titles), so total/days overstates growth;
+        # the raw_listings-only rate is the recurring daily-append cost.
+        raw_bytes = next((b for n, b in tables if n == "raw_listings"), None)
+        if raw_bytes and union_days_n:
+            raw_growth = raw_bytes / union_days_n
+            storage["raw_listings_growth_bytes_per_collection_day_ESTIMATE"] = raw_growth
+            raw_days_left = remaining / raw_growth
+            storage["days_until_limit_raw_only_ESTIMATE"] = raw_days_left
+            storage["limit_hit_date_raw_only_ESTIMATE"] = (
+                datetime.now(UTC).date() + timedelta(days=raw_days_left)
+            ).isoformat()
     else:
         storage["days_until_limit_ESTIMATE"] = "UNVERIFIED (limit not read this session)"
 
@@ -487,6 +521,7 @@ def measure(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str
         "git_sha": _git_sha(),
         "rule_file_sha256": _sha256(RULE_FILE),
         "dropped_out_of_scope_listings": dropped_out_of_scope,
+        "dropped_unclassified_listings": dropped_unclassified,
         "multi_row_days_collapsed": multi_row_days,
         "per_source": per_source,
         "verdict": verdict,

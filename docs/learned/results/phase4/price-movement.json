@@ -1,0 +1,325 @@
+{
+  "generated_at": "2026-09-26T16:07:29.211676+00:00",
+  "git_sha": "27e3a668883f3604973fece4434d951241c246ae",
+  "rule_file_sha256": "657e1d89a42f225390b449a1fa82f80a58f1f48bac27fdf6d95e7803239821ab",
+  "dropped_out_of_scope_listings": 1728,
+  "dropped_unclassified_listings": 387,
+  "multi_row_days_collapsed": 0,
+  "per_source": {
+    "animax_ro": {
+      "first_collection_day": "2026-09-13",
+      "last_collection_day": "2026-09-26",
+      "collection_days": 14,
+      "gaps": [],
+      "scrape_runs_status_counts": {
+        "ok": 14
+      },
+      "listing_key_usage": {
+        "source_product_id": 2581
+      },
+      "categories": {
+        "food": {
+          "listings": 2152,
+          "listings_with_event": 79,
+          "events_per_listing_0_1_2_3plus": [
+            2073,
+            61,
+            18,
+            0
+          ],
+          "events_union": 97,
+          "events_by_type": {
+            "base_change": 9,
+            "promo_start": 67,
+            "promo_end": 22,
+            "promo_depth": 0
+          },
+          "sub_threshold": 9,
+          "base_change_abs_pct": {
+            "median": 7.168458781362007,
+            "p90": 18.333389698670906,
+            "max": 24.622716441620334
+          },
+          "promo_listing_day_share": 0.05328817197089104,
+          "evaluable_strict": {},
+          "evaluable_lenient": {
+            "holdout": 12
+          }
+        },
+        "litter": {
+          "listings": 65,
+          "listings_with_event": 1,
+          "events_per_listing_0_1_2_3plus": [
+            64,
+            0,
+            1,
+            0
+          ],
+          "events_union": 2,
+          "events_by_type": {
+            "base_change": 0,
+            "promo_start": 1,
+            "promo_end": 1,
+            "promo_depth": 0
+          },
+          "sub_threshold": 0,
+          "base_change_abs_pct": {
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "promo_listing_day_share": 0.04043545878693624,
+          "evaluable_strict": {},
+          "evaluable_lenient": {}
+        }
+      }
+    },
+    "pentruanimale_ro": {
+      "first_collection_day": "2026-09-12",
+      "last_collection_day": "2026-09-26",
+      "collection_days": 14,
+      "gaps": [
+        "2026-09-22"
+      ],
+      "scrape_runs_status_counts": {
+        "ok": 16
+      },
+      "listing_key_usage": {
+        "source_product_id": 4265
+      },
+      "categories": {
+        "food": {
+          "listings": 4024,
+          "listings_with_event": 509,
+          "events_per_listing_0_1_2_3plus": [
+            3515,
+            490,
+            18,
+            1
+          ],
+          "events_union": 529,
+          "events_by_type": {
+            "base_change": 109,
+            "promo_start": 228,
+            "promo_end": 192,
+            "promo_depth": 0
+          },
+          "sub_threshold": 3,
+          "base_change_abs_pct": {
+            "median": 5.602536997885835,
+            "p90": 13.794054762397407,
+            "max": 47.11656441717791
+          },
+          "promo_listing_day_share": 0.15883391904441085,
+          "evaluable_strict": {},
+          "evaluable_lenient": {
+            "holdout": 151
+          }
+        }
+      }
+    },
+    "petmax_ro": {
+      "first_collection_day": "2026-09-12",
+      "last_collection_day": "2026-09-26",
+      "collection_days": 15,
+      "gaps": [],
+      "scrape_runs_status_counts": {
+        "ok": 18
+      },
+      "listing_key_usage": {
+        "source_product_id": 4096
+      },
+      "categories": {
+        "food": {
+          "listings": 2449,
+          "listings_with_event": 3,
+          "events_per_listing_0_1_2_3plus": [
+            2446,
+            3,
+            0,
+            0
+          ],
+          "events_union": 3,
+          "events_by_type": {
+            "base_change": 0,
+            "promo_start": 0,
+            "promo_end": 0,
+            "promo_depth": 3
+          },
+          "sub_threshold": 1,
+          "base_change_abs_pct": {
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "promo_listing_day_share": 0.8003446578040374,
+          "evaluable_strict": {
+            "holdout": 1
+          },
+          "evaluable_lenient": {
+            "holdout": 1
+          }
+        },
+        "litter": {
+          "listings": 137,
+          "listings_with_event": 1,
+          "events_per_listing_0_1_2_3plus": [
+            136,
+            1,
+            0,
+            0
+          ],
+          "events_union": 1,
+          "events_by_type": {
+            "base_change": 0,
+            "promo_start": 0,
+            "promo_end": 0,
+            "promo_depth": 1
+          },
+          "sub_threshold": 0,
+          "base_change_abs_pct": {
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "promo_listing_day_share": 0.8175182481751825,
+          "evaluable_strict": {},
+          "evaluable_lenient": {}
+        }
+      }
+    }
+  },
+  "verdict": {
+    "R1": {
+      "pass": false,
+      "sources_meeting": [],
+      "need": 2
+    },
+    "R2": {
+      "pass": false,
+      "holdout_evaluable_total": 1,
+      "need_total": 200,
+      "cells_with_ge_30": [],
+      "need_cells": 3
+    },
+    "R3": {
+      "pass": false,
+      "training_evaluable_total": 0,
+      "need": 200
+    },
+    "overall": "POSTPONE",
+    "remeasure": {
+      "label": "ESTIMATE",
+      "flag": "NEEDS ARCHITECT: movement too rare",
+      "inputs": {
+        "animax_ro": {
+          "days": 14,
+          "gaps": 0,
+          "cells": {
+            "food": 0,
+            "litter": 0
+          }
+        },
+        "pentruanimale_ro": {
+          "days": 14,
+          "gaps": 1,
+          "cells": {
+            "food": 0
+          }
+        },
+        "petmax_ro": {
+          "days": 15,
+          "gaps": 0,
+          "cells": {
+            "food": 1,
+            "litter": 0
+          }
+        }
+      },
+      "basis_date": "2026-09-26"
+    }
+  },
+  "d2_incremental_matching_volume": {
+    "animax_ro": {
+      "first_day_initial_load": 2435,
+      "days_measured": 13,
+      "new_hashes_per_day": {
+        "median": 3.0,
+        "p90": 38.0,
+        "max": 53.0
+      },
+      "x100_daily_scorings": {
+        "median": 300.0,
+        "p90": 3800.0,
+        "max": 5300.0
+      }
+    },
+    "pentruanimale_ro": {
+      "first_day_initial_load": 4011,
+      "days_measured": 13,
+      "new_hashes_per_day": {
+        "median": 10.0,
+        "p90": 67.0,
+        "max": 81.0
+      },
+      "x100_daily_scorings": {
+        "median": 1000.0,
+        "p90": 6700.0,
+        "max": 8100.0
+      }
+    },
+    "petmax_ro": {
+      "first_day_initial_load": 4059,
+      "days_measured": 14,
+      "new_hashes_per_day": {
+        "median": 0.0,
+        "p90": 11.0,
+        "max": 13.0
+      },
+      "x100_daily_scorings": {
+        "median": 0.0,
+        "p90": 1100.0,
+        "max": 1300.0
+      }
+    }
+  },
+  "storage": {
+    "database_bytes": 182427648,
+    "collection_days_union": 15,
+    "avg_growth_bytes_per_collection_day_ESTIMATE": 12161843.2,
+    "top5_tables": [
+      {
+        "table": "raw_listings",
+        "bytes": 104382464,
+        "rows": 151469
+      },
+      {
+        "table": "norm_listings",
+        "bytes": 68722688,
+        "rows": 10532
+      },
+      {
+        "table": "llm_calls",
+        "bytes": 327680,
+        "rows": 575
+      },
+      {
+        "table": "scrape_runs",
+        "bytes": 131072,
+        "rows": 48
+      },
+      {
+        "table": "products",
+        "bytes": 49152,
+        "rows": 0
+      }
+    ],
+    "neon_free_tier_limit_mb": 512.0,
+    "neon_limit_source_url": "https://neon.com/docs/introduction/plans",
+    "days_until_limit_ESTIMATE": 29.1438771386232,
+    "limit_hit_date_ESTIMATE": "2026-10-25",
+    "raw_listings_growth_bytes_per_collection_day_ESTIMATE": 6958830.933333334,
+    "days_until_limit_raw_only_ESTIMATE": 50.93431172500392,
+    "limit_hit_date_raw_only_ESTIMATE": "2026-11-15"
+  }
+}

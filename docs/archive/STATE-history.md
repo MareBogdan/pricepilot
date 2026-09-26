@@ -1257,3 +1257,15 @@ starts.**
 Nothing blocking. The Phase 7 hosting reserve must be re-checked at Phase 7 (CX22 no longer sold;
 CX23 EUR 5.49/mo, currently listed as unavailable to order) — deferred to Phase 7, not blocking
 now.
+
+
+## Where we are as of 2026-09-25 evening (replaced 2026-09-26)
+
+Phase: 4 — Demand (data-sufficiency measurement first; Phases 0-3 CLOSED)
+Updated: 2026-09-25
+
+**Where we are:** Phase 3 closed by the architect's audit (`docs/audits/phase3-audit.md`, ADR-0030):
+every number recomputed and reproduced, gate MET as a **TIE on F1** (LoRA 0.8796 vs cross-encoder
+0.8737, McNemar p=1.0000). Served model: cross-encoder ONNX fp32 on CPU, incremental batch, K=100.
+Dataset FROZEN 2026-09-22, SHA-256 below. **Next: the Phase 4 measurement session (no model):**
+is there enough real price history, and how many new `content_hash` values arrive per day?

@@ -16,7 +16,9 @@ from measure_price_movement import (  # noqa: E402
     evaluable_events,
     find_events,
     gaps_between,
+    holdout_start,
     make_obs,
+    project_remeasure,
 )
 
 D0 = date(2026, 1, 1)
@@ -142,3 +144,81 @@ def test_gaps_between_first_and_last_only() -> None:
     days = {day(0), day(1), day(4), day(5)}
     assert gaps_between(days) == [day(2), day(3)]
     assert gaps_between(set()) == []
+
+
+def test_event_with_several_types_counted_once_in_union() -> None:
+    # promo starts AND base moves: prev price 100, now price 70 with compare_at 120 (base 100->120)
+    s = flat(9)
+    s[day(9)] = make_obs("70", "120")
+    events, _ = find_events(s)
+    assert events[day(9)] == {"base_change", "promo_start"}
+    assert len(events) == 1
+
+
+def test_promo_depth_at_exactly_two_percent_counts() -> None:
+    types, _ = classify_pair(make_obs("50", "100"), make_obs("51", "100"))
+    assert types == {"promo_depth"}
+
+
+def test_prewindow_boundary_event_at_t_minus_7_blocks_t_minus_8_does_not() -> None:
+    def series(first_event: int) -> dict[date, Obs]:
+        s = flat(40)
+        for i in range(first_event, 40):
+            s[day(i)] = make_obs("110")
+        for i in range(20, 40):
+            s[day(i)] = make_obs("125")
+        return s
+
+    assert day(20) not in evaluable_events(series(13), lenient=False)  # event at t-7
+    assert day(20) in evaluable_events(series(12), lenient=False)  # event at t-8
+
+
+def test_lenient_rejects_two_missing_horizon_days() -> None:
+    s = _series_with_event_at(10, 20)
+    del s[day(13)]
+    del s[day(15)]
+    assert evaluable_events(s, lenient=True) == []
+
+
+def test_holdout_start_is_14th_last_collection_day_and_short_sources() -> None:
+    days = {day(i) for i in range(30)}
+    assert holdout_start(days) == day(16)
+    assert holdout_start({day(i) for i in range(5)}) == day(0)  # fewer than 14: all holdout
+    assert holdout_start(set()) == date.max
+
+
+def _proj(days: int, gaps: int, cells: dict[str, int]) -> dict[str, object]:
+    return {"days": days, "gaps": gaps, "cells": cells}
+
+
+def test_projection_returns_date_when_rates_are_high() -> None:
+    src = {
+        "a": _proj(20, 0, {"food": 700, "litter": 700}),
+        "b": _proj(20, 0, {"food": 700, "litter": 700}),
+        "c": _proj(20, 0, {"food": 700}),
+    }
+    out = project_remeasure(src, day(0))  # type: ignore[arg-type]
+    assert "date" in out and out["collection_days_added"] >= 8  # R1 needs 28 days
+
+
+def test_projection_needs_architect_when_movement_too_rare() -> None:
+    src = {"a": _proj(20, 0, {"food": 1}), "b": _proj(20, 0, {"food": 0}), "c": _proj(20, 0, {})}
+    out = project_remeasure(src, day(0))  # type: ignore[arg-type]
+    assert out["flag"] == "NEEDS ARCHITECT: movement too rare"
+
+
+def test_projection_cells_must_reach_30_not_just_total() -> None:
+    # huge single cell: total >= 200 but only 1 cell >= 30, so R2 never holds
+    src = {"a": _proj(20, 0, {"food": 10_000}), "b": _proj(20, 0, {}), "c": _proj(20, 0, {})}
+    out = project_remeasure(src, day(0))  # type: ignore[arg-type]
+    assert "date" not in out
+
+
+def test_projection_flags_unreachable_r1_when_gaps_exceed_two() -> None:
+    src = {
+        "a": _proj(40, 3, {"food": 900}),
+        "b": _proj(40, 5, {"food": 900}),
+        "c": _proj(20, 0, {}),
+    }
+    out = project_remeasure(src, day(0))  # type: ignore[arg-type]
+    assert "R1 unreachable" in out["flag"]

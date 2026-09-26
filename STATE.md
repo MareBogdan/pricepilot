@@ -1,13 +1,12 @@
 # STATE
 
-Phase: 4 — Demand (data-sufficiency measurement first; Phases 0-3 CLOSED)
-Updated: 2026-09-25
+Phase: 4 — Demand: data-sufficiency verdict POSTPONE (Phases 0-3 CLOSED)
+Updated: 2026-09-26
 
-**Where we are:** Phase 3 closed by the architect's audit (`docs/audits/phase3-audit.md`, ADR-0030):
-every number recomputed and reproduced, gate MET as a **TIE on F1** (LoRA 0.8796 vs cross-encoder
-0.8737, McNemar p=1.0000). Served model: cross-encoder ONNX fp32 on CPU, incremental batch, K=100.
-Dataset FROZEN 2026-09-22, SHA-256 below. **Next: the Phase 4 measurement session (no model):**
-is there enough real price history, and how many new `content_hash` values arrive per day?
+**Where we are:** Phase 4 measurement done (ADR-0031, `docs/learned/phase4-data-sufficiency.md`): the
+pre-registered rule FAILS R1-R3 (14-15 collection days, 1 strict evaluable holdout event) and the
+re-measure projection is `NEEDS ARCHITECT: movement too rare`. Phase 4 model paused; collection
+continues. **Next: Phase 5 kickoff (architect).** Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -35,11 +34,14 @@ K=100; CE int8 reported not served; LoRA int8 non-eligible (fp32 fallback F1 0.8
 
 ## Last done
 
-1. **Phase 3 closed (2026-09-25)**: audit committed; CLAUDE.md, README, COSTS, ADR-0030 and the
+1. **Phase 4 data-sufficiency measurement (2026-09-26)**: rule pre-registered (`e34dbf8`), script
+   `scripts/measure_price_movement.py` + test, results `docs/learned/results/phase4/price-movement.json`.
+   POSTPONE; D2 daily new-hash volume and storage projection measured. ADR-0031. $0 spent.
+2. **Phase 3 closed (2026-09-25)**: audit committed; CLAUDE.md, README, COSTS, ADR-0030 and the
    two stale Phase 3 sentences updated; Phase 3 text archived verbatim. No number, label or
    results file changed.
-2. Context diet on CLAUDE.md/STATE.md/DECISIONS.md (ADR-0029, 2026-09-25).
-3. Phase 3 item 8 closed (2026-09-24): LoRA int8 non-eligible, ONNX fp32 fallback; hosted v2 run.
+3. Context diet on CLAUDE.md/STATE.md/DECISIONS.md (ADR-0029, 2026-09-25).
+4. Phase 3 item 8 closed (2026-09-24): LoRA int8 non-eligible, ONNX fp32 fallback; hosted v2 run.
 
 ## Open issues
 
@@ -62,7 +64,10 @@ K=100; CE int8 reported not served; LoRA int8 non-eligible (fp32 fallback F1 0.8
 - **LLM transport not implemented** (ADR-0006) — blocks Phase 5's decision engine.
 - **`make` not installed** on this machine; use `.\make.ps1 <target>` (ADR-0003).
 - **Precision at K=100 on real candidates unmeasured** (ADR-0030) — hand-verified sample of produced links at Phase 7.
+- **`uv run` hung >2 min on first start (2026-09-25)**; `.venvScriptspython` works, used since.
+- **Neon Free storage (0.5 GB) fills about 2026-10-25 to 2026-11-15** (ESTIMATE, ADR-0031): needs a decision before then.
 
 ## Blocked on Bogdan
 
+Phase 5: pricing-policy draft (300-500 words, CLAUDE.md section 7) for the RAG index.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) — decide then (host 2 months, or raise "available" by ~$5).

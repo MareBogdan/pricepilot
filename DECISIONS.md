@@ -160,4 +160,20 @@ the box); K=20 (blocked recall 74% vs 96% at K=100); full re-match on the VPS (2
 the 2-thread proxy).
 **Date.** 2026-09-25
 
-## ADR-0031 onward: full text (none yet)
+## ADR-0031 — Phase 4 data-sufficiency measurement: POSTPONE
+
+**Context.** Before any demand model, the pre-registered rule (`docs/phase4-data-sufficiency-rule.md`,
+committed before any number) asks whether real price history is long and movement frequent enough.
+**Decision.** Measured 2026-09-26 (`scripts/measure_price_movement.py`, read-only, `docs/learned/phase4-data-sufficiency.md`):
+14/14/15 collection days (need >=28 in 2 of 3 sources), 1 strict evaluable holdout event (need 200),
+0 training events (need 200): R1-R3 FAIL, **POSTPONE**. Projection (ESTIMATE, per-cell strict
+rate per eligible day) returned `NEEDS ARCHITECT: movement too rare`; Claude Code does not reframe the
+phase. Lenient holdout count (reported, not used): 164. D2 (ADR-0030): median new `content_hash` per
+day 3 / 10 / 0 (animax / pentruanimale / petmax), p90 38 / 67 / 11, max 53 / 81 / 13; x100 = daily
+scorings at K=100. Storage: 182.4 MB after 15 days; Neon Free limit 0.5 GB (neon.com docs) reached
+about 2026-10-25 (all tables) to 2026-11-15 (`raw_listings` only), ESTIMATE.
+**Alternatives rejected.** Loosening thresholds after seeing data; building the model on the mock
+store's planted elasticity (circularity trap, CLAUDE.md section 7).
+**Date.** 2026-09-26
+
+## ADR-0032 onward: full text (none yet)
