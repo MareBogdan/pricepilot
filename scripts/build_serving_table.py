@@ -291,8 +291,10 @@ def main() -> int:
             f"{c['median_p_yes_true_N']:.3f} | {c['best_f1']:.3f} |"
         )
     md.append(
-        f"\nValidation pairs scored: {variant_selection['verify_gate']['n']}. No TEST prediction "
-        f"file for any of the three was ever read. Finding: {variant_selection['finding']}\n"
+        f"\nValidation pairs scored: {variant_selection['verify_gate']['n']}. "
+        "No TEST labels were ever scored against any LLM int8 variant "
+        "(V1's TEST predictions were read once, label-free, for the G2 flip count). "
+        f"Finding: {variant_selection['finding']}\n"
     )
 
     md.append(

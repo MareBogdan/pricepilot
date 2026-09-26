@@ -6,7 +6,7 @@ dropped). Everything between the GENERATED markers is produced by `scripts/compa
 validation only) and reuses `score_predictions.score()`, so its numbers equal the committed
 `*-metrics.json` files (asserted at run time). Every rate carries its denominator and Wilson 95% CI.
 This script scores no new model and touches no ledger; the TEST-touch ledger still holds exactly
-three entries.
+three entries. *(True on 2026-09-23; the ledger holds 7 entries after item 8 — see `test-touch-ledger.json`.)*
 
 <!-- BEGIN GENERATED (scripts/compare_models.py) -->
 ### Headline TEST metrics (284 scored pairs; each: value (k/n) [Wilson 95% CI])

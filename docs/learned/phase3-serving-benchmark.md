@@ -27,7 +27,7 @@ Three ORT `quantize_dynamic` configurations were tried; none separated the class
 | v2 (per_channel+reduce_range, int8-variants run) | Intel(R) Xeon(R) CPU @ 2.20GHz | 0.431 | 0.326 | 0.535 |
 | v3 (per_channel+reduce_range  + MatMul-only, int8-variants run) | Intel(R) Xeon(R) CPU @ 2.20GHz | 0.322 | 0.213 | 0.599 |
 
-Validation pairs scored: 133. No TEST prediction file for any of the three was ever read. Finding: ORT dynamic int8 (three configurations: default, per_channel+reduce_range, per_channel+reduce_range+MatMul-only) destroys this 0.5B decoder's discrimination on two AVX2-without-VNNI CPUs (AMD EPYC 7B12, Intel Xeon @ 2.20GHz). The 'AMD-specific' hypothesis is refuted (Intel failed too); the 'per-tensor/saturation only' hypothesis is weakened (per-channel + reduce_range did not fix it). Weight-only quantization (e.g. MatMulNBits) was NOT tested -- untested future work, not run here.
+Validation pairs scored: 133. No TEST labels were ever scored against any LLM int8 variant (V1's TEST predictions were read once, label-free, for the G2 flip count). Finding: ORT dynamic int8 (three configurations: default, per_channel+reduce_range, per_channel+reduce_range+MatMul-only) destroys this 0.5B decoder's discrimination on two AVX2-without-VNNI CPUs (AMD EPYC 7B12, Intel Xeon @ 2.20GHz). The 'AMD-specific' hypothesis is refuted (Intel failed too); the 'per-tensor/saturation only' hypothesis is weakened (per-channel + reduce_range did not fix it). Weight-only quantization (e.g. MatMulNBits) was NOT tested -- untested future work, not run here.
 
 ## Full-catalogue re-match wall-clock, projected for the Hetzner VPS from the Kaggle proxy (per served local model)
 
