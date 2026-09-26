@@ -183,7 +183,7 @@ def main() -> int:
         model_facts["llm_onnx_fp32"]["bytes"],
         serving_cpu,
         f"Kaggle 2-thread proxy ({serving_cpu}, {serving_vnni}); re-measured on the Hetzner VPS "
-        "in Phase 7. Served as ONNX fp32 -- no int8 variant was eligible (protocol 5.11).",
+        "in Phase 7. Benchmarked as ONNX fp32 (reported, not served, ADR-0030) -- no int8 variant was eligible (protocol 5.11).",
     )
 
     variant_selection = _load(RESULTS_DIR / "llm-int8-variant-selection.json")
@@ -232,7 +232,7 @@ def main() -> int:
     )
     md.append(
         "**The two latency runs are on DIFFERENT CPUs, never compared as same-hardware:** the "
-        f"serving run -- cross-encoder fp32/int8 and LoRA ONNX fp32, everything actually SERVED "
+        f"serving run -- cross-encoder fp32/int8 and LoRA ONNX fp32, everything benchmarked for CPU serving (only the cross-encoder fp32 is served, ADR-0030) "
         f"-- used **{serving_cpu}** ({serving_vnni}); the int8-variants run -- LoRA int8 V2/V3, "
         f"neither served (see below) -- used **{int8v_cpu}** ({int8v_vnni}). Every quoted local "
         "latency is a **Kaggle 2-thread proxy**, re-measured on the real Hetzner VPS in Phase 7.\n"
@@ -299,7 +299,7 @@ def main() -> int:
 
     md.append(
         "## Full-catalogue re-match wall-clock, projected for the Hetzner VPS from the Kaggle "
-        "proxy (per served local model)\n"
+        "proxy (per benchmarked local model)\n"
     )
     md.append(
         "The input the pending K decision (ADR-0028 addendum #7 item 3) was waiting for -- "
