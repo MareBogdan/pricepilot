@@ -196,3 +196,23 @@ price change; not patched into the pre-registered rule after seeing this.
 **Alternatives rejected.** A one-off backfill nulling existing duplicate payloads (21.4 MB
 potential, `docs/learned/storage-dedup.md`) -- deferred, destructive, needs a local export first.
 **Date.** 2026-09-27
+
+## ADR-0033 — Pricing policy approved (v0.2); margin on gross shelf price; LLM transport already exists
+
+**Context.** Phase 5 needs the pricing-policy RAG corpus approved and the margin basis pinned (it
+defines the "zero margin violations" gate). Architect audit of the v0.1 draft against the code found
+two mismatches: the draft defined margin ex-VAT, but `services/mock_store` models no VAT and
+`Product.margin_pct` already computes `(current_price - purchase_cost) / current_price` (gross); and
+STATE/ADR-0006's "LLM transport not implemented" was stale -- `src/pricepilot/llm/client.py`
+implements the transport, budget cap, `llm_calls` logging and disk cache, and was used for the
+Phase 3 hosted baseline.
+**Decision.** (1) Margin is the gross shelf basis `(current_price - purchase_cost) / current_price`;
+no VAT is introduced. Policy §1 and the number-source line corrected; policy APPROVED as v0.2
+(Bogdan, 2026-09-27); trimmed to the §7 300-500 word budget (500). (2) Phase 5 does NOT rebuild the
+LLM transport. It starts at the policy-thresholds structured config read by the Python margin guard,
+then RAG indexing + retrieval eval, then the decision engine, then the 50-recommendation run.
+**Alternatives rejected.** Adding a VAT rate to the mock store to keep an ex-VAT margin -- a
+data-model change (§4-1) with more surface to get wrong and no portfolio payoff; the mock store is
+gross throughout. Re-implementing the transport -- it exists and is tested; rewriting it risks a
+regression for no gain (only §5.3 prompt caching on the system prompt is an optional gap).
+**Date.** 2026-09-27
