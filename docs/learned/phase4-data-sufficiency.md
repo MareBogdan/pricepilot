@@ -55,3 +55,36 @@ day, about 2026-11-15.
   the holdout (the definition, not the rationale's "does not overlap"); flag before Phase 4 uses it.
 - `sub_threshold` counts only day-pairs with no event.
 - A listing's category is its latest non-null `norm_listings` category.
+
+## v2 (2026-09-27): widened population, decorative-promo fix
+
+Rule: `docs/phase4-data-sufficiency-rule-v2.md`, committed (`f40769e`) before any v2 number
+existed -- written after seeing v1's structural failure (few cells, a strict-rate projection that
+was structurally ~0 at 14-15 days), not after seeing a v2 result. `uv run python
+scripts/measure_price_movement.py --rule v2` (read-only); every number below is in
+`docs/learned/results/phase4/price-movement-v2.json`. R1/R2/R3 thresholds unchanged from v1.
+
+**Verdict: POSTPONE.** R1/R2/R3 all still FAIL (15-16 collection days is the binding constraint
+for R1 regardless of population). The re-measure projection again returns
+`NEEDS ARCHITECT: movement too rare` -- widening the population (food/litter -> all 4 categories:
+food, litter, accessory, toy) and suppressing decorative strike-through promos (petmax 2,653
+listings, pentruanimale 384, animax 78 reclassified) raised the raw event counts materially
+(e.g. pentruanimale food: 529 -> 531 events) but the lenient-evaluable **fraction** of those events
+stays low (0.16-0.33) because most of the 15-16-day history sits inside the fixed 14-day holdout
+window, leaving too little runway for a full pre/post window on either side. Projected even to the
+60-day cap, no more than 1 cell clears 30 holdout events (need 3), so R2 cannot pass under this
+rule's linear-rate projection. This is a mechanical result of the pre-registered method, not an
+interpretation.
+
+| Rule | Need | v1 (food/litter) | v2 (all 4 categories) |
+|---|---|---|---|
+| R1 history | >=2/3 sources, >=28 days, <=2 gaps | 0 sources | 0 sources (unchanged: still 15-16 days) |
+| R2 holdout | >=200 strict events, >=30 in >=3 cells | 1 event, 0 cells | 2 events, 0 cells |
+| R3 training | >=200 strict events | 0 | 0 |
+
+## Storage (ADR-0032, 2026-09-27)
+
+`scripts/measure_storage_backfill.py`: raw_payload is 28.8 MB of 162,018 rows; a one-off backfill
+(not run) would free an estimated 21.4 MB. Projected growth with the dedup fix live: ~5.2 MB/day
+(down from ~12.2 MB/day), moving the Neon Free (0.5 GB) fill estimate from 2026-10-25/11-15 to
+**~2026-12-03** (ESTIMATE). Full detail: `docs/learned/storage-dedup.md`.

@@ -314,7 +314,7 @@ def history_section() -> None:
 
 def db_section() -> None:
     try:
-        from sqlalchemy import func, select
+        from sqlalchemy import func, select, text
 
         from pricepilot.db import check_database, session_scope
         from pricepilot.models import LlmCall, RawListing, ScrapeRun
@@ -370,6 +370,16 @@ def db_section() -> None:
         ).all()
 
     _row("database", "reachable", True)
+    # ADR-0032: Neon Free is a hard 0.5 GB ceiling, not a soft one -- collection stops if it fills.
+    with session_scope() as s2:
+        db_bytes = s2.execute(text("SELECT pg_database_size(current_database())")).scalar_one()
+    neon_limit_mb = 512.0
+    _row(
+        "storage vs Neon Free limit",
+        f"{db_bytes / 1e6:.1f} MB / {neon_limit_mb:.0f} MB "
+        f"(with dedup, ESTIMATE fill ~2026-12-03, ADR-0032; re-run scripts/measure_storage_backfill.py)",
+        db_bytes < neon_limit_mb * 1024 * 1024 * 0.85,
+    )
     quarantined_total = total - in_scope_total
     _row(
         "listings collected (total / in-scope)",

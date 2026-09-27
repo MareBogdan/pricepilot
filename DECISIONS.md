@@ -176,4 +176,23 @@ about 2026-10-25 (all tables) to 2026-11-15 (`raw_listings` only), ESTIMATE.
 store's planted elasticity (circularity trap, CLAUDE.md section 7).
 **Date.** 2026-09-26
 
-## ADR-0032 onward: full text (none yet)
+## ADR-0032 — Storage dedup (raw_payload by hash) and Phase 4 rule v2
+
+**Context.** Neon Free (0.5 GB) projected to fill 2026-10-25/11-15 (ADR-0031); collection stops if
+it does. `raw_payload` (static per-listing metadata) was the dominant recurring cost, re-stored
+unchanged on every day. Separately, ADR-0031's projection was a structural artefact: 14-15 days
+gives at most one strict-evaluable event, and food/litter gave only ~2 moving cells.
+**Decision.** Migration 0009: `raw_payload_sha256` (nullable); ingest nulls `raw_payload` when its
+hash matches that listing's most recent prior-day row, keeps the hash always; `get_payload()`
+resolves it back. Applied to the collection DB and pushed (`b211a1c`); projected growth ~5.2
+MB/day (was ~12.2), new fill estimate ~2026-12-03 (ESTIMATE). Rule v2
+(`docs/phase4-data-sufficiency-rule-v2.md`, pre-registered before any v2 number): all categories,
+decorative-strike-through suppression, raw-rate x lenient-fraction projection; R1-R3 unchanged.
+**Verdict: POSTPONE again**, `NEEDS ARCHITECT: movement too rare` (`price-movement-v2.json`) --
+15-16 days leaves too little runway inside the fixed 14-day holdout for the fraction to clear 30
+events in 3+ cells even at the 60-day cap. Known limitation for a v3 decision: a real promo_depth
+move disqualifies decorative status by construction, so suppression cannot reveal a masked base
+price change; not patched into the pre-registered rule after seeing this.
+**Alternatives rejected.** A one-off backfill nulling existing duplicate payloads (21.4 MB
+potential, `docs/learned/storage-dedup.md`) -- deferred, destructive, needs a local export first.
+**Date.** 2026-09-27

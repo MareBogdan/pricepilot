@@ -1,12 +1,15 @@
 # STATE
 
-Phase: 4 — Demand: data-sufficiency verdict POSTPONE (Phases 0-3 CLOSED)
-Updated: 2026-09-26
+Phase: 4 — Demand: data-sufficiency verdict POSTPONE, rule v2 confirms it (Phases 0-3 CLOSED)
+Updated: 2026-09-27
 
-**Where we are:** Phase 4 measurement done (ADR-0031, `docs/learned/phase4-data-sufficiency.md`): the
-pre-registered rule FAILS R1-R3 (14-15 collection days, 1 strict evaluable holdout event) and the
-re-measure projection is `NEEDS ARCHITECT: movement too rare`. Phase 4 model paused; collection
-continues. **Next: Phase 5 kickoff (architect).** Dataset FROZEN 2026-09-22, SHA-256 below.
+**Where we are:** Phase 4 v1 measurement (2026-09-26) POSTPONEd with `NEEDS ARCHITECT: movement too
+rare`. Widened the population and fixed a decorative-promo artefact (rule v2, ADR-0032) -- verdict
+still POSTPONE, still `NEEDS ARCHITECT: movement too rare` (15-16 days leaves too little runway
+inside the 14-day holdout regardless of population). Storage fix shipped and applied: `raw_payload`
+dedup by hash (ADR-0032), pushed and live on the cron, projected Neon Free fill pushed from
+2026-10-25/11-15 to ~2026-12-03 (ESTIMATE). Pricing-policy draft v0.1 committed, pending Bogdan's
+approval. **Next: Phase 5 kickoff (architect).** Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -14,9 +17,9 @@ continues. **Next: Phase 5 kickoff (architect).** Dataset FROZEN 2026-09-22, SHA
 applied, pgvector live, `/health` ok, mock-store seeded, `make test`/`make lint` clean, $0 spent).
 Full detail: `docs/archive/phases-0-2.md`, `docs/archive/STATE-history.md`.
 
-**Phase 1 — Collection: CLOSED** (2026-09-22). ≥3,000 in-scope listings — MET (18,585/18,703, 3
-sources, petmax non-Shopify); ≥7 consecutive days — MET (9 days, 2026-09-13→2026-09-21, strict
-definition); ≥400 cross-shop overlap — MET (hand-verified sample, point 1,214–1,342 across two
+**Phase 1 — Collection: CLOSED** (2026-09-22). >=3,000 in-scope listings -- MET (18,585/18,703, 3
+sources, petmax non-Shopify); >=7 consecutive days -- MET (9 days, 2026-09-13->2026-09-21, strict
+definition); >=400 cross-shop overlap -- MET (hand-verified sample, point 1,214-1,342 across two
 independent passes, ADR-0023/ADR-0028 addendum #7). Full detail: `docs/archive/phases-0-2.md`.
 
 **Phase 2 — Normalization: CLOSED** (2026-09-14). 85% attribute-accuracy gate MET at 93.2%
@@ -28,46 +31,65 @@ vs CE 0.8737, McNemar p=1.0000); served model CE ONNX fp32 CPU, threshold 0.89, 
 K=100; CE int8 reported not served; LoRA int8 non-eligible (fp32 fallback F1 0.8750). Full detail:
 `docs/archive/phases-3.md`, `docs/archive/STATE-history.md`, `docs/audits/phase3-audit.md`.
 
+**Phase 4 — Demand: data-sufficiency verdict POSTPONE** (v1 2026-09-26, v2 2026-09-27). v1 rule
+(`docs/phase4-data-sufficiency-rule.md`) and v2 rule (`docs/phase4-data-sufficiency-rule-v2.md`,
+pre-registered before any v2 number) both FAIL R1-R3; re-measure projection both times
+`NEEDS ARCHITECT: movement too rare`. `docs/learned/phase4-data-sufficiency.md`, ADR-0031/ADR-0032.
+
 **Dataset FROZEN 2026-09-22.** SHA-256 (`docs/learned/phase3-labels.json`, LF-normalised):
-`540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` — pinned identically in
+`540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` -- pinned identically in
 `tests/test_labels_frozen.py`. No label may change without a reason recorded here first.
 
 ## Last done
 
-1. **Phase 4 data-sufficiency measurement (2026-09-26)**: rule pre-registered (`e34dbf8`), script
-   `scripts/measure_price_movement.py` + test, results `docs/learned/results/phase4/price-movement.json`.
-   POSTPONE; D2 daily new-hash volume and storage projection measured. ADR-0031. $0 spent.
-2. **Phase 3 closed (2026-09-25)**: audit committed; CLAUDE.md, README, COSTS, ADR-0030 and the
-   two stale Phase 3 sentences updated; Phase 3 text archived verbatim. No number, label or
-   results file changed.
-3. Context diet on CLAUDE.md/STATE.md/DECISIONS.md (ADR-0029, 2026-09-25).
-4. Phase 3 item 8 closed (2026-09-24): LoRA int8 non-eligible, ONNX fp32 fallback; hosted v2 run.
+1. **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
+   to the collection DB; ingest dedup pushed (`4af25cb`); a review-found BLOCKING bug (a same-day
+   re-run could null a brand-new listing's only payload) fixed and pushed (`b211a1c`) before any
+   real loss occurred (checked the DB: none did). Post-push cron run verified: today's rows have
+   the hash filled; NULL-payload share will show >0 from tomorrow's run (today is the first day
+   the hash exists at all, so nothing yet has a "previous" to match against -- expected, not a bug).
+2. **Phase 4 rule v2 (2026-09-27):** pre-registered (`f40769e`) before any v2 number; measured
+   (`f44a704`, `docs/learned/results/phase4/price-movement-v2.json`) -- verdict unchanged, POSTPONE.
+3. **Phase 4 v1 measurement (2026-09-26):** rule pre-registered (`e34dbf8`), script + results
+   (`docs/learned/results/phase4/price-movement.json`). ADR-0031. $0 spent.
+4. **Pricing-policy draft v0.1 committed** (2026-09-27, architect), pending Bogdan's approval --
+   the Phase 5 RAG corpus.
+5. **Phase 3 closed (2026-09-25):** audit committed; CLAUDE.md, README, COSTS, ADR-0030 and the
+   two stale Phase 3 sentences updated; Phase 3 text archived verbatim.
 
 ## Open issues
 
+- **Neon Free storage (0.5 GB) now projected to fill ~2026-12-03** (ESTIMATE, ADR-0032, was
+  2026-10-25/11-15) -- re-run `scripts/measure_storage_backfill.py` for a fresh estimate; still
+  needs a decision before then. A one-off backfill (21.4 MB potential on existing rows) is
+  identified but not run -- destructive, needs a local export first.
+- **Rule v2's decorative-promo suppression (point 2) cannot reveal a real masked price change by
+  construction**: any >=2% move under promo is already a `promo_depth` event, which disqualifies
+  decorative status. Found in code review, documented, not patched into the pre-registered rule --
+  a v3 architect decision if this phase is ever reopened.
+- **`get_payload()`-routed callers have no end-to-end test against a real Postgres** (only pure
+  logic + in-memory SQLite) -- `run_source`'s actual INSERT is Postgres-`ON CONFLICT`-specific and
+  this machine has no local docker Postgres running. Low priority: the callers and the ingest path
+  are covered by direct unit tests of the same logic.
 - **`pytest`'s console-script `.exe` is blocked** by this machine's Windows Application Control
-  policy — `uv run python -m pytest` is the standing workaround, low friction.
+  policy -- `.venv\Scripts\python -m pytest` is the standing workaround, low friction.
 - **`scripts/select_threshold.py` and `scripts/score_predictions.py` duplicate `_load_eval_view`**
-  byte-for-byte, plus their own separate confusion-matrix logic — worth extracting into
-  `src/pricepilot/matching/` before a third caller (e.g. Phase 4/5) needs the same logic; already
-  caused one real drift (an F1-convention mismatch, fixed). DECISIONS.md ADR-0028 addendum #19.
-- **`species` field disagrees with its own title on 53/10,532 `norm_listings` rows (0.50%)** — a
-  `normalize/species.py` extraction defect (animax `product_type` / petmax URL segment vs. title
-  text). Not fixed (Phase 2 is closed); matters for Phase 3 rule 1 (species-differs) if the field
-  is leaned on again. `docs/learned/phase3-species-field-mismatch-20260921.md`, ADR-0028
-  addendum #13.
+  byte-for-byte, plus their own separate confusion-matrix logic -- worth extracting into
+  `src/pricepilot/matching/` before a third caller needs the same logic. DECISIONS.md ADR-0028
+  addendum #19.
+- **`species` field disagrees with its own title on 53/10,532 `norm_listings` rows (0.50%)** -- a
+  `normalize/species.py` extraction defect. Not fixed (Phase 2 is closed).
+  `docs/learned/phase3-species-field-mismatch-20260921.md`, ADR-0028 addendum #13.
 - **Brand extraction has no title-only fallback.** `canonicalize_brand()` returns `None` when the
-  shop's own structured brand field is empty — 3/10,503 rows (all petmax), low priority.
-- **pentruanimale.ro's regulated-product exposure is "not measured", not "clean".** VTEX
-  `categories`/`categoryId` captured going-forward only (ADR-0025), cannot backfill onto rows
-  already collected; the title-text-only diagnostic found 0 hits, the weaker of the two signals.
-- **LLM transport not implemented** (ADR-0006) — blocks Phase 5's decision engine.
+  shop's own structured brand field is empty -- 3/10,503 rows (all petmax), low priority.
+- **pentruanimale.ro's regulated-product exposure is "not measured", not "clean".**
+- **LLM transport not implemented** (ADR-0006) -- blocks Phase 5's decision engine.
 - **`make` not installed** on this machine; use `.\make.ps1 <target>` (ADR-0003).
-- **Precision at K=100 on real candidates unmeasured** (ADR-0030) — hand-verified sample of produced links at Phase 7.
-- **`uv run` hung >2 min on first start (2026-09-25)**; `.venvScriptspython` works, used since.
-- **Neon Free storage (0.5 GB) fills about 2026-10-25 to 2026-11-15** (ESTIMATE, ADR-0031): needs a decision before then.
+- **Precision at K=100 on real candidates unmeasured** (ADR-0030) -- hand-verified sample at
+  Phase 7.
 
 ## Blocked on Bogdan
 
-Phase 5: pricing-policy draft (300-500 words, CLAUDE.md section 7) for the RAG index.
-Phase 7: hosting shortfall ~$4-6 (ADR-0030) — decide then (host 2 months, or raise "available" by ~$5).
+Phase 5: approval of pricing-policy draft v0.1 (`docs/policy/pricing-policy.md`).
+Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
+Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

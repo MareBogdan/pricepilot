@@ -1,0 +1,441 @@
+{
+  "generated_at": "2026-09-27T10:19:33.799010+00:00",
+  "git_sha": "f44a7048b8ab0bef4cd62902317e477b041ff41b",
+  "rule_file_sha256": "8427634c9e8b4f087ad6c01d5014ac58d740f690a469e6271f9167e847cb6698",
+  "dropped_out_of_scope_listings": 0,
+  "dropped_unclassified_listings": 401,
+  "multi_row_days_collapsed": 0,
+  "decorative_promo_listings_reclassified": {
+    "petmax_ro": 2653,
+    "pentruanimale_ro": 384,
+    "animax_ro": 78
+  },
+  "per_source": {
+    "animax_ro": {
+      "first_collection_day": "2026-09-13",
+      "last_collection_day": "2026-09-27",
+      "collection_days": 15,
+      "gaps": [],
+      "scrape_runs_status_counts": {
+        "ok": 16
+      },
+      "listing_key_usage": {
+        "source_product_id": 2581
+      },
+      "categories": {
+        "accessory": {
+          "listings": 65,
+          "listings_with_event": 2,
+          "events_per_listing_0_1_2_3plus": [
+            63,
+            2,
+            0,
+            0
+          ],
+          "events_union": 2,
+          "events_by_type": {
+            "base_change": 2,
+            "promo_start": 0,
+            "promo_end": 0,
+            "promo_depth": 0
+          },
+          "sub_threshold": 0,
+          "base_change_abs_pct": {
+            "median": 13.736807167253447,
+            "p90": 20.008699434536755,
+            "max": 20.008699434536755
+          },
+          "promo_listing_day_share": 0.0,
+          "evaluable_strict": {},
+          "evaluable_lenient": {
+            "holdout": 2
+          }
+        },
+        "food": {
+          "listings": 2152,
+          "listings_with_event": 79,
+          "events_per_listing_0_1_2_3plus": [
+            2073,
+            61,
+            18,
+            0
+          ],
+          "events_union": 97,
+          "events_by_type": {
+            "base_change": 9,
+            "promo_start": 67,
+            "promo_end": 22,
+            "promo_depth": 0
+          },
+          "sub_threshold": 9,
+          "base_change_abs_pct": {
+            "median": 7.168458781362007,
+            "p90": 18.333389698670906,
+            "max": 24.622716441620334
+          },
+          "promo_listing_day_share": 0.02050720100187852,
+          "evaluable_strict": {},
+          "evaluable_lenient": {
+            "holdout": 16
+          }
+        },
+        "litter": {
+          "listings": 65,
+          "listings_with_event": 1,
+          "events_per_listing_0_1_2_3plus": [
+            64,
+            0,
+            1,
+            0
+          ],
+          "events_union": 2,
+          "events_by_type": {
+            "base_change": 0,
+            "promo_start": 1,
+            "promo_end": 1,
+            "promo_depth": 0
+          },
+          "sub_threshold": 0,
+          "base_change_abs_pct": {
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "promo_listing_day_share": 0.003110419906687403,
+          "evaluable_strict": {},
+          "evaluable_lenient": {}
+        },
+        "toy": {
+          "listings": 177,
+          "listings_with_event": 0,
+          "events_per_listing_0_1_2_3plus": [
+            177,
+            0,
+            0,
+            0
+          ],
+          "events_union": 0,
+          "events_by_type": {
+            "base_change": 0,
+            "promo_start": 0,
+            "promo_end": 0,
+            "promo_depth": 0
+          },
+          "sub_threshold": 0,
+          "base_change_abs_pct": {
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "promo_listing_day_share": 0.0,
+          "evaluable_strict": {},
+          "evaluable_lenient": {}
+        }
+      }
+    },
+    "pentruanimale_ro": {
+      "first_collection_day": "2026-09-12",
+      "last_collection_day": "2026-09-27",
+      "collection_days": 15,
+      "gaps": [
+        "2026-09-22"
+      ],
+      "scrape_runs_status_counts": {
+        "ok": 17
+      },
+      "listing_key_usage": {
+        "source_product_id": 4266
+      },
+      "categories": {
+        "food": {
+          "listings": 4024,
+          "listings_with_event": 511,
+          "events_per_listing_0_1_2_3plus": [
+            3513,
+            492,
+            18,
+            1
+          ],
+          "events_union": 531,
+          "events_by_type": {
+            "base_change": 109,
+            "promo_start": 228,
+            "promo_end": 194,
+            "promo_depth": 0
+          },
+          "sub_threshold": 3,
+          "base_change_abs_pct": {
+            "median": 5.602536997885835,
+            "p90": 13.794054762397407,
+            "max": 47.11656441717791
+          },
+          "promo_listing_day_share": 0.06252340584890886,
+          "evaluable_strict": {},
+          "evaluable_lenient": {
+            "holdout": 171
+          }
+        }
+      }
+    },
+    "petmax_ro": {
+      "first_collection_day": "2026-09-12",
+      "last_collection_day": "2026-09-27",
+      "collection_days": 16,
+      "gaps": [],
+      "scrape_runs_status_counts": {
+        "ok": 20
+      },
+      "listing_key_usage": {
+        "source_product_id": 4109
+      },
+      "categories": {
+        "accessory": {
+          "listings": 1486,
+          "listings_with_event": 1,
+          "events_per_listing_0_1_2_3plus": [
+            1485,
+            1,
+            0,
+            0
+          ],
+          "events_union": 1,
+          "events_by_type": {
+            "base_change": 1,
+            "promo_start": 0,
+            "promo_end": 0,
+            "promo_depth": 1
+          },
+          "sub_threshold": 0,
+          "base_change_abs_pct": {
+            "median": 7.142857142857143,
+            "p90": 7.142857142857143,
+            "max": 7.142857142857143
+          },
+          "promo_listing_day_share": 0.0006741667720052247,
+          "evaluable_strict": {
+            "holdout": 1
+          },
+          "evaluable_lenient": {
+            "holdout": 1
+          }
+        },
+        "food": {
+          "listings": 2449,
+          "listings_with_event": 3,
+          "events_per_listing_0_1_2_3plus": [
+            2446,
+            3,
+            0,
+            0
+          ],
+          "events_union": 3,
+          "events_by_type": {
+            "base_change": 0,
+            "promo_start": 0,
+            "promo_end": 0,
+            "promo_depth": 3
+          },
+          "sub_threshold": 1,
+          "base_change_abs_pct": {
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "promo_listing_day_share": 0.0012305483631143129,
+          "evaluable_strict": {
+            "holdout": 1
+          },
+          "evaluable_lenient": {
+            "holdout": 1
+          }
+        },
+        "litter": {
+          "listings": 137,
+          "listings_with_event": 1,
+          "events_per_listing_0_1_2_3plus": [
+            136,
+            1,
+            0,
+            0
+          ],
+          "events_union": 1,
+          "events_by_type": {
+            "base_change": 0,
+            "promo_start": 0,
+            "promo_end": 0,
+            "promo_depth": 1
+          },
+          "sub_threshold": 0,
+          "base_change_abs_pct": {
+            "median": null,
+            "p90": null,
+            "max": null
+          },
+          "promo_listing_day_share": 0.0072992700729927005,
+          "evaluable_strict": {},
+          "evaluable_lenient": {}
+        }
+      }
+    }
+  },
+  "verdict": {
+    "R1": {
+      "pass": false,
+      "sources_meeting": [],
+      "need": 2
+    },
+    "R2": {
+      "pass": false,
+      "holdout_evaluable_total": 2,
+      "need_total": 200,
+      "cells_with_ge_30": [],
+      "need_cells": 3
+    },
+    "R3": {
+      "pass": false,
+      "training_evaluable_total": 0,
+      "need": 200
+    },
+    "overall": "POSTPONE",
+    "remeasure": {
+      "label": "ESTIMATE",
+      "flag": "NEEDS ARCHITECT: movement too rare",
+      "inputs": {
+        "animax_ro": {
+          "days": 15,
+          "gaps": 0,
+          "cells": {
+            "accessory": [
+              2,
+              1.0
+            ],
+            "food": [
+              97,
+              0.16494845360824742
+            ],
+            "litter": [
+              2,
+              0.0
+            ],
+            "toy": [
+              0,
+              0.0
+            ]
+          }
+        },
+        "pentruanimale_ro": {
+          "days": 15,
+          "gaps": 1,
+          "cells": {
+            "food": [
+              531,
+              0.3220338983050847
+            ]
+          }
+        },
+        "petmax_ro": {
+          "days": 16,
+          "gaps": 0,
+          "cells": {
+            "accessory": [
+              1,
+              1.0
+            ],
+            "food": [
+              3,
+              0.3333333333333333
+            ],
+            "litter": [
+              1,
+              0.0
+            ]
+          }
+        }
+      },
+      "basis_date": "2026-09-27"
+    }
+  },
+  "d2_incremental_matching_volume": {
+    "animax_ro": {
+      "first_day_initial_load": 2435,
+      "days_measured": 14,
+      "new_hashes_per_day": {
+        "median": 3.0,
+        "p90": 38.0,
+        "max": 53.0
+      },
+      "x100_daily_scorings": {
+        "median": 300.0,
+        "p90": 3800.0,
+        "max": 5300.0
+      }
+    },
+    "pentruanimale_ro": {
+      "first_day_initial_load": 4011,
+      "days_measured": 14,
+      "new_hashes_per_day": {
+        "median": 8.5,
+        "p90": 67.0,
+        "max": 81.0
+      },
+      "x100_daily_scorings": {
+        "median": 850.0,
+        "p90": 6700.0,
+        "max": 8100.0
+      }
+    },
+    "petmax_ro": {
+      "first_day_initial_load": 4059,
+      "days_measured": 15,
+      "new_hashes_per_day": {
+        "median": 0.0,
+        "p90": 13.0,
+        "max": 13.0
+      },
+      "x100_daily_scorings": {
+        "median": 0.0,
+        "p90": 1300.0,
+        "max": 1300.0
+      }
+    }
+  },
+  "storage": {
+    "database_bytes": 194666496,
+    "collection_days_union": 16,
+    "avg_growth_bytes_per_collection_day_ESTIMATE": 12166656.0,
+    "top5_tables": [
+      {
+        "table": "raw_listings",
+        "bytes": 116613120,
+        "rows": 162026
+      },
+      {
+        "table": "norm_listings",
+        "bytes": 68722688,
+        "rows": 10532
+      },
+      {
+        "table": "llm_calls",
+        "bytes": 327680,
+        "rows": 575
+      },
+      {
+        "table": "scrape_runs",
+        "bytes": 139264,
+        "rows": 53
+      },
+      {
+        "table": "products",
+        "bytes": 49152,
+        "rows": 0
+      }
+    ],
+    "neon_free_tier_limit_mb": 512.0,
+    "neon_limit_source_url": "https://neon.com/docs/introduction/plans",
+    "days_until_limit_ESTIMATE": 28.12641501493919,
+    "limit_hit_date_ESTIMATE": "2026-10-25",
+    "raw_listings_growth_bytes_per_collection_day_ESTIMATE": 7288320.0,
+    "days_until_limit_raw_only_ESTIMATE": 46.9524411661398,
+    "limit_hit_date_raw_only_ESTIMATE": "2026-11-12"
+  }
+}
