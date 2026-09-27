@@ -47,6 +47,7 @@ from sqlalchemy import select  # noqa: E402
 from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.models import RawListing  # noqa: E402
 from pricepilot.overlap import OverlapKey, net_weight_grams, overlap_key  # noqa: E402
+from pricepilot.scrapers.runner import get_payload  # noqa: E402
 
 Q3_DOC = ROOT / "docs" / "learned" / "q3-verification.md"
 OUTPUT_CSV = ROOT / "docs" / "learned" / "phase3-retrieval-eval-set.csv"
@@ -166,7 +167,8 @@ def build_proxy_key_pairs(session) -> tuple[list[dict[str, object]], int]:  # ty
             in_scope.c.id,
             in_scope.c.source,
             in_scope.c.title,
-            in_scope.c.raw_payload,
+            in_scope.c.external_id,
+            in_scope.c.collected_date,
             in_scope.c.content_hash,
         ).join(
             latest,
@@ -177,7 +179,10 @@ def build_proxy_key_pairs(session) -> tuple[list[dict[str, object]], int]:  # ty
     ).all()
 
     by_key: dict[OverlapKey, dict[str, tuple[int, str, str]]] = {}
-    for listing_id, source, title, payload, content_hash in rows:
+    for listing_id, source, title, external_id, collected_date, content_hash in rows:
+        # ADR-0032: the latest row's own raw_payload is usually NULL now (dedup by hash) --
+        # resolve back to the last day it was actually written, same as overlap.compute_overlap.
+        payload = get_payload(session, source, external_id, collected_date)
         brand = (payload or {}).get("brand") if isinstance(payload, dict) else None
         key = overlap_key(title, brand if isinstance(brand, str) else None)
         if key is None:

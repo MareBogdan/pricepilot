@@ -40,6 +40,7 @@ from sqlalchemy import select  # noqa: E402
 from pricepilot.db import session_scope  # noqa: E402
 from pricepilot.models import RawListing  # noqa: E402
 from pricepilot.scrapers.petmax import regulated_match  # noqa: E402
+from pricepilot.scrapers.runner import get_payload  # noqa: E402
 
 # animax's own classification, checked alongside the title (ADR-0025, A4). Kept here rather than
 # imported from animax.py because it is a query-time property of already-stored `raw_payload`,
@@ -88,7 +89,10 @@ def main(argv: list[str] | None = None) -> int:
 
         for row in rows:
             by_source_total[row.source] = by_source_total.get(row.source, 0) + 1
-            reason = reason_for(row.source, row.title, row.raw_payload)
+            # ADR-0032: this row's own raw_payload may be NULL now (dedup by hash) even though
+            # this specific day still needs the animax product_type check -- resolve it back.
+            payload = get_payload(session, row.source, row.external_id, row.collected_date)
+            reason = reason_for(row.source, row.title, payload)
             if reason is not None:
                 by_source_matched[row.source] = by_source_matched.get(row.source, 0) + 1
                 to_update.append((row, reason))

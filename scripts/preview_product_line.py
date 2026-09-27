@@ -121,10 +121,14 @@ def main() -> int:
         return 2
 
     with session_scope() as session:
+        # ADR-0032: raw_payload is NULL on most rows now (dedup by hash). ORDER BY id makes the
+        # lowest-id row for a given title win any later de-dup on it -- that row is always a
+        # listing's first-ever sighting, which always carries the full payload (same guarantee
+        # scripts/normalize.py already relies on).
         rows = session.execute(
-            select(RawListing.source, RawListing.title, RawListing.raw_payload).where(
-                RawListing.excluded_reason.is_(None)
-            )
+            select(RawListing.source, RawListing.title, RawListing.raw_payload)
+            .where(RawListing.excluded_reason.is_(None))
+            .order_by(RawListing.id)
         ).all()
 
     by_source: dict[str, list[tuple[str, object]]] = {}

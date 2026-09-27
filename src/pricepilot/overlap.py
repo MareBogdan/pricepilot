@@ -28,6 +28,7 @@ from sqlalchemy import func, select
 
 from pricepilot.db import session_scope
 from pricepilot.models import RawListing
+from pricepilot.scrapers.runner import get_payload
 
 # CLAUDE.md §7 Phase 1 gate.
 OVERLAP_TARGET = 400
@@ -329,7 +330,12 @@ def compute_overlap(target: int = OVERLAP_TARGET) -> OverlapReport:
             .subquery()
         )
         rows = session.execute(
-            select(in_scope.c.source, in_scope.c.title, in_scope.c.raw_payload).join(
+            select(
+                in_scope.c.source,
+                in_scope.c.title,
+                in_scope.c.external_id,
+                in_scope.c.collected_date,
+            ).join(
                 latest,
                 (in_scope.c.source == latest.c.source)
                 & (in_scope.c.source_product_id == latest.c.source_product_id)
@@ -337,17 +343,20 @@ def compute_overlap(target: int = OVERLAP_TARGET) -> OverlapReport:
             )
         ).all()
 
-    by_key: dict[OverlapKey, set[str]] = {}
-    sources: set[str] = set()
-    unkeyable = 0
-    for source, title, payload in rows:
-        sources.add(source)
-        brand = (payload or {}).get("brand") if isinstance(payload, dict) else None
-        key = overlap_key(title, brand if isinstance(brand, str) else None)
-        if key is None:
-            unkeyable += 1
-            continue
-        by_key.setdefault(key, set()).add(source)
+        by_key: dict[OverlapKey, set[str]] = {}
+        sources: set[str] = set()
+        unkeyable = 0
+        for source, title, external_id, collected_date in rows:
+            sources.add(source)
+            # ADR-0032: the latest row's own raw_payload is usually NULL now (dedup by hash) --
+            # resolve back to the last day it was actually written, same as ingest compares.
+            payload = get_payload(session, source, external_id, collected_date)
+            brand = (payload or {}).get("brand") if isinstance(payload, dict) else None
+            key = overlap_key(title, brand if isinstance(brand, str) else None)
+            if key is None:
+                unkeyable += 1
+                continue
+            by_key.setdefault(key, set()).add(source)
 
     return OverlapReport(
         sources=len(sources),

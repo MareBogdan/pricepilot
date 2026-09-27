@@ -15,12 +15,15 @@ history — this is why the insert below is `INSERT ... ON CONFLICT DO UPDATE`, 
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import Session
 
 from pricepilot.db import session_scope
 from pricepilot.models import RawListing, ScrapeRun
@@ -40,9 +43,94 @@ _UPSERT_COLUMNS = (
     "compare_at_price",
     "in_stock",
     "raw_payload",
+    "raw_payload_sha256",
     "scraped_at",
     "content_hash",
 )
+
+# ---------------------------------------------------------------------------
+# Payload dedup (ADR-0032, migration 0009): `raw_payload` is static per-listing metadata
+# (brand, product_type, ...) that almost never changes day to day, unlike price/compare_at_price,
+# which are separate columns and are ALWAYS written every day regardless of this. Storing it
+# again on every unchanged day was the dominant recurring cost in `raw_listings`
+# (docs/learned/storage-dedup.md). Nothing here touches price history.
+# ---------------------------------------------------------------------------
+
+
+def canonical_payload_hash(payload: dict[str, object]) -> str:
+    """sha256 of the payload's canonical (sort_keys) JSON. Deterministic regardless of dict
+    insertion order, so the same content always hashes the same way."""
+    canonical = json.dumps(payload, sort_keys=True, default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def resolve_payload_for_storage(
+    payload: dict[str, object], previous_hash: str | None
+) -> tuple[dict[str, object] | None, str]:
+    """(payload_to_store, hash_to_store) for one listing's row.
+
+    `previous_hash` is the `raw_payload_sha256` on that listing's most recent existing row, or
+    `None` when there is none (a brand-new listing, or a legacy pre-migration row with no hash
+    yet -- both are treated identically: "no previous hash to compare against", so the payload is
+    always stored in full). When the new payload's hash matches, the payload itself is dropped
+    (NULL) and only the hash is kept; the caller can always recover it via `get_payload`.
+    """
+    new_hash = canonical_payload_hash(payload)
+    if previous_hash is not None and new_hash == previous_hash:
+        return None, new_hash
+    return payload, new_hash
+
+
+def previous_payload_hashes(
+    session: Session, source: str, external_ids: list[str]
+) -> dict[str, str]:
+    """The latest existing `raw_payload_sha256` per `external_id` for `source`, among rows
+    already in the table (before this run's insert). Missing from the result == no previous hash.
+    """
+    if not external_ids:
+        return {}
+    rows = session.execute(
+        select(
+            RawListing.external_id,
+            RawListing.collected_date,
+            RawListing.id,
+            RawListing.raw_payload_sha256,
+        )
+        .where(RawListing.source == source, RawListing.external_id.in_(external_ids))
+        .order_by(RawListing.external_id, RawListing.collected_date, RawListing.id)
+    ).all()
+    latest: dict[str, str] = {}
+    for external_id, _collected_date, _id, sha in rows:
+        if sha is not None:
+            latest[external_id] = sha  # rows are in ascending order, so the last write wins
+    return latest
+
+
+def get_payload(
+    session: Session, source: str, external_id: str, on_or_before: date
+) -> dict[str, object] | None:
+    """The most recent non-NULL `raw_payload` for this listing on or before `on_or_before`.
+
+    Most days now store NULL there (see `resolve_payload_for_storage`); this resolves back to
+    the last day the payload was actually written, exactly like the ingest-time comparison would
+    see it. `None` means no row for this listing has ever carried a payload up to that date.
+    """
+    return (
+        session.execute(
+            select(RawListing.raw_payload)
+            .where(
+                RawListing.source == source,
+                RawListing.external_id == external_id,
+                RawListing.collected_date <= on_or_before,
+                RawListing.raw_payload.is_not(None),
+            )
+            .order_by(RawListing.collected_date.desc(), RawListing.id.desc())
+            .limit(1)
+        )
+        .scalars()
+        .first()
+    )
+
 
 # CLAUDE.md §5.6. A drop this large is a markup change or a block, not a quiet sale.
 VOLUME_DROP_THRESHOLD = 0.40
@@ -174,25 +262,34 @@ def run_source(
         ingested = 0
         if status == "ok" and result.listings:
             collected_date = started_at.date()
-            rows = [
-                {
-                    "run_id": run.id,
-                    "source": listing.source,
-                    "source_product_id": listing.source_product_id,
-                    "external_id": listing.source_product_id or listing.url,
-                    "collected_date": collected_date,
-                    "url": listing.url,
-                    "title": listing.title,
-                    "price": listing.price,
-                    "currency": listing.currency,
-                    "compare_at_price": listing.compare_at_price,
-                    "in_stock": listing.in_stock,
-                    "raw_payload": {**(listing.raw_payload or {}), "brand": listing.brand},
-                    "scraped_at": started_at,
-                    "content_hash": listing.content_hash,
-                }
-                for listing in result.listings
-            ]
+            external_ids = [listing.source_product_id or listing.url for listing in result.listings]
+            prev_hashes = previous_payload_hashes(session, scraper.name, external_ids)
+            rows = []
+            for listing in result.listings:
+                external_id = listing.source_product_id or listing.url
+                full_payload = {**(listing.raw_payload or {}), "brand": listing.brand}
+                stored_payload, stored_hash = resolve_payload_for_storage(
+                    full_payload, prev_hashes.get(external_id)
+                )
+                rows.append(
+                    {
+                        "run_id": run.id,
+                        "source": listing.source,
+                        "source_product_id": listing.source_product_id,
+                        "external_id": external_id,
+                        "collected_date": collected_date,
+                        "url": listing.url,
+                        "title": listing.title,
+                        "price": listing.price,
+                        "currency": listing.currency,
+                        "compare_at_price": listing.compare_at_price,
+                        "in_stock": listing.in_stock,
+                        "raw_payload": stored_payload,
+                        "raw_payload_sha256": stored_hash,
+                        "scraped_at": started_at,
+                        "content_hash": listing.content_hash,
+                    }
+                )
             stmt = pg_insert(RawListing).values(rows)
             stmt = stmt.on_conflict_do_update(
                 index_elements=["source", "external_id", "collected_date"],

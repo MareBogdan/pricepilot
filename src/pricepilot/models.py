@@ -122,7 +122,19 @@ class RawListing(Base):
     # Pre-discount price where the shop exposes one; drives promotion detection in Phase 4.
     compare_at_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     in_stock: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    raw_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # `none_as_null=True`: SQLAlchemy's JSON type otherwise persists a Python `None` as the JSON
+    # literal `null`, not SQL NULL (ADR-0032) -- every `IS NULL`/`IS NOT NULL` check the dedup
+    # feature relies on (`get_payload`, the callers routed through it) needs a real SQL NULL.
+    raw_payload: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
+    # sha256 of the canonical (sort_keys) JSON of raw_payload -- ADR-0032/0009 migration. Set on
+    # every row from this migration on, whether or not raw_payload itself is NULL: it is what
+    # ingest compares the next day's payload against, and what `get_payload()` uses to prove a
+    # NULL payload really was a duplicate rather than data loss. Legacy pre-migration rows carry
+    # NULL here permanently (no backfill in this session) and are treated as "no previous hash"
+    # by the ingest comparison, i.e. the day after deploy always stores its payload in full.
+    raw_payload_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     scraped_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
