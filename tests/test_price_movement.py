@@ -267,14 +267,16 @@ def test_suppress_decorative_promo_forces_base_price_to_price_and_drops_compare_
 
 def test_a_real_price_move_disqualifies_decorative_suppression_by_construction() -> None:
     """Documents a known limitation of rule-v2.md point 2 (found in code review, 2026-09-27), not
-    a bug: a listing with a real underlying price move of >=2% while under promo registers as a
+    a bug: a listing with a real underlying PRICE move of >=2% while under promo registers as a
     `promo_depth` EVENT (v1's own definition), which is one of the three event types that
-    disqualifies decorative status. So decorative suppression can never "reveal" a real move that
-    v1 would already have counted as promo_depth -- it only clears listings whose compare_at
-    fluctuation was ALWAYS sub-threshold (<2%, rounding/noise) or entirely flat. The 25% cut here
-    is correctly seen as a real promo_depth event and the listing correctly stays un-suppressed;
-    v1's own measurement (petmax food: 3 events, all promo_depth, 0 base_change) already reflects
-    real moves being counted this way, not silently lost."""
+    disqualifies decorative status. So decorative suppression can never "reveal" a price move that
+    v1 would already have counted as promo_depth -- its only real effect is on a listing whose
+    `price` never moves but whose `compare_at_price` does: that registers as `base_change` under
+    v1's definition (base_price = compare_at while on promo), which does NOT disqualify decorative
+    status, and suppression correctly reclassifies it as no move at all (base_price = price, flat).
+    The 25% PRICE cut here is correctly seen as a real promo_depth event and the listing correctly
+    stays un-suppressed; v2's own measurement (petmax food: 3 events, all promo_depth, 0
+    base_change) already reflects real price moves being counted this way, not silently lost."""
     s = {day(i): _promo("80", "100") for i in range(20)}
     for i in range(10, 20):
         s[day(i)] = _promo("60", "100")  # 80 -> 60 under compare_at=100 the whole time: 25% move
