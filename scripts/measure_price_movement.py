@@ -30,6 +30,9 @@ sys.path.insert(0, str(ROOT / "src"))
 
 RULE_FILE = ROOT / "docs" / "phase4-data-sufficiency-rule.md"
 OUT_FILE = ROOT / "docs" / "learned" / "results" / "phase4" / "price-movement.json"
+RULE_V2_FILE = ROOT / "docs" / "phase4-data-sufficiency-rule-v2.md"
+OUT_FILE_V2 = ROOT / "docs" / "learned" / "results" / "phase4" / "price-movement-v2.json"
+DECORATIVE_PROMO_SHARE_MIN = 0.90
 
 # --- thresholds: identical to the pre-registered rule file; never edit after seeing data ---
 EVENT_PCT = Decimal("2")  # percent
@@ -218,6 +221,78 @@ def project_remeasure(sources: Mapping[str, Mapping[str, Any]], today: date) -> 
             elig_now = eligible_days(s["days"])
             for cat, n in s["cells"].items():
                 rate = n / elig_now if elig_now else 0.0
+                cells[f"{name}/{cat}"] = rate * min(holdout_elig, eligible_days(days))
+                train += rate * max(0, eligible_days(days) - holdout_elig)
+        r2 = sum(cells.values()) >= R2_MIN_HOLDOUT and (
+            sum(1 for v in cells.values() if v >= R2_CELL_MIN) >= R2_MIN_CELLS
+        )
+        if k == last_k:
+            r2_at_cap = r2
+        if r1_ok >= R1_MIN_SOURCES and r2 and train >= R3_MIN_TRAIN:
+            return {
+                "label": "ESTIMATE",
+                "collection_days_added": k,
+                "date": (today + timedelta(days=k)).isoformat(),
+            }
+    if not r2_at_cap:
+        return {"label": "ESTIMATE", "flag": "NEEDS ARCHITECT: movement too rare"}
+    return {"label": "ESTIMATE", "flag": "R3 not projected to hold by 60 collection days"}
+
+
+# ---------------------------------------------------------------------------
+# Rule v2 (docs/phase4-data-sufficiency-rule-v2.md): decorative-promo suppression and the
+# raw-rate x evaluable-fraction projection. Event/evaluability definitions above are unchanged
+# and reused as-is; v1's own functions (incl. project_remeasure) are untouched so v1's output
+# stays byte-identical.
+# ---------------------------------------------------------------------------
+
+
+def is_decorative_promo_listing(series: Mapping[date, Obs]) -> bool:
+    """True if promo on >=90% of this listing's observed days with zero
+    promo_start/promo_end/promo_depth events across its whole series -- a strike-through price
+    that never actually starts or ends is decorative, not a promotion (rule-v2.md point 2)."""
+    if not series:
+        return False
+    promo_share = sum(1 for o in series.values() if is_promo(o)) / len(series)
+    if promo_share < DECORATIVE_PROMO_SHARE_MIN:
+        return False
+    events, _ = find_events(series)
+    promo_types = {"promo_start", "promo_end", "promo_depth"}
+    return not any(types & promo_types for types in events.values())
+
+
+def suppress_decorative_promo(series: Mapping[date, Obs]) -> dict[date, Obs]:
+    """Force promo OFF for a listing flagged decorative: base_price becomes price on every day,
+    compare_at_price is dropped from event detection entirely."""
+    return {d: Obs(price=o.price, compare_at=None) for d, o in series.items()}
+
+
+def project_remeasure_v2(sources: Mapping[str, Mapping[str, Any]], today: date) -> dict[str, Any]:
+    """ESTIMATE (rule v2): first date at which R1-R3 are projected to hold.
+
+    `sources[s]` = {days, gaps, cells: {category: (raw_events, evaluable_fraction)}}, where
+    `raw_events` is that cell's total (all-time) event count and `evaluable_fraction` is the share
+    of those events that are lenient-evaluable, both measured on the data available today.
+    Projects `rate_per_eligible_day = (raw_events / days) * evaluable_fraction` forward, unlike
+    v1's `project_remeasure`, which projected a STRICT evaluable rate that is structurally ~0 at
+    14-15 days of history (rule-v2.md point 3) -- everything else (the k-day search, the R1
+    gaps-never-close short-circuit, the NEEDS ARCHITECT / cap logic) mirrors v1 exactly.
+    """
+    if sum(1 for s in sources.values() if s["gaps"] <= R1_MAX_GAPS) < R1_MIN_SOURCES:
+        return {"label": "ESTIMATE", "flag": "NEEDS ARCHITECT: R1 unreachable (gaps never close)"}
+    holdout_elig = HOLDOUT_COLLECTION_DAYS - (HORIZON_DAYS - 1)
+    last_k = max(0, PROJECTION_CAP_DAYS - max((s["days"] for s in sources.values()), default=0))
+    r2_at_cap = False
+    for k in range(0, last_k + 1):
+        cells: dict[str, float] = {}
+        train = 0.0
+        r1_ok = 0
+        for name, s in sources.items():
+            days = s["days"] + k
+            if days >= R1_MIN_DAYS and s["gaps"] <= R1_MAX_GAPS:
+                r1_ok += 1
+            for cat, (raw_events, evaluable_fraction) in s["cells"].items():
+                rate = (raw_events / s["days"] if s["days"] else 0.0) * evaluable_fraction
                 cells[f"{name}/{cat}"] = rate * min(holdout_elig, eligible_days(days))
                 train += rate * max(0, eligible_days(days) - holdout_elig)
         r2 = sum(cells.values()) >= R2_MIN_HOLDOUT and (
@@ -530,6 +605,283 @@ def measure(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str
     }
 
 
+def measure_v2(neon_limit_mb: float | None, neon_limit_url: str | None) -> dict[str, Any]:
+    """Rule v2 (`docs/phase4-data-sufficiency-rule-v2.md`): every collected category is in scope
+    (no food/litter filter), a decorative strike-through promo is suppressed before event
+    detection, and a POSTPONE verdict projects the re-measure date with `project_remeasure_v2`
+    instead of v1's `project_remeasure`. Event/evaluability definitions, the verdict mechanics
+    (R1/R2/R3 against STRICT evaluable counts) and everything DB-side are otherwise identical to
+    `measure()` -- duplicated rather than shared so v1's own code path (and its output) is
+    provably untouched by this function's existence.
+    """
+    from sqlalchemy import text
+
+    from pricepilot.db import connect_with_wakeup_retry, get_engine
+
+    conn = connect_with_wakeup_retry(get_engine())
+    try:
+        conn.execute(text("SET TRANSACTION READ ONLY"))
+        runs = conn.execute(
+            text(
+                "SELECT source, status, (started_at AT TIME ZONE 'UTC')::date AS d FROM scrape_runs"
+            )
+        ).all()
+        raw_days = conn.execute(
+            text("SELECT DISTINCT source, collected_date FROM raw_listings")
+        ).all()
+        status_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        ok_days: dict[str, set[date]] = defaultdict(set)
+        for src, status, d in runs:
+            status_counts[src][status] += 1
+            if status == "ok":
+                ok_days[src].add(d)
+        raw_by_src: dict[str, set[date]] = defaultdict(set)
+        for src, d in raw_days:
+            raw_by_src[src].add(d)
+        collection_days = {s: ok_days[s] & raw_by_src[s] for s in raw_by_src}
+
+        rows = conn.execute(
+            text(
+                "SELECT r.id, r.source, r.external_id, r.source_product_id, r.url, "
+                "r.collected_date, r.price, r.compare_at_price, r.content_hash, n.category "
+                "FROM raw_listings r LEFT JOIN norm_listings n ON n.content_hash = r.content_hash "
+                "WHERE r.excluded_reason IS NULL ORDER BY r.id"
+            )
+        ).all()
+
+        db_size = conn.execute(text("SELECT pg_database_size(current_database())")).scalar_one()
+        tables = conn.execute(
+            text(
+                "SELECT c.relname, pg_total_relation_size(c.oid) AS bytes "
+                "FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace "
+                "WHERE c.relkind = 'r' AND ns.nspname = 'public' "
+                "ORDER BY bytes DESC LIMIT 5"
+            )
+        ).all()
+        table_rows = {
+            name: conn.execute(text(f'SELECT count(*) FROM "{name}"')).scalar_one()
+            for name, _ in tables
+        }
+    finally:
+        conn.rollback()
+        conn.close()
+
+    key_usage: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    per_listing: dict[tuple[str, str], list[tuple[int, date, Obs]]] = defaultdict(list)
+    last_meta: dict[tuple[str, str], tuple[int, str | None]] = {}
+    hash_first_day: dict[tuple[str, str], date] = {}
+    for rid, src, ext, spid, url, d, price, cmp_, chash, cat in rows:
+        lid = (src, ext)
+        per_listing[lid].append((rid, d, make_obs(price, cmp_)))
+        if cat is not None and (lid not in last_meta or rid > last_meta[lid][0]):
+            last_meta[lid] = (rid, cat)
+        if ext == spid:
+            key_usage[src]["source_product_id"].add(ext)
+        elif ext == url:
+            key_usage[src]["url"].add(ext)
+        else:
+            key_usage[src]["external_id_other"].add(ext)
+        hk = (src, chash)
+        if hk not in hash_first_day or d < hash_first_day[hk]:
+            hash_first_day[hk] = d
+
+    dropped_unclassified = 0  # no norm_listings match, or match with a NULL category
+    multi_row_days = 0
+    decorative_promo_reclassified: dict[str, int] = defaultdict(int)
+    stats: dict[str, dict[str, dict[str, Any]]] = defaultdict(lambda: defaultdict(_new_cell))
+    for lid, obs_rows in per_listing.items():
+        src = lid[0]
+        cat = last_meta[lid][1] if lid in last_meta else None
+        if cat is None:
+            dropped_unclassified += 1
+            continue
+        # v2: every collected category is in scope -- no food/litter filter here.
+        series, multi = collapse_last_by_id(obs_rows)
+        multi_row_days += multi
+        if is_decorative_promo_listing(series):
+            decorative_promo_reclassified[src] += 1
+            series = suppress_decorative_promo(series)
+        cell = stats[src][cat]
+        events, sub = find_events(series)
+        cell["listings"] += 1
+        cell["listing_days"] += len(series)
+        cell["promo_days"] += sum(1 for o in series.values() if is_promo(o))
+        cell["sub_threshold"] += sub
+        n_ev = len(events)
+        cell["events_per_listing"][min(n_ev, 3)] += 1
+        if n_ev:
+            cell["listings_with_event"] += 1
+        cell["events"] += n_ev
+        for day, types in events.items():
+            for ty in types:
+                cell["by_type"][ty] += 1
+            if "base_change" in types:
+                prev = series[day - timedelta(days=1)]
+                cur = series[day]
+                cell["base_change_abs_pct"].append(
+                    float(abs(base_price(cur) - base_price(prev)) / (base_price(prev) or 1) * 100)
+                )
+        h_start = holdout_start(collection_days.get(src, set()))
+        for lenient, key in ((False, "strict"), (True, "lenient")):
+            for t in evaluable_events(series, lenient):
+                cell[key]["holdout" if t >= h_start else "training"] += 1
+
+    sources = sorted(collection_days)
+    per_source: dict[str, Any] = {}
+    for src in sources:
+        cd = collection_days[src]
+        per_source[src] = {
+            "first_collection_day": min(cd).isoformat() if cd else None,
+            "last_collection_day": max(cd).isoformat() if cd else None,
+            "collection_days": len(cd),
+            "gaps": [d.isoformat() for d in gaps_between(cd)],
+            "scrape_runs_status_counts": dict(status_counts[src]),
+            "listing_key_usage": {k: len(v) for k, v in key_usage[src].items()},
+            "categories": {},
+        }
+        for cat, cell in sorted(stats[src].items()):
+            ld = cell["listing_days"]
+            per_source[src]["categories"][cat] = {
+                "listings": cell["listings"],
+                "listings_with_event": cell["listings_with_event"],
+                "events_per_listing_0_1_2_3plus": [cell["events_per_listing"][i] for i in range(4)],
+                "events_union": cell["events"],
+                "events_by_type": {t: cell["by_type"].get(t, 0) for t in EVENT_TYPES},
+                "sub_threshold": cell["sub_threshold"],
+                "base_change_abs_pct": dist_summary(cell["base_change_abs_pct"]),
+                "promo_listing_day_share": (cell["promo_days"] / ld) if ld else None,
+                "evaluable_strict": dict(cell["strict"]),
+                "evaluable_lenient": dict(cell["lenient"]),
+            }
+
+    r1_sources = [
+        s
+        for s in sources
+        if per_source[s]["collection_days"] >= R1_MIN_DAYS
+        and len(per_source[s]["gaps"]) <= R1_MAX_GAPS
+    ]
+    holdout_total = sum(
+        c["evaluable_strict"].get("holdout", 0)
+        for s in sources
+        for c in per_source[s]["categories"].values()
+    )
+    train_total = sum(
+        c["evaluable_strict"].get("training", 0)
+        for s in sources
+        for c in per_source[s]["categories"].values()
+    )
+    cells_ok = [
+        f"{s}/{cat}"
+        for s in sources
+        for cat, c in per_source[s]["categories"].items()
+        if c["evaluable_strict"].get("holdout", 0) >= R2_CELL_MIN
+    ]
+    r1 = len(r1_sources) >= R1_MIN_SOURCES
+    r2 = holdout_total >= R2_MIN_HOLDOUT and len(cells_ok) >= R2_MIN_CELLS
+    r3 = train_total >= R3_MIN_TRAIN
+    proceed = r1 and r2 and r3
+    verdict: dict[str, Any] = {
+        "R1": {"pass": r1, "sources_meeting": r1_sources, "need": R1_MIN_SOURCES},
+        "R2": {
+            "pass": r2,
+            "holdout_evaluable_total": holdout_total,
+            "need_total": R2_MIN_HOLDOUT,
+            "cells_with_ge_30": cells_ok,
+            "need_cells": R2_MIN_CELLS,
+        },
+        "R3": {"pass": r3, "training_evaluable_total": train_total, "need": R3_MIN_TRAIN},
+        "overall": "PROCEED" if proceed else "POSTPONE",
+    }
+    if not proceed:
+        union_days = set().union(*collection_days.values()) if collection_days else set()
+        today = max(union_days) if union_days else datetime.now(UTC).date()
+        proj_in = {
+            s: {
+                "days": per_source[s]["collection_days"],
+                "gaps": len(per_source[s]["gaps"]),
+                "cells": {
+                    cat: (
+                        c["events_union"],
+                        (
+                            sum(c["evaluable_lenient"].values()) / c["events_union"]
+                            if c["events_union"]
+                            else 0.0
+                        ),
+                    )
+                    for cat, c in per_source[s]["categories"].items()
+                },
+            }
+            for s in sources
+        }
+        verdict["remeasure"] = project_remeasure_v2(proj_in, today)
+        verdict["remeasure"]["inputs"] = {
+            s: {**v, "cells": dict(v["cells"])} for s, v in proj_in.items()
+        }
+        verdict["remeasure"]["basis_date"] = today.isoformat()
+
+    d2: dict[str, Any] = {}
+    for src in sources:
+        days_sorted = sorted(collection_days[src])
+        counts: dict[date, int] = {d: 0 for d in days_sorted}
+        for (s, _h), d in hash_first_day.items():
+            if s == src and d in counts:
+                counts[d] += 1
+        later = [float(counts[d]) for d in days_sorted[1:]]
+        d2[src] = {
+            "first_day_initial_load": counts[days_sorted[0]] if days_sorted else None,
+            "days_measured": len(later),
+            "new_hashes_per_day": dist_summary(later),
+            "x100_daily_scorings": {
+                k: (v * 100 if v is not None else None) for k, v in dist_summary(later).items()
+            },
+        }
+
+    union_days_n = len(set().union(*collection_days.values())) if collection_days else 0
+    growth = db_size / union_days_n if union_days_n else None
+    storage: dict[str, Any] = {
+        "database_bytes": int(db_size),
+        "collection_days_union": union_days_n,
+        "avg_growth_bytes_per_collection_day_ESTIMATE": growth,
+        "top5_tables": [
+            {"table": n, "bytes": int(b), "rows": int(table_rows[n])} for n, b in tables
+        ],
+        "neon_free_tier_limit_mb": neon_limit_mb if neon_limit_url else "UNVERIFIED",
+        "neon_limit_source_url": neon_limit_url,
+    }
+    if neon_limit_mb is not None and neon_limit_url and growth:
+        remaining = neon_limit_mb * 1024 * 1024 - db_size
+        days_left = remaining / growth
+        storage["days_until_limit_ESTIMATE"] = days_left
+        storage["limit_hit_date_ESTIMATE"] = (
+            datetime.now(UTC).date() + timedelta(days=days_left)
+        ).isoformat()
+        raw_bytes = next((b for n, b in tables if n == "raw_listings"), None)
+        if raw_bytes and union_days_n:
+            raw_growth = raw_bytes / union_days_n
+            storage["raw_listings_growth_bytes_per_collection_day_ESTIMATE"] = raw_growth
+            raw_days_left = remaining / raw_growth
+            storage["days_until_limit_raw_only_ESTIMATE"] = raw_days_left
+            storage["limit_hit_date_raw_only_ESTIMATE"] = (
+                datetime.now(UTC).date() + timedelta(days=raw_days_left)
+            ).isoformat()
+    else:
+        storage["days_until_limit_ESTIMATE"] = "UNVERIFIED (limit not read this session)"
+
+    return {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "git_sha": _git_sha(),
+        "rule_file_sha256": _sha256(RULE_V2_FILE),
+        "dropped_out_of_scope_listings": 0,  # v2 has no category filter beyond "unclassified"
+        "dropped_unclassified_listings": dropped_unclassified,
+        "multi_row_days_collapsed": multi_row_days,
+        "decorative_promo_listings_reclassified": dict(decorative_promo_reclassified),
+        "per_source": per_source,
+        "verdict": verdict,
+        "d2_incremental_matching_volume": d2,
+        "storage": storage,
+    }
+
+
 def _new_cell() -> dict[str, Any]:
     return {
         "listings": 0,
@@ -612,12 +964,27 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--neon-limit-mb", type=float, default=None)
     ap.add_argument("--neon-limit-url", type=str, default=None)
+    ap.add_argument(
+        "--rule",
+        choices=["v1", "v2"],
+        default="v1",
+        help="v1: docs/phase4-data-sufficiency-rule.md (food/litter only). "
+        "v2: docs/phase4-data-sufficiency-rule-v2.md (all categories, decorative-promo "
+        "suppression, raw-rate x evaluable-fraction projection).",
+    )
     args = ap.parse_args()
-    rep = measure(args.neon_limit_mb, args.neon_limit_url)
-    OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    OUT_FILE.write_text(json.dumps(rep, indent=2, default=str) + "\n", encoding="utf-8")
+    if args.rule == "v2":
+        rep = measure_v2(args.neon_limit_mb, args.neon_limit_url)
+        out_file = OUT_FILE_V2
+    else:
+        rep = measure(args.neon_limit_mb, args.neon_limit_url)
+        out_file = OUT_FILE
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(json.dumps(rep, indent=2, default=str) + "\n", encoding="utf-8")
     print_report(rep)
-    print(f"\nwritten: {OUT_FILE.relative_to(ROOT)}")
+    if "decorative_promo_listings_reclassified" in rep:
+        print(f"\ndecorative promo reclassified: {rep['decorative_promo_listings_reclassified']}")
+    print(f"\nwritten: {out_file.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

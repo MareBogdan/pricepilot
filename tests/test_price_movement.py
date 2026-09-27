@@ -17,8 +17,11 @@ from measure_price_movement import (  # noqa: E402
     find_events,
     gaps_between,
     holdout_start,
+    is_decorative_promo_listing,
     make_obs,
     project_remeasure,
+    project_remeasure_v2,
+    suppress_decorative_promo,
 )
 
 D0 = date(2026, 1, 1)
@@ -222,3 +225,122 @@ def test_projection_flags_unreachable_r1_when_gaps_exceed_two() -> None:
     }
     out = project_remeasure(src, day(0))  # type: ignore[arg-type]
     assert "R1 unreachable" in out["flag"]
+
+
+# --- rule v2: decorative-promo detection/suppression, and project_remeasure_v2 ------------------
+
+
+def _promo(price: str, compare_at: str) -> Obs:
+    return make_obs(price, compare_at)
+
+
+def test_decorative_promo_detected_when_promo_share_high_and_never_starts_or_ends() -> None:
+    # promo on every day (share 1.0), same compare_at throughout, price never moves -> no
+    # promo_start/end/depth events at all: exactly the petmax "strike-through" shape.
+    s = {day(i): _promo("80", "100") for i in range(20)}
+    assert is_decorative_promo_listing(s)
+
+
+def test_decorative_promo_not_detected_below_90_percent_share() -> None:
+    s = flat(20)
+    for i in range(10, 17):  # 7/20 = 35% promo days
+        s[day(i)] = _promo("80", "100")
+    assert not is_decorative_promo_listing(s)
+
+
+def test_decorative_promo_not_detected_when_it_actually_starts_or_ends() -> None:
+    # promo share is high (18/20 = 90%) but it visibly starts once -- a real promotion, not
+    # a permanent strike-through.
+    s = flat(2)
+    for i in range(2, 20):
+        s[day(i)] = _promo("80", "100")
+    assert not is_decorative_promo_listing(s)
+
+
+def test_suppress_decorative_promo_forces_base_price_to_price_and_drops_compare_at() -> None:
+    s = {day(i): _promo("80", "100") for i in range(20)}
+    suppressed = suppress_decorative_promo(s)
+    assert all(
+        o.compare_at is None and o.price == make_obs("80").price for o in suppressed.values()
+    )
+
+
+def test_a_real_price_move_disqualifies_decorative_suppression_by_construction() -> None:
+    """Documents a known limitation of rule-v2.md point 2 (found in code review, 2026-09-27), not
+    a bug: a listing with a real underlying price move of >=2% while under promo registers as a
+    `promo_depth` EVENT (v1's own definition), which is one of the three event types that
+    disqualifies decorative status. So decorative suppression can never "reveal" a real move that
+    v1 would already have counted as promo_depth -- it only clears listings whose compare_at
+    fluctuation was ALWAYS sub-threshold (<2%, rounding/noise) or entirely flat. The 25% cut here
+    is correctly seen as a real promo_depth event and the listing correctly stays un-suppressed;
+    v1's own measurement (petmax food: 3 events, all promo_depth, 0 base_change) already reflects
+    real moves being counted this way, not silently lost."""
+    s = {day(i): _promo("80", "100") for i in range(20)}
+    for i in range(10, 20):
+        s[day(i)] = _promo("60", "100")  # 80 -> 60 under compare_at=100 the whole time: 25% move
+    assert is_decorative_promo_listing(s) is False
+
+
+def test_suppression_only_clears_a_listing_with_no_real_promo_depth_move() -> None:
+    # A flat compare_at with the price itself never moving: no promo_start/end/depth event ever
+    # fires, so this listing DOES qualify, and suppression correctly yields a flat, event-free
+    # price-only series.
+    s = {day(i): _promo("80", "100") for i in range(20)}
+    assert is_decorative_promo_listing(s) is True
+    suppressed = suppress_decorative_promo(s)
+    events, _ = find_events(suppressed)
+    assert events == {}
+
+
+def _proj_v2(days: int, gaps: int, cells: dict[str, tuple[int, float]]) -> dict[str, object]:
+    return {"days": days, "gaps": gaps, "cells": cells}
+
+
+def test_v2_projection_returns_date_when_rates_are_high() -> None:
+    src = {
+        "a": _proj_v2(20, 0, {"food": (700, 0.9), "litter": (700, 0.9)}),
+        "b": _proj_v2(20, 0, {"food": (700, 0.9), "litter": (700, 0.9)}),
+        "c": _proj_v2(20, 0, {"food": (700, 0.9)}),
+    }
+    out = project_remeasure_v2(src, day(0))  # type: ignore[arg-type]
+    assert "date" in out and out["collection_days_added"] >= 8  # R1 needs 28 days
+
+
+def test_v2_projection_needs_architect_when_movement_too_rare() -> None:
+    src = {
+        "a": _proj_v2(20, 0, {"food": (1, 0.5)}),
+        "b": _proj_v2(20, 0, {"food": (0, 0.0)}),
+        "c": _proj_v2(20, 0, {}),
+    }
+    out = project_remeasure_v2(src, day(0))  # type: ignore[arg-type]
+    assert out["flag"] == "NEEDS ARCHITECT: movement too rare"
+
+
+def test_v2_projection_cells_must_reach_30_not_just_total() -> None:
+    src = {
+        "a": _proj_v2(20, 0, {"food": (10_000, 1.0)}),
+        "b": _proj_v2(20, 0, {}),
+        "c": _proj_v2(20, 0, {}),
+    }
+    out = project_remeasure_v2(src, day(0))  # type: ignore[arg-type]
+    assert "date" not in out
+
+
+def test_v2_projection_flags_unreachable_r1_when_gaps_exceed_two() -> None:
+    src = {
+        "a": _proj_v2(40, 3, {"food": (900, 0.9)}),
+        "b": _proj_v2(40, 5, {"food": (900, 0.9)}),
+        "c": _proj_v2(20, 0, {}),
+    }
+    out = project_remeasure_v2(src, day(0))  # type: ignore[arg-type]
+    assert "R1 unreachable" in out["flag"]
+
+
+def test_v2_projection_zero_days_source_does_not_divide_by_zero() -> None:
+    src = {
+        "a": _proj_v2(0, 0, {"food": (0, 0.0)}),
+        "b": _proj_v2(20, 0, {"food": (700, 0.9)}),
+        "c": _proj_v2(20, 0, {"food": (700, 0.9)}),
+    }
+    out = project_remeasure_v2(src, day(0))  # type: ignore[arg-type]
+    assert isinstance(out, dict)  # must not raise ZeroDivisionError
