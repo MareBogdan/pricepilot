@@ -82,10 +82,19 @@ def resolve_payload_for_storage(
 
 
 def previous_payload_hashes(
-    session: Session, source: str, external_ids: list[str]
+    session: Session, source: str, external_ids: list[str], before: date
 ) -> dict[str, str]:
-    """The latest existing `raw_payload_sha256` per `external_id` for `source`, among rows
-    already in the table (before this run's insert). Missing from the result == no previous hash.
+    """The latest existing `raw_payload_sha256` per `external_id` for `source`, among rows from
+    BEFORE `before` (today's `collected_date`) -- never today's own row.
+
+    A same-day re-run (ADR-0016) must compare against yesterday's row, not against the row an
+    earlier run today already wrote: if today's own row were eligible, a same-day re-run would
+    see its own just-written hash as "previous", find a match, and null out the only payload that
+    row will ever hold (there being no earlier day to fall back on for a listing seen for the
+    first time today) -- a real, silent loss `get_payload` could never recover from. Excluding
+    `before` itself makes that structurally impossible: a brand-new listing always has no row
+    before today regardless of how many times today's run executes, so it always stores in full.
+    Missing from the result == no previous hash.
     """
     if not external_ids:
         return {}
@@ -96,7 +105,11 @@ def previous_payload_hashes(
             RawListing.id,
             RawListing.raw_payload_sha256,
         )
-        .where(RawListing.source == source, RawListing.external_id.in_(external_ids))
+        .where(
+            RawListing.source == source,
+            RawListing.external_id.in_(external_ids),
+            RawListing.collected_date < before,
+        )
         .order_by(RawListing.external_id, RawListing.collected_date, RawListing.id)
     ).all()
     latest: dict[str, str] = {}
@@ -263,7 +276,9 @@ def run_source(
         if status == "ok" and result.listings:
             collected_date = started_at.date()
             external_ids = [listing.source_product_id or listing.url for listing in result.listings]
-            prev_hashes = previous_payload_hashes(session, scraper.name, external_ids)
+            prev_hashes = previous_payload_hashes(
+                session, scraper.name, external_ids, before=collected_date
+            )
             rows = []
             for listing in result.listings:
                 external_id = listing.source_product_id or listing.url

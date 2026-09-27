@@ -87,6 +87,7 @@ from sqlalchemy import text  # noqa: E402
 from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.normalize.attributes import breed_size_overlaps  # noqa: E402
 from pricepilot.overlap import overlap_key  # noqa: E402
+from pricepilot.scrapers.runner import get_payload  # noqa: E402
 
 OUTPUT_JSON = ROOT / "docs" / "learned" / "phase3-annotation-queue.json"
 
@@ -283,13 +284,17 @@ _BLOCKED_RETRIEVAL_CANDIDATES_SQL = text(
 # relies on) plus the content_hash to join back to norm_listings for display.
 _RAW_FOR_PROXY_KEY_SQL = text(
     """
-    select distinct on (rl.content_hash) rl.content_hash, rl.source, rl.title, rl.raw_payload
+    select distinct on (rl.content_hash) rl.content_hash, rl.source, rl.title,
+        rl.external_id, rl.collected_date
     from raw_listings rl
     join norm_listings nl on nl.content_hash = rl.content_hash
     where rl.excluded_reason is null
     order by rl.content_hash, rl.id
     """
 )
+# `raw_payload` itself is left out of the SELECT above -- this row's own payload may be NULL
+# (ADR-0032: a title change creates a new content_hash while the payload stays identical to the
+# previous day's), so `get_payload` resolves it below instead of trusting the row directly.
 
 
 @dataclass(frozen=True)
@@ -521,8 +526,9 @@ def main() -> int:
         # --- proxy_key_collision -------------------------------------------------------------
         raw_rows = session.execute(_RAW_FOR_PROXY_KEY_SQL).all()
         by_key: dict[object, list[tuple[str, str]]] = {}  # key -> [(content_hash, source), ...]
-        for content_hash, source, title, raw_payload in raw_rows:
-            brand = (raw_payload or {}).get("brand") if isinstance(raw_payload, dict) else None
+        for content_hash, source, title, external_id, collected_date in raw_rows:
+            payload = get_payload(session, source, external_id, collected_date)
+            brand = (payload or {}).get("brand") if isinstance(payload, dict) else None
             key = overlap_key(title, brand if isinstance(brand, str) else None)
             if key is None:
                 continue

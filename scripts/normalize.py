@@ -23,6 +23,7 @@ import argparse
 import io
 import sys
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +38,7 @@ from sqlalchemy import select  # noqa: E402
 from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.models import NormListing, RawListing  # noqa: E402
 from pricepilot.normalize import extract  # noqa: E402
+from pricepilot.scrapers.runner import get_payload  # noqa: E402
 
 # Bumped when extraction logic changes materially. Not read by this script's cache check today
 # (the cache check is purely "does a norm_listings row exist for this content_hash") — recorded
@@ -65,7 +67,8 @@ def main(argv: list[str] | None = None) -> int:
                 RawListing.source,
                 RawListing.title,
                 RawListing.content_hash,
-                RawListing.raw_payload,
+                RawListing.external_id,
+                RawListing.collected_date,
             )
             .where(RawListing.excluded_reason.is_(None))
             .order_by(RawListing.id)
@@ -74,10 +77,15 @@ def main(argv: list[str] | None = None) -> int:
         existing_hashes = set(session.execute(select(NormListing.content_hash)).scalars().all())
 
         # One representative row per content_hash — the first one encountered (lowest id, per
-        # the ORDER BY above), matching `scripts/draw_gate_sample.py`'s same dedup choice.
-        by_hash: dict[str, tuple[str, str, object]] = {}
-        for source, title, content_hash, raw_payload in raw_rows:
-            by_hash.setdefault(content_hash, (source, title, raw_payload))
+        # the ORDER BY above), matching `scripts/draw_gate_sample.py`'s same dedup choice. This
+        # picks the row's TITLE reliably (title is a real column, unaffected by payload dedup),
+        # but its own raw_payload may itself be NULL now (ADR-0032: a listing's title can change,
+        # creating a new content_hash, while its payload -- brand, product_type, ... -- stays
+        # identical to the previous day's, so this is NOT necessarily that listing's first-ever
+        # row) -- resolved via get_payload below instead of trusting raw_payload directly.
+        by_hash: dict[str, tuple[str, str, str, date]] = {}
+        for source, title, content_hash, external_id, collected_date in raw_rows:
+            by_hash.setdefault(content_hash, (source, title, external_id, collected_date))
 
         to_extract = {h: v for h, v in by_hash.items() if h not in existing_hashes}
 
@@ -88,7 +96,8 @@ def main(argv: list[str] | None = None) -> int:
 
         error_field_counts: Counter[str] = Counter()
         inserted = 0
-        for content_hash, (source, title, raw_payload) in to_extract.items():
+        for content_hash, (source, title, external_id, collected_date) in to_extract.items():
+            raw_payload = get_payload(session, source, external_id, collected_date)
             source_brand = raw_payload.get("brand") if isinstance(raw_payload, dict) else None
             result = extract(title, source_brand if isinstance(source_brand, str) else None)
             for field_name in result.errors:

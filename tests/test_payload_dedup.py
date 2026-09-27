@@ -155,6 +155,26 @@ def test_get_payload_unknown_listing_is_none() -> None:
     assert get_payload(session, "petmax_ro", "does-not-exist", date(2026, 9, 1)) is None
 
 
+def test_get_payload_correct_even_when_title_changes_but_payload_does_not() -> None:
+    """Regression (code review, 2026-09-27): content_hash is derived from the TITLE only, so a
+    title change creates a new content_hash while raw_payload (brand, product_type, ...) can stay
+    identical to the previous day's -- the day the title changes still stores NULL under the
+    dedup rule. A caller that keyed off "first row per content_hash" would see that NULL;
+    get_payload (keyed off source+external_id, never content_hash) must not."""
+    session = _session()
+    run = ScrapeRun(source="petmax_ro", status="ok")
+    session.add(run)
+    session.flush()
+
+    full = {"brand": "Purina"}
+    h = canonical_payload_hash(full)
+    _add_row(session, run.id, collected_date=date(2026, 9, 1), payload=full, payload_hash=h)
+    # title changes on day 2 (a new content_hash), payload itself is unchanged -> stored NULL
+    _add_row(session, run.id, collected_date=date(2026, 9, 2), payload=None, payload_hash=h)
+
+    assert get_payload(session, "petmax_ro", "sku-1", date(2026, 9, 2)) == full
+
+
 def test_previous_payload_hashes_takes_latest_by_date_then_id() -> None:
     session = _session()
     run = ScrapeRun(source="petmax_ro", status="ok")
@@ -178,13 +198,43 @@ def test_previous_payload_hashes_takes_latest_by_date_then_id() -> None:
         payload_hash=h2,
     )
 
-    latest = previous_payload_hashes(session, "petmax_ro", ["sku-1", "sku-missing"])
+    latest = previous_payload_hashes(
+        session, "petmax_ro", ["sku-1", "sku-missing"], before=date(2026, 9, 3)
+    )
     assert latest == {"sku-1": h2}
+
+
+def test_previous_payload_hashes_excludes_todays_own_row() -> None:
+    """BLOCKING regression (code review, 2026-09-27): a same-day re-run (ADR-0016) must never see
+    an earlier run's row from TODAY as "previous" -- it would find a matching hash and null out
+    the only payload a brand-new listing seen for the first time today will ever have, with no
+    earlier day for get_payload to fall back on. `before` must exclude the current collected_date.
+    """
+    session = _session()
+    run = ScrapeRun(source="petmax_ro", status="ok")
+    session.add(run)
+    session.flush()
+
+    h = canonical_payload_hash({"brand": "Purina"})
+    _add_row(
+        session,
+        run.id,
+        collected_date=date(2026, 9, 1),
+        payload={"brand": "Purina"},
+        payload_hash=h,
+    )
+
+    # today's own row already exists (an earlier run today) -- must NOT be seen as "previous".
+    assert previous_payload_hashes(session, "petmax_ro", ["sku-1"], before=date(2026, 9, 1)) == {}
+    # a later day correctly sees yesterday's hash.
+    assert previous_payload_hashes(session, "petmax_ro", ["sku-1"], before=date(2026, 9, 2)) == {
+        "sku-1": h
+    }
 
 
 def test_previous_payload_hashes_empty_ids_returns_empty() -> None:
     session = _session()
-    assert previous_payload_hashes(session, "petmax_ro", []) == {}
+    assert previous_payload_hashes(session, "petmax_ro", [], before=date(2026, 9, 1)) == {}
 
 
 def test_previous_payload_hashes_ignores_legacy_rows_with_no_hash() -> None:
@@ -211,4 +261,6 @@ def test_previous_payload_hashes_ignores_legacy_rows_with_no_hash() -> None:
         payload_hash=h,
     )
 
-    assert previous_payload_hashes(session, "petmax_ro", ["sku-1"]) == {"sku-1": h}
+    assert previous_payload_hashes(session, "petmax_ro", ["sku-1"], before=date(2026, 9, 3)) == {
+        "sku-1": h
+    }

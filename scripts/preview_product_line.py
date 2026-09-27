@@ -35,6 +35,7 @@ from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.models import RawListing  # noqa: E402
 from pricepilot.normalize.product_line import extract_product_line  # noqa: E402
 from pricepilot.overlap import strip_diacritics  # noqa: E402
+from pricepilot.scrapers.runner import get_payload  # noqa: E402
 
 SEED = 20260916
 PER_SOURCE_RANDOM = 8
@@ -120,21 +121,32 @@ def main() -> int:
         print("database UNREACHABLE — run `docker compose up -d db`", file=sys.stderr)
         return 2
 
+    by_source: dict[str, list[tuple[str, object]]] = {}
     with session_scope() as session:
-        # ADR-0032: raw_payload is NULL on most rows now (dedup by hash). ORDER BY id makes the
-        # lowest-id row for a given title win any later de-dup on it -- that row is always a
-        # listing's first-ever sighting, which always carries the full payload (same guarantee
-        # scripts/normalize.py already relies on).
+        # ADR-0032: raw_payload is NULL on most rows now (dedup by hash), and even the lowest-id
+        # row for a given (source, title) is not guaranteed non-NULL (a title can repeat after
+        # changing away and back, or share a payload with an adjacent day) -- resolved through
+        # get_payload rather than trusted directly. Deduped to one row per (source, title): this
+        # script only ever wants one brand per title, and calling get_payload for every historical
+        # day of every listing would be needless DB round trips for a preview/debug tool.
         rows = session.execute(
-            select(RawListing.source, RawListing.title, RawListing.raw_payload)
+            select(
+                RawListing.source,
+                RawListing.title,
+                RawListing.external_id,
+                RawListing.collected_date,
+            )
             .where(RawListing.excluded_reason.is_(None))
             .order_by(RawListing.id)
         ).all()
-
-    by_source: dict[str, list[tuple[str, object]]] = {}
-    for source, title, payload in rows:
-        brand = (payload or {}).get("brand") if isinstance(payload, dict) else None
-        by_source.setdefault(source, []).append((title, brand))
+        seen: set[tuple[str, str]] = set()
+        for source, title, external_id, collected_date in rows:
+            if (source, title) in seen:
+                continue
+            seen.add((source, title))
+            payload = get_payload(session, source, external_id, collected_date)
+            brand = (payload or {}).get("brand") if isinstance(payload, dict) else None
+            by_source.setdefault(source, []).append((title, brand))
 
     rng = random.Random(SEED)
     sample: list[tuple[str, str, str | None]] = []

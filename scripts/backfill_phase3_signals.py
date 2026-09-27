@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import io
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +41,7 @@ from pricepilot.normalize.brand import (  # noqa: E402
 )
 from pricepilot.normalize.category import categorize_listing  # noqa: E402
 from pricepilot.normalize.species import classify_species  # noqa: E402
+from pricepilot.scrapers.runner import get_payload  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -56,19 +58,26 @@ def main(argv: list[str] | None = None) -> int:
         print(f"norm_listings rows: {len(norm_rows)}")
 
         content_hashes = [r.content_hash for r in norm_rows]
-        raw_by_hash: dict[str, tuple[str, str, object]] = {}
-        # One representative raw_listings row per content_hash (source, url, raw_payload) — the
-        # same "first-encountered" choice `scripts/normalize.py`/`draw_gate_sample.py` already
-        # make, via ORDER BY id.
+        raw_by_hash: dict[str, tuple[str, str, str, date]] = {}
+        # One representative raw_listings row per content_hash (source, url) — the same
+        # "first-encountered" choice `scripts/normalize.py`/`draw_gate_sample.py` already make,
+        # via ORDER BY id. `url` is a real column (unaffected by payload dedup); `raw_payload`
+        # itself may be NULL on this exact row (ADR-0032), so it is resolved via get_payload
+        # below rather than trusted directly -- see normalize.py for why "first row per
+        # content_hash" does not guarantee a non-NULL payload.
         raw_rows = session.execute(
             select(
-                RawListing.content_hash, RawListing.source, RawListing.url, RawListing.raw_payload
+                RawListing.content_hash,
+                RawListing.source,
+                RawListing.url,
+                RawListing.external_id,
+                RawListing.collected_date,
             )
             .where(RawListing.content_hash.in_(content_hashes))
             .order_by(RawListing.id)
         ).all()
-        for content_hash, source, url, raw_payload in raw_rows:
-            raw_by_hash.setdefault(content_hash, (source, url, raw_payload))
+        for content_hash, source, url, external_id, collected_date in raw_rows:
+            raw_by_hash.setdefault(content_hash, (source, url, external_id, collected_date))
 
         category_counts: dict[str | None, int] = {}
         species_counts: dict[str | None, int] = {}
@@ -80,7 +89,8 @@ def main(argv: list[str] | None = None) -> int:
             if raw is None:
                 missing_raw += 1
                 continue
-            source, url, raw_payload = raw
+            source, url, external_id, collected_date = raw
+            raw_payload = get_payload(session, source, external_id, collected_date)
             payload = raw_payload if isinstance(raw_payload, dict) else None
 
             category = categorize_listing(source, url, payload, row.sample_title)
