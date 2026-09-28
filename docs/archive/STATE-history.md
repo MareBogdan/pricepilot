@@ -19,6 +19,9 @@ precise timeline — the date named in each heading is that section's own, more 
 
 ### 2026-09-25/27 — pushed out of STATE.md's 5-item "Last done" window by Phase 5 session 2
 
+- **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong —
+  `client.py` implements the transport, budget cap, `llm_calls` logging and cache, and was used
+  for the Phase 3 hosted baseline. Phase 5 does not rebuild it.
 - **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
   and pushed; a review-found BLOCKING bug fixed (`b211a1c`) before any real loss; post-push cron
   run verified (NULL-payload share shows >0 from the day after the first hash).

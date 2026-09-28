@@ -26,6 +26,23 @@ from services.mock_store.app import app as mock_store_app
 # literal so a future move to another managed host is still caught by intent, not string luck.
 FORBIDDEN_DATABASE_HOST_FRAGMENTS: tuple[str, ...] = ("neon.tech",)
 
+# Used when TEST_DATABASE_URL is absent (CLAUDE.md CI job: no DATABASE_URL, /health must degrade
+# rather than crash) -- an explicit, unreachable value, never just a popped/missing one.
+# `Settings(env_file=".env")` falls back to .env's own DATABASE_URL (the real Neon credential on
+# a developer machine) whenever the OS environment variable is absent -- pydantic-settings'
+# precedence is init > environment variable > .env file, so only an OS-level value actually wins
+# over that fallback. Popping the variable does NOT achieve "fully offline": it silently reopens
+# the path to Neon. Found by a `reviewer` catch, 2026-09-28 (session 2 added the first test in
+# this repo that touches a live database, and was the first to hit this hole -- this file's own
+# tests only ever checked `resolve_test_database_url()` in isolation, never this end-to-end path).
+# `.invalid` is reserved by RFC 2606 to always fail DNS resolution -- a fast (<1s), reliable
+# failure. An unbound loopback port was tried first and rejected: on this machine it fails only
+# after psycopg's full ~15s connect_timeout, twice (connect_with_wakeup_retry's one retry), ~32s
+# added to every test run that calls check_database().
+OFFLINE_SENTINEL_DATABASE_URL = (
+    "postgresql+psycopg://offline:offline@offline.invalid/no_test_database_url_configured"
+)
+
 
 class NeonGuardError(RuntimeError):
     """Raised by `pytest_configure` if a test run could reach the Neon database."""
@@ -67,10 +84,7 @@ def pytest_configure(config: pytest.Config) -> None:
     does later. See DECISIONS.md ADR-0014.
     """
     test_url = resolve_test_database_url(dict(os.environ))
-    if test_url:
-        os.environ["DATABASE_URL"] = test_url
-    else:
-        os.environ.pop("DATABASE_URL", None)
+    os.environ["DATABASE_URL"] = test_url or OFFLINE_SENTINEL_DATABASE_URL
     assert_safe_for_tests(os.environ.get("DATABASE_URL"))
 
 

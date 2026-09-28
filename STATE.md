@@ -10,11 +10,16 @@ the floor. RAG index (session 2, ADR-0036): `policy_chunks` (migration 0010, app
 DB), `scripts/build_policy_index.py` chunks `docs/policy/pricing-policy.md` by its 7 sections,
 `retrieve_policy()` ranks by pgvector cosine -- TEXT ONLY, no threshold ever comes from the index.
 Retrieval eval (20 pre-registered questions): hit@1 0.850, hit@3 0.950, MRR 0.912 (1 miss, quality
-check not the gate). This session also discovered the psycopg/Application-Control DB block that
-blocked earlier sessions was transient -- the real database is directly reachable again; the
-`pg8000` scratch workaround was not needed after the first probe. Next: session 3, decision engine
-(SQL prices + elasticity placeholder + RAG policy -> LLM -> guard -> full trace). Phase 4 (demand)
-stays POSTPONE (15-16 collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256 below.
+check not the gate). **Safety fix, ADR-0037 (found by `reviewer`, same session):** the ADR-0014
+Neon test guard had a hole -- popping `DATABASE_URL` when `TEST_DATABASE_URL` was absent let
+`Settings(env_file=".env")` fall back to `.env`'s real Neon credential, so a plain `pytest` run
+was silently hitting Neon (session 2's new DB test was the first to expose it). Fixed: an explicit
+unreachable sentinel instead of popping, with an end-to-end regression test. This session also
+discovered the psycopg/Application-Control DB block that blocked earlier sessions was transient --
+the real database is directly reachable again outside pytest; the `pg8000` scratch workaround was
+not needed after the first probe. Next: session 3, decision engine (SQL prices + elasticity
+placeholder + RAG policy -> LLM -> guard -> full trace). Phase 4 (demand) stays POSTPONE (15-16
+collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -52,7 +57,14 @@ system prompt is an optional gap.
 
 ## Last done
 
-1. **Phase 5 session 2: policy RAG index + retrieval eval (2026-09-28, ADR-0036):** migration 0010
+1. **Neon test-guard hole fixed (2026-09-28, ADR-0037, `reviewer` catch):** `pytest_configure`
+   popped `DATABASE_URL` when `TEST_DATABASE_URL` was absent, expecting "fully offline" --
+   `Settings(env_file=".env")` actually fell back to `.env`'s real Neon credential, so a plain
+   `pytest` run silently hit Neon (session 2's new DB test was the first to expose it; no data
+   lost, only idempotent `policy_chunks` upserts). Fixed: an explicit unreachable sentinel
+   (`offline.invalid`, fails DNS in <1s) instead of popping, with an end-to-end regression test.
+   Verified the guard now also refuses an explicit attempt to point `TEST_DATABASE_URL` at Neon.
+2. **Phase 5 session 2: policy RAG index + retrieval eval (2026-09-28, ADR-0036):** migration 0010
    `policy_chunks` applied to the real database; `scripts/build_policy_index.py` chunks the 7-section
    policy, embeds with the shared local model, upserts idempotently (verified: 7 rows, still 7 after
    a second run); `retrieve_policy()` ranks by pgvector cosine, text only. Eval (20 pre-registered
@@ -61,32 +73,27 @@ system prompt is an optional gap.
    **Process note:** the eval CSV's commit landed after an exploratory run of the eval script, not
    strictly before as the session brief specified -- content was authored blind (before any query
    ran) and unedited since, disclosed in the commit message rather than reordered to look clean.
-   **Also this session:** the psycopg/Application-Control DB block noted in earlier STATE entries
-   turned out to be transient on this machine -- `DATABASE_URL` (Neon) is directly reachable again
-   as of this session; no `pg8000` workaround was needed beyond an initial probe.
-2. **Phase 5 session 1b: guard leaves a genuine no-change unrounded (2026-09-28, ADR-0034
+3. **Phase 5 session 1b: guard leaves a genuine no-change unrounded (2026-09-28, ADR-0034
    addendum):** architect audit found no mock-store catalogue price is itself a charm value, so
    `enforce`'s round-first order turned an unchanged (`proposed_price == current_price`)
    recommendation into a small, unintended move -- e.g. 179.00 -> 178.90 on zero stock, an
    unchecked discount (policy §7: "doing nothing is always acceptable"). Fixed: a no-change now
    short-circuits before `charm_round` and is APPROVEd unrounded, or FLAGs if the kept price is
    already below the category floor. 3 new tests; guard suite 55, full suite 838 green.
-3. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
+4. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
    `config/pricing-policy.toml` + validated Pydantic loader (`policy/thresholds.py`) + deterministic
    guard (`policy/guard.py::enforce`) composing charm-round-first, then floor/eligibility/speed on
    the final price. `reviewer` caught a real bug pre-push (checks ran against the unrounded
    proposal, letting rounding slip an APPROVE past eligibility or speed); fixed the same session --
    round first, FLAG (not REJECT) a speed breach, raise on non-positive money. 52 guard tests with
    computed expected values incl. two rounding-induced regressions; full suite 835 green.
-4. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
+5. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
    the Phase 5 RAG corpus; margin defined on the gross shelf price to match `Product.margin_pct`
    and the VAT-less mock-store data; §1 wording and the number-source line corrected; trimmed to
    the §7 300-500 word budget (500).
-5. **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong --
-   `client.py` implements the transport, budget cap, `llm_calls` logging and cache, and was used
-   for the Phase 3 hosted baseline. Phase 5 does not rebuild it.
 
-Older items (storage fix, Phase 4 rule v2, Phase 3 closed): `docs/archive/STATE-history.md`.
+Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed):
+`docs/archive/STATE-history.md`.
 
 ## Open issues
 
@@ -97,6 +104,18 @@ Older items (storage fix, Phase 4 rule v2, Phase 3 closed): `docs/archive/STATE-
 - **Phase 6 note (session 1b review):** an `enforce()` APPROVE with `price == current_price` (the
   no-change path) is a real price, but not necessarily a charm value -- tool calling must treat it
   as a no-op, never a write to the mock-store `update_price` endpoint.
+- **RAG model pinning (session 2 review, judgement call):** `pricepilot.embeddings.SentenceTransformer
+  (MODEL_NAME)` has no `revision=` pin, and `policy_chunks` stores no model name/revision. A
+  future HF revision bump or `sentence-transformers` major version change would silently rank
+  against a different vector space. Not fixed this session -- low likelihood before Phase 7,
+  revisit if the VPS/Kaggle environment ever diverges from the dev box's installed version.
+- **Prose/TOML drift (session 2 review):** `retrieve_policy` never checks `policy_chunks.
+  source_sha256`/`doc_version` against the live `docs/policy/pricing-policy.md`, and nothing
+  checks the prose's stated numbers (e.g. "12%") against `config/pricing-policy.toml`'s actual
+  values. The guard, not the LLM, is still the final authority on price, so this cannot cause a
+  margin violation -- but a stale or drifted citation in an LLM's rationale is a real risk for
+  session 3 to design around (e.g. treat retrieved text as illustrative, never authoritative, in
+  the prompt).
 - **Neon Free storage (0.5 GB) projected to fill ~2026-12-03** (ESTIMATE, ADR-0032) -- re-run
   `scripts/measure_storage_backfill.py` for a fresh estimate; needs a decision before then. A
   one-off backfill (21.4 MB potential) is identified but not run -- destructive, needs a local
