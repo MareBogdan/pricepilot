@@ -26,12 +26,16 @@ class PolicyPassage:
     section_ref: str
     heading: str
     text: str
-    # Cosine similarity (1 - pgvector's `<=>` cosine distance), higher is more relevant.
-    score: float
+    # Cosine similarity (1 - pgvector's `<=>` cosine distance), higher is more relevant. Named
+    # `similarity`, not `score`, so it cannot be mistaken downstream for a business number --
+    # CLAUDE.md section 6 rule 1: it ranks passages, it is never itself a price/margin/threshold.
+    similarity: float
 
 
 def retrieve_policy(query: str, k: int = 3) -> list[PolicyPassage]:
     """Top-`k` policy passages by cosine similarity to `query`, most relevant first."""
+    if k <= 0:
+        raise ValueError(f"k must be positive, got {k}")
     [query_embedding] = embed([query])
     with session_scope() as session:
         distance = PolicyChunk.embedding.cosine_distance(query_embedding)
@@ -43,7 +47,7 @@ def retrieve_policy(query: str, k: int = 3) -> list[PolicyPassage]:
             section_ref=chunk.section_ref,
             heading=chunk.heading,
             text=chunk.text,
-            score=1.0 - dist,
+            similarity=1.0 - dist,
         )
         for chunk, dist in rows
     ]

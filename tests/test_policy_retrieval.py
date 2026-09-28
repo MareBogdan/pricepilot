@@ -47,10 +47,20 @@ def test_retrieve_policy_returns_the_expected_section(
     passages = retrieve_policy(query, k=3)
     assert passages, "retrieve_policy returned nothing"
     assert passages[0].section_ref == expected_section_ref
-    # TEXT ONLY -- a passage is never a place a number could hide (CLAUDE.md section 6 rule 1).
+    # A passage carries no authoritative number: the prose may quote figures (a margin floor,
+    # a day count), but CLAUDE.md section 6 rule 1 means no code path here ever treats a
+    # retrieved passage as the SOURCE of a threshold -- PolicyPassage has no numeric field
+    # except `similarity` (a ranking score, not a business number).
     for p in passages:
         assert isinstance(p.text, str)
         assert isinstance(p.heading, str)
+
+
+def test_retrieve_policy_rejects_a_non_positive_k() -> None:
+    with pytest.raises(ValueError, match="k must be positive"):
+        retrieve_policy("anything", k=0)
+    with pytest.raises(ValueError, match="k must be positive"):
+        retrieve_policy("anything", k=-1)
 
 
 def test_index_build_is_idempotent() -> None:
