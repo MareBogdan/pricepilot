@@ -457,6 +457,24 @@ def test_enforce_no_change_below_floor_flags_instead_of_approving() -> None:
     assert "below the dry_food floor" in (decision.reason or "")
 
 
+def test_enforce_no_change_approves_even_with_a_missing_seven_day_reference() -> None:
+    """A no-change never reaches the speed check (reviewer note, session 1b review): there is no
+    movement to measure, so a missing `price_7d_ago` does not block APPROVing the unchanged price.
+    Contrast with `test_enforce_flags_a_missing_seven_day_reference` below, where the proposal IS
+    a real change and a missing reference correctly FLAGs."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("88.00"),
+        current_price=Decimal("150.00"),
+        proposed_price=Decimal("150.00"),
+        stock=10,
+        price_7d_ago=None,
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.APPROVE
+    assert decision.price == Decimal("150.00")
+
+
 def test_enforce_flags_a_missing_seven_day_reference() -> None:
     decision = enforce(
         category="accessories",

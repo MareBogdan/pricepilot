@@ -24,8 +24,11 @@ _MAX_CHARM_STEPS = 100_000
 class MissingReferencePrice(ValueError):
     """Raised by `within_speed_limits` when the 7-day reference price is absent.
 
-    A missing reference must never silently pass the speed check -- `enforce` catches this
-    specifically and returns FLAG, never APPROVE or a silent REJECT.
+    A missing reference must never silently pass the speed check -- on a real change
+    (`proposed_price != current_price`), `enforce` catches this specifically and returns FLAG,
+    never APPROVE or a silent REJECT. A genuine no-change never reaches `within_speed_limits` at
+    all (session 1b, 2026-09-28): no movement means there is nothing to check a reference against,
+    so a missing or stale 7-day price does not block APPROVing the unchanged price.
     """
 
 
@@ -186,10 +189,12 @@ def enforce(
     Order: no-change short-circuit -> charm round -> re-check floor -> eligibility -> speed limit,
     the last four all on the final price. A genuine no-change (`proposed_price == current_price`)
     is approved unrounded, never manufactured into a move (session 1b, 2026-09-28) -- unless it
-    already sits below the floor, which FLAGs instead of silently keeping a sub-floor price.
-    Never returns APPROVE with a price below the category floor. An unknown `category`, or a
-    non-positive `cost`/`current_price`/`proposed_price`/`price_7d_ago`, raises (fail closed)
-    rather than returning any GuardDecision (review finding 3, 2026-09-28)."""
+    already sits below the floor, which FLAGs instead of silently keeping a sub-floor price. Since
+    there is no movement to measure, a no-change never reaches the eligibility or speed check --
+    a missing or stale `price_7d_ago` does not block it (policy section 7: "doing nothing is
+    always acceptable"). Never returns APPROVE with a price below the category floor. An unknown
+    `category`, or a non-positive `cost`/`current_price`/`proposed_price`/`price_7d_ago`, raises
+    (fail closed) rather than returning any GuardDecision (review finding 3, 2026-09-28)."""
     t = thresholds or load_thresholds()
     _require_positive("cost", cost)
     _require_positive("current_price", current_price)

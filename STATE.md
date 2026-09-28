@@ -85,6 +85,9 @@ only §5.3 prompt caching on the system prompt is an optional gap.
   -- not stubbed or faked: MAP-restricted brands (policy §2, no MAP field on `Product`); new-product
   age < 14 days (§3, no `listed_at`); manual price lock (§3, no lock field); promotion
   duration/competitor-hold/match-score filters (§4-5, need the decision engine + SQL, sessions 3-4).
+- **Phase 6 note (session 1b review):** an `enforce()` APPROVE with `price == current_price` (the
+  no-change path) is a real price, but not necessarily a charm value -- tool calling must treat it
+  as a no-op, never a write to the mock-store `update_price` endpoint.
 - **Neon Free storage (0.5 GB) projected to fill ~2026-12-03** (ESTIMATE, ADR-0032) -- re-run
   `scripts/measure_storage_backfill.py` for a fresh estimate; needs a decision before then. A
   one-off backfill (21.4 MB potential) is identified but not run -- destructive, needs a local
