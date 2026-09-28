@@ -39,8 +39,9 @@ Positive = Annotated[float, Field(gt=0.0)]
 class SpeedOfChange(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    max_daily_fraction: Positive
-    max_weekly_fraction: Positive
+    # A cap of 100%+ is not a speed limit (review finding 7, 2026-09-28).
+    max_daily_fraction: Fraction
+    max_weekly_fraction: Fraction
 
 
 class DiscountEligibility(BaseModel):
@@ -53,8 +54,10 @@ class Rounding(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     charm_threshold: Positive
-    below_cents: Positive
-    at_or_above_cents: Positive
+    # A charm fraction is a fractional RON amount (e.g. 0.99, 0.90); >=1 signals a typo like
+    # "99" instead of "0.99" (review finding 7, 2026-09-28).
+    below_cents: Fraction
+    at_or_above_cents: Fraction
 
 
 class PricingPolicyThresholds(BaseModel):

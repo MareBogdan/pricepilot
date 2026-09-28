@@ -54,9 +54,20 @@ class GuardDecision:
         return cls(status=GuardStatus.FLAG, price=None, reason=reason)
 
 
+def _require_positive(name: str, value: Decimal) -> None:
+    if value <= 0:
+        raise ValueError(f"{name} must be positive, got {value}")
+
+
 def margin(price: Decimal, cost: Decimal) -> Decimal:
     """Gross margin fraction: `(price - cost) / price`, matching mock-store `Product.margin_pct`
-    (which returns the same quantity as a percent, x100 -- this returns the fraction)."""
+    (which returns the same quantity as a percent, x100 -- this returns the fraction).
+
+    A non-positive `price` or `cost` is corrupt input, not a real margin (review finding 3,
+    2026-09-28: `cost <= 0` would otherwise make every floor trivially pass) -- raises rather
+    than returning a number that looks valid."""
+    _require_positive("price", price)
+    _require_positive("cost", cost)
     return (price - cost) / price
 
 
@@ -90,6 +101,8 @@ def within_speed_limits(
         raise MissingReferencePrice(
             "price_7d_ago is required to check the rolling 7-day speed limit"
         )
+    _require_positive("current_price", current_price)
+    _require_positive("price_7d_ago", price_7d_ago)
     t = thresholds or load_thresholds()
     daily_change = abs(proposed_price - current_price) / current_price
     weekly_change = abs(proposed_price - price_7d_ago) / price_7d_ago
@@ -121,9 +134,10 @@ def charm_round(
     *,
     thresholds: PricingPolicyThresholds | None = None,
 ) -> Decimal:
-    """Round `price` to the nearest charm value (…,99 below the config threshold, …,90 from it
-    upward), then step UP one charm value at a time if the nearest one would breach `category`'s
-    margin floor. Never rounds down past the floor."""
+    """Round `price` to the charm value implied by the configured threshold (…,99 below it, …,90
+    from it upward: nearest within that regime, with one correction at the threshold itself since
+    the two regimes are not evenly spaced), then step UP one charm value at a time if that value
+    would breach `category`'s margin floor. Never rounds down past the floor."""
     t = thresholds or load_thresholds()
 
     fraction = _fraction_for(price, t)
@@ -161,43 +175,53 @@ def enforce(
     price_7d_ago: Decimal | None,
     thresholds: PricingPolicyThresholds | None = None,
 ) -> GuardDecision:
-    """The single entry point: eligibility -> margin floor -> speed limit -> charm round ->
-    re-check floor after rounding. Never returns APPROVE with a price below the category floor.
-    An unknown `category` raises (fail closed) rather than returning any GuardDecision."""
-    t = thresholds or load_thresholds()
+    """The single entry point: charm round FIRST (floor-safe), then every other check runs
+    against that final price -- never against the unrounded proposal. Rounding can move a price
+    by up to ~1 RON, which previously let an APPROVE slip past the eligibility or speed check
+    that only ever saw the unrounded proposal (review findings 1-2, 2026-09-28: an unchanged
+    179.00 -> 179.00 proposal on a zero-stock product silently rounded down to an unchecked
+    178.90 discount). Checking the price actually applied is the only way to guarantee every rule
+    holds for the price that comes out.
 
-    # 1. Eligibility: a discount (price decrease) needs enough stock; an increase never blocked.
-    if proposed_price < current_price and not is_discountable(stock, thresholds=t):
+    Order: charm round -> re-check floor -> eligibility -> speed limit, all on the final price.
+    Never returns APPROVE with a price below the category floor. An unknown `category`, or a
+    non-positive `cost`/`current_price`/`proposed_price`/`price_7d_ago`, raises (fail closed)
+    rather than returning any GuardDecision (review finding 3, 2026-09-28)."""
+    t = thresholds or load_thresholds()
+    _require_positive("cost", cost)
+    _require_positive("current_price", current_price)
+    _require_positive("proposed_price", proposed_price)
+    if price_7d_ago is not None:
+        _require_positive("price_7d_ago", price_7d_ago)
+
+    # 1. Charm round the proposal first. Floor-safe by construction (steps up if the charm value
+    # would breach the floor); this also raises here for an unknown category (fail closed).
+    final_price = charm_round(proposed_price, category, cost, thresholds=t)
+
+    # 2. Re-check the floor -- a backstop; charm_round should already guarantee it.
+    if not meets_floor(category, final_price, cost, thresholds=t):
+        return GuardDecision.reject(
+            f"rounding produced {final_price}, still below the {category} floor -- guard bug"
+        )
+
+    # 3. Eligibility, against the price actually applied: a discount needs enough stock.
+    if final_price < current_price and not is_discountable(stock, thresholds=t):
         return GuardDecision.reject(
             f"discount blocked: stock {stock} is below the minimum "
             f"{t.discount_eligibility.min_stock_units} units required for a discount"
         )
 
-    # 2. Margin floor on the proposed price. Unknown category raises here (fail closed).
-    if not meets_floor(category, proposed_price, cost, thresholds=t):
-        floor = t.margin_floor[category]  # type: ignore[index]
-        return GuardDecision.reject(
-            f"margin floor breached: {margin(proposed_price, cost)} < {floor} for {category}"
-        )
-
-    # 3. Speed limit. A missing 7-day reference is a FLAG, never a silent pass.
+    # 4. Speed limit, against the price actually applied. A missing 7-day reference, or a genuine
+    # breach (including one introduced by rounding), is a FLAG for human review -- never a silent
+    # pass and never an outright REJECT, per policy section 4 ("requires human approval").
     try:
-        speed_ok = within_speed_limits(proposed_price, current_price, price_7d_ago, thresholds=t)
+        speed_ok = within_speed_limits(final_price, current_price, price_7d_ago, thresholds=t)
     except MissingReferencePrice as exc:
         return GuardDecision.flag(str(exc))
     if not speed_ok:
-        return GuardDecision.reject(
-            f"speed limit breached: proposed {proposed_price}, current {current_price}, "
-            f"7d-ago {price_7d_ago}"
-        )
-
-    # 4. Charm round, floor-safe by construction (rounds up if the nearest value would breach).
-    final_price = charm_round(proposed_price, category, cost, thresholds=t)
-
-    # 5. Re-check the floor after rounding -- a backstop; charm_round should already guarantee it.
-    if not meets_floor(category, final_price, cost, thresholds=t):
-        return GuardDecision.reject(
-            f"rounding produced {final_price}, still below the {category} floor -- guard bug"
+        return GuardDecision.flag(
+            f"speed limit breached: final price {final_price} (proposed {proposed_price}), "
+            f"current {current_price}, 7d-ago {price_7d_ago}"
         )
 
     return GuardDecision.approve(final_price)

@@ -5,11 +5,14 @@ Updated: 2026-09-28
 
 **Where we are:** Phase 5 session 1 DONE (2026-09-28, ADR-0034): pricing-policy thresholds live in
 one validated config (`config/pricing-policy.toml` + `src/pricepilot/policy/thresholds.py`), read
-by the deterministic margin/price guard (`src/pricepilot/policy/guard.py::enforce`) -- eligibility
--> margin floor -> speed limit -> charm round -> re-check floor after rounding. 827 tests green,
-`make.ps1 lint`/`typecheck` clean. Next: session 2, index the policy for RAG (pgvector, local
-embeddings, retrieval eval). Phase 4 (demand) stays POSTPONE (15-16 collection days; rule needs
-28). Dataset FROZEN 2026-09-22, SHA-256 below.
+by the deterministic margin/price guard (`src/pricepilot/policy/guard.py::enforce`) -- charm round
+FIRST (floor-safe), then re-check floor / eligibility / speed limit all against the FINAL price
+(a `reviewer` pass caught the initial cut checking those against the unrounded proposal, which let
+rounding invalidate an already-passed check; fixed before push). A speed-limit breach FLAGs
+(policy §4, human approval), never REJECTs. 835 tests green, `make.ps1 lint`/`typecheck` clean.
+Next: session 2, index the policy for RAG (pgvector, local embeddings, retrieval eval). Phase 4
+(demand) stays POSTPONE (15-16 collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256
+below.
 
 ## Gate progress
 
@@ -48,9 +51,11 @@ only §5.3 prompt caching on the system prompt is an optional gap.
 
 1. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
    `config/pricing-policy.toml` + validated Pydantic loader (`policy/thresholds.py`) + deterministic
-   guard (`policy/guard.py::enforce`) composing eligibility/margin/speed/charm-rounding; 44 new
-   tests with computed expected values (boundary cases, a post-rounding floor breach that must be
-   corrected, missing-reference FLAG, unknown-category raise); full suite 827 green.
+   guard (`policy/guard.py::enforce`) composing charm-round-first, then floor/eligibility/speed on
+   the final price. `reviewer` caught a real bug pre-push (checks ran against the unrounded
+   proposal, letting rounding slip an APPROVE past eligibility or speed); fixed the same session --
+   round first, FLAG (not REJECT) a speed breach, raise on non-positive money. 52 guard tests with
+   computed expected values incl. two rounding-induced regressions; full suite 835 green.
 2. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
    the Phase 5 RAG corpus; margin defined on the gross shelf price to match `Product.margin_pct`
    and the VAT-less mock-store data; §1 wording and the number-source line corrected; trimmed to

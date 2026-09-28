@@ -240,3 +240,14 @@ new-product-age, manual-lock and promotion/competitor-hold checks (policy §2-5)
 this session -- the mock store's `Product` model has no fields for them yet (see STATE.md Open
 issues); stubbing or faking them was explicitly avoided rather than inventing a number.
 **Date.** 2026-09-28
+
+**Correction, same session (`reviewer` catch before push).** The first cut checked eligibility and
+the speed limit against the *unrounded* proposal, then rounded last -- charm rounding (which can
+move a price by up to ~1 RON) could invalidate a check that had already passed, letting APPROVE
+through with a price that violated eligibility or the speed limit (e.g. an unchanged 179.00
+proposal on a zero-stock product rounds down to 178.90, an unchecked discount). Fixed (Bogdan's
+choice, of 3 named options) by rounding FIRST and running every remaining check -- floor,
+eligibility, speed -- against the final price. Also, per Bogdan's choice: a speed-limit breach is
+FLAG, not REJECT (matches policy §4's "requires human approval" wording, and covers the case where
+rounding itself introduces the breach). Also added: non-positive `cost`/`price` now raises instead
+of silently producing a trivially-passing margin. Never pushed in the broken form.

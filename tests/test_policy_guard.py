@@ -326,21 +326,27 @@ def test_enforce_allows_a_discount_when_stock_meets_minimum() -> None:
     assert decision.status is GuardStatus.APPROVE
 
 
-def test_enforce_rejects_a_margin_floor_breach() -> None:
+def test_enforce_self_corrects_a_badly_low_proposal_but_flags_the_resulting_jump() -> None:
+    """A proposal far below the category floor is corrected upward by charm_round (never
+    approved below the floor: dry_food 0.12, cost 88 -> breakeven 100.00, so 90.00 gets bumped to
+    100.90). The resulting jump from current_price then trips the speed limit -- FLAGged for
+    human review, never a silent REJECT-and-forget or a silent APPROVE."""
     decision = enforce(
         category="dry_food",
         cost=Decimal("88.00"),
         current_price=Decimal("95.00"),
-        proposed_price=Decimal("90.00"),  # margin (90-88)/90 = 0.0222 < 0.12 floor
+        proposed_price=Decimal("90.00"),  # margin (90-88)/90 = 0.0222, far below the 0.12 floor
         stock=10,
         price_7d_ago=Decimal("95.00"),
         thresholds=T,
     )
-    assert decision.status is GuardStatus.REJECT
-    assert "margin floor" in (decision.reason or "")
+    assert decision.status is GuardStatus.FLAG
+    assert decision.price is None
+    assert "speed limit" in (decision.reason or "")
 
 
-def test_enforce_rejects_a_speed_limit_breach() -> None:
+def test_enforce_flags_a_speed_limit_breach() -> None:
+    """Policy section 4: 'a larger move requires human approval' -- FLAG, not REJECT."""
     decision = enforce(
         category="accessories",
         cost=Decimal("10.00"),
@@ -350,7 +356,46 @@ def test_enforce_rejects_a_speed_limit_breach() -> None:
         price_7d_ago=Decimal("100.00"),
         thresholds=T,
     )
+    assert decision.status is GuardStatus.FLAG
+    assert decision.price is None
+    assert "speed limit" in (decision.reason or "")
+
+
+def test_enforce_catches_a_rounding_induced_discount_on_zero_stock() -> None:
+    """Regression, review finding 1 (2026-09-28): current_price 179.00 is not itself a charm
+    value, so an UNCHANGED 179.00 proposal rounds DOWN to 178.90 -- a real discount. Checking
+    eligibility against the unrounded proposal (179.00 == current, "not a discount") used to let
+    this through on a zero-stock product; checking the final price catches it."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("119.00"),
+        current_price=Decimal("179.00"),
+        proposed_price=Decimal("179.00"),
+        stock=0,
+        price_7d_ago=Decimal("179.00"),
+        thresholds=T,
+    )
     assert decision.status is GuardStatus.REJECT
+    assert decision.price is None
+    assert "discount blocked" in (decision.reason or "")
+
+
+def test_enforce_catches_a_rounding_induced_speed_breach() -> None:
+    """Regression, review finding 2 (2026-09-28): the raw proposal (10.50 vs current 10.00) sits
+    exactly at the 5% daily cap, but its charm-rounded value (10.99) does not (9.9%). Checking the
+    speed limit against the unrounded proposal used to APPROVE the breach; checking the final
+    price FLAGs it instead."""
+    decision = enforce(
+        category="accessories",
+        cost=Decimal("1.00"),
+        current_price=Decimal("10.00"),
+        proposed_price=Decimal("10.50"),
+        stock=10,
+        price_7d_ago=Decimal("10.00"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.FLAG
+    assert decision.price is None
     assert "speed limit" in (decision.reason or "")
 
 
@@ -396,6 +441,49 @@ def test_enforce_never_returns_a_price_below_the_floor_even_after_rounding() -> 
     assert decision.status is GuardStatus.APPROVE
     assert decision.price == Decimal("100.90")
     assert meets_floor("dry_food", decision.price, Decimal("88.00"), thresholds=T) is True
+
+
+# ---------------------------------------------------------------------------------------
+# Input validation -- non-positive money is corrupt data, not a valid margin (review finding 3)
+# ---------------------------------------------------------------------------------------
+
+
+def test_margin_rejects_non_positive_price_or_cost() -> None:
+    with pytest.raises(ValueError, match="price must be positive"):
+        margin(Decimal("0"), Decimal("5.00"))
+    with pytest.raises(ValueError, match="cost must be positive"):
+        margin(Decimal("10.00"), Decimal("-1.00"))
+
+
+def test_within_speed_limits_rejects_non_positive_reference_prices() -> None:
+    with pytest.raises(ValueError, match="current_price must be positive"):
+        within_speed_limits(Decimal("10.00"), Decimal("0"), Decimal("10.00"), thresholds=T)
+    with pytest.raises(ValueError, match="price_7d_ago must be positive"):
+        within_speed_limits(Decimal("10.00"), Decimal("10.00"), Decimal("-1.00"), thresholds=T)
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"cost": Decimal("0")},
+        {"current_price": Decimal("-5.00")},
+        {"proposed_price": Decimal("0")},
+        {"price_7d_ago": Decimal("-1.00")},
+    ],
+)
+def test_enforce_rejects_non_positive_inputs(override: dict[str, Decimal]) -> None:
+    kwargs = {
+        "category": "accessories",
+        "cost": Decimal("10.00"),
+        "current_price": Decimal("100.00"),
+        "proposed_price": Decimal("102.00"),
+        "stock": 10,
+        "price_7d_ago": Decimal("100.00"),
+        "thresholds": T,
+    }
+    kwargs.update(override)
+    with pytest.raises(ValueError, match="must be positive"):
+        enforce(**kwargs)  # type: ignore[arg-type]
 
 
 def test_thresholds_are_frozen() -> None:
