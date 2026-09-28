@@ -262,3 +262,32 @@ category floor (the core invariant -- never APPROVE below the floor -- holds on 
 real change (`proposed_price != current_price`) is untouched: still round-first-then-check.
 **Alternative rejected.** Rounding every proposal uniformly, no-change or not -- manufactures a
 move out of every no-op, which is exactly what policy §7 forbids.
+
+## ADR-0036 — RAG over the pricing policy: section chunks, shared model, numbers stay out
+
+**Context.** Phase 5 session 2: the decision engine (session 3) needs relevant policy prose as LLM
+context without sending the whole document every call. CLAUDE.md section 6, hard rule 1: RAG is
+only for policy TEXT -- every number stays in SQL/`config/pricing-policy.toml`.
+**Decision.** `policy_chunks` (migration 0010) co-located with `norm_listings.embedding` in the
+same database -- ADR-0014's split is Neon vs. local-test-docker, not two production databases.
+Chunked by the document's 7 numbered sections (a rule and its exceptions stay together), embedded
+with the SAME model `norm_listings` uses (`paraphrase-multilingual-MiniLM-L12-v2`, 384-dim, local,
+free) via a new shared `src/pricepilot/embeddings.py` (used by the two new Phase 5 call sites only
+-- `scripts/build_embeddings.py` is untouched). `retrieve_policy()` embeds the query with the same
+model and ranks by pgvector cosine distance; returns text only, never a number. No ANN index at ~7
+rows. Verified against the real database this session: migration applied (`alembic current`: 0010
+head), 7 rows after indexing, still 7 after a second run (idempotent, no dupes). Retrieval eval, 20
+pre-registered questions: hit@1 0.850, hit@3 0.950, MRR 0.912 -- one miss not chased further
+(editing the question set after seeing a metric is exactly the thing pre-registration exists to
+prevent). **Process note:** the eval CSV's commit landed after an exploratory run of the eval
+script rather than strictly before it as intended -- content was authored blind and unedited since,
+disclosed in that commit's own message rather than silently reordered.
+**Also this session:** the psycopg/Application-Control DB block that blocked earlier sessions
+proved transient -- `DATABASE_URL` (Neon) connects directly again; the `pg8000` workaround
+(ADR-0028) was probed once but not needed for the actual work.
+**Alternatives rejected.** Sentence- or fixed-token-window chunking -- breaks rule coherence at
+this document's size. A second embedding model for policy text -- a query/index mismatch is a
+silent RAG bug; reusing the one model already in the stack avoids it by construction. Storing a
+threshold value in `policy_chunks` for convenience -- exactly the "number retrieved by similarity"
+bug CLAUDE.md names as what an interviewer looks for.
+**Date.** 2026-09-28

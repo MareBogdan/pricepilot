@@ -17,6 +17,15 @@ first by the date each section was last substantively written; several sections 
 in place across multiple sessions rather than written once, so this ordering is approximate, not a
 precise timeline — the date named in each heading is that section's own, more precise claim.
 
+### 2026-09-25/27 — pushed out of STATE.md's 5-item "Last done" window by Phase 5 session 2
+
+- **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
+  and pushed; a review-found BLOCKING bug fixed (`b211a1c`) before any real loss; post-push cron
+  run verified (NULL-payload share shows >0 from the day after the first hash).
+- **Phase 4 rule v2 (2026-09-27):** pre-registered (`f40769e`) before any v2 number; measured
+  (`f44a704`) — verdict unchanged, POSTPONE.
+- **Phase 3 closed (2026-09-25):** audit committed; CLAUDE.md/README/COSTS/ADR-0030 updated.
+
 ### 2026-09-22 — current-state narrative (superseded by Gate progress/Last done above)
 
 **Current state, 2026-09-22 (after the annotator's review-pass ingest) — read this paragraph

@@ -3,18 +3,18 @@
 Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
 Updated: 2026-09-28
 
-**Where we are:** Phase 5 session 1 + 1b DONE (2026-09-28, ADR-0034): pricing-policy thresholds
-live in one validated config (`config/pricing-policy.toml` + `src/pricepilot/policy/thresholds.py`),
-read by the deterministic margin/price guard (`src/pricepilot/policy/guard.py::enforce`) -- a
-genuine no-change (`proposed_price == current_price`) short-circuits first and is APPROVEd
-unrounded (FLAG if already below the floor); a real change still goes charm round FIRST
-(floor-safe), then re-check floor / eligibility / speed limit all against the FINAL price (a
-`reviewer` pass caught the initial cut checking those against the unrounded proposal, which let
-rounding invalidate an already-passed check; fixed before push). A speed-limit breach FLAGs
-(policy §4, human approval), never REJECTs. 838 tests green, `make.ps1 lint`/`typecheck` clean.
-Next: session 2, index the policy for RAG (pgvector, local embeddings, retrieval eval). Phase 4
-(demand) stays POSTPONE (15-16 collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256
-below.
+**Where we are:** Phase 5 sessions 1/1b/2 DONE (2026-09-28). Guard (session 1/1b, ADR-0034):
+`src/pricepilot/policy/guard.py::enforce` -- config-driven margin floor / speed limit / discount
+eligibility / charm rounding, a genuine no-change short-circuits unrounded, never APPROVEs below
+the floor. RAG index (session 2, ADR-0036): `policy_chunks` (migration 0010, applied to the real
+DB), `scripts/build_policy_index.py` chunks `docs/policy/pricing-policy.md` by its 7 sections,
+`retrieve_policy()` ranks by pgvector cosine -- TEXT ONLY, no threshold ever comes from the index.
+Retrieval eval (20 pre-registered questions): hit@1 0.850, hit@3 0.950, MRR 0.912 (1 miss, quality
+check not the gate). This session also discovered the psycopg/Application-Control DB block that
+blocked earlier sessions was transient -- the real database is directly reachable again; the
+`pg8000` scratch workaround was not needed after the first probe. Next: session 3, decision engine
+(SQL prices + elasticity placeholder + RAG policy -> LLM -> guard -> full trace). Phase 4 (demand)
+stays POSTPONE (15-16 collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -40,10 +40,11 @@ history rule). `docs/learned/phase4-data-sufficiency.md`, ADR-0031/ADR-0032.
 **Phase 5 — Decision engine: IN PROGRESS** (started 2026-09-27). Gate: 50 generated
 recommendations, zero margin violations. Sessions: (1) policy thresholds as structured config,
 read by the Python margin guard [DONE 2026-09-28, ADR-0034]; (2) index the policy for RAG
-(pgvector, local embeddings) + retrieval eval [NEXT]; (3) decision engine (SQL prices + labelled
-elasticity placeholder + RAG policy -> LLM -> code guard -> full trace); (4) the 50
-recommendations, SPEND-approved, zero-violation report. LLM transport already done (`client.py`);
-only §5.3 prompt caching on the system prompt is an optional gap.
+(pgvector, local embeddings) + retrieval eval [DONE 2026-09-28, ADR-0036: hit@1 0.850, hit@3
+0.950, MRR 0.912]; (3) decision engine (SQL prices + labelled elasticity placeholder + RAG policy
+-> LLM -> code guard -> full trace) [NEXT]; (4) the 50 recommendations, SPEND-approved,
+zero-violation report. LLM transport already done (`client.py`); only §5.3 prompt caching on the
+system prompt is an optional gap.
 
 **Dataset FROZEN 2026-09-22.** SHA-256 (`docs/learned/phase3-labels.json`, LF-normalised):
 `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` -- pinned identically in
@@ -51,33 +52,41 @@ only §5.3 prompt caching on the system prompt is an optional gap.
 
 ## Last done
 
-1. **Phase 5 session 1b: guard leaves a genuine no-change unrounded (2026-09-28, ADR-0034
+1. **Phase 5 session 2: policy RAG index + retrieval eval (2026-09-28, ADR-0036):** migration 0010
+   `policy_chunks` applied to the real database; `scripts/build_policy_index.py` chunks the 7-section
+   policy, embeds with the shared local model, upserts idempotently (verified: 7 rows, still 7 after
+   a second run); `retrieve_policy()` ranks by pgvector cosine, text only. Eval (20 pre-registered
+   questions): hit@1 0.850 (17/20), hit@3 0.950 (19/20), MRR 0.912 -- one miss (section 5, a
+   single-sentence claim in a mixed section), not chased further to avoid tuning to the eval.
+   **Process note:** the eval CSV's commit landed after an exploratory run of the eval script, not
+   strictly before as the session brief specified -- content was authored blind (before any query
+   ran) and unedited since, disclosed in the commit message rather than reordered to look clean.
+   **Also this session:** the psycopg/Application-Control DB block noted in earlier STATE entries
+   turned out to be transient on this machine -- `DATABASE_URL` (Neon) is directly reachable again
+   as of this session; no `pg8000` workaround was needed beyond an initial probe.
+2. **Phase 5 session 1b: guard leaves a genuine no-change unrounded (2026-09-28, ADR-0034
    addendum):** architect audit found no mock-store catalogue price is itself a charm value, so
    `enforce`'s round-first order turned an unchanged (`proposed_price == current_price`)
    recommendation into a small, unintended move -- e.g. 179.00 -> 178.90 on zero stock, an
    unchecked discount (policy §7: "doing nothing is always acceptable"). Fixed: a no-change now
    short-circuits before `charm_round` and is APPROVEd unrounded, or FLAGs if the kept price is
    already below the category floor. 3 new tests; guard suite 55, full suite 838 green.
-2. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
+3. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
    `config/pricing-policy.toml` + validated Pydantic loader (`policy/thresholds.py`) + deterministic
    guard (`policy/guard.py::enforce`) composing charm-round-first, then floor/eligibility/speed on
    the final price. `reviewer` caught a real bug pre-push (checks ran against the unrounded
    proposal, letting rounding slip an APPROVE past eligibility or speed); fixed the same session --
    round first, FLAG (not REJECT) a speed breach, raise on non-positive money. 52 guard tests with
    computed expected values incl. two rounding-induced regressions; full suite 835 green.
-3. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
+4. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
    the Phase 5 RAG corpus; margin defined on the gross shelf price to match `Product.margin_pct`
    and the VAT-less mock-store data; §1 wording and the number-source line corrected; trimmed to
    the §7 300-500 word budget (500).
-4. **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong --
+5. **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong --
    `client.py` implements the transport, budget cap, `llm_calls` logging and cache, and was used
    for the Phase 3 hosted baseline. Phase 5 does not rebuild it.
-5. **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
-   and pushed; a review-found BLOCKING bug fixed (`b211a1c`) before any real loss; post-push cron
-   run verified (NULL-payload share shows >0 from the day after the first hash).
-6. **Phase 4 rule v2 (2026-09-27):** pre-registered (`f40769e`) before any v2 number; measured
-   (`f44a704`) -- verdict unchanged, POSTPONE.
-7. **Phase 3 closed (2026-09-25):** audit committed; CLAUDE.md/README/COSTS/ADR-0030 updated.
+
+Older items (storage fix, Phase 4 rule v2, Phase 3 closed): `docs/archive/STATE-history.md`.
 
 ## Open issues
 

@@ -1,0 +1,387 @@
+{
+  "n_questions": 20,
+  "n_sections": 7,
+  "hit_at_1": 0.85,
+  "hit_at_3": 0.95,
+  "mrr": 0.9125,
+  "misses": [
+    {
+      "question": "Is undercutting the market a goal of this pricing strategy?",
+      "expected_section_refs": [
+        "5"
+      ],
+      "ranked_section_refs": [
+        "1",
+        "6",
+        "3",
+        "5",
+        "2",
+        "4",
+        "7"
+      ]
+    }
+  ],
+  "per_question": [
+    {
+      "question": "What is the minimum margin allowed for dry food?",
+      "expected_section_refs": [
+        "1"
+      ],
+      "ranked_section_refs": [
+        "1",
+        "3",
+        "2",
+        "6",
+        "4",
+        "5",
+        "7"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "What margin floor applies to grooming products?",
+      "expected_section_refs": [
+        "1"
+      ],
+      "ranked_section_refs": [
+        "1",
+        "3",
+        "5",
+        "2",
+        "6",
+        "4",
+        "7"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Can we advertise a MAP-restricted brand below the recommended retail price?",
+      "expected_section_refs": [
+        "2"
+      ],
+      "ranked_section_refs": [
+        "2",
+        "5",
+        "1",
+        "3",
+        "4",
+        "7",
+        "6"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "What happens if a competitor undercuts one of our MAP brands?",
+      "expected_section_refs": [
+        "2"
+      ],
+      "ranked_section_refs": [
+        "2",
+        "5",
+        "7",
+        "4",
+        "1",
+        "3",
+        "6"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Are veterinary diets ever repriced automatically?",
+      "expected_section_refs": [
+        "3"
+      ],
+      "ranked_section_refs": [
+        "3",
+        "7",
+        "4",
+        "1",
+        "6",
+        "5",
+        "2"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "What is the minimum stock level required before we discount a product?",
+      "expected_section_refs": [
+        "3"
+      ],
+      "ranked_section_refs": [
+        "1",
+        "3",
+        "2",
+        "5",
+        "4",
+        "7",
+        "6"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "reciprocal_rank": 0.5
+    },
+    {
+      "question": "Do brand-new products get repriced right away?",
+      "expected_section_refs": [
+        "3"
+      ],
+      "ranked_section_refs": [
+        "3",
+        "5",
+        "4",
+        "2",
+        "1",
+        "7",
+        "6"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Can a human lock a product's price so it never changes automatically?",
+      "expected_section_refs": [
+        "3"
+      ],
+      "ranked_section_refs": [
+        "3",
+        "4",
+        "2",
+        "7",
+        "5",
+        "6",
+        "1"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "How much can a price change in a single day?",
+      "expected_section_refs": [
+        "4"
+      ],
+      "ranked_section_refs": [
+        "4",
+        "1",
+        "3",
+        "5",
+        "6",
+        "7",
+        "2"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "What is the maximum price movement allowed over a rolling week?",
+      "expected_section_refs": [
+        "4"
+      ],
+      "ranked_section_refs": [
+        "4",
+        "6",
+        "1",
+        "5",
+        "3",
+        "2",
+        "7"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Does a short-lived competitor promotion trigger an automatic price match?",
+      "expected_section_refs": [
+        "4",
+        "5"
+      ],
+      "ranked_section_refs": [
+        "5",
+        "4",
+        "7",
+        "2",
+        "1",
+        "3",
+        "6"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Should we match every competitor price we see?",
+      "expected_section_refs": [
+        "5"
+      ],
+      "ranked_section_refs": [
+        "5",
+        "7",
+        "1",
+        "4",
+        "2",
+        "6",
+        "3"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Do we react to a competitor's listing if the match score is low?",
+      "expected_section_refs": [
+        "5"
+      ],
+      "ranked_section_refs": [
+        "5",
+        "7",
+        "2",
+        "4",
+        "1",
+        "3",
+        "6"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "What is the difference between a real price cut and a permanent strike-through price?",
+      "expected_section_refs": [
+        "5"
+      ],
+      "ranked_section_refs": [
+        "5",
+        "1",
+        "4",
+        "6",
+        "7",
+        "3",
+        "2"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Is undercutting the market a goal of this pricing strategy?",
+      "expected_section_refs": [
+        "5"
+      ],
+      "ranked_section_refs": [
+        "1",
+        "6",
+        "3",
+        "5",
+        "2",
+        "4",
+        "7"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "reciprocal_rank": 0.25
+    },
+    {
+      "question": "How should the final price be rounded?",
+      "expected_section_refs": [
+        "6"
+      ],
+      "ranked_section_refs": [
+        "6",
+        "1",
+        "4",
+        "5",
+        "7",
+        "3",
+        "2"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "What ending should a price under 100 RON have?",
+      "expected_section_refs": [
+        "6"
+      ],
+      "ranked_section_refs": [
+        "6",
+        "1",
+        "5",
+        "3",
+        "4",
+        "7",
+        "2"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Can rounding ever push a price below the margin floor?",
+      "expected_section_refs": [
+        "6"
+      ],
+      "ranked_section_refs": [
+        "6",
+        "1",
+        "4",
+        "5",
+        "7",
+        "3",
+        "2"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "What should the system do if competitor data looks stale or unreliable?",
+      "expected_section_refs": [
+        "7"
+      ],
+      "ranked_section_refs": [
+        "7",
+        "5",
+        "4",
+        "1",
+        "2",
+        "3",
+        "6"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "reciprocal_rank": 1.0
+    },
+    {
+      "question": "Is it acceptable to leave a price unchanged when unsure?",
+      "expected_section_refs": [
+        "7"
+      ],
+      "ranked_section_refs": [
+        "3",
+        "7",
+        "6",
+        "1",
+        "4",
+        "5",
+        "2"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "reciprocal_rank": 0.5
+    }
+  ]
+}

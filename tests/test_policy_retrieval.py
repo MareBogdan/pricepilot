@@ -63,6 +63,8 @@ def test_index_build_is_idempotent() -> None:
         cwd=ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=300,
     )
     assert result.returncode == 0, result.stderr

@@ -20,6 +20,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 | 2026-09-24 | 3 | Item 8 session 3 task 3: hosted v2 corrective run — `claude-sonnet-5`, 287 TEST pairs, `llm-prompt-v1`, max_tokens 64 (194,734 in / 2,671 out tokens), correcting session 2's wrong "no request-config defect" conclusion (commit eb72250, retracted). Result: only 11/287 unparseable (vs v1's 40) — 40 calls used a `thinking` block, matching v1's exact empty-reply count, confirming the truncation hypothesis | $0.52 | **$0.416178** (`llm_calls`, purpose `hosted-zeroshot-v2-item8`) | $0.818442 | yes — 2026-09-24, explicit "yes" after the SPEND line |
 | 2026-09-27 | 4 | Data-sufficiency v2 measurement + storage dedup fix (ADR-0032): read-only SQL only, no LLM calls, no GPU rental, no paid hosting yet | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
 | 2026-09-28 | 5 | Session 1: pricing-policy thresholds config + deterministic margin/price guard (ADR-0034). Pure Python + config, no LLM calls, no GPU, no hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
+| 2026-09-28 | 5 | Session 2: policy RAG index (migration 0010, `build_policy_index.py`) + `retrieve_policy` + retrieval eval (ADR-0036). Local sentence-transformers embeddings only, no LLM API calls, no GPU rental, no paid hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
 
