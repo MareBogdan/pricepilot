@@ -1,0 +1,21 @@
+question,expected_section_refs
+What is the minimum margin allowed for dry food?,1
+What margin floor applies to grooming products?,1
+Can we advertise a MAP-restricted brand below the recommended retail price?,2
+What happens if a competitor undercuts one of our MAP brands?,2
+Are veterinary diets ever repriced automatically?,3
+What is the minimum stock level required before we discount a product?,3
+Do brand-new products get repriced right away?,3
+Can a human lock a product's price so it never changes automatically?,3
+How much can a price change in a single day?,4
+What is the maximum price movement allowed over a rolling week?,4
+Does a short-lived competitor promotion trigger an automatic price match?,4;5
+Should we match every competitor price we see?,5
+Do we react to a competitor's listing if the match score is low?,5
+What is the difference between a real price cut and a permanent strike-through price?,5
+Is undercutting the market a goal of this pricing strategy?,5
+How should the final price be rounded?,6
+What ending should a price under 100 RON have?,6
+Can rounding ever push a price below the margin floor?,6
+What should the system do if competitor data looks stale or unreliable?,7
+Is it acceptable to leave a price unchanged when unsure?,7
