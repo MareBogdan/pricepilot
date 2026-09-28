@@ -363,14 +363,16 @@ def test_enforce_flags_a_speed_limit_breach() -> None:
 
 def test_enforce_catches_a_rounding_induced_discount_on_zero_stock() -> None:
     """Regression, review finding 1 (2026-09-28): current_price 179.00 is not itself a charm
-    value, so an UNCHANGED 179.00 proposal rounds DOWN to 178.90 -- a real discount. Checking
-    eligibility against the unrounded proposal (179.00 == current, "not a discount") used to let
-    this through on a zero-stock product; checking the final price catches it."""
+    value, so a genuine (small) INCREASE proposal, 179.05, rounds DOWN to 178.90 -- a real
+    discount relative to current_price. Checking eligibility against the unrounded proposal
+    (179.05 > current, "not a discount") used to let this through on a zero-stock product;
+    checking the final price catches it. (proposed != current here -- the exact-no-change case is
+    covered separately by the session 1b no-change short-circuit tests below.)"""
     decision = enforce(
         category="dry_food",
         cost=Decimal("119.00"),
         current_price=Decimal("179.00"),
-        proposed_price=Decimal("179.00"),
+        proposed_price=Decimal("179.05"),
         stock=0,
         price_7d_ago=Decimal("179.00"),
         thresholds=T,
@@ -397,6 +399,62 @@ def test_enforce_catches_a_rounding_induced_speed_breach() -> None:
     assert decision.status is GuardStatus.FLAG
     assert decision.price is None
     assert "speed limit" in (decision.reason or "")
+
+
+# ---------------------------------------------------------------------------------------
+# enforce() -- session 1b: a genuine no-change is approved unrounded, never manufactured
+# into a move (2026-09-28). No mock-store catalogue price is itself a charm value.
+# ---------------------------------------------------------------------------------------
+
+
+def test_enforce_no_change_above_floor_is_approved_unrounded() -> None:
+    """The exact scenario that used to become an unchecked discount: 179.00 is not a charm
+    value, so the old round-first order turned an unchanged proposal into 178.90. Now it is
+    APPROVEd at exactly 179.00 -- not rounded at all."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("119.00"),
+        current_price=Decimal("179.00"),
+        proposed_price=Decimal("179.00"),
+        stock=0,  # would block a real discount -- irrelevant here, this is not a move
+        price_7d_ago=Decimal("179.00"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.APPROVE
+    assert decision.price == Decimal("179.00")
+    assert decision.reason is None
+
+
+def test_enforce_no_change_at_exact_floor_is_approved() -> None:
+    """The floor boundary is inclusive (meets_floor uses >=) on the no-change path too."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("88.00"),
+        current_price=Decimal("100.00"),  # margin exactly 0.12, the dry_food floor
+        proposed_price=Decimal("100.00"),
+        stock=10,
+        price_7d_ago=Decimal("100.00"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.APPROVE
+    assert decision.price == Decimal("100.00")
+
+
+def test_enforce_no_change_below_floor_flags_instead_of_approving() -> None:
+    """A no-change must never APPROVE a price already below the floor -- FLAG for human review.
+    dry_food floor 0.12; cost 95.00 / price 100.00 -> margin 0.05, well under it."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("95.00"),
+        current_price=Decimal("100.00"),
+        proposed_price=Decimal("100.00"),
+        stock=10,
+        price_7d_ago=Decimal("100.00"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.FLAG
+    assert decision.price is None
+    assert "below the dry_food floor" in (decision.reason or "")
 
 
 def test_enforce_flags_a_missing_seven_day_reference() -> None:

@@ -251,3 +251,14 @@ eligibility, speed -- against the final price. Also, per Bogdan's choice: a spee
 FLAG, not REJECT (matches policy §4's "requires human approval" wording, and covers the case where
 rounding itself introduces the breach). Also added: non-positive `cost`/`price` now raises instead
 of silently producing a trivially-passing margin. Never pushed in the broken form.
+
+**Addendum, session 1b (2026-09-28).** Architect audit: no mock-store catalogue price is itself a
+charm value, so the round-first order (above) turned every genuine "keep the price"
+recommendation into a small unintended move (e.g. 179.00 -> 178.90 on zero stock -- an unchecked
+discount policy §7 says should never be manufactured: "doing nothing is always acceptable"). Fixed:
+`enforce` now short-circuits BEFORE `charm_round` when `proposed_price == current_price` --
+APPROVE `current_price` exactly (no rounding), or FLAG if that kept price is already below the
+category floor (the core invariant -- never APPROVE below the floor -- holds on this path too). A
+real change (`proposed_price != current_price`) is untouched: still round-first-then-check.
+**Alternative rejected.** Rounding every proposal uniformly, no-change or not -- manufactures a
+move out of every no-op, which is exactly what policy §7 forbids.

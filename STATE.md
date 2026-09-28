@@ -3,13 +3,15 @@
 Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
 Updated: 2026-09-28
 
-**Where we are:** Phase 5 session 1 DONE (2026-09-28, ADR-0034): pricing-policy thresholds live in
-one validated config (`config/pricing-policy.toml` + `src/pricepilot/policy/thresholds.py`), read
-by the deterministic margin/price guard (`src/pricepilot/policy/guard.py::enforce`) -- charm round
-FIRST (floor-safe), then re-check floor / eligibility / speed limit all against the FINAL price
-(a `reviewer` pass caught the initial cut checking those against the unrounded proposal, which let
+**Where we are:** Phase 5 session 1 + 1b DONE (2026-09-28, ADR-0034): pricing-policy thresholds
+live in one validated config (`config/pricing-policy.toml` + `src/pricepilot/policy/thresholds.py`),
+read by the deterministic margin/price guard (`src/pricepilot/policy/guard.py::enforce`) -- a
+genuine no-change (`proposed_price == current_price`) short-circuits first and is APPROVEd
+unrounded (FLAG if already below the floor); a real change still goes charm round FIRST
+(floor-safe), then re-check floor / eligibility / speed limit all against the FINAL price (a
+`reviewer` pass caught the initial cut checking those against the unrounded proposal, which let
 rounding invalidate an already-passed check; fixed before push). A speed-limit breach FLAGs
-(policy §4, human approval), never REJECTs. 835 tests green, `make.ps1 lint`/`typecheck` clean.
+(policy §4, human approval), never REJECTs. 838 tests green, `make.ps1 lint`/`typecheck` clean.
 Next: session 2, index the policy for RAG (pgvector, local embeddings, retrieval eval). Phase 4
 (demand) stays POSTPONE (15-16 collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256
 below.
@@ -49,26 +51,33 @@ only §5.3 prompt caching on the system prompt is an optional gap.
 
 ## Last done
 
-1. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
+1. **Phase 5 session 1b: guard leaves a genuine no-change unrounded (2026-09-28, ADR-0034
+   addendum):** architect audit found no mock-store catalogue price is itself a charm value, so
+   `enforce`'s round-first order turned an unchanged (`proposed_price == current_price`)
+   recommendation into a small, unintended move -- e.g. 179.00 -> 178.90 on zero stock, an
+   unchecked discount (policy §7: "doing nothing is always acceptable"). Fixed: a no-change now
+   short-circuits before `charm_round` and is APPROVEd unrounded, or FLAGs if the kept price is
+   already below the category floor. 3 new tests; guard suite 55, full suite 838 green.
+2. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
    `config/pricing-policy.toml` + validated Pydantic loader (`policy/thresholds.py`) + deterministic
    guard (`policy/guard.py::enforce`) composing charm-round-first, then floor/eligibility/speed on
    the final price. `reviewer` caught a real bug pre-push (checks ran against the unrounded
    proposal, letting rounding slip an APPROVE past eligibility or speed); fixed the same session --
    round first, FLAG (not REJECT) a speed breach, raise on non-positive money. 52 guard tests with
    computed expected values incl. two rounding-induced regressions; full suite 835 green.
-2. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
+3. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
    the Phase 5 RAG corpus; margin defined on the gross shelf price to match `Product.margin_pct`
    and the VAT-less mock-store data; §1 wording and the number-source line corrected; trimmed to
    the §7 300-500 word budget (500).
-3. **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong --
+4. **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong --
    `client.py` implements the transport, budget cap, `llm_calls` logging and cache, and was used
    for the Phase 3 hosted baseline. Phase 5 does not rebuild it.
-4. **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
+5. **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
    and pushed; a review-found BLOCKING bug fixed (`b211a1c`) before any real loss; post-push cron
    run verified (NULL-payload share shows >0 from the day after the first hash).
-5. **Phase 4 rule v2 (2026-09-27):** pre-registered (`f40769e`) before any v2 number; measured
+6. **Phase 4 rule v2 (2026-09-27):** pre-registered (`f40769e`) before any v2 number; measured
    (`f44a704`) -- verdict unchanged, POSTPONE.
-6. **Phase 3 closed (2026-09-25):** audit committed; CLAUDE.md/README/COSTS/ADR-0030 updated.
+7. **Phase 3 closed (2026-09-25):** audit committed; CLAUDE.md/README/COSTS/ADR-0030 updated.
 
 ## Open issues
 

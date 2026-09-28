@@ -183,7 +183,10 @@ def enforce(
     178.90 discount). Checking the price actually applied is the only way to guarantee every rule
     holds for the price that comes out.
 
-    Order: charm round -> re-check floor -> eligibility -> speed limit, all on the final price.
+    Order: no-change short-circuit -> charm round -> re-check floor -> eligibility -> speed limit,
+    the last four all on the final price. A genuine no-change (`proposed_price == current_price`)
+    is approved unrounded, never manufactured into a move (session 1b, 2026-09-28) -- unless it
+    already sits below the floor, which FLAGs instead of silently keeping a sub-floor price.
     Never returns APPROVE with a price below the category floor. An unknown `category`, or a
     non-positive `cost`/`current_price`/`proposed_price`/`price_7d_ago`, raises (fail closed)
     rather than returning any GuardDecision (review finding 3, 2026-09-28)."""
@@ -193,6 +196,18 @@ def enforce(
     _require_positive("proposed_price", proposed_price)
     if price_7d_ago is not None:
         _require_positive("price_7d_ago", price_7d_ago)
+
+    # 0. A genuine no-change is not a move: no mock-store catalogue price is itself a charm
+    # value, so rounding it would manufacture an unintended discount/increase out of a "keep the
+    # price" recommendation (policy section 7: "doing nothing is always acceptable"). Short-circuit
+    # before charm_round ever runs. A no-change that is already below the floor still can't be
+    # silently kept -- FLAG for human review rather than APPROVE a sub-floor price.
+    if proposed_price == current_price:
+        if not meets_floor(category, current_price, cost, thresholds=t):
+            return GuardDecision.flag(
+                f"no-change proposal keeps {current_price}, already below the {category} floor"
+            )
+        return GuardDecision.approve(current_price)
 
     # 1. Charm round the proposal first. Floor-safe by construction (steps up if the charm value
     # would breach the floor); this also raises here for an unknown category (fail closed).
