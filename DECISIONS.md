@@ -216,3 +216,27 @@ data-model change (§4-1) with more surface to get wrong and no portfolio payoff
 gross throughout. Re-implementing the transport -- it exists and is tested; rewriting it risks a
 regression for no gain (only §5.3 prompt caching on the system prompt is an optional gap).
 **Date.** 2026-09-27
+
+## ADR-0034 — Pricing-policy thresholds as one config; the guard is the final authority
+
+**Context.** Phase 5 session 1: the margin/price guard needs the policy's numbers (margin floors,
+speed limits, discount eligibility, charm rounding) without ever parsing
+`docs/policy/pricing-policy.md` at runtime (CLAUDE.md section 6, hard rule 2 -- guardrails live in
+code, not prompts/prose).
+**Decision.** `config/pricing-policy.toml` is the single structured source; `src/pricepilot/policy/
+thresholds.py` loads and validates it (Pydantic v2: all six categories present, every floor in
+(0,1), all limits positive) via stdlib `tomllib`. `src/pricepilot/policy/guard.py` reads only this
+config (never the markdown doc) and exposes one composed entry point, `enforce()`: eligibility ->
+margin floor -> speed limit -> charm round -> re-check floor after rounding, returning
+APPROVE(price) / REJECT(reason) / FLAG(reason). All money is `Decimal` (ADR-0007). An unknown
+category raises (fail closed) instead of ever being approved; a missing 7-day reference price
+raises inside `within_speed_limits` and `enforce` turns that into FLAG, never a silent pass. This
+guard, not the LLM that will later propose a price (session 3), is the final authority -- the LLM's
+proposal is only ever a suggestion `enforce()` can override.
+**Alternatives rejected.** Threshold literals inline in the guard code -- one config keeps the
+guard, a future admin UI, and tests all reading the same numbers. Enforcing the margin inside the
+LLM prompt -- a prompt is a suggestion; CLAUDE.md requires the rule to be code. MAP-brand,
+new-product-age, manual-lock and promotion/competitor-hold checks (policy §2-5) are OUT of scope
+this session -- the mock store's `Product` model has no fields for them yet (see STATE.md Open
+issues); stubbing or faking them was explicitly avoided rather than inventing a number.
+**Date.** 2026-09-28

@@ -1,15 +1,15 @@
 # STATE
 
 Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
-Updated: 2026-09-27
+Updated: 2026-09-28
 
-**Where we are:** Phase 5 started. Pricing-policy APPROVED v0.2 (Bogdan, 2026-09-27) -- margin is
-the gross shelf basis `(current_price - purchase_cost) / current_price`, no VAT, matching the mock
-store (ADR-0033). Correction: the LLM transport is ALREADY implemented and tested
-(`src/pricepilot/llm/client.py` -- budget cap, `llm_calls` logging, disk cache; used for the Phase
-3 hosted baseline), so the "not implemented" note was stale and Phase 5 skips a transport session,
-starting at the policy-thresholds config read by the Python margin guard. Phase 4 (demand) stays
-POSTPONE (15-16 collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256 below.
+**Where we are:** Phase 5 session 1 DONE (2026-09-28, ADR-0034): pricing-policy thresholds live in
+one validated config (`config/pricing-policy.toml` + `src/pricepilot/policy/thresholds.py`), read
+by the deterministic margin/price guard (`src/pricepilot/policy/guard.py::enforce`) -- eligibility
+-> margin floor -> speed limit -> charm round -> re-check floor after rounding. 827 tests green,
+`make.ps1 lint`/`typecheck` clean. Next: session 2, index the policy for RAG (pgvector, local
+embeddings, retrieval eval). Phase 4 (demand) stays POSTPONE (15-16 collection days; rule needs
+28). Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -34,11 +34,11 @@ history rule). `docs/learned/phase4-data-sufficiency.md`, ADR-0031/ADR-0032.
 
 **Phase 5 — Decision engine: IN PROGRESS** (started 2026-09-27). Gate: 50 generated
 recommendations, zero margin violations. Sessions: (1) policy thresholds as structured config,
-read by the Python margin guard [NEXT]; (2) index the policy for RAG (pgvector, local embeddings)
-+ retrieval eval; (3) decision engine (SQL prices + labelled elasticity placeholder + RAG policy
--> LLM -> code guard -> full trace); (4) the 50 recommendations, SPEND-approved, zero-violation
-report. LLM transport already done (`client.py`); only §5.3 prompt caching on the system prompt is
-an optional gap.
+read by the Python margin guard [DONE 2026-09-28, ADR-0034]; (2) index the policy for RAG
+(pgvector, local embeddings) + retrieval eval [NEXT]; (3) decision engine (SQL prices + labelled
+elasticity placeholder + RAG policy -> LLM -> code guard -> full trace); (4) the 50
+recommendations, SPEND-approved, zero-violation report. LLM transport already done (`client.py`);
+only §5.3 prompt caching on the system prompt is an optional gap.
 
 **Dataset FROZEN 2026-09-22.** SHA-256 (`docs/learned/phase3-labels.json`, LF-normalised):
 `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` -- pinned identically in
@@ -46,22 +46,31 @@ an optional gap.
 
 ## Last done
 
-1. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
+1. **Phase 5 session 1: policy thresholds config + margin/price guard (2026-09-28, ADR-0034):**
+   `config/pricing-policy.toml` + validated Pydantic loader (`policy/thresholds.py`) + deterministic
+   guard (`policy/guard.py::enforce`) composing eligibility/margin/speed/charm-rounding; 44 new
+   tests with computed expected values (boundary cases, a post-rounding floor breach that must be
+   corrected, missing-reference FLAG, unknown-category raise); full suite 827 green.
+2. **Pricing-policy APPROVED v0.2 + margin basis decided (2026-09-27, ADR-0033):** Bogdan approved
    the Phase 5 RAG corpus; margin defined on the gross shelf price to match `Product.margin_pct`
    and the VAT-less mock-store data; §1 wording and the number-source line corrected; trimmed to
    the §7 300-500 word budget (500).
-2. **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong --
+3. **Stale note corrected (2026-09-27):** "LLM transport not implemented (ADR-0006)" was wrong --
    `client.py` implements the transport, budget cap, `llm_calls` logging and cache, and was used
    for the Phase 3 hosted baseline. Phase 5 does not rebuild it.
-3. **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
+4. **Storage fix shipped (2026-09-27, ADR-0032):** migration 0009 (`raw_payload_sha256`) applied
    and pushed; a review-found BLOCKING bug fixed (`b211a1c`) before any real loss; post-push cron
    run verified (NULL-payload share shows >0 from the day after the first hash).
-4. **Phase 4 rule v2 (2026-09-27):** pre-registered (`f40769e`) before any v2 number; measured
+5. **Phase 4 rule v2 (2026-09-27):** pre-registered (`f40769e`) before any v2 number; measured
    (`f44a704`) -- verdict unchanged, POSTPONE.
-5. **Phase 3 closed (2026-09-25):** audit committed; CLAUDE.md/README/COSTS/ADR-0030 updated.
+6. **Phase 3 closed (2026-09-25):** audit committed; CLAUDE.md/README/COSTS/ADR-0030 updated.
 
 ## Open issues
 
+- **Guard scope gaps, all deferred because the mock store has no field for them yet (ADR-0034)**
+  -- not stubbed or faked: MAP-restricted brands (policy §2, no MAP field on `Product`); new-product
+  age < 14 days (§3, no `listed_at`); manual price lock (§3, no lock field); promotion
+  duration/competitor-hold/match-score filters (§4-5, need the decision engine + SQL, sessions 3-4).
 - **Neon Free storage (0.5 GB) projected to fill ~2026-12-03** (ESTIMATE, ADR-0032) -- re-run
   `scripts/measure_storage_backfill.py` for a fresh estimate; needs a decision before then. A
   one-off backfill (21.4 MB potential) is identified but not run -- destructive, needs a local
