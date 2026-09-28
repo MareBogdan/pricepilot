@@ -296,6 +296,34 @@ class NormListing(Base):
         return value
 
 
+class PolicyChunk(Base):
+    """Phase 5 session 2 -- RAG index over the pricing-policy prose (ADR-0036, migration 0010).
+
+    Text only. CLAUDE.md section 6, hard architectural rule 1: every number a recommendation acts
+    on comes from SQL or `config/pricing-policy.toml`, never retrieved by similarity here. This
+    table exists so the decision engine (session 3) can hand the LLM the relevant policy
+    paragraphs; it is never a source of a threshold.
+
+    One row per policy section (`section_ref` is the upsert key `scripts/build_policy_index.py`
+    keys on), not one row per version -- re-indexing an edited policy document replaces a
+    section's row in place. `doc_version`/`source_sha256` say which version of
+    `docs/policy/pricing-policy.md` produced the row currently stored.
+    """
+
+    __tablename__ = "policy_chunks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    section_ref: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    heading: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)
+    # Same model/dim as NormListing.embedding (paraphrase-multilingual-MiniLM-L12-v2, 384) -- the
+    # index and the query MUST use the same model or cosine similarity is meaningless.
+    embedding: Mapped[list[float]] = mapped_column(Vector(384))
+    source_doc: Mapped[str] = mapped_column(String(255))
+    doc_version: Mapped[str] = mapped_column(String(32))
+    source_sha256: Mapped[str] = mapped_column(String(64))
+
+
 class LlmCall(Base):
     """Every LLM call, logged by src/pricepilot/llm/client.py. No direct SDK calls exist
     anywhere else in the codebase — ruff enforces it (see pyproject.toml)."""
