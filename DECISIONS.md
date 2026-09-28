@@ -321,5 +321,11 @@ session: `assert_safe_for_tests` raised `NeonGuardError` as designed).
 machine's environment lets the SYN sit until psycopg's ~15s connect_timeout fires, twice
 (`connect_with_wakeup_retry`'s one retry), adding ~32s to every test run that calls
 `check_database()`. `.invalid` fails in the DNS-resolution step, before any socket connect,
-independent of local network/firewall behavior.
+independent of local network/firewall behavior. Reading `TEST_DATABASE_URL` from `.env` as a
+fallback (a second `reviewer` pass suggested this to close the resulting coverage gap -- the
+`policy_chunks` DB tests now have zero executing coverage anywhere without a real
+`TEST_DATABASE_URL` env var) -- implemented, measured, and reverted: on this machine, checking an
+unreachable `localhost:5433` (docker down) takes ~30s per attempt, not an instant refusal, so the
+fallback would add ~60s to every plain `pytest` run whenever docker is down. Worse than the
+coverage gap it closed; documented as an accepted limitation in STATE.md instead.
 **Date.** 2026-09-28

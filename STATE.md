@@ -116,6 +116,22 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
   margin violation -- but a stale or drifted citation in an LLM's rationale is a real risk for
   session 3 to design around (e.g. treat retrieved text as illustrative, never authoritative, in
   the prompt).
+- **`test_policy_retrieval.py` has zero executing coverage in this environment (ADR-0037 review,
+  finding accepted as-is):** tried reading `TEST_DATABASE_URL` from `.env` as a fallback (safe --
+  it always names the local docker Postgres, still passes `assert_safe_for_tests`) so the tests
+  would actually run when docker is up; reverted after measuring it: on this machine, checking an
+  unreachable `localhost:5433` takes ~30s per attempt (not an instant refusal) and
+  `connect_with_wakeup_retry`'s one retry doubles that to ~60s added to every plain `pytest` run
+  whenever docker is down -- worse than the coverage gap it would have closed. `docker compose up`
+  + a real `TEST_DATABASE_URL` env var remains the only way to exercise these tests locally; same
+  class of gap as the pre-existing `get_payload()` note below.
+- **ADR-0037 review, lower-priority items not acted on:** a Linux host could set a lowercase
+  `database_url` env var that `assert_safe_for_tests` (checks only the uppercase key) would miss --
+  unlikely on this Windows dev box or Neon, worth a look before the Phase 7 VPS. The guard is
+  enforced once, in `pytest_configure`, with no second check at `get_engine()` itself -- judged
+  sufficient for now (a single, well-tested enforcement point, not defense-in-depth); revisit if
+  a future test ever needs to delete/re-set `DATABASE_URL` mid-session the way the regression test
+  above briefly does.
 - **Neon Free storage (0.5 GB) projected to fill ~2026-12-03** (ESTIMATE, ADR-0032) -- re-run
   `scripts/measure_storage_backfill.py` for a fresh estimate; needs a decision before then. A
   one-off backfill (21.4 MB potential) is identified but not run -- destructive, needs a local
