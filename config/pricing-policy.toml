@@ -1,0 +1,30 @@
+# Pricing-policy thresholds -- the single structured source of truth for
+# src/pricepilot/policy/guard.py. Mirrors docs/policy/pricing-policy.md (APPROVED v0.2,
+# ADR-0033). The guard reads THIS file, never the policy document (CLAUDE.md section 6,
+# hard architectural rule 2: guardrails live in code/config, not in prompts or prose).
+#
+# All fractions are of shelf price (e.g. 0.12 = 12%), not percent.
+
+[margin_floor]
+# Keyed by services/mock_store/app.py Product.category -- exactly six values, no more, no less.
+dry_food = 0.12
+wet_food = 0.18
+treats = 0.25
+litter = 0.15
+grooming = 0.30
+accessories = 0.30
+
+[speed_of_change]
+max_daily_fraction = 0.05
+max_weekly_fraction = 0.15
+
+[discount_eligibility]
+min_stock_units = 3
+
+[rounding]
+# Below charm_threshold RON: prices end in below_cents. From charm_threshold upward
+# (inclusive): at_or_above_cents. Rounding is applied last and is floor-safe (guard.py
+# charm_round rounds up, never down, when the nearest charm value would breach the floor).
+charm_threshold = 100
+below_cents = 0.99
+at_or_above_cents = 0.90
