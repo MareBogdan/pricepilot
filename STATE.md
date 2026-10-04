@@ -1,25 +1,15 @@
 # STATE
 
 Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
-Updated: 2026-09-28
+Updated: 2026-10-04
 
-**Where we are:** Phase 5 sessions 1/1b/2 DONE (2026-09-28). Guard (session 1/1b, ADR-0034):
-`src/pricepilot/policy/guard.py::enforce` -- config-driven margin floor / speed limit / discount
-eligibility / charm rounding, a genuine no-change short-circuits unrounded, never APPROVEs below
-the floor. RAG index (session 2, ADR-0036): `policy_chunks` (migration 0010, applied to the real
-DB), `scripts/build_policy_index.py` chunks `docs/policy/pricing-policy.md` by its 7 sections,
-`retrieve_policy()` ranks by pgvector cosine -- TEXT ONLY, no threshold ever comes from the index.
-Retrieval eval (20 pre-registered questions): hit@1 0.850, hit@3 0.950, MRR 0.912 (1 miss, quality
-check not the gate). **Safety fix, ADR-0037 (found by `reviewer`, same session):** the ADR-0014
-Neon test guard had a hole -- popping `DATABASE_URL` when `TEST_DATABASE_URL` was absent let
-`Settings(env_file=".env")` fall back to `.env`'s real Neon credential, so a plain `pytest` run
-was silently hitting Neon (session 2's new DB test was the first to expose it). Fixed: an explicit
-unreachable sentinel instead of popping, with an end-to-end regression test. This session also
-discovered the psycopg/Application-Control DB block that blocked earlier sessions was transient --
-the real database is directly reachable again outside pytest; the `pg8000` scratch workaround was
-not needed after the first probe. Next: session 3, decision engine (SQL prices + elasticity
-placeholder + RAG policy -> LLM -> guard -> full trace). Phase 4 (demand) stays POSTPONE (15-16
-collection days; rule needs 28). Dataset FROZEN 2026-09-22, SHA-256 below.
+**Where we are:** Phase 5 sessions 1/1b/2/3 DONE. Guard (ADR-0034), policy RAG index (ADR-0036,
+hit@3 0.950), Neon test-guard fix (ADR-0037). **Session 3 (2026-10-04, ADR-0038):** an architect
+audit found the planned "decision engine" session could not run -- `products` was EMPTY (our
+catalogue never synced), no `product_matches`/decision tables exist, and no serve-time matcher
+exists (Phase 3 closed the model choice only; `models/ce-ft-best.zip` is unextracted). `products`
+is now populated (30 rows from the mock store; migration 0011 adds `net_weight_g`). Next: s3b,
+the serve-time matcher. Phase 4 (demand) stays POSTPONE. Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -43,13 +33,18 @@ re-measure both times `NEEDS ARCHITECT: movement too rare` (15-16 days too short
 history rule). `docs/learned/phase4-data-sufficiency.md`, ADR-0031/ADR-0032.
 
 **Phase 5 — Decision engine: IN PROGRESS** (started 2026-09-27). Gate: 50 generated
-recommendations, zero margin violations. Sessions: (1) policy thresholds as structured config,
-read by the Python margin guard [DONE 2026-09-28, ADR-0034]; (2) index the policy for RAG
-(pgvector, local embeddings) + retrieval eval [DONE 2026-09-28, ADR-0036: hit@1 0.850, hit@3
-0.950, MRR 0.912]; (3) decision engine (SQL prices + labelled elasticity placeholder + RAG policy
--> LLM -> code guard -> full trace) [NEXT]; (4) the 50 recommendations, SPEND-approved,
-zero-violation report. LLM transport already done (`client.py`); only §5.3 prompt caching on the
-system prompt is an optional gap.
+recommendations, zero margin violations. **Revised sub-sequence (2026-10-04, ADR-0038; replaces
+the old "session 3 = decision engine")**: (1) policy thresholds config + guard [DONE, ADR-0034];
+(2) policy RAG index + retrieval eval [DONE, ADR-0036]; (s3) sync our 30-product catalogue into
+`products` [DONE 2026-10-04, ADR-0038]; (s3b) serve-time cross-encoder matcher -> `product_matches`
+(our products vs `norm_listings`, >=0.89) [NEXT, gate pre-registered in ADR-0038]; (s4) decision
+engine (SQL prices + matched competitor prices + labelled elasticity placeholder + RAG policy ->
+LLM[mocked] -> guard -> full trace), $0; (s5) the 50 recommendations on the real LLM (SPEND ~$2),
+zero-violation report. LLM transport done (`client.py`); §5.3 prompt caching is an optional gap.
+**Phase 4 price history:** 23 distinct collection days as of 2026-10-04 (petmax 23, animax 22,
+pentruanimale 22), per the architect audit. R1 (28 days) is reachable ~2026-10-10 but R2/R3 still
+fail on the pre-registered measurement -- Phase 4 stays POSTPONE, elasticity stays a labelled
+placeholder.
 
 **Dataset FROZEN 2026-09-22.** SHA-256 (`docs/learned/phase3-labels.json`, LF-normalised):
 `540a4fd6ccfc52525014ac770caadbf544243dccc5a85d3fcb279fd7d052eed4` -- pinned identically in
@@ -57,6 +52,14 @@ system prompt is an optional gap.
 
 ## Last done
 
+0. **Phase 5 session 3: catalogue synced into `products` (2026-10-04, ADR-0038):** migration 0011
+   adds nullable `products.net_weight_g` (applied to Neon); `scripts/sync_catalogue.py` upserts the
+   30 mock-store products (`get_catalogue()` public accessor) keyed on `id`, Decimal money, no
+   float. Verified on the real DB: 30 rows, 0 duplicate SKUs, unchanged after a second run, 0
+   rows disagreeing with `_CATALOGUE`. psycopg's libpq DLL is blocked by Application Control again
+   today, so all DB work ran on the new opt-in `PRICEPILOT_DB_DRIVER=pg8000` fallback
+   (`src/pricepilot/db.py::resolve_database_target`, also used by `alembic/env.py`; `.env`
+   untouched). Note: `docs/learned/psycopg-application-control-block.md`.
 1. **Neon test-guard hole fixed (2026-09-28, ADR-0037, `reviewer` catch):** `pytest_configure`
    popped `DATABASE_URL` when `TEST_DATABASE_URL` was absent, expecting "fully offline" --
    `Settings(env_file=".env")` actually fell back to `.env`'s real Neon credential, so a plain
@@ -143,6 +146,20 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
   construction** -- documented, a v3 decision if Phase 4 reopens.
 - **`get_payload()`-routed callers have no end-to-end test against a real Postgres** (only pure
   logic + in-memory SQLite). Low priority.
+- **`psycopg` import is intermittently blocked (Application Control) -- recurred 2026-10-04.**
+  Detect with `.venv\Scripts\python -c "import psycopg"`; fall back to
+  `PRICEPILOT_DB_DRIVER=pg8000` for any DB command (ADR-0038). The pg8000 path is untested by the
+  test suite (tests are offline) -- verified only by the live sync/migration runs.
+- **50 recommendations vs 30 products (s4/s5 must decide):** the gate needs 50 recommendations
+  but our catalogue has 30 products, and only matched products get competitor prices. s4 must
+  define how 50 arise (e.g. several price scenarios per product) before s5 spends money.
+- **Catalogue sync reviewer notes (ADR-0038):** `sync_catalogue.py` always writes the SEEDED
+  price/stock, so re-running it after Phase 6 applies a price change would revert it -- guard or
+  sync from the live store first. `pg8000` is a hard runtime dep (ships in the Docker image) --
+  make it an optional extra before Phase 7 if image size matters.
+- **`products.id` sequence is not advanced by the sync** (explicit ids 1-30 are inserted); a future
+  insert relying on the serial default would collide. Nothing inserts into `products` besides the
+  sync today.
 - **`pytest`'s console-script `.exe` is blocked** by Windows Application Control -- use
   `.venv\Scripts\python -m pytest`.
 - **`select_threshold.py` and `score_predictions.py` duplicate `_load_eval_view`** -- extract into
@@ -156,6 +173,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 5: SPEND approval before the 50-recommendation run (est. ~$2, ADR-0030) -- at session 4.
+Phase 5: s3b needs you to hand-verify the matcher's sample (ADR-0038 pre-registration). SPEND approval before the 50-recommendation run (est. ~$2, ADR-0030) -- at s5.
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

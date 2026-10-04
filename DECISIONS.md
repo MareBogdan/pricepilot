@@ -329,3 +329,41 @@ unreachable `localhost:5433` (docker down) takes ~30s per attempt, not an instan
 fallback would add ~60s to every plain `pytest` run whenever docker is down. Worse than the
 coverage gap it closed; documented as an accepted limitation in STATE.md instead.
 **Date.** 2026-09-28
+
+## ADR-0038 — Sync our catalogue first; the matcher is its own session; pg8000 fallback; s3b gate pre-registered
+
+**Context.** Architect audit 2026-10-04: the Phase 5 decision-engine session could not run as
+written. Verified read-only against the live DB: `products` had 0 rows (our catalogue was never
+synced from the mock store), no `product_matches`/decision tables exist (migrations 0001-0010
+create none), and no serve-time matcher exists in `src/` -- Phase 3 closed the model choice
+(ADR-0030) but never productionised it. Separately, psycopg's libpq DLL is blocked by Application
+Control on this machine again (it had looked transient).
+**Decision.** (1) Phase 5 is re-sequenced: s3 sync `products` (this session: migration 0011 adds
+nullable `net_weight_g`; `scripts/sync_catalogue.py` idempotent upsert on `id`, Decimal money;
+verified 30 rows, 0 duplicate SKUs, stable across two runs); s3b serve-time matcher ->
+`product_matches`; s4 decision engine with a mocked LLM, $0; s5 the 50 real recommendations
+(SPEND ~$2). (2) `pg8000` is a supported opt-in fallback: `PRICEPILOT_DB_DRIVER=pg8000` swaps the
+driver and translates `sslmode`/`connect_timeout` (`db.py::resolve_database_target`, shared by the
+app engine and `alembic/env.py`); `.env` is never edited; default behaviour is unchanged.
+**Alternatives rejected.** Stuffing the sync into the matcher session (couples a trivial,
+verifiable data load to the risky model work); a runtime-fetch of the catalogue over HTTP (needs a
+running server for a deterministic fixture); editing `.env` to a pg8000 URL (breaks every
+psycopg-working environment, incl. the VPS).
+
+**Pre-registered s3b matcher gate (written before s3b produces any number).**
+- *Matcher spec (ADR-0030):* our 30 products x `norm_listings`, K=100 embedding candidates,
+  cross-encoder ONNX fp32, threshold 0.89, at most one match per (our product, competitor shop),
+  highest score wins; result persisted in `product_matches` with the score.
+- *"Correct match" =* the pair is the same purchasable unit under the current revision of
+  `docs/learned/phase3-annotation-conventions.md` (same brand, product line, species/life stage,
+  flavour, and net weight/pack quantity -- same line at a different gramaj is NOT a match).
+- *Verification:* if the matcher returns <= 120 links, verify ALL; otherwise a random sample of 120
+  with seed 20261004. A human (Bogdan) labels each link YES/NO from title, brand, weight and
+  price, **blind to the score**; labels are committed to `docs/learned/` BEFORE the precision
+  number is computed.
+- *Gate (all must hold):* precision >= 0.90 on the verified links; at least 15 of our 30
+  products have >= 1 correct match; wrong-gramaj false positives <= 5% of verified links.
+  Recall is NOT claimed (no full ground truth) -- only coverage is reported, labelled as such.
+- *If it fails:* report the number as-is. The threshold is NOT retuned on the verified sample; any
+  threshold/model change needs a new ADR and a fresh sample.
+**Date.** 2026-10-04
