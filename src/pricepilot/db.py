@@ -20,7 +20,7 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, create_engine, text
 from sqlalchemy.engine import make_url
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from pricepilot.config import get_settings
@@ -39,6 +39,10 @@ NEON_WAKEUP_RETRY_DELAY_SECONDS = 2.0
 # Fallback driver for machines where psycopg's libpq DLL is blocked by Application Control
 # (ADR-0038). Opt-in: `PRICEPILOT_DB_DRIVER=pg8000`. The `.env` value is never edited.
 DB_DRIVER_ENV = "PRICEPILOT_DB_DRIVER"
+# pg8000's `timeout` is a socket timeout that stays on the connection for its whole life (psycopg's
+# `connect_timeout` covers connection setup only), so it must also outlast the slowest query --
+# not just a Neon cold start.
+PG8000_SOCKET_TIMEOUT_SECONDS = 120
 
 
 def resolve_database_target(raw_url: str) -> tuple[str, dict[str, Any]]:
@@ -54,7 +58,7 @@ def resolve_database_target(raw_url: str) -> tuple[str, dict[str, Any]]:
     url = make_url(raw_url).set(drivername="postgresql+pg8000")
     sslmode = url.query.get("sslmode", "")
     url = url.difference_update_query(["sslmode", "channel_binding"])
-    args: dict[str, Any] = {"timeout": NEON_CONNECT_TIMEOUT_SECONDS}
+    args: dict[str, Any] = {"timeout": PG8000_SOCKET_TIMEOUT_SECONDS}
     if sslmode in ("require", "verify-ca", "verify-full"):
         args["ssl_context"] = ssl.create_default_context()
     return url.render_as_string(hide_password=False), args
@@ -78,7 +82,7 @@ def connect_with_wakeup_retry(engine: Engine) -> Connection:
     """
     try:
         return engine.connect()
-    except OperationalError:
+    except (OperationalError, InterfaceError):  # pg8000 reports connect failures as InterfaceError
         time.sleep(NEON_WAKEUP_RETRY_DELAY_SECONDS)
         return engine.connect()
 

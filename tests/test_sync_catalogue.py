@@ -24,10 +24,9 @@ def test_weighted_product_maps_exact_values() -> None:
         "category": "dry_food",
         "purchase_cost": Decimal("119.00"),
         "current_price": Decimal("179.00"),
-        "stock": row["stock"],  # seeded random; asserted below as a plain int
+        "stock": 12,  # random.Random(SEED + 1).randint(0, 120), deterministic
         "net_weight_g": 1800,
     }
-    assert isinstance(row["stock"], int)
     assert isinstance(row["purchase_cost"], Decimal) and isinstance(row["current_price"], Decimal)
 
 

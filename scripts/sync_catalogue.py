@@ -7,6 +7,10 @@ deterministic from SEED. This reads it in-process via `get_catalogue()` (no serv
 read-only) and upserts every product into `products`, keyed on the stable `id` (the `sku` is
 also unique and derived from it). Re-runnable: a second run updates in place, never duplicates.
 
+NOTE: `get_catalogue()` is always the SEEDED state. Re-running this after Phase 6 has applied a
+price change would overwrite `current_price`/`stock` with the seed values -- add a guard (or sync
+from the live store) before then.
+
 Money stays `Decimal` end to end: the mock store holds `Decimal`, the columns are
 `Numeric(12, 2)`, and nothing here touches `float`.
 
