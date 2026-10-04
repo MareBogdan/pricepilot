@@ -21,25 +21,29 @@ MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 EMBEDDING_DIM = 384
 
 
-def _load_sentence_transformer_class() -> Any:
-    """Import `sentence_transformers.SentenceTransformer`, working around a Windows sandbox
-    'Application Control' policy on this dev machine that blocks scikit-learn's compiled
-    extensions (`sklearn.utils._array_api` -> `scipy.spatial._qhull` -> DLL load failure).
-    `sentence_transformers` imports `sklearn.metrics` transitively for a similarity-metrics
-    helper never touched by a plain `encode()` call, so the failure is an import-time artifact of
-    this one machine's policy, not a real dependency of the encode path. Identical workaround to
-    `scripts/build_embeddings.py`'s (verified bit-identical there:
-    `docs/learned/phase3-embedding-equivalence-2026-09-17.md`) -- copied rather than imported from
-    a `scripts/` module, since `src/` does not depend on `scripts/`."""
-    try:
-        from sentence_transformers import SentenceTransformer
+def ensure_sklearn_importable() -> None:
+    """Make `import sklearn.metrics` succeed, or neutralise it for this process.
 
-        return SentenceTransformer
+    A Windows sandbox 'Application Control' policy on this dev machine blocks scikit-learn's
+    compiled extensions (`sklearn.utils._array_api` / `_pairwise_distances_reduction` -> DLL load
+    failure). Both `sentence_transformers` and `transformers` import `sklearn.metrics`
+    transitively for helpers never touched by a plain `encode()` / forward pass, so the failure
+    is an import-time artifact of this one machine's policy, not a real dependency of the model
+    path. Identical workaround to `scripts/build_embeddings.py`'s (verified bit-identical there:
+    `docs/learned/phase3-embedding-equivalence-2026-09-17.md`). A no-op where sklearn imports."""
+    try:
+        import sklearn.metrics  # type: ignore[import-untyped]  # noqa: F401
+
+        return
     except ImportError:
         pass
 
     import importlib.abc
     import importlib.machinery
+
+    # Drop whatever half-imported sklearn modules the failed attempt left behind.
+    for name in [m for m in sys.modules if m == "sklearn" or m.startswith("sklearn.")]:
+        del sys.modules[name]
 
     def _make_stub(name: str) -> Any:
         mod = __import__("types").ModuleType(name)
@@ -69,12 +73,17 @@ def _load_sentence_transformer_class() -> Any:
             return mod
 
     print(
-        "NOTE: normal `sentence_transformers` import failed (sklearn DLL block) -- "
-        "installing a sklearn import stub for this process only. See "
+        "NOTE: normal sklearn import failed (Application Control block) -- installing a "
+        "sklearn import stub for this process only. See "
         "docs/learned/phase3-embedding-equivalence-2026-09-17.md.",
         file=sys.stderr,
     )
     sys.meta_path.insert(0, _SklearnStubFinder())
+
+
+def _load_sentence_transformer_class() -> Any:
+    """Import `sentence_transformers.SentenceTransformer`, neutralising a blocked sklearn first."""
+    ensure_sklearn_importable()
     from sentence_transformers import SentenceTransformer
 
     return SentenceTransformer

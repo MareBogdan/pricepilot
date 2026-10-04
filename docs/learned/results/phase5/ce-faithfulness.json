@@ -1,0 +1,11 @@
+{
+  "pairs": 287,
+  "max_abs_diff": 1.7583370208740234e-06,
+  "mean_abs_diff": 5.841280742571121e-08,
+  "flips_at_threshold": 0,
+  "tolerance": 0.001,
+  "reproduced": true,
+  "weights_sha256": "e8843e39f154419de57c18fda3647434b0feebabf019659631fac8d0ee4dc1fc",
+  "seconds": 27.2,
+  "pairs_per_second": 10.5
+}
