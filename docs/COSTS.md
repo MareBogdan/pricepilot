@@ -22,6 +22,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 | 2026-09-28 | 5 | Session 1: pricing-policy thresholds config + deterministic margin/price guard (ADR-0034). Pure Python + config, no LLM calls, no GPU, no hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
 | 2026-09-28 | 5 | Session 2: policy RAG index (migration 0010, `build_policy_index.py`) + `retrieve_policy` + retrieval eval (ADR-0036). Local sentence-transformers embeddings only, no LLM API calls, no GPU rental, no paid hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
 | 2026-10-04 | 5 | Session 3: catalogue sync into `products` (migration 0011, `sync_catalogue.py`, ADR-0038). DB writes to the existing free-tier Neon only; no LLM calls, no GPU, no paid hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
+| 2026-10-04 | 5 | Session 3b: serve-time matcher on local CPU (torch fp32), migration 0012 `product_matches`, ~7,500 CE pairs scored (ADR-0039). No LLM calls, no GPU rental, no paid hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
 

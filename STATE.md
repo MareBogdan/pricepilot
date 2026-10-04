@@ -1,15 +1,16 @@
 # STATE
 
 Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
-Updated: 2026-10-04
+Updated: 2026-10-04 (s3b)
 
-**Where we are:** Phase 5 sessions 1/1b/2/3 DONE. Guard (ADR-0034), policy RAG index (ADR-0036,
-hit@3 0.950), Neon test-guard fix (ADR-0037). **Session 3 (2026-10-04, ADR-0038):** an architect
-audit found the planned "decision engine" session could not run -- `products` was EMPTY (our
-catalogue never synced), no `product_matches`/decision tables exist, and no serve-time matcher
-exists (Phase 3 closed the model choice only; `models/ce-ft-best.zip` is unextracted). `products`
-is now populated (30 rows from the mock store; migration 0011 adds `net_weight_g`). Next: s3b,
-the serve-time matcher. Phase 4 (demand) stays POSTPONE. Dataset FROZEN 2026-09-22, SHA-256 below.
+**Where we are:** Phase 5 sessions 1/1b/2/3/3b DONE. **s3b (2026-10-04, ADR-0039):** serve-time
+matcher built (torch fp32 CPU from `models/ce-ft-best`, NOT ONNX -- the zip is HF safetensors;
+ONNX is a Phase-7 concern). It reproduced the committed PyTorch-fp32 predictions (max |diff|
+1.8e-6, 0 flips) only after fixing a tokenizer mismatch (transformers 5.17 `</s></s>` vs
+`tokenizer.json` `</s>`). `product_matches` (migration 0012): **28 links, 14 of 30 products
+covered**. **ADR-0038 gate is PENDING Bogdan's blind labels of all 28 links** -- no precision
+computed. Its coverage criterion (>= 15 of 30) is unreachable at 14 products with any link: an
+architect decision. Phase 4 stays POSTPONE. Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -37,7 +38,8 @@ recommendations, zero margin violations. **Revised sub-sequence (2026-10-04, ADR
 the old "session 3 = decision engine")**: (1) policy thresholds config + guard [DONE, ADR-0034];
 (2) policy RAG index + retrieval eval [DONE, ADR-0036]; (s3) sync our 30-product catalogue into
 `products` [DONE 2026-10-04, ADR-0038]; (s3b) serve-time cross-encoder matcher -> `product_matches`
-(our products vs `norm_listings`, >=0.89) [NEXT, gate pre-registered in ADR-0038]; (s4) decision
+(our products vs `norm_listings`, >=0.89) [BUILT 2026-10-04, ADR-0039: 28 links, 14/30 products;
+gate PENDING blind labels, ADR-0038]; (s4) decision
 engine (SQL prices + matched competitor prices + labelled elasticity placeholder + RAG policy ->
 LLM[mocked] -> guard -> full trace), $0; (s5) the 50 recommendations on the real LLM (SPEND ~$2),
 zero-violation report. LLM transport done (`client.py`); §5.3 prompt caching is an optional gap.
@@ -52,6 +54,15 @@ placeholder.
 
 ## Last done
 
+00. **Phase 5 s3b: serve-time matcher + `product_matches` (2026-10-04, ADR-0039):** migration 0012
+   (`UNIQUE(product_id, source)`, `CHECK score >= threshold`); `matching/serve.py` +
+   `scripts/match_catalogue.py` (faithfulness gate first, brand-block candidates, >0.89 kept, one
+   per (product, shop), Decimal prices from latest `raw_listings`); blind worksheet
+   `docs/learned/results/phase5/match-verification-queue.csv` (28 rows, no score/label).
+   **DB-shape finding (Task 0):** `content_hash` is title-only and shared across shops (11,152
+   hashes in 1 shop, 18 in 2), so shop + price come from `raw_listings`; 6 of 11,074 current
+   (shop, hash) pairs have several SKUs under one title. Blocks: 6 of our brand keys exceed 300
+   (royalcanin 776, brit 745, hills 387, purina 371, calibra 332); `smolke` has no block (0).
 0. **Phase 5 session 3: catalogue synced into `products` (2026-10-04, ADR-0038):** migration 0011
    adds nullable `products.net_weight_g` (applied to Neon); `scripts/sync_catalogue.py` upserts the
    30 mock-store products (`get_catalogue()` public accessor) keyed on `id`, Decimal money, no
@@ -146,6 +157,12 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
   construction** -- documented, a v3 decision if Phase 4 reopens.
 - **`get_payload()`-routed callers have no end-to-end test against a real Postgres** (only pure
   logic + in-memory SQLite). Low priority.
+- **Matcher truncation loses real candidates (ADR-0039):** the audit found 5 listings >= 0.89
+  beyond the top-100 cosine cut across 13 products with blocks > 300. Scoring whole blocks costs
+  ~12 min of CPU. Decision for the architect before the labelled gate is scored.
+- **ADR-0038 coverage criterion unreachable:** needs >= 15 of 30 products with a correct match;
+  only 14 have any link. Do not edit ADR-0038 -- a new ADR if the criterion changes.
+- **Matcher is CPU-slow locally (~10 pairs/s)**; fine for 30 products, Phase 7 ONNX covers serving.
 - **`psycopg` import is intermittently blocked (Application Control) -- recurred 2026-10-04.**
   Detect with `.venv\Scripts\python -c "import psycopg"`; fall back to
   `PRICEPILOT_DB_DRIVER=pg8000` for any DB command (ADR-0038). The pg8000 path is untested by the
@@ -173,6 +190,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 5: s3b needs you to hand-verify the matcher's sample (ADR-0038 pre-registration). SPEND approval before the 50-recommendation run (est. ~$2, ADR-0030) -- at s5.
+Phase 5: hand-label the 28 links blind (`docs/learned/results/phase5/match-verification-README.md`), then decide the coverage-criterion and truncation questions (ADR-0039). SPEND approval before the 50-recommendation run (est. ~$2, ADR-0030) -- at s5.
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

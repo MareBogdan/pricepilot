@@ -367,3 +367,44 @@ psycopg-working environment, incl. the VPS).
 - *If it fails:* report the number as-is. The threshold is NOT retuned on the verified sample; any
   threshold/model change needs a new ADR and a fresh sample.
 **Date.** 2026-10-04
+
+## ADR-0039 — Served matcher: torch/safetensors on CPU (not ONNX), `product_matches` grain, block-and-score
+
+**Context.** Phase 5 s3b needs our 30 products matched to competitor listings. `models/ce-ft-best.zip`
+is HuggingFace format (safetensors + `tokenizer.json`), not ONNX. DB shape (verified 2026-10-04):
+`norm_listings.content_hash` is title-only and shared across shops (11,152 hashes in one shop, 18
+in two), so shop and price come from `raw_listings`; one shop can list several SKUs under one
+normalized title (6 of 11,074 current (shop, hash) pairs), with 1 differing in price.
+**Decision.** (1) Serve the fp32 torch weights on CPU: ONNX is a Phase-7 latency concern and the
+benchmark's own PyTorch and ONNX scores agree to 1e-5. Faithfulness guarantee: before any scoring,
+`check_ce_faithfulness.run` must reproduce the committed `preds-ce-ptfp32-test.json` (tolerance
+1e-3 and zero flips at 0.89, pre-registered in code before the first run) -- `match_catalogue.py`
+stops otherwise. **First attempt FAILED** (max |diff| 0.187, 1 flip): transformers 5.17's
+`AutoTokenizer` joins the pair with `</s></s>`, the model's `tokenizer.json` (used by the Kaggle
+runs) with a single `</s>`. Fixed by tokenising with `tokenizer.json` via `tokenizers`; result
+max |diff| 1.8e-6, 0 flips, sha256 of the weights matches `model-facts.json`. Scoring is directional
+`(our, competitor)`, no symmetrisation (Phase 3 never symmetrised). (2) `product_matches` grain =
+one row per (our product, shop), `UNIQUE(product_id, source)`, with the exact shop listing
+(`external_id`, `url`, `price_date`) the Decimal price came from; same-day multi-SKU tie ->
+in-stock, then cheapest, then lowest id; a price older than 7 days before that shop's newest scrape
+is not current; vet-diet exclusions never match. `score` stored rounded DOWN, `threshold` per row,
+CHECK `score >= threshold`. Rebuilt by delete + insert in one transaction (idempotent). (3)
+Candidates = `norm_listings` with our `brand_blocking_key`; blocks <= 300 scored in full (ADR-0030's
+K=100 was for the 10k-vs-10k re-match), blocks > 300 cut to top-100 by embedding cosine.
+**Provenance of the numbers above.** The block cut-off (> 300 -> top-100 cosine), torch instead
+of ONNX, and the 0.89 threshold all come from the s3b session brief and ADR-0030, fixed before the
+matcher ran; they deviate from ADR-0038's wording ("K=100, ONNX") deliberately and are not tuned to
+any result. Reviewer-driven hardening: the worksheet is keyed on `product_id:source` (the SERIAL
+`id` advances on every delete + insert re-run); the run summary now reports shops whose newest
+scrape is > 2 days old, chosen links whose shop SKU has a newer observation under another title,
+and block rows with no embedding (always cut by the cosine ORDER BY).
+**Result (not a gate verdict).** 28 links, 14 of 30 products with >= 1 link. The `--audit-truncation`
+diagnostic found **5 listings >= 0.89 beyond the top-100 cut** in the 13 truncated products (the
+cut loses real candidates; scoring whole blocks costs ~12 min, so a decision for the architect).
+**Consequence for the ADR-0038 gate:** its coverage criterion (>= 15 of 30 products with a
+CORRECT match) is arithmetically unreachable at 14 products with any link. Not edited here; the
+gate verdict still waits for Bogdan's blind labels, and changing the criterion needs a new ADR.
+**Alternatives rejected.** ONNX export (no benefit before Phase 7); `AutoTokenizer` (wrong
+separator under transformers 5.x); K=100 everywhere (needless at <= 300); symmetrising (not how it
+was benchmarked).
+**Date.** 2026-10-04
