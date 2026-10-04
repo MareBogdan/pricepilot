@@ -201,6 +201,16 @@ def _build_history(product: Product) -> list[HistoryPoint]:
     return points
 
 
+def get_catalogue() -> list[Product]:
+    """Our catalogue as built from SEED -- a fresh, deterministic copy (no server needed).
+
+    Public accessor for pipeline code (`scripts/sync_catalogue.py`) so nothing outside this
+    module reaches into `_CATALOGUE` / `_build_catalogue`. Ignores price updates applied to the
+    running app: it always returns the seeded state.
+    """
+    return _build_catalogue()
+
+
 _PRODUCTS: dict[int, Product] = {p.id: p for p in _build_catalogue()}
 _HISTORY: dict[int, list[HistoryPoint]] = {p.id: _build_history(p) for p in _PRODUCTS.values()}
 _AUDIT_LOG: list[PriceUpdateResult] = []
