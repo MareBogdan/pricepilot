@@ -1,6 +1,6 @@
 # Blind verification worksheet (ADR-0038)
 
-File: `match-verification-queue.csv` -- 28 links, one row each. ADR-0038 says verify ALL links
+File: `match-verification-queue.csv` -- 28 links, one row each, keyed by `link_key` (`product_id:shop`, stable across re-runs). ADR-0038 says verify ALL links
 when there are <= 120, so there is no sampled file.
 
 For each row, decide: is the competitor listing the **same purchasable unit** as our product,

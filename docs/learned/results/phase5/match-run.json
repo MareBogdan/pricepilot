@@ -8,11 +8,19 @@
     "tolerance": 0.001,
     "reproduced": true,
     "weights_sha256": "e8843e39f154419de57c18fda3647434b0feebabf019659631fac8d0ee4dc1fc",
-    "seconds": 27.6,
-    "pairs_per_second": 10.4
+    "seconds": 15.4,
+    "pairs_per_second": 18.7
   },
   "threshold": 0.89,
   "price_max_age_days": 7,
+  "run_date": "2026-10-05",
+  "shop_newest_scrape": {
+    "animax_ro": "2026-10-04",
+    "pentruanimale_ro": "2026-10-04",
+    "petmax_ro": "2026-10-04"
+  },
+  "shops_newest_scrape_older_than_2_days": {},
+  "links_with_newer_observation_under_another_title": [],
   "products": 30,
   "products_with_a_match": 14,
   "links": 28,
@@ -42,7 +50,9 @@
       "blocking_key": "orijen",
       "block_size": 36,
       "truncated_to_top_k": false,
-      "scored": 36
+      "scored_for_matching": 36,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 2,
@@ -50,7 +60,9 @@
       "blocking_key": "orijen",
       "block_size": 36,
       "truncated_to_top_k": false,
-      "scored": 36
+      "scored_for_matching": 36,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 3,
@@ -58,7 +70,9 @@
       "blocking_key": "orijen",
       "block_size": 36,
       "truncated_to_top_k": false,
-      "scored": 36
+      "scored_for_matching": 36,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 4,
@@ -66,7 +80,9 @@
       "blocking_key": "acana",
       "block_size": 89,
       "truncated_to_top_k": false,
-      "scored": 89
+      "scored_for_matching": 89,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 5,
@@ -74,7 +90,9 @@
       "blocking_key": "acana",
       "block_size": 89,
       "truncated_to_top_k": false,
-      "scored": 89
+      "scored_for_matching": 89,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 6,
@@ -82,7 +100,9 @@
       "blocking_key": "royalcanin",
       "block_size": 776,
       "truncated_to_top_k": true,
-      "scored": 776
+      "scored_for_matching": 100,
+      "scored_audit_only": 676,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 7,
@@ -90,7 +110,9 @@
       "blocking_key": "royalcanin",
       "block_size": 776,
       "truncated_to_top_k": true,
-      "scored": 776
+      "scored_for_matching": 100,
+      "scored_audit_only": 676,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 8,
@@ -98,7 +120,9 @@
       "blocking_key": "royalcanin",
       "block_size": 776,
       "truncated_to_top_k": true,
-      "scored": 776
+      "scored_for_matching": 100,
+      "scored_audit_only": 676,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 9,
@@ -106,7 +130,9 @@
       "blocking_key": "purina",
       "block_size": 371,
       "truncated_to_top_k": true,
-      "scored": 371
+      "scored_for_matching": 100,
+      "scored_audit_only": 271,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 10,
@@ -114,7 +140,9 @@
       "blocking_key": "purina",
       "block_size": 371,
       "truncated_to_top_k": true,
-      "scored": 371
+      "scored_for_matching": 100,
+      "scored_audit_only": 271,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 11,
@@ -122,7 +150,9 @@
       "blocking_key": "brit",
       "block_size": 745,
       "truncated_to_top_k": true,
-      "scored": 745
+      "scored_for_matching": 100,
+      "scored_audit_only": 645,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 12,
@@ -130,7 +160,9 @@
       "blocking_key": "brit",
       "block_size": 745,
       "truncated_to_top_k": true,
-      "scored": 745
+      "scored_for_matching": 100,
+      "scored_audit_only": 645,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 13,
@@ -138,7 +170,9 @@
       "blocking_key": "hills",
       "block_size": 387,
       "truncated_to_top_k": true,
-      "scored": 387
+      "scored_for_matching": 100,
+      "scored_audit_only": 287,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 14,
@@ -146,7 +180,9 @@
       "blocking_key": "tasteofthewild",
       "block_size": 73,
       "truncated_to_top_k": false,
-      "scored": 73
+      "scored_for_matching": 73,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 15,
@@ -154,7 +190,9 @@
       "blocking_key": "josera",
       "block_size": 102,
       "truncated_to_top_k": false,
-      "scored": 102
+      "scored_for_matching": 102,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 16,
@@ -162,7 +200,9 @@
       "blocking_key": "smolke",
       "block_size": 0,
       "truncated_to_top_k": false,
-      "scored": 0
+      "scored_for_matching": 0,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 17,
@@ -170,7 +210,9 @@
       "blocking_key": "bosch",
       "block_size": 49,
       "truncated_to_top_k": false,
-      "scored": 49
+      "scored_for_matching": 49,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 18,
@@ -178,7 +220,9 @@
       "blocking_key": "royalcanin",
       "block_size": 776,
       "truncated_to_top_k": true,
-      "scored": 776
+      "scored_for_matching": 100,
+      "scored_audit_only": 676,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 19,
@@ -186,7 +230,9 @@
       "blocking_key": "purina",
       "block_size": 371,
       "truncated_to_top_k": true,
-      "scored": 371
+      "scored_for_matching": 100,
+      "scored_audit_only": 271,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 20,
@@ -194,7 +240,9 @@
       "blocking_key": "brit",
       "block_size": 745,
       "truncated_to_top_k": true,
-      "scored": 745
+      "scored_for_matching": 100,
+      "scored_audit_only": 645,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 21,
@@ -202,7 +250,9 @@
       "blocking_key": "calibra",
       "block_size": 332,
       "truncated_to_top_k": true,
-      "scored": 332
+      "scored_for_matching": 100,
+      "scored_audit_only": 232,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 22,
@@ -210,7 +260,9 @@
       "blocking_key": "calibra",
       "block_size": 332,
       "truncated_to_top_k": true,
-      "scored": 332
+      "scored_for_matching": 100,
+      "scored_audit_only": 232,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 23,
@@ -218,7 +270,9 @@
       "blocking_key": "trixie",
       "block_size": 300,
       "truncated_to_top_k": false,
-      "scored": 300
+      "scored_for_matching": 300,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 24,
@@ -226,7 +280,9 @@
       "blocking_key": "petkult",
       "block_size": 267,
       "truncated_to_top_k": false,
-      "scored": 267
+      "scored_for_matching": 267,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 25,
@@ -234,7 +290,9 @@
       "blocking_key": "advance",
       "block_size": 155,
       "truncated_to_top_k": false,
-      "scored": 155
+      "scored_for_matching": 155,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 26,
@@ -242,7 +300,9 @@
       "blocking_key": "trixie",
       "block_size": 300,
       "truncated_to_top_k": false,
-      "scored": 300
+      "scored_for_matching": 300,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 27,
@@ -250,7 +310,9 @@
       "blocking_key": "trixie",
       "block_size": 300,
       "truncated_to_top_k": false,
-      "scored": 300
+      "scored_for_matching": 300,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 28,
@@ -258,7 +320,9 @@
       "blocking_key": "trixie",
       "block_size": 300,
       "truncated_to_top_k": false,
-      "scored": 300
+      "scored_for_matching": 300,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 29,
@@ -266,7 +330,9 @@
       "blocking_key": "trixie",
       "block_size": 300,
       "truncated_to_top_k": false,
-      "scored": 300
+      "scored_for_matching": 300,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     },
     {
       "product_id": 30,
@@ -274,7 +340,9 @@
       "blocking_key": "trixie",
       "block_size": 300,
       "truncated_to_top_k": false,
-      "scored": 300
+      "scored_for_matching": 300,
+      "scored_audit_only": 0,
+      "block_rows_without_embedding": 0
     }
   ],
   "worksheet": "docs/learned/results/phase5/match-verification-queue.csv"
