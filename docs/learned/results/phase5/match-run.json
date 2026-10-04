@@ -1,0 +1,281 @@
+{
+  "model_sha256": "e8843e39f154419de57c18fda3647434b0feebabf019659631fac8d0ee4dc1fc",
+  "faithfulness": {
+    "pairs": 287,
+    "max_abs_diff": 1.7583370208740234e-06,
+    "mean_abs_diff": 5.841280742571121e-08,
+    "flips_at_threshold": 0,
+    "tolerance": 0.001,
+    "reproduced": true,
+    "weights_sha256": "e8843e39f154419de57c18fda3647434b0feebabf019659631fac8d0ee4dc1fc",
+    "seconds": 27.6,
+    "pairs_per_second": 10.4
+  },
+  "threshold": 0.89,
+  "price_max_age_days": 7,
+  "products": 30,
+  "products_with_a_match": 14,
+  "links": 28,
+  "listings_at_or_above_threshold": 48,
+  "listings_dropped_no_current_price": 0,
+  "truncated_products": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    18,
+    19,
+    20,
+    21,
+    22
+  ],
+  "truncation_audit_ran": true,
+  "truncation_audit_matches_beyond_top_k": 5,
+  "per_product": [
+    {
+      "product_id": 1,
+      "title": "Orijen Original Dog Adult Mini 1.8 kg",
+      "blocking_key": "orijen",
+      "block_size": 36,
+      "truncated_to_top_k": false,
+      "scored": 36
+    },
+    {
+      "product_id": 2,
+      "title": "Orijen Original Dog Adult Mini 4.5 kg",
+      "blocking_key": "orijen",
+      "block_size": 36,
+      "truncated_to_top_k": false,
+      "scored": 36
+    },
+    {
+      "product_id": 3,
+      "title": "Orijen Original Dog Adult Mini 11.4 kg",
+      "blocking_key": "orijen",
+      "block_size": 36,
+      "truncated_to_top_k": false,
+      "scored": 36
+    },
+    {
+      "product_id": 4,
+      "title": "Acana Adult Small Breed 2 kg",
+      "blocking_key": "acana",
+      "block_size": 89,
+      "truncated_to_top_k": false,
+      "scored": 89
+    },
+    {
+      "product_id": 5,
+      "title": "Acana Adult Small Breed 6 kg",
+      "blocking_key": "acana",
+      "block_size": 89,
+      "truncated_to_top_k": false,
+      "scored": 89
+    },
+    {
+      "product_id": 6,
+      "title": "Royal Canin Mini Adult 2 kg",
+      "blocking_key": "royalcanin",
+      "block_size": 776,
+      "truncated_to_top_k": true,
+      "scored": 776
+    },
+    {
+      "product_id": 7,
+      "title": "Royal Canin Mini Adult 8 kg",
+      "blocking_key": "royalcanin",
+      "block_size": 776,
+      "truncated_to_top_k": true,
+      "scored": 776
+    },
+    {
+      "product_id": 8,
+      "title": "Royal Canin Maxi Adult 15 kg",
+      "blocking_key": "royalcanin",
+      "block_size": 776,
+      "truncated_to_top_k": true,
+      "scored": 776
+    },
+    {
+      "product_id": 9,
+      "title": "Purina Pro Plan Medium Adult 3 kg",
+      "blocking_key": "purina",
+      "block_size": 371,
+      "truncated_to_top_k": true,
+      "scored": 371
+    },
+    {
+      "product_id": 10,
+      "title": "Purina Pro Plan Medium Adult 14 kg",
+      "blocking_key": "purina",
+      "block_size": 371,
+      "truncated_to_top_k": true,
+      "scored": 371
+    },
+    {
+      "product_id": 11,
+      "title": "Brit Premium By Nature Adult Large Breed 3 kg",
+      "blocking_key": "brit",
+      "block_size": 745,
+      "truncated_to_top_k": true,
+      "scored": 745
+    },
+    {
+      "product_id": 12,
+      "title": "Brit Premium By Nature Adult Large Breed 15 kg",
+      "blocking_key": "brit",
+      "block_size": 745,
+      "truncated_to_top_k": true,
+      "scored": 745
+    },
+    {
+      "product_id": 13,
+      "title": "Hill's Science Plan Adult Medium 2.5 kg",
+      "blocking_key": "hills",
+      "block_size": 387,
+      "truncated_to_top_k": true,
+      "scored": 387
+    },
+    {
+      "product_id": 14,
+      "title": "Taste of the Wild High Prairie 2 kg",
+      "blocking_key": "tasteofthewild",
+      "block_size": 73,
+      "truncated_to_top_k": false,
+      "scored": 73
+    },
+    {
+      "product_id": 15,
+      "title": "Josera Miniwell 4.5 kg",
+      "blocking_key": "josera",
+      "block_size": 102,
+      "truncated_to_top_k": false,
+      "scored": 102
+    },
+    {
+      "product_id": 16,
+      "title": "Smolke Medium Adult Chicken 12 kg",
+      "blocking_key": "smolke",
+      "block_size": 0,
+      "truncated_to_top_k": false,
+      "scored": 0
+    },
+    {
+      "product_id": 17,
+      "title": "Bosch Adult Lamb & Rice 3 kg",
+      "blocking_key": "bosch",
+      "block_size": 49,
+      "truncated_to_top_k": false,
+      "scored": 49
+    },
+    {
+      "product_id": 18,
+      "title": "Royal Canin Instinctive Cat 85 g",
+      "blocking_key": "royalcanin",
+      "block_size": 776,
+      "truncated_to_top_k": true,
+      "scored": 776
+    },
+    {
+      "product_id": 19,
+      "title": "Purina Gourmet Gold Mousse 85 g",
+      "blocking_key": "purina",
+      "block_size": 371,
+      "truncated_to_top_k": true,
+      "scored": 371
+    },
+    {
+      "product_id": 20,
+      "title": "Brit Pate & Meat Beef 400 g",
+      "blocking_key": "brit",
+      "block_size": 745,
+      "truncated_to_top_k": true,
+      "scored": 745
+    },
+    {
+      "product_id": 21,
+      "title": "Calibra Joy Dog Classic Duck Strips 80 g",
+      "blocking_key": "calibra",
+      "block_size": 332,
+      "truncated_to_top_k": true,
+      "scored": 332
+    },
+    {
+      "product_id": 22,
+      "title": "Calibra Joy Dog Classic Chicken Strips 80 g",
+      "blocking_key": "calibra",
+      "block_size": 332,
+      "truncated_to_top_k": true,
+      "scored": 332
+    },
+    {
+      "product_id": 23,
+      "title": "Trixie Denta Fun Chicken Chewing Rings 100 g",
+      "blocking_key": "trixie",
+      "block_size": 300,
+      "truncated_to_top_k": false,
+      "scored": 300
+    },
+    {
+      "product_id": 24,
+      "title": "Petkult Training Treats Salmon 100 g",
+      "blocking_key": "petkult",
+      "block_size": 267,
+      "truncated_to_top_k": false,
+      "scored": 267
+    },
+    {
+      "product_id": 25,
+      "title": "Advance Cat Litter Clumping 10 kg",
+      "blocking_key": "advance",
+      "block_size": 155,
+      "truncated_to_top_k": false,
+      "scored": 155
+    },
+    {
+      "product_id": 26,
+      "title": "Trixie Silica Cat Litter 5 kg",
+      "blocking_key": "trixie",
+      "block_size": 300,
+      "truncated_to_top_k": false,
+      "scored": 300
+    },
+    {
+      "product_id": 27,
+      "title": "Trixie Soft Brush Slicker",
+      "blocking_key": "trixie",
+      "block_size": 300,
+      "truncated_to_top_k": false,
+      "scored": 300
+    },
+    {
+      "product_id": 28,
+      "title": "Trixie Nail Clipper Medium",
+      "blocking_key": "trixie",
+      "block_size": 300,
+      "truncated_to_top_k": false,
+      "scored": 300
+    },
+    {
+      "product_id": 29,
+      "title": "Trixie Ceramic Bowl 0.3L",
+      "blocking_key": "trixie",
+      "block_size": 300,
+      "truncated_to_top_k": false,
+      "scored": 300
+    },
+    {
+      "product_id": 30,
+      "title": "Trixie Nylon Collar Adjustable M",
+      "blocking_key": "trixie",
+      "block_size": 300,
+      "truncated_to_top_k": false,
+      "scored": 300
+    }
+  ],
+  "worksheet": "docs/learned/results/phase5/match-verification-queue.csv"
+}
