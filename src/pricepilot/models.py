@@ -63,6 +63,41 @@ class Product(Base):
     )
 
 
+class ProductMatch(Base):
+    """Phase 5 session 3b -- OUR product matched to a competitor listing (ADR-0039, migration 0012).
+
+    Grain: one row per (our product, competitor shop) -- the unique constraint enforces "at most
+    one match per (product, shop), highest score wins". The price is the matched shop listing's
+    latest observation from `raw_listings` (`external_id` + `price_date` say which), a SQL number,
+    never retrieved by similarity. `score` is rounded DOWN to 6 places and `threshold` is stored per
+    row, so `score >= threshold` holds exactly (CHECK).
+    """
+
+    __tablename__ = "product_matches"
+    __table_args__ = (
+        UniqueConstraint("product_id", "source", name="uq_product_matches_product_source"),
+        CheckConstraint("score >= threshold", name="ck_product_matches_score_ge_threshold"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    source: Mapped[str] = mapped_column(String(64))
+    norm_listing_id: Mapped[int] = mapped_column(ForeignKey("norm_listings.id", ondelete="CASCADE"))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    external_id: Mapped[str] = mapped_column(String(255))
+    url: Mapped[str] = mapped_column(Text)
+    competitor_title: Mapped[str] = mapped_column(Text)
+    score: Mapped[Decimal] = mapped_column(Numeric(7, 6))
+    threshold: Mapped[Decimal] = mapped_column(Numeric(7, 6))
+    model_sha256: Mapped[str] = mapped_column(String(64))
+    competitor_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    price_date: Mapped[date] = mapped_column(Date)
+    in_stock: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ScrapeRun(Base):
     """One execution of one source adapter. CLAUDE.md §5.6: every run is logged,
     and a >40% drop in items vs the previous run raises an alert instead of ingesting."""
