@@ -8,11 +8,13 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from pricepilot.config import get_settings
-from pricepilot.db import NEON_CONNECT_TIMEOUT_SECONDS, connect_with_wakeup_retry
+from pricepilot.db import connect_with_wakeup_retry, resolve_database_target
 from pricepilot.models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+_db_url, _connect_args = resolve_database_target(get_settings().database_url)
+# ConfigParser treats "%" as interpolation syntax; a URL-encoded password contains it.
+config.set_main_option("sqlalchemy.url", _db_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -40,7 +42,7 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={"connect_timeout": NEON_CONNECT_TIMEOUT_SECONDS},
+        connect_args=_connect_args,
     )
     with connect_with_wakeup_retry(connectable) as connection:
         context.configure(connection=connection, target_metadata=target_metadata)

@@ -55,6 +55,9 @@ class Product(Base):
     purchase_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     current_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     stock: Mapped[int] = mapped_column(Integer, default=0)
+    # Matcher key signal (same line at a different gramaj is a different product). NULL for
+    # grooming / accessories. Added by migration 0011, ADR-0038.
+    net_weight_g: Mapped[int | None] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

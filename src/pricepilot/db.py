@@ -11,11 +11,15 @@ to hit a cold start.
 
 from __future__ import annotations
 
+import os
+import ssl
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Any
 
 from sqlalchemy import Connection, Engine, create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -32,15 +36,35 @@ NEON_CONNECT_TIMEOUT_SECONDS = 15
 NEON_WAKEUP_RETRY_DELAY_SECONDS = 2.0
 
 
+# Fallback driver for machines where psycopg's libpq DLL is blocked by Application Control
+# (ADR-0038). Opt-in: `PRICEPILOT_DB_DRIVER=pg8000`. The `.env` value is never edited.
+DB_DRIVER_ENV = "PRICEPILOT_DB_DRIVER"
+
+
+def resolve_database_target(raw_url: str) -> tuple[str, dict[str, Any]]:
+    """The (url, connect_args) to hand to SQLAlchemy for `raw_url`.
+
+    Default: the URL unchanged plus psycopg's `connect_timeout`. With
+    `PRICEPILOT_DB_DRIVER=pg8000` the driver is swapped and the libpq-only query params
+    (`sslmode`, `channel_binding`) are translated: pg8000 rejects them and instead wants an
+    explicit `ssl_context` and `timeout`.
+    """
+    if os.environ.get(DB_DRIVER_ENV, "").lower() != "pg8000":
+        return raw_url, {"connect_timeout": NEON_CONNECT_TIMEOUT_SECONDS}
+    url = make_url(raw_url).set(drivername="postgresql+pg8000")
+    sslmode = url.query.get("sslmode", "")
+    url = url.difference_update_query(["sslmode", "channel_binding"])
+    args: dict[str, Any] = {"timeout": NEON_CONNECT_TIMEOUT_SECONDS}
+    if sslmode in ("require", "verify-ca", "verify-full"):
+        args["ssl_context"] = ssl.create_default_context()
+    return url.render_as_string(hide_password=False), args
+
+
 def get_engine() -> Engine:
     global _engine
     if _engine is None:
-        _engine = create_engine(
-            get_settings().database_url,
-            pool_pre_ping=True,
-            future=True,
-            connect_args={"connect_timeout": NEON_CONNECT_TIMEOUT_SECONDS},
-        )
+        url, connect_args = resolve_database_target(get_settings().database_url)
+        _engine = create_engine(url, pool_pre_ping=True, future=True, connect_args=connect_args)
     return _engine
 
 
