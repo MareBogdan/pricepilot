@@ -72,7 +72,7 @@ RUN_JSON = QUEUE_DIR / "match-run.json"
 VERIFY_ALL_UP_TO = 120
 SAMPLE_SEED = 20261004
 WORKSHEET_COLUMNS = [
-    "link_id",
+    "link_key",
     "our_title",
     "our_brand",
     "our_size",
@@ -83,6 +83,12 @@ WORKSHEET_COLUMNS = [
     "competitor_price_ron",
     "competitor_url",
 ]
+
+
+def link_key(product_id: int, source: str) -> str:
+    """Stable worksheet key. `(product_id, source)` is UNIQUE in `product_matches`, so unlike the
+    SERIAL `id` (which a delete + insert re-run advances) it survives a re-run."""
+    return f"{product_id}:{source}"
 
 
 def size_text(weight_g: int | None, volume_ml: int | None) -> str:
@@ -165,7 +171,11 @@ def main() -> int:
                     "blocking_key": key,
                     "block_size": len(block),
                     "truncated_to_top_k": truncated,
-                    "scored": len(to_score),
+                    "scored_for_matching": len(kept),
+                    "scored_audit_only": len(cut) if args.audit_truncation else 0,
+                    # NULL embeddings sort last in the cosine ORDER BY, so in a truncated block
+                    # they are always cut; counted so that is visible, not silent.
+                    "block_rows_without_embedding": sum(1 for r in block if r.embedding is None),
                 }
             )
             pairs = [
@@ -249,11 +259,45 @@ def main() -> int:
             for link in chosen
         ]
         covered = {link.product_id for link in chosen}
+        # Reporting only (not changing the choice): a shop SKU retitled after the matched title
+        # leaves its old title's last price "current" for up to PRICE_MAX_AGE_DAYS. Count chosen
+        # links whose (shop, external_id) has a newer observation under any other title.
+        newest_by_sku = {
+            (src, ext): day
+            for src, ext, day in session.execute(
+                select(
+                    RawListing.source,
+                    RawListing.external_id,
+                    func.max(RawListing.collected_date),
+                )
+                .where(
+                    RawListing.excluded_reason.is_(None),
+                    RawListing.external_id.in_({link.external_id for link in chosen}),
+                )
+                .group_by(RawListing.source, RawListing.external_id)
+            )
+        }
+        superseded = [
+            link_key(link.product_id, link.source)
+            for link in chosen
+            if newest_by_sku.get((link.source, link.external_id), date.min)
+            > link.payload["obs"]["collected_date"]
+        ]
+        today = date.today()
+        stale_shops = {
+            src: str(day) for src, day in source_latest.items() if (today - day).days > 2
+        }
+        if stale_shops:
+            print(f"WARNING: shops whose newest scrape is > 2 days old: {stale_shops}")
         summary = {
             "model_sha256": scorer.weights_sha256,
             "faithfulness": repro,
             "threshold": MATCH_THRESHOLD,
             "price_max_age_days": PRICE_MAX_AGE_DAYS,
+            "run_date": str(today),
+            "shop_newest_scrape": {k: str(v) for k, v in source_latest.items()},
+            "shops_newest_scrape_older_than_2_days": stale_shops,
+            "links_with_newer_observation_under_another_title": superseded,
             "products": len(products),
             "products_with_a_match": len(covered),
             "links": len(chosen),
@@ -280,7 +324,7 @@ def main() -> int:
             p = by_pid[m.product_id]
             ws_rows.append(
                 {
-                    "link_id": m.id,
+                    "link_key": link_key(m.product_id, m.source),
                     "our_title": p.title,
                     "our_brand": p.brand,
                     "our_size": size_text(p.net_weight_g, ours[p.id].record["net_volume_ml"]),
@@ -297,7 +341,7 @@ def main() -> int:
     summary["worksheet"] = str(QUEUE_CSV.relative_to(ROOT)).replace("\\", "/")
     if len(ws_rows) > VERIFY_ALL_UP_TO:
         sample = random.Random(SAMPLE_SEED).sample(ws_rows, VERIFY_ALL_UP_TO)
-        write_csv(SAMPLE_CSV, sorted(sample, key=lambda r: r["link_id"]))
+        write_csv(SAMPLE_CSV, sorted(sample, key=lambda r: r["link_key"]))
         summary["sample_worksheet"] = str(SAMPLE_CSV.relative_to(ROOT)).replace("\\", "/")
     RUN_JSON.write_text(json.dumps(summary, indent=2, default=str) + "\n", encoding="utf-8")
     print(f"persisted {len(rows)} links; coverage {len(covered)}/{len(products)} products")

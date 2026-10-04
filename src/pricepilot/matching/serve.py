@@ -108,7 +108,7 @@ def select_best_per_shop(links: Sequence[ScoredLink], threshold: float) -> list[
     score wins; an exact tie goes to the lowest `external_id` so the result is deterministic."""
     best: dict[tuple[int, str], ScoredLink] = {}
     for link in links:
-        if link.score < threshold:
+        if not link.score >= threshold:  # also drops NaN, for which `<` is False
             continue
         key = (link.product_id, link.source)
         cur = best.get(key)

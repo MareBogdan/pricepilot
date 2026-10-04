@@ -24,7 +24,7 @@ from pricepilot.matching.serve import (
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from match_catalogue import WORKSHEET_COLUMNS, size_text
+from match_catalogue import WORKSHEET_COLUMNS, link_key, size_text
 
 
 def test_weighted_product_becomes_a_listing_record() -> None:
@@ -90,6 +90,10 @@ def test_best_score_wins_per_product_and_shop() -> None:
     ]
 
 
+def test_nan_score_is_never_kept() -> None:
+    assert select_best_per_shop([_link(1, "s", float("nan"), "x")], 0.89) == []
+
+
 def test_threshold_is_inclusive_and_ties_are_deterministic() -> None:
     kept = select_best_per_shop(
         [
@@ -148,3 +152,5 @@ def test_blind_worksheet_has_no_score_and_no_label_column() -> None:
     assert not any(w in c for c in lowered for w in ("score", "label", "yes", "prob"))
     assert size_text(1800, None) == "1800 g" and size_text(None, 300) == "300 ml"
     assert size_text(None, None) == ""
+    # the key must not depend on the SERIAL id a re-run advances
+    assert link_key(7, "petmax_ro") == "7:petmax_ro" and WORKSHEET_COLUMNS[0] == "link_key"
