@@ -97,3 +97,16 @@ def test_every_conflict_is_reported_not_just_the_first() -> None:
         "life_stage_conflict",
         "flavour_conflict",
     ]
+
+
+def test_flavour_order_is_not_a_conflict_but_a_different_set_is() -> None:
+    assert conflicts(facts(flavour="tuna+salmon"), facts(flavour="salmon+tuna")) == []
+    assert conflicts(facts(flavour="tuna+salmon"), facts(flavour="tuna")) != []
+    assert conflicts(facts(flavour="tuna+salmon"), facts(flavour="tuna+shrimp")) != []
+
+
+def test_romanian_and_convention_stage_words_fold_to_one_marker() -> None:
+    assert life_stage_marker("Hrana pentru catei 2 kg", None) == "puppy"
+    assert life_stage_marker("Hrana pisicute 85 g", None) == "kitten"
+    assert life_stage_marker("Acme Mature 2 kg", None) == "mature"
+    assert conflicts(facts(title="Hrana catei Acme 2 kg"), facts(life_stage="adult")) != []

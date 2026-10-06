@@ -366,7 +366,7 @@ def main() -> int:
             "links_newly_surfaced_by_guard": sum(
                 1 for g in guard_effect if g["change"] == "newly_surfaced"
             ),
-            "listings_dropped_no_current_price": dropped_no_current_price,
+            "listings_dropped_no_current_price_post_guard": dropped_no_current_price,
             "truncated_products": [s["product_id"] for s in stats if s["truncated_to_top_k"]],
             "truncation_audit_ran": args.audit_truncation,
             "truncation_audit_matches_beyond_top_k": audit_lost if args.audit_truncation else None,

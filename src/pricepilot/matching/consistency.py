@@ -49,8 +49,19 @@ CATEGORY_COMPATIBLE: Mapping[str, frozenset[str]] = {
     "accessories": frozenset({"accessory", "toy"}),
 }
 
-# Stages the extractor does not produce but the conventions name. "pisoi" is Romanian for kitten.
-_TITLE_STAGE = re.compile(r"\b(kitten|pisoi|puppy|junior|senior)\b")
+# Stages the extractor does not produce but the conventions name (Rule 3: Kitten, Mature). Romanian
+# synonyms fold to the English word: pisoi/pisicute = kitten, catei/catelus/catelusi = puppy.
+# "pui" is NOT a stage here: in these shops it means chicken (normalize.attributes).
+_TITLE_STAGE = re.compile(
+    r"\b(kitten|pisoi|pisicute|puppy|catei|catelus|catelusi|junior|senior|mature)\b"
+)
+_STAGE_SYNONYM = {
+    "pisoi": "kitten",
+    "pisicute": "kitten",
+    "catei": "puppy",
+    "catelus": "puppy",
+    "catelusi": "puppy",
+}
 _DEFAULT_STAGE = "adult"
 
 
@@ -73,7 +84,13 @@ def life_stage_marker(title: str, extracted: str | None) -> str | None:
     found = _TITLE_STAGE.search(strip_diacritics(title.lower()))
     if found is None:
         return None
-    return "kitten" if found.group(1) == "pisoi" else found.group(1)
+    return _STAGE_SYNONYM.get(found.group(1), found.group(1))
+
+
+def flavour_set(flavour: str | None) -> frozenset[str]:
+    """The extractor joins several flavours with "+" in title order ("tuna+salmon"); the order a
+    shop writes them in is not a product difference (Rule 5: MIXED vs MIXED is decided normally)."""
+    return frozenset(f for f in (flavour or "").lower().split("+") if f)
 
 
 def conflicts(our: ListingFacts, competitor: ListingFacts) -> list[str]:
@@ -96,7 +113,8 @@ def conflicts(our: ListingFacts, competitor: ListingFacts) -> list[str]:
     elif (ours or theirs) not in (None, _DEFAULT_STAGE):
         reasons.append(f"life_stage_conflict:{ours or 'none'}!={theirs or 'none'}")
 
-    if our.flavour and competitor.flavour and our.flavour.lower() != competitor.flavour.lower():
+    our_flavours, their_flavours = flavour_set(our.flavour), flavour_set(competitor.flavour)
+    if our_flavours and their_flavours and our_flavours != their_flavours:
         reasons.append(f"flavour_conflict:{our.flavour}!={competitor.flavour}")
 
     return reasons
