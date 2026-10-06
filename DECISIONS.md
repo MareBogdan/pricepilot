@@ -408,3 +408,28 @@ gate verdict still waits for Bogdan's blind labels, and changing the criterion n
 separator under transformers 5.x); K=100 everywhere (needless at <= 300); symmetrising (not how it
 was benchmarked).
 **Date.** 2026-10-04
+
+## ADR-0040 -- Coverage is a reported metric, not a gate; the top-100 candidate cap is accepted
+
+**Context.** ADR-0038 gated s3b on ">= 15 of 30 products with a correct match" alongside precision
+and wrong-gramaj false positives. ADR-0039 measured 14 of 30 products with any link, which made
+the coverage criterion arithmetically unreachable. Blind labelling of the 28 links (2026-10-07,
+`docs/learned/results/phase5/gate-s3b.md`): precision 0.786 (22/28), wrong-gramaj 0% (0/28).
+**Decision.** (1) Coverage moves from a GATE to a REPORTED metric. This is a correction to
+ADR-0038's design on principle, and it would hold at any measured number (14, 20 or 30): coverage
+is market overlap -- whether our product is sold at petmax / animax / pentruanimale at all --
+not matcher quality, and a product a shop does not stock cannot be matched. It is not a response
+to missing 15. The matcher-quality gate is **precision >= 0.90 AND wrong-gramaj false positives
+<= 5%** on the blind-labelled links; both thresholds and the blind-labelling protocol are
+unchanged from ADR-0038. Recall is still not claimed. (2) The top-100 candidate cap (ADR-0039,
+blocks > 300) is ACCEPTED. The `--audit-truncation` diagnostic quantified the loss exactly: 5
+listings >= 0.89 beyond the cut across 13 products -- a bounded, documented limitation. Scoring
+whole blocks costs ~15 min of CPU on the dev laptop (and an attempt to do so lost its database
+connection to an idle timeout), so it is not worth it here; revisit on GitHub Actions after
+deployment if the 5 ever matter.
+**Alternatives rejected.** Keeping the coverage gate and adding sources until 15 products match
+(treats a market fact as a model defect); lowering the precision threshold after seeing 0.786
+(threshold changes need a new ADR and a fresh sample, ADR-0038); scoring whole blocks now.
+**Honesty note.** The labels were written by Claude, blind to the score, and are marked
+`claude_pending_bogdan_review`; ADR-0038 specified a human labeller, whose review is still owed.
+**Date.** 2026-10-07
