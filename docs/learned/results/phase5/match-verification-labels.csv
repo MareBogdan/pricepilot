@@ -1,0 +1,29 @@
+n,link_key,our_title,competitor_title,shop,label,reason,labeled_by
+1,2:animax_ro,Orijen Original Dog Adult Mini 4.5 kg,Hrana uscata pentru caini Orijen Original Dog Adult Mini 4.5 kg,animax_ro,YES,same brand/line/weight (Orijen Original Mini 4.5kg),claude_pending_bogdan_review
+2,3:pentruanimale_ro,Orijen Original Dog Adult Mini 11.4 kg,"ORIJEN Original Adult Dog, hrană uscată fără cereale câini, 11.4kg",pentruanimale_ro,YES,Orijen Original Adult 11.4kg; 'Mini' breed-size qualifier only,claude_pending_bogdan_review
+3,3:petmax_ro,Orijen Original Dog Adult Mini 11.4 kg,Orijen Adult Original - 11.4 kg,petmax_ro,YES,Orijen Original Adult 11.4kg,claude_pending_bogdan_review
+4,4:animax_ro,Acana Adult Small Breed 2 kg,Hrana uscata pentru caini Acana Dog Adult Small Breed 2 kg,animax_ro,YES,Acana Adult Small Breed 2kg,claude_pending_bogdan_review
+5,4:pentruanimale_ro,Acana Adult Small Breed 2 kg,"ACANA Heritage Adult Small Breed, hrană uscată fără cereale câini, 2kg",pentruanimale_ro,YES,Acana (Heritage) Adult Small Breed 2kg,claude_pending_bogdan_review
+6,4:petmax_ro,Acana Adult Small Breed 2 kg,"Acana Heritage Adult Small Breed, 2 kg",petmax_ro,YES,Acana (Heritage) Adult Small Breed 2kg,claude_pending_bogdan_review
+7,5:pentruanimale_ro,Acana Adult Small Breed 6 kg,"ACANA Heritage Adult Small Breed, hrană uscată fără cereale câini, 6kg",pentruanimale_ro,YES,Acana (Heritage) Adult Small Breed 6kg,claude_pending_bogdan_review
+8,5:petmax_ro,Acana Adult Small Breed 6 kg,"Acana Heritage Adult Small Breed, 6 kg",petmax_ro,YES,Acana (Heritage) Adult Small Breed 6kg,claude_pending_bogdan_review
+9,6:animax_ro,Royal Canin Mini Adult 2 kg,Hrana uscata pentru caini Royal Canin Mini Adult 2 kg,animax_ro,YES,Royal Canin Mini Adult 2kg,claude_pending_bogdan_review
+10,6:pentruanimale_ro,Royal Canin Mini Adult 2 kg,"ROYAL CANIN Mini Adult, hrană uscată câini, 2kg",pentruanimale_ro,YES,Royal Canin Mini Adult 2kg,claude_pending_bogdan_review
+11,6:petmax_ro,Royal Canin Mini Adult 2 kg,Royal Canin Mini Adult 2 kg,petmax_ro,YES,Royal Canin Mini Adult 2kg,claude_pending_bogdan_review
+12,7:animax_ro,Royal Canin Mini Adult 8 kg,Hrana uscata pentru caini Royal Canin Mini Adult 8 kg,animax_ro,YES,Royal Canin Mini Adult 8kg,claude_pending_bogdan_review
+13,7:pentruanimale_ro,Royal Canin Mini Adult 8 kg,"ROYAL CANIN Mini Adult, hrană uscată câini, 8kg",pentruanimale_ro,YES,Royal Canin Mini Adult 8kg,claude_pending_bogdan_review
+14,7:petmax_ro,Royal Canin Mini Adult 8 kg,Royal Canin Mini Adult 8 kg,petmax_ro,YES,Royal Canin Mini Adult 8kg,claude_pending_bogdan_review
+15,8:animax_ro,Royal Canin Maxi Adult 15 kg,Hrana uscata pentru caini Royal Canin Maxi Adult 15 kg,animax_ro,YES,Royal Canin Maxi Adult 15kg,claude_pending_bogdan_review
+16,8:pentruanimale_ro,Royal Canin Maxi Adult 15 kg,"ROYAL CANIN Maxi Adult, hrană uscată câini, 15kg",pentruanimale_ro,YES,Royal Canin Maxi Adult 15kg,claude_pending_bogdan_review
+17,8:petmax_ro,Royal Canin Maxi Adult 15 kg,Royal Canin Maxi Adult 15 Kg,petmax_ro,YES,Royal Canin Maxi Adult 15kg,claude_pending_bogdan_review
+18,14:animax_ro,Taste of the Wild High Prairie 2 kg,Hrana uscata pentru caini Taste of the Wild High Prairie 2 kg,animax_ro,YES,Taste of the Wild High Prairie 2kg,claude_pending_bogdan_review
+19,14:petmax_ro,Taste of the Wild High Prairie 2 kg,"Taste of the Wild High Prairie Canine Formula, 2 kg",petmax_ro,YES,Taste of the Wild High Prairie 2kg,claude_pending_bogdan_review
+20,18:animax_ro,Royal Canin Instinctive Cat 85 g,Hrana umeda pentru pisici Royal Canin Kitten Instinctive 85 g,animax_ro,NO,"LIFE-STAGE: ours is adult cat (Instinctive), comp is KITTEN",claude_pending_bogdan_review
+21,18:pentruanimale_ro,Royal Canin Instinctive Cat 85 g,"ROYAL CANIN Kitten, hrană umedă pisici, (în aspic), 85g",pentruanimale_ro,NO,"LIFE-STAGE: ours adult, comp KITTEN",claude_pending_bogdan_review
+22,19:petmax_ro,Purina Gourmet Gold Mousse 85 g,"Gourmet GOLD Mousse cu Pui, hrana umeda pentru pisici, 85g",petmax_ro,NO,"FLAVOUR: ours generic Mousse, comp 'cu Pui' (chicken) — unconfirmed same flavour",claude_pending_bogdan_review
+23,20:animax_ro,Brit Pate & Meat Beef 400 g,Hrana umeda pentru caini Brit Pate & Meat Vita 400g,animax_ro,YES,"FLAVOUR cross-language: Vita=Beef, same product",claude_pending_bogdan_review
+24,20:pentruanimale_ro,Brit Pate & Meat Beef 400 g,"BRIT Pate & Meat, Vită, conservă hrană umedă fără cereale câini, (pate cu bucăți de carne), 400g",pentruanimale_ro,YES,FLAVOUR cross-language: Vita=Beef,claude_pending_bogdan_review
+25,21:petmax_ro,Calibra Joy Dog Classic Duck Strips 80 g,"Recompense caini, Calibra Joy Dog Classic Duck Strips 80 g",petmax_ro,YES,Calibra Joy Dog Duck Strips 80g,claude_pending_bogdan_review
+26,22:petmax_ro,Calibra Joy Dog Classic Chicken Strips 80 g,"Recompense caini, Calibra Joy Dog Classic Beef Sticks 80 g",petmax_ro,NO,"FLAVOUR+FORM: ours Chicken Strips, comp BEEF Sticks",claude_pending_bogdan_review
+27,25:animax_ro,Advance Cat Litter Clumping 10 kg,Hrana uscata pentru pisici Advance Cat Kitten 10 kg,animax_ro,NO,"CATEGORY: ours is LITTER (nisip), comp is KITTEN FOOD",claude_pending_bogdan_review
+28,25:petmax_ro,Advance Cat Litter Clumping 10 kg,Advance Cat Kitten 10 kg,petmax_ro,NO,"CATEGORY: ours LITTER, comp KITTEN FOOD",claude_pending_bogdan_review
