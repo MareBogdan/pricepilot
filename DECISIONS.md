@@ -433,3 +433,41 @@ deployment if the 5 ever matter.
 **Honesty note.** The labels were written by Claude, blind to the score, and are marked
 `claude_pending_bogdan_review`; ADR-0038 specified a human labeller, whose review is still owed.
 **Date.** 2026-10-07
+
+## ADR-0041 -- Deterministic attribute-consistency guard on cross-encoder matches
+
+**Context.** The 6 false positives in the blind labels are all semantic, none a gramaj error: a
+litter bag matched to kitten food (2 links), an adult-cat wet food matched to a Kitten SKU (2),
+Chicken Strips matched to Beef Sticks (1), a generic Mousse matched to a chicken one (1). A wrong
+match feeds a wrong competitor price into the s4 decision engine, so the rule CLAUDE.md §6.2
+applies to the margin ("guardrails live in code, not in the model") applies to matching too.
+Inspection of both sides of the 28 links (2026-10-07) found: `norm_listings.life_stage` is NULL on
+every Kitten listing, because `normalize.attributes._LIFE_STAGE` has no "kitten"; our `products`
+rows carry a 6-value mock category, `norm_listings.category` carries food / accessory / litter /
+toy; our products carry no extracted `species`.
+**Decision.** `src/pricepilot/matching/consistency.py::conflicts` runs in Python after the
+cross-encoder's >= 0.89 cut and before the one-per-(product, shop) selection and persistence. It
+rejects only conflicts `docs/learned/phase3-annotation-conventions.md` calls unambiguous, and never
+rejects on missing information. (1) **Category** (Rule 0 + Scope): dry_food / wet_food / treats ->
+food; litter -> litter; grooming -> accessory; accessories -> accessory or toy; a competitor
+category outside that set rejects, an unknown competitor category passes. (2) **Life stage** (Rule
+3, formula-defining): both sides stated and different -> reject; one side stated, not plain
+"adult", the other silent -> reject, since Kitten / Puppy / Junior / Senior / an "Adult 7+" band
+each name a distinct SKU; plain "adult" against silence passes (the unmarked default; narrower than
+Rule 3 on purpose -- a missed match costs a link, a wrong match costs a price). The stage is read
+from the title as well as the extracted column, because the extractor has no "kitten"; the frozen
+extraction layer is untouched. (3) **Flavour** (Rule 5): both sides state a flavour and they
+differ -> reject; a flavour on one side only is the annotator's "skip", so it passes.
+Rejected pairs are removed BEFORE the best-per-shop selection, so a lower-scoring consistent
+listing >= 0.89 may take the slot; any such newly surfaced link is reported as unlabelled
+(`guard-effect.csv`).
+**Not fitted to the 6 rows.** Each rule restates a convention, with computed unit tests that do not
+use the known-bad titles. One of the 6 (generic Mousse vs "cu Pui") is NOT removable by a rule that
+never rejects on one-sided flavour, and the guard does not try. The guard was nonetheless
+motivated by this error analysis, so a post-guard precision computed on the same 28 labels is not
+an independent estimate; a fresh-catalogue re-verification would confirm it.
+**Alternatives rejected.** Raising the 0.89 threshold (ADR-0038 forbids tuning on the verified
+sample); rejecting one-sided flavour (contradicts Rule 5); editing the extractor to emit "kitten"
+(re-extraction of a frozen Phase 2/3 layer for a serving-time need); an LLM check (money, and a
+prompt is not a guardrail); matching on species (our products carry none).
+**Date.** 2026-10-07

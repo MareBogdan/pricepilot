@@ -12,9 +12,10 @@ Pipeline:
      the top-100 by embedding cosine, and every cut is reported. `--audit-truncation` additionally
      scores the cut-off remainder and reports how many >= threshold matches the cut would have
      lost -- a diagnostic only; it never changes what is persisted.
-  3. Score (our, competitor) with the cross-encoder, keep score >= 0.89, expand each kept listing
-     to the shops currently selling it (latest `raw_listings` price per shop), then at most ONE
-     link per (product, shop): highest score wins.
+  3. Score (our, competitor) with the cross-encoder, keep score >= 0.89, REJECT pairs the
+     attribute-consistency guard calls inconsistent (ADR-0041: category / life stage / flavour),
+     expand each kept listing to the shops currently selling it (latest `raw_listings` price per
+     shop), then at most ONE link per (product, shop): highest score wins.
   4. `product_matches` is rebuilt (delete + insert in one transaction): idempotent.
   5. Write the BLIND verification worksheet -- no score, no label (ADR-0038). Precision / gate is
      NOT computed here; it is scored only after the human labels are committed.
@@ -48,6 +49,7 @@ import check_ce_faithfulness  # noqa: E402
 from build_embeddings import embedding_text  # noqa: E402
 from pricepilot.db import check_database, session_scope  # noqa: E402
 from pricepilot.embeddings import embed  # noqa: E402
+from pricepilot.matching.consistency import ListingFacts, conflicts  # noqa: E402
 from pricepilot.matching.pair_text import build_pair_text  # noqa: E402
 from pricepilot.matching.serve import (  # noqa: E402
     LARGE_BLOCK_THRESHOLD,
@@ -68,6 +70,8 @@ QUEUE_DIR = ROOT / "docs" / "learned" / "results" / "phase5"
 QUEUE_CSV = QUEUE_DIR / "match-verification-queue.csv"
 SAMPLE_CSV = QUEUE_DIR / "match-verification-sample.csv"
 RUN_JSON = QUEUE_DIR / "match-run.json"
+GUARD_CSV = QUEUE_DIR / "guard-effect.csv"
+GUARD_COLUMNS = ["change", "link_key", "score", "competitor_title", "reasons"]
 # ADR-0038: verify ALL links if <= 120, else a seeded random sample of 120.
 VERIFY_ALL_UP_TO = 120
 SAMPLE_SEED = 20261004
@@ -192,12 +196,32 @@ def main() -> int:
             for (pid, nid), sc in scored.items()
             if nid in beyond_top_k[pid] and sc >= MATCH_THRESHOLD
         )
-        eligible = {
+        eligible_all = {
             k: sc
             for k, sc in scored.items()
             if sc >= MATCH_THRESHOLD and k[1] not in beyond_top_k[k[0]]
         }
-        hashes = {norm_rows[nid].content_hash for _, nid in eligible}
+        # ADR-0041: deterministic attribute guard, after the model and before persistence.
+        facts_ours = {
+            p.id: ListingFacts(
+                category=p.category,
+                title=p.title,
+                life_stage=ours[p.id].record.get("life_stage"),
+                flavour=ours[p.id].record.get("flavour"),
+            )
+            for p in products
+        }
+        guard_reasons: dict[tuple[int, int], list[str]] = {}
+        for pid, nid in eligible_all:
+            n = norm_rows[nid]
+            reasons = conflicts(
+                facts_ours[pid],
+                ListingFacts(n.category, n.sample_title, n.life_stage, n.flavour),
+            )
+            if reasons:
+                guard_reasons[(pid, nid)] = reasons
+        eligible = {k: sc for k, sc in eligible_all.items() if k not in guard_reasons}
+        hashes = {norm_rows[nid].content_hash for _, nid in eligible_all}
         oldest = min(source_latest.values()) - timedelta(days=PRICE_MAX_AGE_DAYS)
         raw = (
             session.scalars(
@@ -223,20 +247,54 @@ def main() -> int:
                     "title": r.title,
                 }
             )
-        links: list[ScoredLink] = []
-        dropped_no_current_price = 0
-        for (pid, nid), sc in eligible.items():
-            nrow = norm_rows[nid]
-            current = select_current_prices(
-                by_hash.get(nrow.content_hash, []), source_latest, PRICE_MAX_AGE_DAYS
-            )
-            if not current:
-                dropped_no_current_price += 1
-            for src, obs in current.items():
-                links.append(
-                    ScoredLink(pid, src, sc, obs["external_id"], {"norm": nrow, "obs": obs})
+
+        def choose(candidates: dict[tuple[int, int], float]) -> tuple[list[ScoredLink], int]:
+            links: list[ScoredLink] = []
+            dropped = 0
+            for (pid, nid), sc in candidates.items():
+                nrow = norm_rows[nid]
+                current = select_current_prices(
+                    by_hash.get(nrow.content_hash, []), source_latest, PRICE_MAX_AGE_DAYS
                 )
-        chosen = select_best_per_shop(links, MATCH_THRESHOLD)
+                if not current:
+                    dropped += 1
+                for src, obs in current.items():
+                    links.append(
+                        ScoredLink(pid, src, sc, obs["external_id"], {"norm": nrow, "obs": obs})
+                    )
+            return select_best_per_shop(links, MATCH_THRESHOLD), dropped
+
+        chosen_unguarded, _ = choose(eligible_all)
+        chosen, dropped_no_current_price = choose(eligible)
+
+        def ident(link: ScoredLink) -> tuple[int, str, int, str]:
+            return (link.product_id, link.source, link.payload["norm"].id, link.external_id)
+
+        kept_ids = {ident(link) for link in chosen}
+        before_ids = {ident(link) for link in chosen_unguarded}
+        guard_effect = [
+            {
+                "change": "removed",
+                "link_key": link_key(link.product_id, link.source),
+                "score": f"{link.score:.4f}",
+                "competitor_title": link.payload["obs"]["title"],
+                "reasons": ";".join(guard_reasons[(link.product_id, link.payload["norm"].id)]),
+            }
+            for link in chosen_unguarded
+            if ident(link) not in kept_ids
+        ] + [
+            {
+                # a lower-scoring listing >= 0.89 that took the (product, shop) slot once the
+                # guard removed the better-scoring but inconsistent one -- NOT in the labelled 28
+                "change": "newly_surfaced",
+                "link_key": link_key(link.product_id, link.source),
+                "score": f"{link.score:.4f}",
+                "competitor_title": link.payload["obs"]["title"],
+                "reasons": "",
+            }
+            for link in chosen
+            if ident(link) not in before_ids
+        ]
 
         # --- 4. persist -------------------------------------------------------------------------
         by_pid = {p.id: p for p in products}
@@ -301,7 +359,13 @@ def main() -> int:
             "products": len(products),
             "products_with_a_match": len(covered),
             "links": len(chosen),
-            "listings_at_or_above_threshold": len(eligible),
+            "listings_at_or_above_threshold": len(eligible_all),
+            "listings_rejected_by_consistency_guard": len(guard_reasons),
+            "links_before_guard": len(chosen_unguarded),
+            "links_removed_by_guard": sum(1 for g in guard_effect if g["change"] == "removed"),
+            "links_newly_surfaced_by_guard": sum(
+                1 for g in guard_effect if g["change"] == "newly_surfaced"
+            ),
             "listings_dropped_no_current_price": dropped_no_current_price,
             "truncated_products": [s["product_id"] for s in stats if s["truncated_to_top_k"]],
             "truncation_audit_ran": args.audit_truncation,
@@ -343,6 +407,10 @@ def main() -> int:
         sample = random.Random(SAMPLE_SEED).sample(ws_rows, VERIFY_ALL_UP_TO)
         write_csv(SAMPLE_CSV, sorted(sample, key=lambda r: r["link_key"]))
         summary["sample_worksheet"] = str(SAMPLE_CSV.relative_to(ROOT)).replace("\\", "/")
+    with GUARD_CSV.open("w", encoding="utf-8", newline="") as f:
+        gw = csv.DictWriter(f, fieldnames=GUARD_COLUMNS)
+        gw.writeheader()
+        gw.writerows(guard_effect)
     RUN_JSON.write_text(json.dumps(summary, indent=2, default=str) + "\n", encoding="utf-8")
     print(f"persisted {len(rows)} links; coverage {len(covered)}/{len(products)} products")
     print(f"worksheet: {QUEUE_CSV}")
