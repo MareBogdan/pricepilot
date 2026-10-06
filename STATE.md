@@ -1,16 +1,20 @@
 # STATE
 
 Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
-Updated: 2026-10-04 (s3b)
+Updated: 2026-10-07 (s3b guard)
 
 **Where we are:** Phase 5 sessions 1/1b/2/3/3b DONE. **s3b (2026-10-04, ADR-0039):** serve-time
 matcher built (torch fp32 CPU from `models/ce-ft-best`, NOT ONNX -- the zip is HF safetensors;
 ONNX is a Phase-7 concern). It reproduced the committed PyTorch-fp32 predictions (max |diff|
 1.8e-6, 0 flips) only after fixing a tokenizer mismatch (transformers 5.17 `</s></s>` vs
-`tokenizer.json` `</s>`). `product_matches` (migration 0012): **28 links, 14 of 30 products
-covered**. **ADR-0038 gate is PENDING Bogdan's blind labels of all 28 links** -- no precision
-computed. Its coverage criterion (>= 15 of 30) is unreachable at 14 products with any link: an
-architect decision. Phase 4 stays POSTPONE. Dataset FROZEN 2026-09-22, SHA-256 below.
+`tokenizer.json` `</s>`). `product_matches` (migration 0012): 28 links pre-guard (blind labels, Claude-written: precision
+0.786 = 22/28, wrong-gramaj 0%). **2026-10-07, ADR-0040/0041:** coverage is reported, not gated;
+a deterministic attribute-consistency guard (category / life-stage / flavour) now runs after the
+cross-encoder: **28 -> 25 links, 13 of 30 products** (animax 8, pentruanimale 7, petmax 10); it
+removed 5 of the 6 known FPs (the generic-Mousse vs "cu Pui" one survives by design). **2 links
+newly surfaced** (the guard frees a slot for the next >= 0.89 candidate) and are NOT in the 28
+labels. **Gate PENDING the architect's post-guard precision** (needs those 2 labelled). Phase 4
+stays POSTPONE. Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -38,8 +42,8 @@ recommendations, zero margin violations. **Revised sub-sequence (2026-10-04, ADR
 the old "session 3 = decision engine")**: (1) policy thresholds config + guard [DONE, ADR-0034];
 (2) policy RAG index + retrieval eval [DONE, ADR-0036]; (s3) sync our 30-product catalogue into
 `products` [DONE 2026-10-04, ADR-0038]; (s3b) serve-time cross-encoder matcher -> `product_matches`
-(our products vs `norm_listings`, >=0.89) [BUILT 2026-10-04, ADR-0039: 28 links, 14/30 products;
-gate PENDING blind labels, ADR-0038]; (s4) decision
+(our products vs `norm_listings`, >=0.89) [BUILT 2026-10-04, ADR-0039; guard ADR-0041 2026-10-07:
+28 -> 25 links, 13/30 products; gate PENDING architect's post-guard precision, ADR-0040]; (s4) decision
 engine (SQL prices + matched competitor prices + labelled elasticity placeholder + RAG policy ->
 LLM[mocked] -> guard -> full trace), $0; (s5) the 50 recommendations on the real LLM (SPEND ~$2),
 zero-violation report. LLM transport done (`client.py`); §5.3 prompt caching is an optional gap.
@@ -54,6 +58,11 @@ placeholder.
 
 ## Last done
 
+000. **Phase 5 s3b close: consistency guard (2026-10-07, ADR-0040/0041):** `matching/consistency.py`
+   rejects category / life-stage / flavour conflicts after the >= 0.89 cut, before one-per-shop
+   selection; computed unit tests; `reviewer` findings fixed (a36ad6a). Re-run twice, identical
+   output (only timing differs). `guard-effect.csv` lists 5 removed + 2 newly surfaced links.
+   Pre-guard baseline kept in `gate-s3b.md`. Cost $0.
 00. **Phase 5 s3b: serve-time matcher + `product_matches` (2026-10-04, ADR-0039):** migration 0012
    (`UNIQUE(product_id, source)`, `CHECK score >= threshold`); `matching/serve.py` +
    `scripts/match_catalogue.py` (faithfulness gate first, brand-block candidates, >0.89 kept, one
@@ -190,6 +199,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 5: hand-label the 28 links blind (`docs/learned/results/phase5/match-verification-README.md`), then decide the coverage-criterion and truncation questions (ADR-0039). SPEND approval before the 50-recommendation run (est. ~$2, ADR-0030) -- at s5.
+Phase 5: review the Claude-written labels (`match-verification-labels.csv`, `claude_pending_bogdan_review`), label the 2 newly surfaced links (`guard-effect.csv`), then the architect computes post-guard precision into `gate-s3b.md`. SPEND approval before the 50-recommendation run (est. ~$2, ADR-0030) -- at s5.
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).
