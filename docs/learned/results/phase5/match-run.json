@@ -8,24 +8,28 @@
     "tolerance": 0.001,
     "reproduced": true,
     "weights_sha256": "e8843e39f154419de57c18fda3647434b0feebabf019659631fac8d0ee4dc1fc",
-    "seconds": 15.4,
-    "pairs_per_second": 18.7
+    "seconds": 26.5,
+    "pairs_per_second": 10.8
   },
   "threshold": 0.89,
   "price_max_age_days": 7,
-  "run_date": "2026-10-05",
+  "run_date": "2026-10-07",
   "shop_newest_scrape": {
-    "animax_ro": "2026-10-04",
-    "pentruanimale_ro": "2026-10-04",
-    "petmax_ro": "2026-10-04"
+    "animax_ro": "2026-10-06",
+    "pentruanimale_ro": "2026-10-06",
+    "petmax_ro": "2026-10-06"
   },
   "shops_newest_scrape_older_than_2_days": {},
   "links_with_newer_observation_under_another_title": [],
   "products": 30,
-  "products_with_a_match": 14,
-  "links": 28,
+  "products_with_a_match": 13,
+  "links": 25,
   "listings_at_or_above_threshold": 48,
-  "listings_dropped_no_current_price": 0,
+  "listings_rejected_by_consistency_guard": 17,
+  "links_before_guard": 28,
+  "links_removed_by_guard": 5,
+  "links_newly_surfaced_by_guard": 2,
+  "listings_dropped_no_current_price_post_guard": 0,
   "truncated_products": [
     6,
     7,
@@ -41,8 +45,8 @@
     21,
     22
   ],
-  "truncation_audit_ran": true,
-  "truncation_audit_matches_beyond_top_k": 5,
+  "truncation_audit_ran": false,
+  "truncation_audit_matches_beyond_top_k": null,
   "per_product": [
     {
       "product_id": 1,
@@ -101,7 +105,7 @@
       "block_size": 776,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 676,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -111,7 +115,7 @@
       "block_size": 776,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 676,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -121,7 +125,7 @@
       "block_size": 776,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 676,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -131,7 +135,7 @@
       "block_size": 371,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 271,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -141,7 +145,7 @@
       "block_size": 371,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 271,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -151,7 +155,7 @@
       "block_size": 745,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 645,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -161,7 +165,7 @@
       "block_size": 745,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 645,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -171,7 +175,7 @@
       "block_size": 387,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 287,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -221,7 +225,7 @@
       "block_size": 776,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 676,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -231,7 +235,7 @@
       "block_size": 371,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 271,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -241,7 +245,7 @@
       "block_size": 745,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 645,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -251,7 +255,7 @@
       "block_size": 332,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 232,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {
@@ -261,7 +265,7 @@
       "block_size": 332,
       "truncated_to_top_k": true,
       "scored_for_matching": 100,
-      "scored_audit_only": 232,
+      "scored_audit_only": 0,
       "block_rows_without_embedding": 0
     },
     {

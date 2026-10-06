@@ -1,0 +1,8 @@
+change,link_key,score,competitor_title,reasons
+removed,18:animax_ro,0.9993,Hrana umeda pentru pisici Royal Canin Kitten Instinctive 85 g,life_stage_conflict:none!=kitten
+removed,18:pentruanimale_ro,0.9028,"ROYAL CANIN Kitten, hrană umedă pisici, (în aspic), 85g",life_stage_conflict:none!=kitten
+removed,22:petmax_ro,0.9995,"Recompense caini, Calibra Joy Dog Classic Beef Sticks 80 g",flavour_conflict:chicken!=beef
+removed,25:animax_ro,0.9912,Hrana uscata pentru pisici Advance Cat Kitten 10 kg,category_conflict:litter!=food;life_stage_conflict:none!=kitten
+removed,25:petmax_ro,0.9978,Advance Cat Kitten 10 kg,category_conflict:litter!=food;life_stage_conflict:none!=kitten
+newly_surfaced,18:animax_ro,0.9636,Hrana umeda pentru pisici Royal Canin Instinctive in Gravy 85 g,
+newly_surfaced,22:petmax_ro,0.9992,"Recompense caini, Calibra Joy Dog Classic Chicken Bits 80 g",
