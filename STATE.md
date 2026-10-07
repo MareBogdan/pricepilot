@@ -68,7 +68,7 @@ placeholder.
 
 00000000. **Phase 7a.2: dashboard polish (2026-10-07, ADR-0050):** `make.ps1 dev` + `start.ps1` + `make dev`;
    hero tiles, verdict and margin charts, price-comparison bars, shop-colour/status-colour palette validated
-   with the dataviz script; `/api/overview`; listings reconciliation on the status page; 26 API tests; reviewer findings fixed (a duplicate CSS token had turned FLAG badges and the caveat banner near-unreadable in light mode; the zero-shot baseline now also shows the all-'match' F1 0.51; Chart.js pinned with SRI). Light mode and a true 390px phone width were NOT screenshot-verified (headless Chrome here forces dark and a 500px minimum).
+   with the dataviz script; `/api/overview`; listings reconciliation on the status page; 24 dashboard-API tests; reviewer findings fixed (a duplicate CSS token had turned FLAG badges and the caveat banner near-unreadable in light mode; the zero-shot baseline now also shows the all-'match' F1 0.51; Chart.js pinned with SRI). Light mode and a true 390px phone width were NOT screenshot-verified (headless Chrome here forces dark and a 500px minimum).
 
 0000000. **Phase 7a: CI green + API + dashboard (2026-10-07, ADR-0048/0049):** frozen-queue hash tests now
    LF-normalised; `src/pricepilot/api/` (queries, schemas, routes, Jinja2 templates, CSS); 15 API tests
