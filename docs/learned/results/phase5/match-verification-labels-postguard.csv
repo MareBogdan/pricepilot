@@ -1,0 +1,3 @@
+n,link_key,our_title,competitor_title,shop,label,reason,labeled_by
+29,18:animax_ro,Royal Canin Instinctive Cat 85 g,Hrana umeda pentru pisici Royal Canin Instinctive in Gravy 85 g,animax_ro,YES,"same brand/line/weight; 'in Gravy' texture is stated on the competitor side only (one-sided qualifier does not reject, annotation conventions). LOW CONFIDENCE: Instinctive is sold in gravy and jelly SKUs",claude_pending_bogdan_review
+30,22:petmax_ro,Calibra Joy Dog Classic Chicken Strips 80 g,"Recompense caini, Calibra Joy Dog Classic Chicken Bits 80 g",petmax_ro,NO,"FORM: ours Chicken STRIPS, competitor Chicken BITS (distinct products in the range)",claude_pending_bogdan_review

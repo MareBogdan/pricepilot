@@ -37,3 +37,18 @@ def test_links_join_on_title_so_a_reused_link_key_is_unlabelled() -> None:
     result = score(LABELS, links)
     assert result["links_scored"] == 1 and result["precision"] == 1.0
     assert result["unlabelled_links"] == ["4:a"]
+
+
+def test_committed_labels_reproduce_the_recorded_precision_figures() -> None:
+    """The numbers quoted in gate-s3b.md, recomputed from the committed CSVs (pre-guard 22/28 and
+    post-guard 23/25 with the merged post-guard labels). A silent label edit fails this."""
+    from score_match_labels import PHASE5, read
+
+    pre = read(PHASE5 / "match-verification-labels.csv")
+    post_extra = read(PHASE5 / "match-verification-labels-postguard.csv")
+    queue = read(PHASE5 / "match-verification-queue.csv")
+    r_pre = score(pre, None)
+    assert (r_pre["links_scored"], r_pre["yes"]) == (28, 22)
+    r_post = score(pre + post_extra, queue)
+    assert (r_post["links_scored"], r_post["yes"], r_post["unlabelled_links"]) == (25, 23, [])
+    assert r_post["wrong_gramaj_false_positives"] == 0

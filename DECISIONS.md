@@ -219,78 +219,33 @@ regression for no gain (only §5.3 prompt caching on the system prompt is an opt
 
 ## ADR-0034 — Pricing-policy thresholds as one config; the guard is the final authority
 
-**Context.** Phase 5 session 1: the margin/price guard needs the policy's numbers (margin floors,
-speed limits, discount eligibility, charm rounding) without ever parsing
-`docs/policy/pricing-policy.md` at runtime (CLAUDE.md section 6, hard rule 2 -- guardrails live in
-code, not prompts/prose).
-**Decision.** `config/pricing-policy.toml` is the single structured source; `src/pricepilot/policy/
-thresholds.py` loads and validates it (Pydantic v2: all six categories present, every floor in
-(0,1), all limits positive) via stdlib `tomllib`. `src/pricepilot/policy/guard.py` reads only this
-config (never the markdown doc) and exposes one composed entry point, `enforce()`: eligibility ->
-margin floor -> speed limit -> charm round -> re-check floor after rounding, returning
-APPROVE(price) / REJECT(reason) / FLAG(reason). All money is `Decimal` (ADR-0007). An unknown
-category raises (fail closed) instead of ever being approved; a missing 7-day reference price
-raises inside `within_speed_limits` and `enforce` turns that into FLAG, never a silent pass. This
-guard, not the LLM that will later propose a price (session 3), is the final authority -- the LLM's
-proposal is only ever a suggestion `enforce()` can override.
-**Alternatives rejected.** Threshold literals inline in the guard code -- one config keeps the
-guard, a future admin UI, and tests all reading the same numbers. Enforcing the margin inside the
-LLM prompt -- a prompt is a suggestion; CLAUDE.md requires the rule to be code. MAP-brand,
-new-product-age, manual-lock and promotion/competitor-hold checks (policy §2-5) are OUT of scope
-this session -- the mock store's `Product` model has no fields for them yet (see STATE.md Open
-issues); stubbing or faking them was explicitly avoided rather than inventing a number.
+**Context.** The guard needs the policy's numbers without parsing `docs/policy/pricing-policy.md`
+at runtime (CLAUDE.md section 6, rule 2: guardrails live in code, not prompts).
+**Decision.** `config/pricing-policy.toml` is the single structured source, loaded and validated by
+`policy/thresholds.py` (Pydantic v2). `policy/guard.py::enforce` is the one entry point: no-change
+short-circuit -> charm round (floor-safe) -> floor re-check -> discount eligibility -> speed limit,
+APPROVE / REJECT / FLAG, all `Decimal`. Unknown category or non-positive money raises (fail closed);
+a speed breach or missing 7-day reference is FLAG (policy section 4: human approval), never a silent
+pass. The LLM only proposes; this guard decides. **Review fixes (2026-09-28):** checks run on the
+ROUNDED price (rounding had slipped past eligibility/speed); a genuine no-change is approved
+unrounded (rounding manufactured a 179.00 -> 178.90 discount). **Later:** ADR-0043 keeps the move's
+direction through rounding. **Out of scope** (no mock-store field): MAP brands, new-product age,
+manual lock, promotion/competitor-hold rules. **Rejected:** inline threshold literals; enforcing the
+margin in the prompt. **Full text (with addenda):** `docs/archive/DECISIONS-ADR-0034-0036-full.md`.
 **Date.** 2026-09-28
-
-**Correction, same session (`reviewer` catch before push).** The first cut checked eligibility and
-the speed limit against the *unrounded* proposal, then rounded last -- charm rounding (which can
-move a price by up to ~1 RON) could invalidate a check that had already passed, letting APPROVE
-through with a price that violated eligibility or the speed limit (e.g. an unchanged 179.00
-proposal on a zero-stock product rounds down to 178.90, an unchecked discount). Fixed (Bogdan's
-choice, of 3 named options) by rounding FIRST and running every remaining check -- floor,
-eligibility, speed -- against the final price. Also, per Bogdan's choice: a speed-limit breach is
-FLAG, not REJECT (matches policy §4's "requires human approval" wording, and covers the case where
-rounding itself introduces the breach). Also added: non-positive `cost`/`price` now raises instead
-of silently producing a trivially-passing margin. Never pushed in the broken form.
-
-**Addendum, session 1b (2026-09-28).** Architect audit: no mock-store catalogue price is itself a
-charm value, so the round-first order (above) turned every genuine "keep the price"
-recommendation into a small unintended move (e.g. 179.00 -> 178.90 on zero stock -- an unchecked
-discount policy §7 says should never be manufactured: "doing nothing is always acceptable"). Fixed:
-`enforce` now short-circuits BEFORE `charm_round` when `proposed_price == current_price` --
-APPROVE `current_price` exactly (no rounding), or FLAG if that kept price is already below the
-category floor (the core invariant -- never APPROVE below the floor -- holds on this path too). A
-real change (`proposed_price != current_price`) is untouched: still round-first-then-check.
-**Alternative rejected.** Rounding every proposal uniformly, no-change or not -- manufactures a
-move out of every no-op, which is exactly what policy §7 forbids.
 
 ## ADR-0036 — RAG over the pricing policy: section chunks, shared model, numbers stay out
 
-**Context.** Phase 5 session 2: the decision engine (session 3) needs relevant policy prose as LLM
-context without sending the whole document every call. CLAUDE.md section 6, hard rule 1: RAG is
-only for policy TEXT -- every number stays in SQL/`config/pricing-policy.toml`.
-**Decision.** `policy_chunks` (migration 0010) co-located with `norm_listings.embedding` in the
-same database -- ADR-0014's split is Neon vs. local-test-docker, not two production databases.
-Chunked by the document's 7 numbered sections (a rule and its exceptions stay together), embedded
-with the SAME model `norm_listings` uses (`paraphrase-multilingual-MiniLM-L12-v2`, 384-dim, local,
-free) via a new shared `src/pricepilot/embeddings.py` (used by the two new Phase 5 call sites only
--- `scripts/build_embeddings.py` is untouched). `retrieve_policy()` embeds the query with the same
-model and ranks by pgvector cosine distance; returns text only, never a number. No ANN index at ~7
-rows. Verified against the real database this session: migration applied (`alembic current`: 0010
-head), 7 rows after indexing, still 7 after a second run (idempotent, no dupes). Retrieval eval, 20
-pre-registered questions: hit@1 0.850, hit@3 0.950, MRR 0.912 -- one miss not chased further
-(editing the question set after seeing a metric is exactly the thing pre-registration exists to
-prevent). **Process note:** the eval CSV's commit landed after an exploratory run of the eval
-script rather than strictly before it as intended -- content was authored blind and unedited since,
-disclosed in that commit's own message rather than silently reordered.
-**Also this session:** the psycopg/Application-Control DB block that blocked earlier sessions
-proved transient -- `DATABASE_URL` (Neon) connects directly again; the `pg8000` workaround
-(ADR-0028) was probed once but not needed for the actual work.
-**Alternatives rejected.** Sentence- or fixed-token-window chunking -- breaks rule coherence at
-this document's size. A second embedding model for policy text -- a query/index mismatch is a
-silent RAG bug; reusing the one model already in the stack avoids it by construction. Storing a
-threshold value in `policy_chunks` for convenience -- exactly the "number retrieved by similarity"
-bug CLAUDE.md names as what an interviewer looks for.
-**Date.** 2026-09-28
+**Context.** The decision engine needs relevant policy prose without sending the whole document;
+CLAUDE.md section 6 rule 1: RAG is only for policy TEXT, every number stays in SQL / the TOML.
+**Decision.** `policy_chunks` (migration 0010), one row per numbered policy section, embedded with
+the SAME local model as `norm_listings` (`paraphrase-multilingual-MiniLM-L12-v2`, 384-dim) via
+`pricepilot.embeddings`; `retrieve_policy()` ranks by pgvector cosine and returns text only. Eval (20
+pre-registered questions): hit@1 0.850, hit@3 0.950, MRR 0.912, one miss not chased (tuning to the
+eval is what pre-registration prevents); the eval CSV commit landed after an exploratory run,
+disclosed in its commit. **Rejected:** sentence/window chunking, a second embedding model (silent
+query/index mismatch), storing thresholds in `policy_chunks`. **Full text:**
+`docs/archive/DECISIONS-ADR-0034-0036-full.md`. **Date.** 2026-09-28
 
 ## ADR-0037 — ADR-0014's Neon test guard had a hole: popping DATABASE_URL doesn't isolate .env
 
@@ -577,4 +532,43 @@ make them real floor tests, est. ~$0.10 -- a separate SPEND decision.
 **Alternatives rejected.** Silently re-running the 4 items (spend beyond the approved line, and it would
 overwrite the evidence of the fault); editing the stored verdicts after the fact; dropping the
 truncated rows from the denominator.
+**Date.** 2026-10-07
+
+## ADR-0045 -- Make the Phase 5 gate meaningful: scenarios become guard stress-tests
+
+**Context.** ADR-0044 found the 50-row gate weak: 42 of 45 APPROVEs were no-change; all 20 scenario
+rows self-neutralised because my prompt announced the competitor prices as hypothetical (20 of 20
+rationales cite it); 17 baseline rows had no competitor data; 4 replies were cut off at
+`max_tokens=400`. Bogdan authorised an explicit adversarial re-run.
+**Decision.** (1) The 20 scenario rows are re-framed as GUARD STRESS-TESTS (scenario names
+`stress_undercut_15` / `stress_undercut_30`): the competitor prices (observed x 0.85 / x 0.70) are
+presented in the prompt as ordinary pricing input, and the model is not told they are synthetic. The
+deception is of the model under test only, and is disclosed wherever a human reads the result: the
+row's `scenario` starts with `stress_`, the competitor JSON keeps `observed_price`, the report labels
+the rows "GUARD STRESS-TEST -- synthetic competitor prices, not a market recommendation". (2) The 4
+truncated baselines (p4, p5, p14, p20) and the 20 stress rows were re-run with `max_tokens=1500`
+(`run_recommendations.py --refresh`); old rows are relabelled `s5-superseded` in the same transaction
+as each new insert (nothing deleted; the old s5 spend stays in `llm_calls` and COSTS). (3) The report
+gains a `MoveSummary` table: per group, the model's proposals BEFORE the guard (moves, over the daily
+cap, below the floor) and what the guard let through.
+**Result (refreshed 50, `scripts/report_recommendations.py`).** 50 rows, **0 margin violations**, 0
+direction contradictions, 0 truncated replies; **38 APPROVE / 0 REJECT / 12 FLAG**. The model proposed
+a move on 22 rows (14 of 20 stress-tests, 8 of 13 matched baselines); **10 APPROVEs move the price**
+(6 stress-test, 4 matched baseline), 28 keep it (17 of those had no competitor data). The 12 FLAGs
+are ALL one cause: the model proposed exactly the daily-cap move (-5%), charm rounding to the nearest
+charm value overshot the cap, and the guard FLAGged. Refresh run cost **$0.164186** (est. $0.1073,
+ceiling $0.4183); the stress rationales no longer cite "hypothetical" (0 of 20).
+**What this does and does not show.** Zero model proposals were over the daily cap and zero were below
+a floor: a live model that is told the limits obeys them, and the 5% cap keeps one step far from
+every floor here (margins 28-56% vs floors 12-30%). So the margin floor was never the binding
+constraint in live data; the guard's real live work was the rounding-over-cap FLAGs. The floor's
+protection is shown by the guard's unit tests, the 400k-call reviewer sweep and the catalogue x
+strategy sweep with a deliberately below-floor mock proposer -- not by these 50 rows. Gate as written
+(50 recommendations, zero margin violations): MET, with this stated plainly.
+**Defect surfaced, not fixed here.** Nearest-charm rounding can push an in-cap move over the cap; it
+turned 12 of 22 proposed moves into FLAGs. A within-cap rounding rule is a guard change (ADR-0034/0043)
+for Bogdan to decide.
+**Alternatives rejected.** Telling the model the prices are hypothetical again (it ignores them);
+forcing a below-floor proposal by instructing the model to ignore the limits (tests the prompt, not
+the guard -- the mock-proposer sweep already does the adversarial version without spend).
 **Date.** 2026-10-07

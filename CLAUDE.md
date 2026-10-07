@@ -179,7 +179,7 @@ Fine-tuning runs on rented GPU by the hour. Before any training run: state the e
 
 ### Spend schedule
 
-Ceiling **$100**; **$20 available**; spent **$0.82 to date** (`docs/COSTS.md`). Reserved in priority order — the deliverable is a public demo, hosting makes it visible:
+Ceiling **$100**; **$20 available**; spent **$1.22 to date** (`docs/COSTS.md`). Reserved in priority order — the deliverable is a public demo, hosting makes it visible:
 
 | Priority | What | Reserve | Approval |
 |---|---|---|---|
@@ -279,11 +279,7 @@ MLP or GRU — no transformer needed. Compare against a naive 7-day-average base
 **Gate:** beats the naive baseline on validation, measured on real observed price movements; prediction-vs-actual plot committed; the real/synthetic split stated in the README and in `docs/learned/demand-model.md`; no elasticity-recovery number reported as a result anywhere.
 
 ### Phase 5 — Decision engine
-Write a 300–500 word pricing policy document. Index it. Build the recommendation prompt combining: product, matched competitor prices (SQL), estimated elasticity (model), relevant policy passages (RAG). Deterministic margin guardrail after the LLM. Full trace persisted.
-
-For Phase 5, the pricing policy document should cover realistic pet-retail rules: minimum margin per category (dry food carries thinner margins than accessories), brands with distributor pricing restrictions, products excluded from automatic discounting, daily maximum price movement, and rounding conventions. This is genuine natural-language policy — the correct use of RAG. The numbers it references (costs, current margins, stock) still come from SQL.
-
-**Gate:** 50 generated recommendations, zero margin violations.
+CLOSED 2026-10-07, gate MET with caveats: 50 real recommendations, 0 margin violations (38 APPROVE / 12 FLAG; 10 APPROVEs move the price, 6 of them labelled guard stress-tests on synthetic competitor prices); the floor is shown mainly by the guard's tests and sweeps. Spend $0.40 on the gate runs. Full text: `docs/archive/phases-5.md`; report: `docs/learned/results/phase5/fifty-recommendations.md`.
 
 ### Phase 6 — Tool calling
 Strict-schema tools: `update_price`, `flag_for_review`, `do_nothing`. Human approval by default; automatic mode only under narrow conditions. Full action log with rollback.

@@ -1,16 +1,17 @@
 # STATE
 
-Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
-Updated: 2026-10-07 (s5)
+Phase: 5 CLOSED 2026-10-07 -- next: Phase 6 (tool calling). Phases 0-3, 5 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-07 (s5b)
 
-**Where we are:** Phase 5 sessions 1-5 DONE. **s5 (2026-10-07, ADR-0043/0044):** charm-direction guard fix;
-the 50 real recommendations ran on `claude-sonnet-5` for **$0.240276 actual** (est. $0.17): **gate
-PASSED on its own terms, 0 margin violations**, 45 APPROVE / 0 REJECT / 5 FLAG
-(`docs/learned/results/phase5/fifty-recommendations.md`). Read with the caveats: 42 of 45 APPROVEs keep
-the price (3 move it); the 20 scenario rows were neutralised by my own prompt label (all 20
-rationales cite it), 17 baseline rows had no competitor data, so the real test is the 13 matched
-baseline rows (3 moved, 5 kept, 5 FLAG); 4 of 50 replies were truncated by my `max_tokens=400`. **Next: Bogdan decides whether to re-run those 4
-(~$0.05-0.07), then Phase 5 close-out / Phase 6.** Phase 4 stays POSTPONE. Dataset FROZEN 2026-09-22.
+**Where we are:** **Phase 5 CLOSED, gate MET with stated caveats (ADR-0044/0045).** Refreshed 50 real
+recommendations (`docs/learned/results/phase5/fifty-recommendations.md`): **0 margin violations**, 0
+direction contradictions, 0 truncated replies; 38 APPROVE / 0 REJECT / 12 FLAG. The gate now rests on
+**10 APPROVEs that move the price** (6 are labelled GUARD STRESS-TESTS on synthetic competitor prices, 4
+are real matched baselines), 12 FLAGs, **plus the guard's unit tests, the 400k-call reviewer sweep and
+the below-floor mock sweep** -- NOT on the 28 no-change rows. Honest limit: zero model proposals were
+over the cap or below a floor, so the floor was never the binding constraint live; and nearest-charm
+rounding turned all 12 cap-obeying -5% proposals into FLAGs (guard decision owed). Spend: $0.404462
+on the gate runs ($0.240276 + $0.164186), $1.222904 total ledger. Phase 4 stays POSTPONE.
 
 ## Gate progress
 
@@ -33,14 +34,12 @@ McNemar p=1.0000); served CE ONNX fp32 CPU, threshold 0.89, incremental batch, K
 re-measure both times `NEEDS ARCHITECT: movement too rare` (15-16 days too short for the 28-day
 history rule). `docs/learned/phase4-data-sufficiency.md`, ADR-0031/ADR-0032.
 
-**Phase 5 — Decision engine: gate run DONE 2026-10-07, close-out pending Bogdan** (started 2026-09-27).
-Gate: 50 generated recommendations, zero margin violations -> **50 rows, 0 violations** (ADR-0044, with the
-evidence-strength and truncation caveats above). Sub-sequence (ADR-0038): guard [ADR-0034/0043]; policy
-RAG [ADR-0036]; catalogue sync [ADR-0038]; matcher [ADR-0039/0040/0041]; decision engine, mocked [ADR-0042];
-50 real recommendations [ADR-0044]. **Matcher precision** (`gate-s3b.md`): pre-guard 0.786 (22/28, blind,
-independent); post-guard 0.9565 (22/23 labelled, 2 newly surfaced links unlabelled so 0.88-0.96), NOT
-independent of the errors the guard was built from; labels Claude-written, `claude_pending_bogdan_review`.
-Spend to date $1.058718 of the $5.00 LLM budget (`make cost`).
+**Phase 5 — Decision engine: CLOSED** (2026-10-07). Gate: 50 generated recommendations, zero margin
+violations -> **MET: 50 rows, 0 violations** (ADR-0044/0045, caveats in "Where we are"). Full detail:
+`docs/archive/phases-5.md`. **Matcher precision** (`gate-s3b.md`): pre-guard 0.786 (22/28, blind, independent);
+post-guard **0.92 (23/25)**, 0 wrong-gramaj -- NOT independent of the errors the guard was built from, the 2
+newly surfaced links were labelled non-blind, labels Claude-written (`claude_pending_bogdan_review`); one
+low-confidence label (18:animax_ro) puts it at 0.88 if wrong. Matcher gate (>=0.90) NOT claimed cleanly met.
 **Phase 4 price history:** 23 distinct collection days as of 2026-10-04 (petmax 23, animax 22,
 pentruanimale 22), per the architect audit. R1 (28 days) is reachable ~2026-10-10 but R2/R3 still
 fail on the pre-registered measurement -- Phase 4 stays POSTPONE, elasticity stays a labelled
@@ -52,21 +51,15 @@ placeholder.
 
 ## Last done
 
-0000. **Phase 5 s5: gate run (2026-10-07, ADR-0043/0044):** guard keeps the move's direction through charm
-   rounding (reviewer: no blocking finding; 2 old tests rewritten, documented); scenario builder (30+13+7);
-   gate report with an independent floor re-check, moved/unchanged split, FLAG-cause attribution;
-   migration 0014 `llm_stop_reason` + truncation FLAG; 50 real rows, $0.240276. 952 tests green.
-000. **Phase 5 s4: decision engine, mocked proposer, $0 (2026-10-07, ADR-0042):** migration 0013
-   `recommendations`; `decision/engine.py` (gather -> RAG -> prompt -> proposer -> strict parse ->
-   `enforce` -> trace), `decision/proposer.py` (`MockProposer` s4; `LlmProposer` wraps
-   `client.complete`, built + fake-tested, not instantiated), `scripts/run_decision.py` (mock only).
-   Demo on the real DB: matched p20 12.13 -> APPROVE 11.99; below-floor proposal 8.30 -> FLAG (guard
-   lifts to 9.99, 20% drop breaches the 5% cap); p12 (stock 1) discount -> REJECT; no-match p25 ->
-   APPROVE unchanged 56.00; garbled reply -> FLAG, no price. `reviewer` pass fixed same session: a tiny
-   proposal (<0.50) made `enforce` raise and would have lost a paid reply's trace -> now FLAG row;
-   parser is CRLF-safe and exact-shape; competitor titles flattened before the prompt. 44 new tests (engine, parsing, guard
-   wiring incl. a catalogue x strategy sweep that never APPROVEs below a floor, persistence, the
-   prose/TOML drift test, mutation-checked); full suite 919 passed. `docs/learned/decision-engine.md`.
+00000. **Phase 5 s5b: gate made meaningful, Phase 5 closed (2026-10-07, ADR-0045):** 20 scenarios re-framed as
+   GUARD STRESS-TESTS (prompt no longer announces them), 4 truncated baselines + 20 stress re-run at
+   `max_tokens=1500`, old rows relabelled `s5-superseded` (nothing deleted), $0.164186; report gains the
+   proposals-before-the-guard table; post-guard links labelled; ADR-0034/0036/0037 full text archived.
+0000. **Phase 5 s5: first gate run (2026-10-07, ADR-0043/0044):** guard keeps the move's direction through
+   charm rounding; scenario builder; gate report with an independent floor re-check; migration 0014
+   `llm_stop_reason`; 50 real rows $0.240276 -- found weak (42/45 no-change, scenarios neutralised, 4
+   truncated), fixed in s5b.
+
 00. **Phase 5 s3b: serve-time matcher + `product_matches` (2026-10-04, ADR-0039):** migration 0012
    (`UNIQUE(product_id, source)`, `CHECK score >= threshold`); `matching/serve.py` +
    `scripts/match_catalogue.py` (faithfulness gate first, brand-block candidates, >0.89 kept, one
@@ -124,17 +117,15 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Open issues
 
-- **4 of the 50 gate replies were cut off by `max_tokens=400` (ADR-0044):** p4/p5/p14 empty (FLAG), p20
-  partial (APPROVE, unchanged price). Not re-run. Recommend re-running those 4 with `max_tokens` ~1500
-  (est. $0.05-0.07, needs a SPEND yes); old rows to be relabelled, not deleted.
-- **Charm rounding can breach the daily cap (ADR-0044):** p3 and p21 proposed exactly -5% and were FLAGged
-  because the nearest charm value lies outside the cap. Guard change for the architect (round within the
-  cap); cannot cause a margin violation.
-- **Weak floor evidence from the live run:** 42/45 APPROVEs are no-change. The 20 scenarios did not
-  press the floor because the prompt announced them as hypothetical (all 20 rationales cite it); 17
-  baseline rows had no competitor data. Option: re-run the 20 scenarios without announcing the what-if
-  (trace still labelled), est. ~$0.10, needs a SPEND yes. The floor is otherwise demonstrated by the
-  guard's tests and sweeps.
+- **Charm rounding overshoots the daily cap (ADR-0045) -- decision owed:** all 12 FLAGs in the refreshed
+  gate are one cause: the model proposed the exact -5% cap move and nearest-charm rounding landed outside
+  the cap (e.g. 879.00 -> 834.90, 11.00 -> 9.99). Fix = round within the cap (a guard change, ADR-0034/0043);
+  without it every cap-obeying cut on a cheap item is a FLAG. Cannot cause a margin violation.
+- **Live gate evidence for the floor is thin by construction (ADR-0045):** zero proposals over the cap or
+  below a floor; the 5% cap keeps one step far from every floor (margins 28-56% vs floors 12-30%). The floor
+  is demonstrated by the guard's unit tests, the 400k reviewer sweep and the mock below-floor sweep.
+- **Stress rows deceive the model under test by design** (prompt shows scaled prices as real); disclosed in the
+  row (`stress_*`), the competitor JSON (`observed_price`) and the report. Never present them as market data.
 - **Prose/TOML drift is now tested** (`test_policy_prose_drift.py`); day counts (14 / 2 / 7+ days)
   have no TOML key yet (guard scope gaps) and sit in an explicit allowlist. `retrieve_policy` still
   does not check `policy_chunks.source_sha256` against the live prose.
@@ -214,6 +205,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 5: decide on re-running the 4 truncated replies (~$0.05-0.07 SPEND, recommended) and/or the 20 scenarios without the what-if announcement (~$0.10 SPEND); decide whether Phase 5 closes on the gate as it stands (0 violations, caveats above) or after the re-run; decide the charm-within-cap guard change (ADR-0044); review the Claude-written match labels and label the 2 newly surfaced links (`gate-s3b.md`, ADR-0040).
+Phase 5 follow-ups (none block Phase 6): decide the charm-within-cap guard change (ADR-0045); review the Claude-written match labels, esp. the low-confidence 18:animax_ro, and ideally label a fresh-catalogue sample blind (ADR-0040, `gate-s3b.md`).
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

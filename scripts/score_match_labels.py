@@ -29,6 +29,7 @@ GRAMAJ_PREFIXES = ("GRAMAJ", "WEIGHT", "SIZE")
 
 def score(labels: list[dict[str, str]], links: list[dict[str, str]] | None) -> dict[str, object]:
     by_pair = {(r["link_key"], r["competitor_title"]): r for r in labels}
+    unlabelled: list[str]
     if links is None:
         rows, unlabelled = labels, []
     else:
@@ -62,11 +63,18 @@ def read(path: Path) -> list[dict[str, str]]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--labels", type=Path, default=PHASE5 / "match-verification-labels.csv")
+    parser.add_argument(
+        "--labels",
+        type=Path,
+        nargs="+",
+        default=[PHASE5 / "match-verification-labels.csv"],
+        help="one or more label CSVs, merged (the post-guard run adds -postguard.csv)",
+    )
     parser.add_argument("--links", type=Path, help="worksheet CSV; default = all labelled links")
     args = parser.parse_args()
     links = read(args.links) if args.links else None
-    print(json.dumps(score(read(args.labels), links), indent=2))
+    labels = [row for path in args.labels for row in read(path)]
+    print(json.dumps(score(labels, links), indent=2))
     return 0
 
 

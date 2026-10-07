@@ -20,8 +20,9 @@ ADR-0043 charm rounding also keeps the move's direction (it used to turn +3% int
 can parse as "12.5", so the trace now records `stop_reason` and any `max_tokens` reply is FLAGged.
 Charm rounding can also push an in-cap -5% proposal just over the cap (2 FLAGs).
 
-**Honest limits.** Gate result: 50 rows, 0 margin violations, $0.24. But 42 of 45 APPROVEs keep the
-price, 17 baseline rows had no competitor data, and the 20 scenarios were neutralised by my own prompt
-label (the model said "hypothetical, so I ignore it"), so the live run is weak evidence for the floor;
-the guard's tests and sweeps carry that claim. Elasticity is a value-less placeholder; `price_7d_ago` is
-synthetic; scenario competitor prices are hypothetical.
+**Honest limits (ADR-0045).** The first gate run was weak: mostly no-change, and my prompt told the model
+the scenario prices were hypothetical, so it ignored them. Re-framed as guard stress-tests, the refreshed 50
+show 0 margin violations, 10 APPROVEs that move the price, 12 FLAGs. But the model never proposed anything
+over the cap or below a floor (it obeys the limits it is told), so the floor is shown by the guard's tests and
+sweeps, not the live run. All 12 FLAGs are nearest-charm rounding overshooting the 5% cap. Elasticity is a
+placeholder, `price_7d_ago` and stress prices are synthetic.

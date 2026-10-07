@@ -34,25 +34,26 @@ The 6 false positives, all semantic (none is a gramaj error):
 - The candidate set is the top-100 cap, not whole blocks: the ADR-0039 audit found exactly 5
   listings >= 0.89 beyond the cut across 13 products (bounded, documented; ADR-0040).
 
-## Post-guard result (2026-10-07, computed by `scripts/score_match_labels.py --links match-verification-queue.csv`)
+## Post-guard result (2026-10-07, `scripts/score_match_labels.py --labels <labels> <labels-postguard> --links match-verification-queue.csv`)
 
-The post-guard worksheet has 25 links. 23 of them match a labelled (link_key, title) pair; 2 are
-`newly_surfaced` by the guard (a lower-scoring listing took the slot, `guard-effect.csv`) and have
-NO label.
+The post-guard worksheet has 25 links. 23 matched labels in `match-verification-labels.csv`; the 2
+links the guard `newly_surfaced` (a lower-scoring listing took the slot, `guard-effect.csv`) are
+labelled in `match-verification-labels-postguard.csv`. The pre-guard figure above is unchanged and
+still reproduces from the default run (28 links, 22 YES).
 
 | Metric | Value |
 |---|---|
-| Links in the post-guard worksheet | 25 |
-| Labelled | 23 |
-| Precision on the labelled links | **0.9565 (22/23)** |
-| Wrong-gramaj false positives | 0% (0/23) |
-| Remaining false positive | 19:petmax_ro (generic Mousse vs "cu Pui", which the guard does not try to remove) |
-| Unlabelled (newly surfaced) | 18:animax_ro, 22:petmax_ro |
-| Precision if both unlabelled are wrong / both right | 22/25 = 0.88 / 24/25 = 0.96 |
+| Links in the post-guard worksheet | 25, all labelled |
+| Precision | **0.92 (23/25)** |
+| Wrong-gramaj false positives | 0% (0/25) |
+| False positives | 19:petmax_ro (generic Mousse vs "cu Pui", which the guard does not try to remove); 22:petmax_ro (Chicken STRIPS vs Chicken BITS) |
+| Sensitivity | the label for 18:animax_ro (Instinctive "in Gravy" vs unspecified texture) is LOW CONFIDENCE; if it is NO, precision is 22/25 = 0.88 |
 
-**How to read it.** This is a CAVEATED figure, not a gate verdict. (1) The guard was motivated by the
-6 errors above, so 22/23 on the same labels is not an independent estimate (ADR-0041). (2) The
-interval 0.88-0.96 straddles the 0.90 threshold: the gate is not claimed as met until the 2
-unlabelled links are labelled and, ideally, a fresh sample is drawn. (3) The labels are
-Claude-written, `claude_pending_bogdan_review`. The "~0.88-0.92" quoted in the session 4/5 briefs
-was an ESTIMATE; the script's bounds above replace it.
+**How to read it.** A CAVEATED figure, not an independent verdict. (1) The guard was motivated by the
+6 errors above, so the 23 old-label links are not an independent estimate (ADR-0041). (2) The 2 new
+labels were written AFTER the scores of those two links had been seen in `guard-effect.csv`, so they
+are not blind (ADR-0038 required blind labelling); the reasons given are title-based. (3) All labels
+are Claude-written, `claude_pending_bogdan_review`. (4) 0.92 clears the 0.90 threshold by one link:
+a single reversed label puts it at 0.88. The matcher gate is therefore NOT claimed as cleanly met;
+the honest statement is "0.92 on a non-independent, partly non-blind sample, 0.88-0.92 depending on
+one uncertain label". A fresh-catalogue sample labelled by Bogdan would settle it.
