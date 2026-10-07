@@ -214,7 +214,9 @@ class ActionLog(Base):
     # when the store process restarts), e.g. "audit-log[3]"; "UNVERIFIED" if the write could not be
     # matched afterwards. NULL for actions that wrote nothing.
     mock_store_audit_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    reverted_by: Mapped[int | None] = mapped_column(ForeignKey("action_log.id"), nullable=True)
+    reverted_by: Mapped[int | None] = mapped_column(
+        ForeignKey("action_log.id", ondelete="RESTRICT"), nullable=True
+    )
 
 
 class ScrapeRun(Base):

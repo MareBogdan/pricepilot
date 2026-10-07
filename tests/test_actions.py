@@ -85,6 +85,7 @@ class FakeStore:
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self._log: list[StoreWrite] = []
         self.fail_on_set = False
+        self.fail_audit_after_write = False
 
     def get_price(self, product_id: int) -> Decimal:
         self.calls.append(("get_price", (product_id,)))
@@ -101,6 +102,8 @@ class FakeStore:
 
     def audit_log(self) -> list[StoreWrite]:
         self.calls.append(("audit_log", ()))
+        if self.fail_audit_after_write and self._log:
+            raise RuntimeError("audit-log read timed out")
         return list(self._log)
 
     @property
@@ -431,3 +434,54 @@ def test_apply_and_rollback_against_the_real_mock_store(
     )
     assert back.outcome == "rolled_back" and real_store.get_price(2) == start
     assert real_store.audit_log()[-1].new_price == start
+
+
+# ---------------------------------------------------------------------------------------
+# Review fixes (Phase 6): rows that must never be acted on; no lost row after a write
+# ---------------------------------------------------------------------------------------
+
+
+def test_superseded_and_other_scenario_rows_are_refused(session: Session) -> None:
+    sup = make_rec(session, rec_id=1)
+    sup.run_label = "s5-superseded"  # replaced by a later run, but is_mock=false and scenario NULL
+    make_rec(session, rec_id=2, scenario="undercut_15", product_id=3)  # legacy pre-ADR-0045 name
+    session.flush()
+    store = FakeStore({2: D("389.00"), 3: D("879.00")})
+    with pytest.raises(ActionRefused, match="superseded"):
+        apply_recommendation(session, 1, store=store, actor="a", approve=yes)
+    with pytest.raises(ActionRefused, match="only real-input rows"):
+        apply_recommendation(session, 2, store=store, actor="a", approve=yes)
+    assert store.calls == [] and actions(session) == []
+
+
+def test_a_failing_verification_read_after_the_write_does_not_lose_the_row(
+    session: Session,
+) -> None:
+    make_rec(session)
+    store = FakeStore({2: D("389.00")})
+    store.fail_audit_after_write = True  # the store changed; the follow-up audit-log read dies
+    result = apply_recommendation(session, 1, store=store, actor="a", approve=yes)
+    assert result.outcome == apply_mod.APPLIED and result.audit_verified is False
+    (row,) = actions(session)
+    assert row.action == "update_price" and row.mock_store_audit_ref == "UNVERIFIED"
+    assert store.prices[2] == D("369.90")  # the write happened and IS recorded
+
+
+def test_a_rollback_claimed_concurrently_is_refused_before_any_store_write(
+    session: Session,
+) -> None:
+    store, original = applied(session)
+    # another process rolled it back after we loaded the row (our copy still says reverted_by=None)
+    other = ActionLog(
+        recommendation_id=1, product_id=2, action="rollback", previous_price=D("369.90"),
+        new_price=D("389.00"), reason="other process", actor="x",
+    )  # fmt: skip
+    session.add(other)
+    session.flush()
+    session.execute(
+        ActionLog.__table__.update().where(ActionLog.id == original.id).values(reverted_by=other.id)  # type: ignore[attr-defined]
+    )
+    writes_before = len(store.writes)
+    with pytest.raises(ActionRefused, match="concurrently"):
+        rollback_action(session, original.id, store=store, actor="a", approve=yes)
+    assert len(store.writes) == writes_before and store.prices[2] == D("369.90")

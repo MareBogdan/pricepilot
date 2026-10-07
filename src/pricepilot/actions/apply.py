@@ -8,8 +8,9 @@ Hard rules enforced here:
   reach the store's update endpoint (no store call at all, not even a read).
 * **Human approval is a required argument.** There is no default, no "auto" mode: the caller must
   pass an `approve` callable that returns True, and a False writes nothing.
-* **Mock rows and stress-test rows are refused.** A `scenario = stress_*` row was decided on
-  synthetic competitor prices (ADR-0045); it is a guard test, not a market recommendation.
+* **Only real-input rows are acted on.** Mock rows, superseded rows (a later run replaced them)
+  and any row with a scenario are refused: a `stress_*` row was decided on synthetic competitor
+  prices (ADR-0045), a guard test and not a market recommendation.
 * **Idempotent.** The DB allows one live `update_price` per recommendation (partial unique index),
   the action log is checked first, and a store already at the target is a logged no-op.
 * **Stale recommendations are not applied.** The guard validated the move from
@@ -28,7 +29,7 @@ from sqlalchemy.orm import Session
 
 from pricepilot.actions.selector import ActionKind, select_action
 from pricepilot.actions.store import Store, StoreWrite
-from pricepilot.decision.scenarios import is_stress
+from pricepilot.decision.scenarios import SUPERSEDED_RUN_LABEL, is_stress
 from pricepilot.models import ActionLog, Recommendation
 
 # Outcomes (the result's `outcome`), kept as plain strings so the CLI can print them.
@@ -108,6 +109,20 @@ def find_audit_ref(
     return f"audit-log[{hits[0]}]" if len(hits) == 1 else None
 
 
+def verify_write(
+    store: Store, before: int, write: StoreWrite, product_id: int, previous: Decimal, new: Decimal
+) -> str | None:
+    """Tie a store write we just made to its audit-log entry. VERIFICATION ONLY: once the write has
+    happened, nothing here may raise -- an extra read failing must not roll back the action_log row
+    and leave a store change with no record. Any problem returns None ("UNVERIFIED")."""
+    if (write.product_id, write.previous_price, write.new_price) != (product_id, previous, new):
+        return None
+    try:
+        return find_audit_ref(before, store.audit_log(), product_id, previous, new)
+    except Exception:
+        return None
+
+
 def live_update(session: Session, recommendation_id: int) -> ActionLog | None:
     return session.scalars(
         select(ActionLog).where(
@@ -131,10 +146,16 @@ def apply_recommendation(
         raise LookupError(f"no recommendation with id {recommendation_id}")
     if rec.is_mock:
         raise ActionRefused(f"recommendation {rec.id} is a mock row; only real rows are acted on")
+    if rec.run_label == SUPERSEDED_RUN_LABEL:
+        raise ActionRefused(f"recommendation {rec.id} was superseded by a later run; not acted on")
     if is_stress(rec.scenario):
         raise ActionRefused(
             f"recommendation {rec.id} is a GUARD STRESS-TEST ({rec.scenario}) decided on synthetic "
             "competitor prices, not a market recommendation; it is never applied"
+        )
+    if rec.scenario is not None:
+        raise ActionRefused(
+            f"recommendation {rec.id} has scenario {rec.scenario!r}; only real-input rows are acted on"
         )
 
     kind = select_action(
@@ -196,7 +217,7 @@ def apply_recommendation(
     request = ApprovalRequest(
         f"APPLY recommendation #{rec.id}: product {rec.product_id} ({rec.category}) "
         f"{store_price} -> {target} RON (guard APPROVE; cost {rec.cost}). "
-        f"Rationale: {rec.llm_rationale}"
+        f"Rationale: {' '.join((rec.llm_rationale or '').split())[:400]}"  # one line: model text
     )
     if not approve(request):
         return note(ActionKind.DO_NOTHING, "approval declined by the human", DECLINED)
@@ -213,13 +234,13 @@ def apply_recommendation(
         reason=f"recommendation #{rec.id}: guard APPROVE {store_price} -> {target}",
         actor=actor,
     )
-    before = len(store.audit_log())
-    store.set_price(
+    before = len(store.audit_log())  # a read BEFORE the write: a failure here changes nothing
+    write = store.set_price(
         rec.product_id,
         target,
         f"recommendation #{rec.id}: guard APPROVE {store_price} -> {target}; approved by {actor}",
     )
-    ref = find_audit_ref(before, store.audit_log(), rec.product_id, store_price, target)
+    ref = verify_write(store, before, write, rec.product_id, store_price, target)
     row.mock_store_audit_ref = ref or UNVERIFIED
     session.flush()
     return ActionResult(APPLIED, row, audit_verified=ref is not None)

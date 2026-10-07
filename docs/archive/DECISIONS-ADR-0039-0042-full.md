@@ -1,4 +1,4 @@
-# ADR-0039 and ADR-0042 full text (moved out of DECISIONS.md, 2026-10-08)
+# ADR-0039 and ADR-0042 full text (moved out of DECISIONS.md, 2026-10-07)
 
 ## ADR-0039 — Served matcher: torch/safetensors on CPU (not ONNX), `product_matches` grain, block-and-score
 

@@ -8,6 +8,10 @@ we know nothing about. That is logged as a `do_nothing` row and returned as an o
 
 from __future__ import annotations
 
+from typing import Any, cast
+
+from sqlalchemy import update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from pricepilot.actions.apply import (
@@ -16,8 +20,8 @@ from pricepilot.actions.apply import (
     ActionResult,
     ApprovalRequest,
     Approver,
-    find_audit_ref,
     log_action,
+    verify_write,
 )
 from pricepilot.actions.selector import ActionKind
 from pricepilot.actions.store import Store
@@ -90,15 +94,24 @@ def rollback_action(
         reason=f"rollback of action #{original.id}: {set_price} -> {restore}",
         actor=actor,
     )
-    before = len(store.audit_log())
-    store.set_price(
+    # Claim the original BEFORE touching the store (compare-and-set on reverted_by IS NULL): two
+    # concurrent rollbacks cannot both pass; the loser is refused before any store write.
+    claimed = session.execute(
+        update(ActionLog)
+        .where(ActionLog.id == original.id, ActionLog.reverted_by.is_(None))
+        .values(reverted_by=row.id)
+    )
+    if cast(CursorResult[Any], claimed).rowcount != 1:
+        raise ActionRefused(f"action {original.id} was rolled back concurrently; nothing written")
+    before = len(store.audit_log())  # a read BEFORE the write
+    write = store.set_price(
         original.product_id,
         restore,
         f"rollback of action #{original.id} (recommendation #{original.recommendation_id}); "
         f"approved by {actor}",
     )
-    ref = find_audit_ref(before, store.audit_log(), original.product_id, set_price, restore)
+    ref = verify_write(store, before, write, original.product_id, set_price, restore)
     row.mock_store_audit_ref = ref or UNVERIFIED
-    original.reverted_by = row.id
     session.flush()
+    session.refresh(original)
     return ActionResult(ROLLED_BACK, row, audit_verified=ref is not None)

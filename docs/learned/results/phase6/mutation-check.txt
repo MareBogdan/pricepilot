@@ -1,0 +1,12 @@
+baseline (no mutation): PASS - 31 passed, 1 warning in 0.91s
+  killed   a no-change is treated as an update  [1 failed, 1 passed, 1 warning in 0.73s]
+  killed   stale recommendations are applied  [1 failed, 16 passed, 1 warning in 0.87s]
+  killed   stress-test rows are acted on  [1 failed, 17 passed, 1 warning in 0.93s]
+  killed   superseded rows are acted on  [1 failed, 28 passed, 1 warning in 1.07s]
+  killed   a second apply is not detected  [1 failed, 14 passed, 1 warning in 0.85s]
+  killed   rollback ignores a drifted store price  [1 failed, 22 passed, 1 warning in 1.06s]
+  killed   two rollbacks can both pass  [1 failed, 30 passed, 1 warning in 1.12s]
+  killed   a failed verification read loses the row  [1 failed, 29 passed, 1 warning in 1.10s]
+restored: PASS - 31 passed, 1 warning in 0.83s
+
+8 of 8 mutants killed

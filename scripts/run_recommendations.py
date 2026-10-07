@@ -50,6 +50,7 @@ from pricepilot.decision.proposer import LlmProposer  # noqa: E402
 from pricepilot.decision.scenarios import (  # noqa: E402
     EXPECTED_TOTAL,
     STRESS_PREFIX,
+    SUPERSEDED_RUN_LABEL,
     PlanItem,
     apply_scenario,
     build_plan,
@@ -64,7 +65,6 @@ DEFAULT_MODEL = "claude-sonnet-5"
 # Used only for the ESTIMATE; `--max-tokens` is the hard cap and drives the pre-call budget check
 # inside `complete()`. 204 = mean of the 50 real replies in the s5 run (10,180 out tokens / 50).
 EXPECTED_OUTPUT_TOKENS = 204
-SUPERSEDED_LABEL = "s5-superseded"
 
 
 @cache
@@ -202,7 +202,7 @@ def main() -> int:
                         session, args.run_label, item.product_id, legacy_scenario(item.scenario)
                     )
                 for old in old_rows:
-                    old.run_label = SUPERSEDED_LABEL
+                    old.run_label = SUPERSEDED_RUN_LABEL
             snap = apply_scenario(gather_snapshot(session, item.product_id), item.scenario)
             row = decide(
                 snap,

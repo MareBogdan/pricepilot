@@ -33,7 +33,7 @@ for _stream in (sys.stdout, sys.stderr):
     if isinstance(_stream, io.TextIOWrapper):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import func, select  # noqa: E402
 
 from pricepilot.actions.apply import (  # noqa: E402
     ALREADY_APPLIED,
@@ -55,6 +55,14 @@ def banner(text: str) -> None:
 
 
 def start_store() -> subprocess.Popen[bytes]:
+    try:
+        httpx.get(f"{URL}/health", timeout=1.0)
+    except httpx.HTTPError:
+        pass
+    else:
+        raise SystemExit(
+            f"something already answers on {URL}; stop it first (its state is unknown)"
+        )
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "services.mock_store.app:app", "--port", str(PORT),
          "--log-level", "warning"],
@@ -70,12 +78,12 @@ def start_store() -> subprocess.Popen[bytes]:
     raise SystemExit("mock store did not start on port 8001 (is it already running?)")
 
 
-def print_action_rows(rec_id: int) -> list[ActionLog]:
+def print_action_rows(rec_id: int, since_id: int = 0) -> list[ActionLog]:
     with session_scope() as session:
         rows = list(
             session.scalars(
                 select(ActionLog)
-                .where(ActionLog.recommendation_id == rec_id)
+                .where(ActionLog.recommendation_id == rec_id, ActionLog.id > since_id)
                 .order_by(ActionLog.id)
             )
         )
@@ -159,6 +167,8 @@ def main() -> int:
         )
         assert before == current, f"store {before} != recommendation's current price {current}"
 
+        with session_scope() as session:
+            since_id = session.scalar(select(func.coalesce(func.max(ActionLog.id), 0))) or 0
         banner("3. APPLY (human approval required)")
         with session_scope() as session:
             result = apply_recommendation(
@@ -178,7 +188,7 @@ def main() -> int:
         assert len(entries) == log_before + 1
         assert (entries[-1].previous_price, entries[-1].new_price) == (before, target)
         print("  our action_log:")
-        rows = print_action_rows(rec_id)
+        rows = print_action_rows(rec_id, since_id)
         assert [r.action for r in rows] == ["update_price"]
         assert rows[0].mock_store_audit_ref == f"audit-log[{log_before}]"
 
@@ -208,7 +218,7 @@ def main() -> int:
         print("store /audit-log (in-memory in the store process):")
         print_store_log(store)
         print("our action_log (durable, Postgres):")
-        rows = print_action_rows(rec_id)
+        rows = print_action_rows(rec_id, since_id)
         assert [r.action for r in rows] == ["update_price", "rollback"]
         assert rows[0].reverted_by == rows[1].id
         assert rows[1].mock_store_audit_ref == f"audit-log[{log_before + 1}]"

@@ -20,7 +20,7 @@
   audit-log[0] product 2: 389.00 -> 369.90  | recommendation #9: guard APPROVE 389.00 -> 369.90; approved by bogdan-cli (--confirm, gate run)
   our action_log:
    id action         previous      new audit ref     reverted_by  actor
-    1 update_price     389.00   369.90 audit-log[0]            -  bogdan-cli (--confirm, gate run)
+    3 update_price     389.00   369.90 audit-log[0]            -  bogdan-cli (--confirm, gate run)
       reason: recommendation #9: guard APPROVE 389.00 -> 369.90
 
 === 5. APPLY AGAIN: must not double-write ===
@@ -30,7 +30,7 @@
 === 6. ROLLBACK (human approval required) ===
 
   >> HUMAN APPROVAL REQUIRED
-  >> ROLL BACK action #1 (recommendation #9): product 2 369.90 -> 389.00 RON
+  >> ROLL BACK action #3 (recommendation #9): product 2 369.90 -> 389.00 RON
   >> Proceed? [y/N] y   (answered by --confirm)
   outcome: rolled_back; audit verified: True
 
@@ -40,12 +40,12 @@
 === 8. THE WHOLE TRAIL ===
 store /audit-log (in-memory in the store process):
   audit-log[0] product 2: 389.00 -> 369.90  | recommendation #9: guard APPROVE 389.00 -> 369.90; approved by bogdan-cli (--confirm, gate run)
-  audit-log[1] product 2: 369.90 -> 389.00  | rollback of action #1 (recommendation #9); approved by bogdan-cli (--confirm, gate run)
+  audit-log[1] product 2: 369.90 -> 389.00  | rollback of action #3 (recommendation #9); approved by bogdan-cli (--confirm, gate run)
 our action_log (durable, Postgres):
    id action         previous      new audit ref     reverted_by  actor
-    1 update_price     389.00   369.90 audit-log[0]            2  bogdan-cli (--confirm, gate run)
+    3 update_price     389.00   369.90 audit-log[0]            4  bogdan-cli (--confirm, gate run)
       reason: recommendation #9: guard APPROVE 389.00 -> 369.90
-    2 rollback         369.90   389.00 audit-log[1]            -  bogdan-cli (--confirm, gate run)
-      reason: rollback of action #1: 369.90 -> 389.00
+    4 rollback         369.90   389.00 audit-log[1]            -  bogdan-cli (--confirm, gate run)
+      reason: rollback of action #3: 369.90 -> 389.00
 
 GATE CYCLE: PASSED (apply -> verify -> idempotent re-apply -> rollback -> verify)

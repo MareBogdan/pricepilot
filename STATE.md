@@ -1,15 +1,15 @@
 # STATE
 
-Phase: 6 CLOSED 2026-10-08 -- next: Phase 7 (production). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
-Updated: 2026-10-08 (Phase 6)
+Phase: 6 CLOSED 2026-10-07 -- next: Phase 7 (production). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-07 (Phase 6)
 
 **Where we are:** **Phase 6 CLOSED, gate MET (ADR-0046/0047).** The action layer turns a guard-decided
 recommendation into a human-approved, logged, reversible store write. One complete cycle on real row #9
 (product 2, 389.00 -> 369.90): prompt -> apply -> verified in the store price, the store `/audit-log` and
 `action_log` -> second apply refused (no double write) -> rollback -> price restored and logged. Trail:
 `docs/learned/results/phase6/gate-cycle.txt` (the approval was `--confirm` on Bogdan's written
-instruction, not a keystroke). 988 tests, 28 new, five safety mutants killed. Cost $0 (`llm_calls`
-unchanged). Phase 5's charm-within-cap question is DECIDED (ADR-0046): guard unchanged, FLAGs routed to
+instruction, not a keystroke). 991 passed / 5 skipped, 31 new tests, 8 of 8 safety mutants killed
+(`scripts/mutation_check_actions.py`). Cost $0 (`llm_calls` unchanged). Phase 5's charm-within-cap question is DECIDED (ADR-0046): guard unchanged, FLAGs routed to
 review; honest note: only 3 of the 12 FLAGs are the sub-20-RON case. Phase 4 stays POSTPONE.
 
 ## Gate progress
@@ -39,7 +39,7 @@ violations -> **MET: 50 rows, 0 violations** (ADR-0044/0045, caveats in "Where w
 post-guard **0.92 (23/25)**, 0 wrong-gramaj -- NOT independent of the errors the guard was built from, the 2
 newly surfaced links were labelled non-blind, labels Claude-written (`claude_pending_bogdan_review`); one
 low-confidence label (18:animax_ro) puts it at 0.88 if wrong. Matcher gate (>=0.90) NOT claimed cleanly met.
-**Phase 6 — Tool calling / action layer: CLOSED** (2026-10-08). Gate (one complete cycle end to end,
+**Phase 6 — Tool calling / action layer: CLOSED** (2026-10-07). Gate (one complete cycle end to end,
 visible in logs) MET: `docs/learned/results/phase6/gate-cycle.txt`. Full detail: `docs/archive/phases-6.md`,
 ADR-0047.
 **Phase 4 price history:** 23 distinct collection days as of 2026-10-04 (petmax 23, animax 22,
@@ -53,9 +53,9 @@ placeholder.
 
 ## Last done
 
-000000. **Phase 6: action layer + one-cycle gate (2026-10-08, ADR-0046/0047):** migration 0015 `action_log`;
+000000. **Phase 6: action layer + one-cycle gate (2026-10-07, ADR-0046/0047):** migration 0015 `action_log`;
    `actions/{selector,store,apply,rollback}.py`; CLI `scripts/apply_recommendation.py`; gate script
-   `scripts/phase6_gate_cycle.py` (trail committed); 28 tests; stress rows and mock rows refused.
+   `scripts/phase6_gate_cycle.py` (trail committed); 31 tests + a mutation script; stress, mock, superseded and scenario rows refused.
 00000. **Phase 5 s5b: gate made meaningful, Phase 5 closed (2026-10-07, ADR-0045):** 20 scenarios re-framed as
    GUARD STRESS-TESTS (prompt no longer announces them), 4 truncated baselines + 20 stress re-run at
    `max_tokens=1500`, old rows relabelled `s5-superseded` (nothing deleted), $0.164186; report gains the
