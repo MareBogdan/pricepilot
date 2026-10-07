@@ -4,7 +4,7 @@
 <p class="eyebrow">Competitive pricing intelligence</p>
 <h1>Track competitors. Match their listings. Price with a hard margin floor.</h1>
 <p class="intro">
-  PricePilot scrapes three Romanian pet shops every day, uses a fine-tuned model to work out which
+  PricePilot collects competitor prices from Romanian pet shops every day, uses a fine-tuned model to work out which
   competitor listing is the same product as ours, retrieves our pricing policy, and has an LLM propose a
   price that plain code then checks against the margin floor.
 </p>
@@ -18,7 +18,7 @@
     <div class="hero-main" title="F1 on {{ mr.n_test_pairs if mr else 'n/a' }} held-out test pairs, split by product so no product appears in both train and test.">
       <span class="hero-num">{{ "%.2f"|format(mr.f1) if mr else "n/a" }}</span><span class="hero-unit">F1</span>
     </div>
-    <p class="hero-sub">{% if mr and mr.baseline_f1 is not none %}vs {{ "%.2f"|format(mr.baseline_f1) }} for the same model before fine-tuning{% endif %}</p>
+    <p class="hero-sub">{% if mr and mr.baseline_f1 is not none %}vs {{ "%.2f"|format(mr.baseline_f1) }} for the same model before fine-tuning (answering &ldquo;match&rdquo; for every pair scores {{ "%.2f"|format(mr.all_match_f1) }}){% endif %}</p>
     <ul class="hero-stats">
       <li><b>{{ o.products_matched if o.products_matched is not none else "n/a" }} of {{ o.products if o.products is not none else "n/a" }}</b> products matched across <b>{{ o.match_shops if o.match_shops is not none else "n/a" }}</b> shops ({{ o.match_links if o.match_links is not none else "n/a" }} links)</li>
       <li>Link precision after the guard: <b>{{ o.precision_post_guard }}</b></li>
@@ -46,7 +46,7 @@
     <div class="hero-main" title="Every real, non-superseded recommendation, re-checked here from SQL against the policy margin floor.">
       <span class="hero-num">{{ o.audit.recommendations if o.audit else "n/a" }}</span><span class="hero-unit">recommendations</span>
     </div>
-    <p class="hero-sub">{% if o.audit %}<span class="zero-ok">{{ o.audit.margin_violations }} margin violations</span>, re-checked from SQL{% endif %}</p>
+    <p class="hero-sub">{% if o.audit %}<span class="{{ 'zero-ok' if o.audit.margin_violations == 0 else 'zero-bad' }}">{{ o.audit.margin_violations }} margin violation{{ '' if o.audit.margin_violations == 1 else 's' }}</span>, re-checked from SQL{% endif %}</p>
     <ul class="hero-stats">
       {% if o.audit %}<li><b>{{ o.audit.approve }}</b> approved &middot; <b>{{ o.audit.flag }}</b> flagged for review &middot; <b>{{ o.audit.reject }}</b> rejected</li>{% endif %}
     </ul>
@@ -59,7 +59,7 @@
     <div class="hero-main">
       <span class="hero-num">{{ o.collection_days if o.collection_days is not none else "n/a" }}</span><span class="hero-unit">collection days</span>
     </div>
-    <p class="hero-sub">{% if o.price_rows is not none %}{{ "{:,}".format(o.price_rows) }} price rows from {{ o.sources }} live shops{% endif %}</p>
+    <p class="hero-sub">{% if o.price_rows is not none %}{{ "{:,}".format(o.price_rows) }} price rows from {{ o.sources }} shops{% endif %}</p>
     <ul class="hero-stats">
       <li>Competitor prices and promotions: <b>real</b></li>
       <li>Our catalogue and sales volumes: <b>simulated</b></li>
@@ -76,7 +76,7 @@
     <div class="chart-box"><canvas id="verdict-chart" role="img" aria-label="Stacked bars of APPROVE, FLAG and REJECT counts per input group"></canvas></div>
     <details class="table-view"><summary>Table view</summary>
       <table><thead><tr><th>Inputs</th><th class="num">Approve</th><th class="num">Flag</th><th class="num">Reject</th></tr></thead><tbody>
-      {% for r in o.verdict_mix %}<tr><td>{{ r.group|replace("_", " ") }}</td><td class="num">{{ r.approve }}</td><td class="num">{{ r.flag }}</td><td class="num">{{ r.reject }}</td></tr>{% endfor %}
+      {% for r in o.verdict_mix %}<tr><td>{{ chart_data.verdict[loop.index0].label }}</td><td class="num">{{ r.approve }}</td><td class="num">{{ r.flag }}</td><td class="num">{{ r.reject }}</td></tr>{% endfor %}
       </tbody></table></details>
   </div>
   <div class="chart-card">
@@ -137,6 +137,12 @@ guard's verdict on the newest real recommendation (APPROVE = a price the guard a
 human review).</p>
 
 <script type="application/json" id="overview-data">{{ chart_data|tojson }}</script>
+{% endblock %}
+
+{% block vendor %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+        integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
+<script src="/static/charts.js"></script>
 {% endblock %}
 
 {% block scripts %}

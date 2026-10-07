@@ -73,7 +73,7 @@
     el.parentNode.style.height = 64 + items.length * 46 + "px";
     var colors = items.map(function (it) {
       if (it.kind === "ours") { return css("--ink"); }
-      if (it.kind === "rec") { return css("--good"); }
+      if (it.kind === "rec") { return css("--st-good"); }
       return PP.shopColor(it.shop);
     });
     new Chart(el, {
@@ -107,9 +107,9 @@
   };
 
   var STATUS = [
-    { key: "approve", label: "APPROVE", variable: "--good", text: "#0b0b0b" },
-    { key: "flag", label: "FLAG", variable: "--warn", text: "#0b0b0b" },
-    { key: "reject", label: "REJECT", variable: "--crit", text: "#ffffff" }
+    { key: "approve", label: "APPROVE", variable: "--st-good", text: "#0b0b0b" },
+    { key: "flag", label: "FLAG", variable: "--st-warn", text: "#0b0b0b" },
+    { key: "reject", label: "REJECT", variable: "--st-crit", text: "#ffffff" }
   ];
 
   /* Guard verdicts per input group (stacked). rows: [{label, approve, flag, reject}] */
@@ -166,7 +166,7 @@
         labels: rows.map(function (r) { return r.label; }),
         datasets: [
           { label: "Average margin", data: rows.map(function (r) { return Number(r.avg); }),
-            backgroundColor: css("--s1"), borderRadius: { topRight: 4, bottomRight: 4 },
+            backgroundColor: css("--ink"), borderRadius: { topRight: 4, bottomRight: 4 },
             borderSkipped: "start", maxBarThickness: 16 },
           { label: "Policy margin floor", data: rows.map(function (r) { return Number(r.floor); }),
             backgroundColor: css("--muted"), borderRadius: { topRight: 4, bottomRight: 4 },

@@ -481,3 +481,34 @@ def test_offline_overview_degrades_to_the_committed_results(database_down: TestC
     body = resp.json()
     assert body["database"] is False and body["audit"] is None and body["verdict_mix"] == []
     assert body["matcher_result"] is not None  # committed files do not need the database
+
+
+def test_all_match_baseline_is_derived_from_the_committed_confusion_matrix() -> None:
+    cm = _json("mmarco-mMiniLMv2-finetuned-ep6-metrics.json")["confusion_matrix"]
+    positives, total = cm["tp"] + cm["fn"], sum(cm.values())
+    rate = Decimal(positives) / Decimal(total)
+    expected = float(
+        2 * rate / (1 + rate)
+    )  # F1 of "match" for every pair: recall 1, precision = rate
+    got = api_results.matcher_result()
+    assert got is not None and abs(got.all_match_f1 - expected) < 1e-9
+
+
+def test_overview_skips_a_category_missing_from_the_policy_config(
+    client: TestClient, session: Session
+) -> None:
+    session.add(
+        Product(
+            id=3,
+            sku="SKU-3",
+            title="Odd",
+            brand="x",
+            category="not_a_category",
+            purchase_cost=Decimal("5.00"),
+            current_price=Decimal("9.00"),
+            stock=1,
+        )
+    )
+    session.commit()
+    cats = {c["category"] for c in client.get("/api/overview").json()["category_margins"]}
+    assert "not_a_category" not in cats and "dry_food" in cats

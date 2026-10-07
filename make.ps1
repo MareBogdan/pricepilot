@@ -48,9 +48,12 @@ switch ($Target) {
     # script (blocked by Application Control); pg8000 because psycopg's libpq DLL is blocked too
     # (ADR-0038). Run from the repo root so the `services` package is importable. Open :8000.
     'dev'        {
+        $previousDriver = $env:PRICEPILOT_DB_DRIVER
         $env:PRICEPILOT_DB_DRIVER = 'pg8000'
-        Write-Host 'Dashboard: http://localhost:8000  (Ctrl+C to stop)' -ForegroundColor Cyan
-        Invoke-Step @('.venv\Scripts\python', '-m', 'uvicorn', 'pricepilot.api.main:app', '--reload', '--port', '8000')
+        try {
+            Write-Host 'Dashboard: http://localhost:8000  (Ctrl+C to stop)' -ForegroundColor Cyan
+            Invoke-Step @('.venv\Scripts\python', '-m', 'uvicorn', 'pricepilot.api.main:app', '--reload', '--port', '8000')
+        } finally { $env:PRICEPILOT_DB_DRIVER = $previousDriver }
     }
     'api'        { Invoke-Step @('uv', 'run', 'uvicorn', 'pricepilot.api.main:app', '--reload', '--port', '8000') }
     'mock-store' { Invoke-Step @('uv', 'run', 'uvicorn', 'services.mock_store.app:app', '--reload', '--port', '8001') }

@@ -58,7 +58,10 @@ hidden. The documented facts below do not depend on it.</div>
     </tbody>
   </table>
   </div>
-  <p class="note">The gate threshold (at least 3,000 in-scope listings) holds under either unit.</p>
+  {% if "{:,}".format(lc.window_rows_in_scope) != gate_figure %}
+  <p class="banner banner-warn">The recount for the gate window ({{ "{:,}".format(lc.window_rows_in_scope) }}) differs from the documented gate figure ({{ gate_figure }}): rows in the window have been reclassified since.</p>
+  {% endif %}
+  <p class="note">The gate threshold is at least {{ "{:,}".format(gate_min) }} in-scope listings: it {{ "holds" if lc.window_distinct_listings >= gate_min and lc.window_rows_in_scope >= gate_min else "does NOT hold" }} in the gate window under either unit.</p>
   {% endif %}
   {% else %}
   <p class="empty">Live counts unavailable.</p>

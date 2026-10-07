@@ -56,6 +56,7 @@ templates.env.filters.update(
 )
 
 templates.env.globals["gate_figure"] = facts.PHASE1_GATE_ROWS
+templates.env.globals["gate_min"] = facts.PHASE1_GATE_MIN_LISTINGS
 
 router = APIRouter(include_in_schema=False)
 OptionalSessionDep = Annotated[Session | None, Depends(get_optional_session)]

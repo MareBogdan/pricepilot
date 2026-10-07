@@ -23,6 +23,7 @@ class MatcherResult(BaseModel):
     precision: float
     recall: float
     baseline_f1: float | None  # the same model without fine-tuning, same test pairs
+    all_match_f1: float  # F1 of answering "match" for every pair (recall 1, precision = base rate)
     threshold: float
     n_test_pairs: int
     source: str
@@ -45,6 +46,12 @@ def _load(name: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def _all_match_f1(cm: dict[str, int]) -> float:
+    positives, total = cm["tp"] + cm["fn"], sum(cm.values())
+    base_rate = positives / total
+    return 2 * base_rate / (1 + base_rate)
+
+
 def matcher_result() -> MatcherResult | None:
     m = _load(MATCHER_FILE)
     if m is None:
@@ -56,11 +63,12 @@ def matcher_result() -> MatcherResult | None:
             precision=m["precision"]["value"],
             recall=m["recall_all_positives"]["value"],
             baseline_f1=base["f1"]["value"] if base else None,
+            all_match_f1=_all_match_f1(m["confusion_matrix"]),
             threshold=m["threshold"],
             n_test_pairs=m["n_scored"],
             source=f"docs/learned/results/{MATCHER_FILE}",
         )
-    except (KeyError, TypeError):
+    except (KeyError, TypeError, ZeroDivisionError):
         return None
 
 
@@ -77,5 +85,5 @@ def rag_result() -> RagResult | None:
             n_sections=r["n_sections"],
             source=f"docs/learned/results/{RAG_FILE}",
         )
-    except (KeyError, TypeError):
+    except (KeyError, TypeError, ZeroDivisionError):
         return None

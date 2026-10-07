@@ -480,7 +480,7 @@ def _category_margins(session: Session) -> list[CategoryMargin]:
     by_cat: dict[str, list[Decimal]] = defaultdict(list)
     for p in session.scalars(select(ProductModel)):
         m = _margin_pct(p.current_price, p.purchase_cost)
-        if m is not None:
+        if m is not None and p.category in load_thresholds().margin_floor:
             by_cat[p.category].append(m)
     return [
         CategoryMargin(
