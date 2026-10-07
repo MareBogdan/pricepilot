@@ -39,6 +39,7 @@ class RawReply:
     model: str
     cost_usd: Decimal
     latency_ms: int | None
+    stop_reason: str | None = None
 
 
 class Proposer(Protocol):
@@ -166,4 +167,5 @@ class LlmProposer:
             model=self.model,
             cost_usd=completion.usage.cost_usd,
             latency_ms=None if latency is None else round(latency),
+            stop_reason=completion.stop_reason,
         )

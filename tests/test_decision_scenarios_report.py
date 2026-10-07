@@ -12,7 +12,9 @@ import pytest
 from pricepilot.decision.engine import CompetitorPrice, ProductSnapshot, build_prompt
 from pricepilot.decision.report import (
     CAUSE_DAILY,
+    CAUSE_ROUNDING,
     CAUSE_SYNTHETIC,
+    CAUSE_TRUNCATED,
     CAUSE_UNPARSEABLE,
     GateReport,
     classify_cause,
@@ -258,3 +260,34 @@ def test_unparseable_reply_and_approve_causes() -> None:
         == CAUSE_UNPARSEABLE
     )
     assert classify_cause(row(1, "APPROVE", "11.99"), T) is None
+
+
+def test_truncated_replies_are_counted_and_attributed_to_the_harness() -> None:
+    empty = row(1, "FLAG", None, proposed=None, reason="unparseable proposer reply: x")
+    empty.llm_stop_reason = "max_tokens"
+    cut_but_approved = row(2, "APPROVE", "11.99")
+    cut_but_approved.llm_stop_reason = "max_tokens"  # parsed, guard approved: still reported
+    rows = [empty, cut_but_approved] + [row(i, "APPROVE", "11.99") for i in range(3, 51)]
+    report = evaluate(rows, thresholds=T)
+    assert classify_cause(empty, T) == CAUSE_TRUNCATED
+    assert [v.product_id for v in report.truncated] == [1, 2]
+    assert report.cause_counts == {CAUSE_TRUNCATED: 1}
+    assert report.passed  # truncation is not a margin violation
+
+
+def test_flag_where_rounding_alone_pushed_an_in_cap_proposal_over_the_cap() -> None:
+    # 879.00 -> proposed 835.05 is exactly -5.0% (inside the cap); the nearest charm value 834.90
+    # is -5.02%, so the daily cap trips. The LLM respected the cap; rounding did not.
+    r = row(
+        1, "FLAG", None, category="dry_food", cost="610.00", current="879.00", proposed="835.05",
+        reason="speed limit breached: final price 834.90 (proposed 835.05) ...", stock=82,
+    )  # fmt: skip
+    r.price_7d_ago = Decimal("874.01")
+    assert classify_cause(r, T) == CAUSE_ROUNDING
+
+
+def test_approve_rows_are_split_into_moved_and_unchanged() -> None:
+    rows = [row(i, "APPROVE", "12.50", current="12.50", proposed="12.50") for i in range(1, 49)]
+    rows += [row(49, "APPROVE", "11.99"), row(50, "APPROVE", "12.99", proposed="12.80")]
+    report = evaluate(rows, thresholds=T)
+    assert (report.approve_unchanged, report.approve_moved) == (48, 2)

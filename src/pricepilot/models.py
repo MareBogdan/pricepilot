@@ -143,6 +143,9 @@ class Recommendation(Base):
     llm_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     llm_cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("0"))
     llm_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The provider's stop_reason ("end_turn", "max_tokens", ...); a "max_tokens" reply is cut off and
+    # is never trusted (migration 0014). NULL for mock rows and for rows written before 0014.
+    llm_stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     # --- the guard's verdict: the final authority on the applied price ---
     guard_status: Mapped[str] = mapped_column(String(16))  # APPROVE | REJECT | FLAG

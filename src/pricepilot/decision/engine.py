@@ -356,6 +356,10 @@ def decide(
     final_price: Decimal | None
     reason: str | None
     try:
+        if reply.stop_reason == "max_tokens":
+            # A reply cut off by the token cap can still look parseable ("PRICE: 12.5" for 12.50,
+            # a rationale ending mid-sentence): never trust any part of it (session 5 finding).
+            raise ProposalParseError("reply truncated (stop_reason=max_tokens)")
         parsed = parse_reply(reply.text)
     except ProposalParseError as exc:
         # No price to check, so the guard cannot run: FLAG for a human, never guess a price.
@@ -407,6 +411,7 @@ def decide(
         llm_rationale=rationale,
         llm_cost_usd=reply.cost_usd,
         llm_latency_ms=reply.latency_ms,
+        llm_stop_reason=reply.stop_reason,
         guard_status=str(status),
         guard_final_price=final_price,
         guard_reason=reason,

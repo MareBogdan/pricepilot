@@ -23,6 +23,8 @@ EXPECTED_TOTAL = 50
 CAUSE_UNPARSEABLE = "unparseable LLM reply (LLM)"
 CAUSE_REFUSED = "guard refused an input it could not judge (LLM)"
 CAUSE_DAILY = "move larger than the daily cap (LLM)"
+CAUSE_ROUNDING = "proposal inside the daily cap, charm rounding pushed the applied price over it"
+CAUSE_TRUNCATED = "reply cut off by max_tokens (harness: the cap was too low for a thinking model)"
 CAUSE_SYNTHETIC = "weekly cap or missing reference, against the SYNTHETIC price_7d_ago"
 CAUSE_DIRECTION = "intended cut impossible above the floor (LLM)"
 CAUSE_BELOW_FLOOR = "kept price already below the floor"
@@ -48,6 +50,13 @@ class GateReport:
     margin_violations: list[Violation] = field(default_factory=list)
     structure_violations: list[Violation] = field(default_factory=list)
     direction_violations: list[Violation] = field(default_factory=list)
+    # Rows whose reply the provider cut off at max_tokens -- APPROVE rows included. Not a margin
+    # issue (the guard still judged a price or FLAGged), but the reply is not the model's full answer.
+    truncated: list[Violation] = field(default_factory=list)
+    # APPROVE rows split by whether the applied price differs from the current one. A no-change
+    # APPROVE keeps today's margin, so only the moved rows are a real test of the floor.
+    approve_moved: int = 0
+    approve_unchanged: int = 0
     expected_total: int = EXPECTED_TOTAL
 
     @property
@@ -72,6 +81,8 @@ def classify_cause(row: Recommendation, thresholds: PricingPolicyThresholds) -> 
     was too large."""
     if row.guard_status == GuardStatus.APPROVE:
         return None
+    if row.llm_stop_reason == "max_tokens":
+        return CAUSE_TRUNCATED
     reason = row.guard_reason or ""
     if reason.startswith("unparseable proposer reply"):
         return CAUSE_UNPARSEABLE
@@ -95,7 +106,11 @@ def classify_cause(row: Recommendation, thresholds: PricingPolicyThresholds) -> 
             price_7d_ago=row.current_price,
             thresholds=thresholds,
         )
-        return CAUSE_SYNTHETIC if replay.status == GuardStatus.APPROVE else CAUSE_DAILY
+        if replay.status == GuardStatus.APPROVE:
+            return CAUSE_SYNTHETIC
+        daily = Decimal(str(thresholds.speed_of_change.max_daily_fraction))
+        proposed_move = abs(row.llm_proposed_price - row.current_price) / row.current_price
+        return CAUSE_ROUNDING if proposed_move <= daily else CAUSE_DAILY
     return CAUSE_OTHER
 
 
@@ -125,6 +140,12 @@ def evaluate(
         if cause is not None:
             report.cause_counts[cause] += 1
 
+        if r.llm_stop_reason == "max_tokens":
+            report.truncated.append(
+                Violation(
+                    r.id, r.product_id, r.scenario, f"{r.guard_status}, reply cut at max_tokens"
+                )
+            )
         approved = r.guard_status == GuardStatus.APPROVE
         if approved != (r.guard_final_price is not None):
             report.structure_violations.append(
@@ -134,6 +155,10 @@ def evaluate(
             )
         if not approved or r.guard_final_price is None:
             continue
+        if r.guard_final_price == r.current_price:
+            report.approve_unchanged += 1
+        else:
+            report.approve_moved += 1
 
         floor = Decimal(str(t.margin_floor[r.category]))  # type: ignore[index]
         achieved = margin(r.guard_final_price, r.cost)

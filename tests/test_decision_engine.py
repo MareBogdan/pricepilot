@@ -394,6 +394,7 @@ def test_llm_proposer_wraps_complete_and_the_engine_marks_the_row_real() -> None
             text="PRICE: 12.40\nRATIONALE: Close to the market.",
             usage=SimpleNamespace(cost_usd=Decimal("0.0021")),
             latency_ms=812.4,
+            stop_reason="end_turn",
         )
 
     proposer = LlmProposer("claude-sonnet-5", complete_fn=fake_complete)
@@ -527,3 +528,48 @@ def test_competitor_title_cannot_open_a_new_prompt_section() -> None:
 def test_prompt_tells_the_model_when_there_is_no_history() -> None:
     prompt = build_prompt(snapshot(seven_days=None), fake_retriever("q", 3), load_thresholds())
     assert "keeping the current price is the only answer the code can approve" in prompt
+
+
+# ---------------------------------------------------------------------------------------
+# Truncated replies (session 5 finding): a reply cut off by max_tokens is never trusted
+# ---------------------------------------------------------------------------------------
+
+
+class Truncated(Fixed):
+    def __call__(self, request: ProposalRequest) -> RawReply:
+        return RawReply(
+            self.text, "claude-sonnet-5", Decimal("0.004"), 900, stop_reason="max_tokens"
+        )
+
+
+def test_a_reply_cut_off_at_max_tokens_is_flagged_even_if_it_parses() -> None:
+    # "PRICE: 12.5" is what a cut-off "12.50..." looks like; it parses, so only stop_reason saves us
+    proposer = Truncated("PRICE: 12.5\nRATIONALE: Current margin is well above the floor, so")
+    proposer.is_mock = False
+    row = decide(snapshot(), proposer=proposer, run_label="t", retriever=fake_retriever)
+    assert row.guard_status == GuardStatus.FLAG and row.guard_final_price is None
+    assert row.llm_proposed_price is None and row.llm_stop_reason == "max_tokens"
+    assert "truncated" in (row.guard_reason or "")
+    assert row.llm_raw_reply.startswith("PRICE: 12.5")  # still traced
+
+
+def test_an_end_turn_reply_is_not_treated_as_truncated() -> None:
+    proposer = Fixed("PRICE: 12.40\nRATIONALE: ok")
+    proposer.is_mock = False
+    row = decide(snapshot(), proposer=proposer, run_label="t", retriever=fake_retriever)
+    assert row.guard_status == GuardStatus.APPROVE and row.llm_stop_reason is None
+
+
+def test_llm_proposer_passes_the_stop_reason_through() -> None:
+    def fake_complete(**kwargs: Any) -> Any:
+        return SimpleNamespace(
+            text="",
+            usage=SimpleNamespace(cost_usd=Decimal("0.0069")),
+            latency_ms=5000.0,
+            stop_reason="max_tokens",
+        )
+
+    reply = LlmProposer("claude-sonnet-5", complete_fn=fake_complete)(
+        ProposalRequest(system="s", prompt="p", snapshot=snapshot())
+    )
+    assert reply.stop_reason == "max_tokens" and reply.text == ""
