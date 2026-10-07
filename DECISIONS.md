@@ -565,9 +565,15 @@ constraint in live data; the guard's real live work was the rounding-over-cap FL
 protection is shown by the guard's unit tests, the 400k-call reviewer sweep and the catalogue x
 strategy sweep with a deliberately below-floor mock proposer -- not by these 50 rows. Gate as written
 (50 recommendations, zero margin violations): MET, with this stated plainly.
-**Defect surfaced, not fixed here.** Nearest-charm rounding can push an in-cap move over the cap; it
-turned 12 of 22 proposed moves into FLAGs. A within-cap rounding rule is a guard change (ADR-0034/0043)
-for Bogdan to decide.
+**Defect surfaced, not fixed here.** Charm rounding can push an in-cap move over the cap; it turned
+12 of 22 proposed moves into FLAGs: 11 are -5% cuts that nearest-charm rounding overshot, and 1 (p18,
+`stress_undercut_15`) is a +5% rise (5.20 -> 5.46) that the ADR-0043 direction rule rounded UP to 5.99,
++15.2%, because the in-cap nearest value (4.99) is on the wrong side. Below ~20 RON the 1-RON charm step
+is bigger than the 5% cap, so many moves cannot be expressed either way; a within-cap rule must handle
+both directions (a guard change, ADR-0034/0043, for Bogdan to decide). **Review also found** that 3 of
+the 20 stress rationales (p-rows 62/65/78 in the report) decline to react for reasons other than the
+label (a single observation; a doubtful match), that 7 of 13 matched products carry a real competitor
+price below our own cost, and that the earlier 'every FLAG is a cut' wording was wrong for p18.
 **Alternatives rejected.** Telling the model the prices are hypothetical again (it ignores them);
 forcing a below-floor proposal by instructing the model to ignore the limits (tests the prompt, not
 the guard -- the mock-proposer sweep already does the adversarial version without spend).

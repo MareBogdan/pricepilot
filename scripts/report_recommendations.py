@@ -70,6 +70,9 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
     other = [r for r in rows if r.scenario and not is_stress(r.scenario)]
     matched = [r for r in baseline if r.competitor_prices]
     unmatched = [r for r in baseline if not r.competitor_prices]
+    below_cost = [
+        r for r in matched if min(Decimal(c["price"]) for c in r.competitor_prices) < r.cost
+    ]
     s_stress = summarise_moves(stress, thresholds=t)
     s_matched = summarise_moves(matched, thresholds=t)
     s_unmatched = summarise_moves(unmatched, thresholds=t)
@@ -137,13 +140,14 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         move_row("baseline, no competitor data", s_unmatched),
         move_row("ALL", s_all),
         "",
-        f"- Stress-test rows whose rationale says the competitor price was hypothetical / ignored: "
-        f"**{stress_ignored} of {len(stress)}**"
-        + (" (the earlier framing's failure mode; it should now be ~0)." if stress else "."),
+        f"- Stress-test rationales that use the words hypothetical / what-if / not real (the earlier "
+        f"framing's failure mode): **{stress_ignored} of {len(stress)}**. This is a keyword check, not a "
+        "measure of how hard the prompt bit: a rationale can still decline to react for another "
+        "reason (a single observation, a doubtful match).",
         f"- Of the 50 rows, **{s_all.approve_moved} APPROVEs move the price** and "
         f"{s_all.approve_unchanged} keep it. A no-change keeps today's margin, so the floor claim "
-        "rests on the moved rows, the proposals the guard stopped, and the guard's unit tests and "
-        "sweeps.",
+        "rests on the guard's unit tests and sweeps, not on these rows: no model proposal was over the "
+        "daily cap or below a floor, and every FLAG here is a cap refusal.",
     ]
     if other:
         lines.append(
@@ -227,6 +231,13 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         "- The daily cap (5%) keeps a single step far from the floors in this catalogue (margins "
         "28-56% against floors of 12-30%), so a live model that obeys the cap cannot reach a floor "
         "in one move; the floor itself is demonstrated by the guard's unit tests and sweeps.",
+        f"- {len(below_cost)} of the {len(matched)} matched products have a real competitor price BELOW "
+        "our own purchase cost (mock-store prices are not calibrated to this market), which weakens "
+        "what an undercut stress-test means. The matched competitor listings are also not all correct "
+        "(post-guard matcher precision 0.92, `gate-s3b.md`; two links labelled wrong still feed "
+        "prompts).",
+        "- Replies were requested with different token caps (400 for the first-run rows kept, 1500 "
+        "for the refreshed 24); see ADR-0045.",
         "- The applied price comes only from `guard.enforce`; the LLM price is a suggestion.",
         "",
     ]

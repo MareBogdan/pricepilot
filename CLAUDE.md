@@ -279,7 +279,7 @@ MLP or GRU — no transformer needed. Compare against a naive 7-day-average base
 **Gate:** beats the naive baseline on validation, measured on real observed price movements; prediction-vs-actual plot committed; the real/synthetic split stated in the README and in `docs/learned/demand-model.md`; no elasticity-recovery number reported as a result anywhere.
 
 ### Phase 5 — Decision engine
-CLOSED 2026-10-07, gate MET with caveats: 50 real recommendations, 0 margin violations (38 APPROVE / 12 FLAG; 10 APPROVEs move the price, 6 of them labelled guard stress-tests on synthetic competitor prices); the floor is shown mainly by the guard's tests and sweeps. Spend $0.40 on the gate runs. Full text: `docs/archive/phases-5.md`; report: `docs/learned/results/phase5/fifty-recommendations.md`.
+CLOSED 2026-10-07, gate MET with caveats: 50 real recommendations, 0 margin violations (38 APPROVE / 12 FLAG; 10 APPROVEs move the price, 6 of them labelled guard stress-tests on synthetic competitor prices); the floor is shown entirely by the guard's tests and sweeps, not by the live rows. Spend $0.40 on the gate runs. Full text: `docs/archive/phases-5.md`; report: `docs/learned/results/phase5/fifty-recommendations.md`.
 
 ### Phase 6 — Tool calling
 Strict-schema tools: `update_price`, `flag_for_review`, `do_nothing`. Human approval by default; automatic mode only under narrow conditions. Full action log with rollback.

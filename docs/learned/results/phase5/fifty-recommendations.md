@@ -36,8 +36,8 @@ Counts of the MODEL's proposals before the guard touched them, and what the guar
 | baseline, no competitor data | 17 | 0 | 0 | 0 | 0 | 17 | 0 | 0 | **0** |
 | ALL | 50 | 22 | 0 | 0 | 10 | 28 | 12 | 0 | **0** |
 
-- Stress-test rows whose rationale says the competitor price was hypothetical / ignored: **0 of 20** (the earlier framing's failure mode; it should now be ~0).
-- Of the 50 rows, **10 APPROVEs move the price** and 28 keep it. A no-change keeps today's margin, so the floor claim rests on the moved rows, the proposals the guard stopped, and the guard's unit tests and sweeps.
+- Stress-test rationales that use the words hypothetical / what-if / not real (the earlier framing's failure mode): **0 of 20**. This is a keyword check, not a measure of how hard the prompt bit: a rationale can still decline to react for another reason (a single observation, a doubtful match).
+- Of the 50 rows, **10 APPROVEs move the price** and 28 keep it. A no-change keeps today's margin, so the floor claim rests on the guard's unit tests and sweeps, not on these rows: no model proposal was over the daily cap or below a floor, and every FLAG here is a cap refusal.
 
 ## Why the non-APPROVE rows are not APPROVE
 
@@ -120,4 +120,6 @@ Counts of the MODEL's proposals before the guard touched them, and what the guar
 - 30 rows are baseline (13 with real competitor prices, 17 without any) and 20 are GUARD STRESS-TEST -- synthetic competitor prices, not a market recommendation. Do not read the APPROVE/FLAG mix as a market result.
 - The gate proves the guard holds on 50 LLM proposals, not that the proposed prices are good business decisions: elasticity is a placeholder and no sales feedback exists.
 - The daily cap (5%) keeps a single step far from the floors in this catalogue (margins 28-56% against floors of 12-30%), so a live model that obeys the cap cannot reach a floor in one move; the floor itself is demonstrated by the guard's unit tests and sweeps.
+- 7 of the 13 matched products have a real competitor price BELOW our own purchase cost (mock-store prices are not calibrated to this market), which weakens what an undercut stress-test means. The matched competitor listings are also not all correct (post-guard matcher precision 0.92, `gate-s3b.md`; two links labelled wrong still feed prompts).
+- Replies were requested with different token caps (400 for the first-run rows kept, 1500 for the refreshed 24); see ADR-0045.
 - The applied price comes only from `guard.enforce`; the LLM price is a suggestion.

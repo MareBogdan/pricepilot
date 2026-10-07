@@ -7,10 +7,11 @@ Updated: 2026-10-07 (s5b)
 recommendations (`docs/learned/results/phase5/fifty-recommendations.md`): **0 margin violations**, 0
 direction contradictions, 0 truncated replies; 38 APPROVE / 0 REJECT / 12 FLAG. The gate now rests on
 **10 APPROVEs that move the price** (6 are labelled GUARD STRESS-TESTS on synthetic competitor prices, 4
-are real matched baselines), 12 FLAGs, **plus the guard's unit tests, the 400k-call reviewer sweep and
-the below-floor mock sweep** -- NOT on the 28 no-change rows. Honest limit: zero model proposals were
-over the cap or below a floor, so the floor was never the binding constraint live; and nearest-charm
-rounding turned all 12 cap-obeying -5% proposals into FLAGs (guard decision owed). Spend: $0.404462
+are real matched baselines) and, for the floor itself, **on the guard's unit tests, the 400k-call reviewer
+sweep and the below-floor mock sweep** -- NOT on the 28 no-change rows (the 12 FLAGs are cap refusals,
+not floor evidence). Honest limit: zero model proposals were
+over the cap or below a floor, so the floor was never the binding constraint live; and charm
+rounding turned all 12 cap-obeying proposals (11 cuts, 1 rise) into FLAGs (guard decision owed). Spend: $0.404462
 on the gate runs ($0.240276 + $0.164186), $1.222904 total ledger. Phase 4 stays POSTPONE.
 
 ## Gate progress
@@ -54,7 +55,7 @@ placeholder.
 00000. **Phase 5 s5b: gate made meaningful, Phase 5 closed (2026-10-07, ADR-0045):** 20 scenarios re-framed as
    GUARD STRESS-TESTS (prompt no longer announces them), 4 truncated baselines + 20 stress re-run at
    `max_tokens=1500`, old rows relabelled `s5-superseded` (nothing deleted), $0.164186; report gains the
-   proposals-before-the-guard table; post-guard links labelled; ADR-0034/0036/0037 full text archived.
+   proposals-before-the-guard table; post-guard links labelled; ADR-0034/0036 full text archived.
 0000. **Phase 5 s5: first gate run (2026-10-07, ADR-0043/0044):** guard keeps the move's direction through
    charm rounding; scenario builder; gate report with an independent floor re-check; migration 0014
    `llm_stop_reason`; 50 real rows $0.240276 -- found weak (42/45 no-change, scenarios neutralised, 4
@@ -118,9 +119,10 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 ## Open issues
 
 - **Charm rounding overshoots the daily cap (ADR-0045) -- decision owed:** all 12 FLAGs in the refreshed
-  gate are one cause: the model proposed the exact -5% cap move and nearest-charm rounding landed outside
-  the cap (e.g. 879.00 -> 834.90, 11.00 -> 9.99). Fix = round within the cap (a guard change, ADR-0034/0043);
-  without it every cap-obeying cut on a cheap item is a FLAG. Cannot cause a margin violation.
+  gate are cap refusals: 11 are exact -5% cuts that nearest-charm rounding overshot (879.00 -> 834.90,
+  11.00 -> 9.99) and 1 is a +5% rise (p18, 5.20 -> 5.46) rounded UP to 5.99 by the direction rule. Below
+  ~20 RON the 1-RON charm step exceeds the 5% cap. Fix = a within-cap rule handling both directions (guard
+  change, ADR-0034/0043). Cannot cause a margin violation.
 - **Live gate evidence for the floor is thin by construction (ADR-0045):** zero proposals over the cap or
   below a floor; the 5% cap keeps one step far from every floor (margins 28-56% vs floors 12-30%). The floor
   is demonstrated by the guard's unit tests, the 400k reviewer sweep and the mock below-floor sweep.

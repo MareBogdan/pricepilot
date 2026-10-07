@@ -187,7 +187,9 @@ def main() -> int:
     for item in selected:
         with session_scope() as session:
             existing = rows_for(session, args.run_label, item.product_id, item.scenario)
-            if is_complete(existing):
+            # Plain run: ANY existing row means done (never pay twice for one item). --refresh:
+            # only a complete row does; an incomplete one is superseded below.
+            if existing and (not args.refresh or is_complete(existing)):
                 skipped += 1
                 continue
             if args.refresh:

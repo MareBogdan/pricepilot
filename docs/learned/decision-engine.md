@@ -1,8 +1,7 @@
 # Decision engine (Phase 5, sessions 4-5)
 
-**What it does.** For one product it gathers numbers from SQL, retrieves policy passages (RAG), builds a
-prompt, asks a *proposer* for a price + rationale, parses the reply, runs the deterministic guard, and
-stores a full trace row (`recommendations`).
+**What it does.** For one product: gather numbers from SQL, retrieve policy passages (RAG), build a prompt,
+ask a *proposer* for a price + rationale, parse, run the deterministic guard, store a full trace row.
 
 **The decision that mattered: the proposer is a seam.** Session 4 used a deterministic mock; session 5
 swapped in `client.complete`. Prompt-building and parsing are the same in both, so the mock proved the
@@ -22,7 +21,6 @@ Charm rounding can also push an in-cap -5% proposal just over the cap (2 FLAGs).
 
 **Honest limits (ADR-0045).** The first gate run was weak: mostly no-change, and my prompt told the model
 the scenario prices were hypothetical, so it ignored them. Re-framed as guard stress-tests, the refreshed 50
-show 0 margin violations, 10 APPROVEs that move the price, 12 FLAGs. But the model never proposed anything
-over the cap or below a floor (it obeys the limits it is told), so the floor is shown by the guard's tests and
-sweeps, not the live run. All 12 FLAGs are nearest-charm rounding overshooting the 5% cap. Elasticity is a
-placeholder, `price_7d_ago` and stress prices are synthetic.
+show 0 margin violations, 10 moving APPROVEs, 12 FLAGs. The model never proposed anything over the cap or
+below a floor, so the floor is shown by the guard's tests and sweeps, not the live run. All 12 FLAGs are
+charm rounding overshooting the 5% cap.
