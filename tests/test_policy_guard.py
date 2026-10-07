@@ -328,7 +328,7 @@ def test_enforce_allows_a_discount_when_stock_meets_minimum() -> None:
     assert decision.status is GuardStatus.APPROVE
 
 
-def test_enforce_self_corrects_a_badly_low_proposal_but_flags_the_resulting_jump() -> None:
+def test_enforce_flags_a_badly_low_proposal_whose_floor_lift_would_reverse_the_cut() -> None:
     """A proposal far below the category floor is corrected upward by charm_round (never
     approved below the floor: dry_food 0.12, cost 88 -> breakeven 100.00, so 90.00 gets bumped to
     100.90). Since ADR-0043 a DECREASE proposal is never applied as a rise, so that is caught first
@@ -688,10 +688,50 @@ CURRENTS = (
 )
 
 
+def check_approved(
+    category: str,
+    cost: Decimal,
+    current: Decimal,
+    proposed: Decimal,
+    stock: int,
+    price: Decimal | None,
+) -> None:
+    """Every rule an APPROVE must satisfy, recomputed here from the config, not from the guard."""
+    assert price is not None
+    ctx = (category, cost, current, proposed, stock, price)
+    assert meets_floor(category, price, cost, thresholds=T), ctx
+    if proposed > current:
+        assert price >= current, ctx
+    else:
+        assert price <= current, ctx
+    if price < current:
+        assert is_discountable(stock, thresholds=T), ctx  # a cut needs stock
+    # price_7d_ago == current in the sweep, so the daily and weekly caps coincide at the smaller one
+    daily = abs(price - current) / current
+    assert daily <= Decimal(str(T.speed_of_change.max_daily_fraction)), ctx
+
+
+def test_a_floor_lift_on_an_increase_that_overshoots_the_daily_cap_flags() -> None:
+    """dry_food cost 88.00 (breakeven 100.00): current 95.00 is under the floor, proposed 96.00
+    (+1.1%). charm_round lifts it floor-safe to 100.90, which is +6.2% on the day -> FLAG."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("88.00"),
+        current_price=Decimal("95.00"),
+        proposed_price=Decimal("96.00"),
+        stock=50,
+        price_7d_ago=Decimal("95.00"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.FLAG and decision.price is None
+    assert "speed limit" in (decision.reason or "") and "100.90" in (decision.reason or "")
+
+
 def test_direction_and_floor_hold_on_a_grid_of_currents_and_proposals() -> None:
     """Sweep both rounding regimes, the boundary at 100, and prices from ~4 to ~400 RON with
-    proposals either side of current: whenever the guard APPROVEs, the applied price is on the
-    intended side of current (or equal) and clears the category floor."""
+    proposals either side of current, with stock 0 and 50: whenever the guard APPROVEs, the applied
+    price clears the floor, is on the intended side of current (or equal), is not a cut on low
+    stock, and is inside the daily cap."""
     approved = 0
     for category, cost_ratio in (("treats", "0.55"), ("dry_food", "0.80")):
         for current_s in CURRENTS:
@@ -703,23 +743,19 @@ def test_direction_and_floor_hold_on_a_grid_of_currents_and_proposals() -> None:
                 )
                 if proposed == current or proposed <= 0:
                     continue
-                d = enforce(
-                    category=category,
-                    cost=cost,
-                    current_price=current,
-                    proposed_price=proposed,
-                    stock=50,
-                    price_7d_ago=current,
-                    thresholds=T,
-                )
-                if d.status is not GuardStatus.APPROVE:
-                    assert d.price is None
-                    continue
-                approved += 1
-                assert d.price is not None
-                assert meets_floor(category, d.price, cost, thresholds=T)
-                if proposed > current:
-                    assert d.price >= current, (category, current, proposed, d.price)
-                else:
-                    assert d.price <= current, (category, current, proposed, d.price)
-    assert approved > 50  # the sweep is not vacuous
+                for stock in (0, 50):
+                    d = enforce(
+                        category=category,
+                        cost=cost,
+                        current_price=current,
+                        proposed_price=proposed,
+                        stock=stock,
+                        price_7d_ago=current,
+                        thresholds=T,
+                    )
+                    if d.status is not GuardStatus.APPROVE:
+                        assert d.price is None
+                        continue
+                    approved += 1
+                    check_approved(category, cost, current, proposed, stock, d.price)
+    assert approved > 100  # the sweep is not vacuous

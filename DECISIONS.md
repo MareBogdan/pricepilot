@@ -527,8 +527,8 @@ the applied price can land on the wrong side of `current_price`: product 18, cur
 rationale -- and the same flaw existed at any price (179.00 + 179.05 -> 178.90).
 **Decision.** After the nearest charm value is chosen, `enforce` re-anchors it on the intended side
 of `current_price` (new `charm_ceil` / `charm_floor`, the regime boundary 99.99 -> 100.90 included).
-Intended INCREASE and result below current: use the smallest charm value >= current, stepped up
-floor-safe. Intended DECREASE and result above current: use the largest charm value <= current if it
+Intended INCREASE and result below current: use the smallest charm value >= current (floor-safe as is:
+it is above the floor-safe nearest value). Intended DECREASE and result above current: use the largest charm value <= current if it
 clears the floor, otherwise FLAG ("direction cannot be kept") -- never an upward APPROVE. A genuine
 no-change is untouched. Every later check (floor, eligibility, speed) runs on the re-anchored price,
 so e.g. the 5.20 case is now a speed-limit FLAG (5.99 is +15%), not a silent -4% cut.
@@ -544,4 +544,12 @@ of current and clears its floor.
 an increase could then be floor-ed below current just the same. Declining to round small items:
 policy section 6 rounds everything. Treating a direction flip as REJECT: policy section 4 sends
 ambiguous moves to a human, i.e. FLAG.
+**Review (reviewer, same day): no blocking finding.** 400k random `enforce` calls: no APPROVE below
+a floor, none against the intended direction, none cutting on stock < 3, none over the speed cap. The
+increase-branch step-up loop was unreachable and is removed (the step-2 floor re-check stays as the
+backstop); the sweep now covers stock 0 and 50 and asserts the daily cap; the product-18 style
+floor-lift-then-speed case has its own test. **Known and accepted:** when `current_price` is itself a
+charm value and a far-below-floor cut is floor-lifted back to exactly `current`, the guard APPROVEs
+the unchanged price (a no-op, policy section 7), whereas the same cut from a non-charm current
+FLAGs "direction cannot be kept"; both leave the price where it was.
 **Date.** 2026-10-07

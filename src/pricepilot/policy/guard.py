@@ -216,8 +216,9 @@ def enforce(
     178.90 discount). Checking the price actually applied is the only way to guarantee every rule
     holds for the price that comes out.
 
-    Order: no-change short-circuit -> charm round -> keep the move's direction -> re-check floor -> eligibility -> speed limit,
-    the last four all on the final price. A genuine no-change (`proposed_price == current_price`)
+    Order: no-change short-circuit -> charm round -> keep the move's direction -> re-check floor ->
+    eligibility -> speed limit; the floor re-check, eligibility and speed limit all run on the
+    final price. A genuine no-change (`proposed_price == current_price`)
     is approved unrounded, never manufactured into a move (session 1b, 2026-09-28) -- unless it
     already sits below the floor, which FLAGs instead of silently keeping a sub-floor price. Since
     there is no movement to measure, a no-change never reaches the eligibility or speed check --
@@ -252,12 +253,10 @@ def enforce(
     # `current_price` (5.20 -> proposed 5.36 -> 4.99 turned a +3% rise into a -4% cut). The applied
     # price must never contradict the intended direction, so re-anchor it on the correct side.
     if proposed_price > current_price and final_price < current_price:
-        # Intended increase: the smallest charm value not below current (then floor-safe upward).
+        # Intended increase: the smallest charm value not below current. Floor-safe without a
+        # step-up: it is >= current > the floor-safe `charm_round` result, and margin rises with
+        # price; the step-2 floor re-check below remains the backstop.
         final_price = charm_ceil(current_price, thresholds=t)
-        for _ in range(_MAX_CHARM_STEPS):
-            if meets_floor(category, final_price, cost, thresholds=t):
-                break
-            final_price = charm_ceil(final_price + Decimal("0.01"), thresholds=t)
     elif proposed_price < current_price and final_price > current_price:
         # Intended decrease: the largest charm value not above current, if it clears the floor.
         lower = charm_floor(current_price, thresholds=t)
