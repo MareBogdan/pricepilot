@@ -549,11 +549,11 @@ def test_a_reply_cut_off_at_max_tokens_is_flagged_even_if_it_parses() -> None:
     row = decide(snapshot(), proposer=proposer, run_label="t", retriever=fake_retriever)
     assert row.guard_status == GuardStatus.FLAG and row.guard_final_price is None
     assert row.llm_proposed_price is None and row.llm_stop_reason == "max_tokens"
-    assert "truncated" in (row.guard_reason or "")
+    assert "truncated or refused" in (row.guard_reason or "")
     assert row.llm_raw_reply.startswith("PRICE: 12.5")  # still traced
 
 
-def test_an_end_turn_reply_is_not_treated_as_truncated() -> None:
+def test_a_reply_with_no_stop_reason_is_not_treated_as_truncated() -> None:
     proposer = Fixed("PRICE: 12.40\nRATIONALE: ok")
     proposer.is_mock = False
     row = decide(snapshot(), proposer=proposer, run_label="t", retriever=fake_retriever)
@@ -573,3 +573,36 @@ def test_llm_proposer_passes_the_stop_reason_through() -> None:
         ProposalRequest(system="s", prompt="p", snapshot=snapshot())
     )
     assert reply.stop_reason == "max_tokens" and reply.text == ""
+
+
+class Stopped(Fixed):
+    def __init__(self, text: str, stop_reason: str) -> None:
+        super().__init__(text)
+        self.stop_reason = stop_reason
+        self.is_mock = False
+
+    def __call__(self, request: ProposalRequest) -> RawReply:
+        return RawReply(self.text, "m", Decimal("0.001"), 10, stop_reason=self.stop_reason)
+
+
+@pytest.mark.parametrize("stop", ["end_turn", "stop_sequence"])
+def test_normal_stop_reasons_are_trusted(stop: str) -> None:
+    row = decide(
+        snapshot(),
+        proposer=Stopped("PRICE: 12.40\nRATIONALE: ok", stop),
+        run_label="t",
+        retriever=fake_retriever,
+    )
+    assert row.guard_status == GuardStatus.APPROVE and row.llm_stop_reason == stop
+
+
+@pytest.mark.parametrize("stop", ["refusal", "pause_turn", "max_tokens"])
+def test_any_abnormal_stop_reason_is_flagged_even_with_a_parseable_reply(stop: str) -> None:
+    row = decide(
+        snapshot(),
+        proposer=Stopped("PRICE: 12.40\nRATIONALE: ok", stop),
+        run_label="t",
+        retriever=fake_retriever,
+    )
+    assert row.guard_status == GuardStatus.FLAG and row.llm_proposed_price is None
+    assert f"stop_reason={stop}" in (row.guard_reason or "")

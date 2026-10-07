@@ -294,41 +294,14 @@ bug CLAUDE.md names as what an interviewer looks for.
 
 ## ADR-0037 — ADR-0014's Neon test guard had a hole: popping DATABASE_URL doesn't isolate .env
 
-**Context.** `reviewer` review of the retrieval commit (576ea77) found: `tests/conftest.py::
-pytest_configure` popped `DATABASE_URL` from `os.environ` when `TEST_DATABASE_URL` was absent,
-intending "fully offline". `Settings(env_file=".env")` (pydantic-settings) falls back to `.env`'s
-own `DATABASE_URL` whenever the OS environment variable is absent -- precedence is init >
-env var > `.env` file, so a POPPED variable is not the same as an OVERRIDDEN one. `TEST_DATABASE_URL`
-is not a real OS env var on this machine (only present inside `.env`), so `uv run pytest` /
-`.venv\Scripts\python -m pytest` / `make.ps1 test` all resolved `DATABASE_URL` to the real Neon
-credential. Session 2's new `tests/test_policy_retrieval.py` was the first test in the repo to
-touch a database, and the first to hit this hole -- its idempotency test ran
-`scripts/build_policy_index.py` as a subprocess against Neon on every plain `pytest` invocation
-this session, before the fix. No data was lost (the writes are idempotent upserts of
-`policy_chunks`, a table this same session created and populated on purpose, never touching
-`raw_listings`/collected history) but the guard's actual behavior did not match its documented
-contract.
-**Decision.** `pytest_configure` now sets `DATABASE_URL` to an explicit, unreachable
-`OFFLINE_SENTINEL_DATABASE_URL` (`offline.invalid` -- an RFC 2606 hostname guaranteed to fail DNS
-resolution in <1s) instead of popping it, so an OS-level value always wins over `.env`'s fallback.
-Verified end-to-end (not just the pure-function unit tests that missed this): a new regression
-test calls the real `pytest_configure` hook against a clean environment, then builds a real
-`Settings()` reading the real `.env` on disk, and asserts it never resolves to Neon --
-`test_missing_test_database_url_cannot_fall_back_to_envs_neon_url`. Confirmed the guard also now
-correctly REFUSES an explicit attempt to point `TEST_DATABASE_URL` at Neon (tested live this
-session: `assert_safe_for_tests` raised `NeonGuardError` as designed).
-**Alternatives rejected.** A sentinel on an unbound loopback port -- tried first, rejected: this
-machine's environment lets the SYN sit until psycopg's ~15s connect_timeout fires, twice
-(`connect_with_wakeup_retry`'s one retry), adding ~32s to every test run that calls
-`check_database()`. `.invalid` fails in the DNS-resolution step, before any socket connect,
-independent of local network/firewall behavior. Reading `TEST_DATABASE_URL` from `.env` as a
-fallback (a second `reviewer` pass suggested this to close the resulting coverage gap -- the
-`policy_chunks` DB tests now have zero executing coverage anywhere without a real
-`TEST_DATABASE_URL` env var) -- implemented, measured, and reverted: on this machine, checking an
-unreachable `localhost:5433` (docker down) takes ~30s per attempt, not an instant refusal, so the
-fallback would add ~60s to every plain `pytest` run whenever docker is down. Worse than the
-coverage gap it closed; documented as an accepted limitation in STATE.md instead.
-**Date.** 2026-09-28
+**Context.** `reviewer` (576ea77): `pytest_configure` popped `DATABASE_URL` when `TEST_DATABASE_URL`
+was absent, but `Settings(env_file=".env")` then fell back to `.env`'s real Neon credential, so plain
+`pytest` runs hit Neon (only idempotent `policy_chunks` upserts; no data lost).
+**Decision.** Set `DATABASE_URL` to an unreachable sentinel (`offline.invalid`, fails DNS in <1s)
+instead of popping it, so an OS value always beats `.env`; end-to-end regression test added; the guard
+also refuses a `TEST_DATABASE_URL` that names Neon. **Rejected:** a loopback-port sentinel (+32s per
+run), reading `TEST_DATABASE_URL` from `.env` (+60s when docker is down; accepted coverage gap).
+**Full text:** `docs/archive/DECISIONS-ADR-0037-full.md`. **Date.** 2026-09-28
 
 ## ADR-0038 — Sync our catalogue first; the matcher is its own session; pg8000 fallback; s3b gate pre-registered
 
@@ -565,9 +538,10 @@ the TOML, independent of the guard); 0 direction contradictions; 0 REJECT; 5 FLA
 $0.240276** (est. $0.1724, ceiling $0.3224; the estimate undercounted output because the model thinks
 before answering). Mean latency 2.9 s. Ledger: $0.818442 -> $1.058718, 575 -> 625 `llm_calls` rows.
 **How strong the evidence is.** Of the 45 APPROVEs, 42 keep the current price and 3 move it
-(p2 369.90, p6 98.99, p19 3.99). None of the 20 scenario rows moved the price: the LLM held even under
-`undercut_30`. A no-change keeps today's margin, so this run is weak evidence for the floor; the
-floor's protection is shown by the guard's unit tests, the 400k-call review sweep and the catalogue x
+(p2 369.90, p6 98.99, p19 3.99). None of the 20 scenario rows moved the price, but NOT because the model is robust: all 20 rationales
+say the competitor price was labelled hypothetical, i.e. my own prompt note told the model to ignore it
+(see the correction below). A no-change keeps today's margin, so this run is weak evidence for the
+floor; the floor's protection is shown by the guard's unit tests, the 400k-call review sweep and the catalogue x
 strategy sweep with a deliberately below-floor mock proposer (tests/test_decision_engine.py).
 **Harness fault found.** Sonnet 5 emits a thinking block by default; at `max_tokens=400` four replies
 were cut off (`stop_reason=max_tokens`): three had no text (-> "unparseable" FLAG, p4/p5/p14) and one
@@ -589,6 +563,17 @@ architect; it cannot create a margin violation.
 0.9565 (22/23 labelled; 2 newly surfaced links unlabelled, so 0.88-0.96), NOT independent of the errors
 the guard was built from, labels Claude-written pending Bogdan's review. The brief's "~0.88-0.92" was an
 ESTIMATE and is replaced by the script's bounds.
+**Correction after review (same day).** (a) The 20 scenario rows could not stress the floor: the prompt
+announced the prices as hypothetical and every rationale cites that as the reason to ignore them. The
+real test of this run is the 13 matched baseline rows: 3 moved the price, 5 kept it, 5 were FLAGged
+(3 truncated, 2 rounding-over-cap). (b) 17 of the 30 baseline rows had no competitor data, so no move
+was ever prompted there; the report said "real inputs" for all 30 and now says 13. (c) The cost
+overrun ($0.068) is $0.016 input (69,238 tokens vs ~61.2k estimated) and the rest output (mean 204
+tokens vs 100 assumed). (d) The report prose is now computed from the rows, not hard-coded; the
+backfill is all-or-nothing (a mismatch raises and rolls back); any provider `stop_reason` other than
+`end_turn` / `stop_sequence` / none is distrusted, not just `max_tokens`. **Option not taken:** re-run
+the 20 scenarios without announcing the what-if in the prompt (the trace would still label them) to
+make them real floor tests, est. ~$0.10 -- a separate SPEND decision.
 **Alternatives rejected.** Silently re-running the 4 items (spend beyond the approved line, and it would
 overwrite the evidence of the fault); editing the stored verdicts after the fact; dropping the
 truncated rows from the denominator.

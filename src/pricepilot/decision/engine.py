@@ -34,6 +34,9 @@ from pricepilot.policy.retrieval import PolicyPassage, retrieve_policy
 from pricepilot.policy.thresholds import PricingPolicyThresholds, load_thresholds
 
 PRICE_7D_SOURCE = "mock_store_synthetic"
+# A provider stop_reason other than these (max_tokens, refusal, ...) means the reply is not the
+# model's complete answer. None = a mock or a cache entry written before stop_reason existed.
+NORMAL_STOP_REASONS = (None, "end_turn", "stop_sequence")
 RETRIEVAL_K = 3
 
 # Phase 4 is POSTPONED (ADR-0031/0032): no elasticity has been estimated from data. `value` is
@@ -356,10 +359,12 @@ def decide(
     final_price: Decimal | None
     reason: str | None
     try:
-        if reply.stop_reason == "max_tokens":
+        if reply.stop_reason not in NORMAL_STOP_REASONS:
             # A reply cut off by the token cap can still look parseable ("PRICE: 12.5" for 12.50,
             # a rationale ending mid-sentence): never trust any part of it (session 5 finding).
-            raise ProposalParseError("reply truncated (stop_reason=max_tokens)")
+            raise ProposalParseError(
+                f"reply truncated or refused (stop_reason={reply.stop_reason})"
+            )
         parsed = parse_reply(reply.text)
     except ProposalParseError as exc:
         # No price to check, so the guard cannot run: FLAG for a human, never guess a price.

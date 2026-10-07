@@ -7,8 +7,9 @@ Updated: 2026-10-07 (s5)
 the 50 real recommendations ran on `claude-sonnet-5` for **$0.240276 actual** (est. $0.17): **gate
 PASSED on its own terms, 0 margin violations**, 45 APPROVE / 0 REJECT / 5 FLAG
 (`docs/learned/results/phase5/fifty-recommendations.md`). Read with the caveats: 42 of 45 APPROVEs keep
-the price (3 move it), 0 of 20 scenario rows moved it, and 4 of 50 replies were truncated by my
-`max_tokens=400` (3 empty FLAGs, 1 partial accepted). **Next: Bogdan decides whether to re-run those 4
+the price (3 move it); the 20 scenario rows were neutralised by my own prompt label (all 20
+rationales cite it), 17 baseline rows had no competitor data, so the real test is the 13 matched
+baseline rows (3 moved, 5 kept, 5 FLAG); 4 of 50 replies were truncated by my `max_tokens=400`. **Next: Bogdan decides whether to re-run those 4
 (~$0.05-0.07), then Phase 5 close-out / Phase 6.** Phase 4 stays POSTPONE. Dataset FROZEN 2026-09-22.
 
 ## Gate progress
@@ -129,9 +130,11 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 - **Charm rounding can breach the daily cap (ADR-0044):** p3 and p21 proposed exactly -5% and were FLAGged
   because the nearest charm value lies outside the cap. Guard change for the architect (round within the
   cap); cannot cause a margin violation.
-- **Weak floor evidence from the live run:** 42/45 APPROVEs are no-change; 0/20 scenarios moved the price.
-  A stronger test would force a proposal below the floor against the real model (not done; would need a
-  prompt that asks for it) -- the floor is demonstrated by tests and sweeps instead.
+- **Weak floor evidence from the live run:** 42/45 APPROVEs are no-change. The 20 scenarios did not
+  press the floor because the prompt announced them as hypothetical (all 20 rationales cite it); 17
+  baseline rows had no competitor data. Option: re-run the 20 scenarios without announcing the what-if
+  (trace still labelled), est. ~$0.10, needs a SPEND yes. The floor is otherwise demonstrated by the
+  guard's tests and sweeps.
 - **Prose/TOML drift is now tested** (`test_policy_prose_drift.py`); day counts (14 / 2 / 7+ days)
   have no TOML key yet (guard scope gaps) and sit in an explicit allowlist. `retrieve_policy` still
   does not check `policy_chunks.source_sha256` against the live prose.
@@ -211,6 +214,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 5: decide on re-running the 4 truncated replies (~$0.05-0.07 SPEND, recommended); decide whether Phase 5 closes on the gate as it stands (0 violations, caveats above) or after the re-run; decide the charm-within-cap guard change (ADR-0044); review the Claude-written match labels and label the 2 newly surfaced links (`gate-s3b.md`, ADR-0040).
+Phase 5: decide on re-running the 4 truncated replies (~$0.05-0.07 SPEND, recommended) and/or the 20 scenarios without the what-if announcement (~$0.10 SPEND); decide whether Phase 5 closes on the gate as it stands (0 violations, caveats above) or after the re-run; decide the charm-within-cap guard change (ADR-0044); review the Claude-written match labels and label the 2 newly surfaced links (`gate-s3b.md`, ADR-0040).
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

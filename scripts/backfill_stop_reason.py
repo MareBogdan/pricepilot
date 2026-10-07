@@ -38,6 +38,8 @@ def main() -> int:
     parser.add_argument("--max-tokens", type=int, default=400)
     args = parser.parse_args()
     updated = 0
+    # All-or-nothing: any problem RAISES, which rolls the whole transaction back (a plain `return`
+    # inside `session_scope` would commit the rows already set).
     with session_scope() as session:
         rows = session.execute(
             select(Recommendation).where(
@@ -50,12 +52,12 @@ def main() -> int:
             )
             path = DEFAULT_CACHE_DIR / f"{key}.json"
             if not path.exists():
-                print(f"row {row.id}: no cache entry {key[:12]}; stopping")
-                return 1
+                raise SystemExit(f"row {row.id}: no cache entry {key[:12]}; nothing written")
             cached = json.loads(path.read_text(encoding="utf-8"))
             if cached["text"] != row.llm_raw_reply:
-                print(f"row {row.id}: cached text differs from the stored reply; stopping")
-                return 1
+                raise SystemExit(
+                    f"row {row.id}: cached text differs from the stored reply; nothing written"
+                )
             row.llm_stop_reason = cached.get("stop_reason")
             updated += 1
     print(f"backfilled {updated} rows")

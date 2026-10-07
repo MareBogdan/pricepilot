@@ -9,7 +9,7 @@ Counted: `recommendations` rows with `is_mock = false` for this run only. Every 
 | Input | Status |
 |---|---|
 | Our cost, price, stock | the mock store's seeded catalogue (a fixture, not a live shop) |
-| Competitor prices, baseline rows | real scraped prices for guarded cross-encoder matches |
+| Competitor prices, baseline rows | real scraped prices for the 13 matched products; the other 17 had NO competitor data (decided from cost and policy alone) |
 | Competitor prices, scenario rows | **HYPOTHETICAL**: observed price x 0.85 (`undercut_15`) or x 0.70 (`undercut_30`), a what-if test of the guard; the prompt says so |
 | `price_7d_ago` | **SYNTHETIC** mock-store history, includes its promo windows |
 | Elasticity | a labelled placeholder with no value (Phase 4 POSTPONED) |
@@ -19,7 +19,13 @@ Counted: `recommendations` rows with `is_mock = false` for this run only. Every 
 
 Overall: APPROVE 45, FLAG 5.
 
-**Of the 45 APPROVE rows, 42 keep the current price and only 3 move it.** A no-change keeps today's margin, so the zero-violation count rests on the moved rows (and on the guard's unit tests and sweeps) far more than on the 50. Scenario rows that moved the price: 0 of 20.
+**Of the 45 APPROVE rows, 42 keep the current price and only 3 move it.** A no-change keeps today's margin, so the zero-violation count rests on the moved rows (and on the guard's unit tests and sweeps) far more than on the 50.
+
+## How much of the run actually tested the floor
+
+- **17 baseline rows had no competitor data**; nothing prompts a move there (17 of them are no-change APPROVEs).
+- **The 20 scenario rows moved the price in 0 cases, and 20 of their 20 rationales cite the what-if label as the reason for ignoring the competitor price.** The prompt announced the prices were hypothetical, so the scenarios never pressed the floor: this is a property of the test design, not evidence that the model is robust.
+- The 13 matched baseline rows are the real test: 3 moved the price, 5 kept it, 5 were FLAGged.
 
 | Scenario | Rows | APPROVE | REJECT | FLAG |
 |---|---|---|---|---|
@@ -42,11 +48,11 @@ Overall: APPROVE 45, FLAG 5.
 - Status/applied-price mismatches (price present iff APPROVE): 0
 - Direction contradictions (ADR-0043: applied price on the wrong side of current): 0
 - Rows: 50/50, distinct 50
-- Replies cut off by max_tokens: **4** (1 of them APPROVE). Sonnet 5 thinks by default and the run used max_tokens=400. Three empty replies became FLAGs; ONE partial reply (an unchanged price with a rationale cut mid-sentence) was accepted by the parser at run time and APPROVEd. The stop_reason check that now FLAGs such replies was added afterwards (ADR-0044), so these 50 rows were NOT re-run. A harness fault, not model judgement; not margin-related.
+- Replies cut off by max_tokens: **4** (1 of them APPROVE, product(s) 4, 5, 14, 20). A reply cut off at the token cap is a harness fault, not model judgement. The stop_reason check that FLAGs such replies was added after the run (ADR-0044), so a truncated APPROVE row would be a FLAG under today's engine. Not margin-related.
 
 ## Cost and latency (actual)
 
-- LLM spend for these rows: **$0.240276** over 50 `llm_calls` rows
+- LLM spend for these rows: **$0.240276** over 50 recommendation rows
 - Mean latency: 2906 ms
 
 ## All rows
@@ -72,7 +78,7 @@ Overall: APPROVE 45, FLAG 5.
 | 24 | 17 | dry_food | baseline | 72.00 | 109.00 | 109.00 | 109.00 | 33.9% | 12.0% | APPROVE |  |
 | 25 | 18 | wet_food | baseline | 3.10 | 5.20 | 5.20 | 5.20 | 40.4% | 18.0% | APPROVE |  |
 | 26 | 19 | wet_food | baseline | 2.40 | 4.10 | 3.90 | 3.99 | 39.8% | 18.0% | APPROVE |  |
-| 27 | 20 | wet_food | baseline | 7.90 | 12.50 | 12.50 | 12.50 | 36.8% | 18.0% | APPROVE |  |
+| 27 | 20 | wet_food | baseline | 7.90 | 12.50 | 12.50 | 12.50 | 36.8% | 18.0% | APPROVE | reply cut at max_tokens (accepted at run time) |
 | 28 | 21 | treats | baseline | 6.50 | 11.00 | 10.45 | - | - | 25.0% | FLAG | speed limit breached: final price 9.99 (proposed 10.45), current 11.00, 7d-ago 10.96 |
 | 29 | 22 | treats | baseline | 6.50 | 11.00 | 11.00 | 11.00 | 40.9% | 25.0% | APPROVE |  |
 | 30 | 23 | treats | baseline | 8.20 | 14.00 | 14.00 | 14.00 | 41.4% | 25.0% | APPROVE |  |
@@ -106,7 +112,7 @@ Overall: APPROVE 45, FLAG 5.
 
 ## Caveats
 
-- 30 rows use real inputs; 20 use hypothetical competitor prices. Do not read the APPROVE/FLAG mix as a market result.
-- Read the headline with the moved/unchanged split above: this run is weak evidence for the floor, because the LLM mostly proposed no change.
+- 30 rows are baseline (13 with real competitor prices, 17 without any) and 20 use hypothetical competitor prices. Do not read the APPROVE/FLAG mix as a market result.
+- Read the headline with the section above: this run is weak evidence for the floor. The floor is demonstrated by the guard's tests and sweeps, not by these 50 rows.
 - The gate proves the guard holds on 50 LLM proposals, not that the proposed prices are good business decisions: elasticity is a placeholder and no sales feedback exists.
 - The applied price comes only from `guard.enforce`; the LLM price is a suggestion.

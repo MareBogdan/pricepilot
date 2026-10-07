@@ -21,6 +21,7 @@ can parse as "12.5", so the trace now records `stop_reason` and any `max_tokens`
 Charm rounding can also push an in-cap -5% proposal just over the cap (2 FLAGs).
 
 **Honest limits.** Gate result: 50 rows, 0 margin violations, $0.24. But 42 of 45 APPROVEs keep the
-price and 0 of 20 hypothetical scenarios moved it, so the live run is weak evidence for the floor; the
-guard's tests and sweeps carry that claim. Elasticity is a value-less placeholder; `price_7d_ago` is
+price, 17 baseline rows had no competitor data, and the 20 scenarios were neutralised by my own prompt
+label (the model said "hypothetical, so I ignore it"), so the live run is weak evidence for the floor;
+the guard's tests and sweeps carry that claim. Elasticity is a value-less placeholder; `price_7d_ago` is
 synthetic; scenario competitor prices are hypothetical.
