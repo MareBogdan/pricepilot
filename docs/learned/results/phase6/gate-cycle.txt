@@ -1,0 +1,51 @@
+
+=== 1. pick ONE real APPROVE-with-move recommendation ===
+  recommendation #9: product 2 (dry_food), guard APPROVE
+  decided from 389.00 -> guard-approved 369.90 (LLM proposed 369.55)
+  rationale: Competitor (animax_ro, 294.99 RON, in stock, score 0.999) is well below our 389.00 RON shelf price, so we move toward it, but the 5%-per-day speed limit caps the cut at 389.00×0.95=369.55 RON. This keeps gross margin at ~28.3%, well above the 12% dry_food floor, and stock (52 units) supports the move.
+
+=== 2. start the mock store ===
+  store: GET /products/2 -> 389.00; /audit-log has 0 entries
+
+=== 3. APPLY (human approval required) ===
+
+  >> HUMAN APPROVAL REQUIRED
+  >> APPLY recommendation #9: product 2 (dry_food) 389.00 -> 369.90 RON (guard APPROVE; cost 265.00). Rationale: Competitor (animax_ro, 294.99 RON, in stock, score 0.999) is well below our 389.00 RON shelf price, so we move toward it, but the 5%-per-day speed limit caps the cut at 389.00×0.95=369.55 RON. This keeps gross margin at ~28.3%, well above the 12% dry_food floor, and stock (52 units) supports the move.
+  >> Proceed? [y/N] y   (answered by --confirm)
+  outcome: applied; audit verified: True
+
+=== 4. VERIFY the apply (three independent places) ===
+  store price:      GET /products/2 -> 369.90   (expected 369.90)
+  store /audit-log: 1 entries (was 0); newest:
+  audit-log[0] product 2: 389.00 -> 369.90  | recommendation #9: guard APPROVE 389.00 -> 369.90; approved by bogdan-cli (--confirm, gate run)
+  our action_log:
+   id action         previous      new audit ref     reverted_by  actor
+    1 update_price     389.00   369.90 audit-log[0]            -  bogdan-cli (--confirm, gate run)
+      reason: recommendation #9: guard APPROVE 389.00 -> 369.90
+
+=== 5. APPLY AGAIN: must not double-write ===
+  outcome: already_applied
+  store unchanged: price 369.90, /audit-log still 1 entries
+
+=== 6. ROLLBACK (human approval required) ===
+
+  >> HUMAN APPROVAL REQUIRED
+  >> ROLL BACK action #1 (recommendation #9): product 2 369.90 -> 389.00 RON
+  >> Proceed? [y/N] y   (answered by --confirm)
+  outcome: rolled_back; audit verified: True
+
+=== 7. VERIFY the rollback ===
+  store price: GET /products/2 -> 389.00   (expected 389.00)
+
+=== 8. THE WHOLE TRAIL ===
+store /audit-log (in-memory in the store process):
+  audit-log[0] product 2: 389.00 -> 369.90  | recommendation #9: guard APPROVE 389.00 -> 369.90; approved by bogdan-cli (--confirm, gate run)
+  audit-log[1] product 2: 369.90 -> 389.00  | rollback of action #1 (recommendation #9); approved by bogdan-cli (--confirm, gate run)
+our action_log (durable, Postgres):
+   id action         previous      new audit ref     reverted_by  actor
+    1 update_price     389.00   369.90 audit-log[0]            2  bogdan-cli (--confirm, gate run)
+      reason: recommendation #9: guard APPROVE 389.00 -> 369.90
+    2 rollback         369.90   389.00 audit-log[1]            -  bogdan-cli (--confirm, gate run)
+      reason: rollback of action #1: 369.90 -> 389.00
+
+GATE CYCLE: PASSED (apply -> verify -> idempotent re-apply -> rollback -> verify)

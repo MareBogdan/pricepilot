@@ -1,18 +1,16 @@
 # STATE
 
-Phase: 5 CLOSED 2026-10-07 -- next: Phase 6 (tool calling). Phases 0-3, 5 CLOSED; Phase 4 POSTPONED.
-Updated: 2026-10-07 (s5b)
+Phase: 6 CLOSED 2026-10-08 -- next: Phase 7 (production). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-08 (Phase 6)
 
-**Where we are:** **Phase 5 CLOSED, gate MET with stated caveats (ADR-0044/0045).** Refreshed 50 real
-recommendations (`docs/learned/results/phase5/fifty-recommendations.md`): **0 margin violations**, 0
-direction contradictions, 0 truncated replies; 38 APPROVE / 0 REJECT / 12 FLAG. The gate now rests on
-**10 APPROVEs that move the price** (6 are labelled GUARD STRESS-TESTS on synthetic competitor prices, 4
-are real matched baselines) and, for the floor itself, **on the guard's unit tests, the 400k-call reviewer
-sweep and the below-floor mock sweep** -- NOT on the 28 no-change rows (the 12 FLAGs are cap refusals,
-not floor evidence). Honest limit: zero model proposals were
-over the cap or below a floor, so the floor was never the binding constraint live; and charm
-rounding turned all 12 cap-obeying proposals (11 cuts, 1 rise) into FLAGs (guard decision owed). Spend: $0.404462
-on the gate runs ($0.240276 + $0.164186), $1.222904 total ledger. Phase 4 stays POSTPONE.
+**Where we are:** **Phase 6 CLOSED, gate MET (ADR-0046/0047).** The action layer turns a guard-decided
+recommendation into a human-approved, logged, reversible store write. One complete cycle on real row #9
+(product 2, 389.00 -> 369.90): prompt -> apply -> verified in the store price, the store `/audit-log` and
+`action_log` -> second apply refused (no double write) -> rollback -> price restored and logged. Trail:
+`docs/learned/results/phase6/gate-cycle.txt` (the approval was `--confirm` on Bogdan's written
+instruction, not a keystroke). 988 tests, 28 new, five safety mutants killed. Cost $0 (`llm_calls`
+unchanged). Phase 5's charm-within-cap question is DECIDED (ADR-0046): guard unchanged, FLAGs routed to
+review; honest note: only 3 of the 12 FLAGs are the sub-20-RON case. Phase 4 stays POSTPONE.
 
 ## Gate progress
 
@@ -41,6 +39,9 @@ violations -> **MET: 50 rows, 0 violations** (ADR-0044/0045, caveats in "Where w
 post-guard **0.92 (23/25)**, 0 wrong-gramaj -- NOT independent of the errors the guard was built from, the 2
 newly surfaced links were labelled non-blind, labels Claude-written (`claude_pending_bogdan_review`); one
 low-confidence label (18:animax_ro) puts it at 0.88 if wrong. Matcher gate (>=0.90) NOT claimed cleanly met.
+**Phase 6 — Tool calling / action layer: CLOSED** (2026-10-08). Gate (one complete cycle end to end,
+visible in logs) MET: `docs/learned/results/phase6/gate-cycle.txt`. Full detail: `docs/archive/phases-6.md`,
+ADR-0047.
 **Phase 4 price history:** 23 distinct collection days as of 2026-10-04 (petmax 23, animax 22,
 pentruanimale 22), per the architect audit. R1 (28 days) is reachable ~2026-10-10 but R2/R3 still
 fail on the pre-registered measurement -- Phase 4 stays POSTPONE, elasticity stays a labelled
@@ -52,6 +53,9 @@ placeholder.
 
 ## Last done
 
+000000. **Phase 6: action layer + one-cycle gate (2026-10-08, ADR-0046/0047):** migration 0015 `action_log`;
+   `actions/{selector,store,apply,rollback}.py`; CLI `scripts/apply_recommendation.py`; gate script
+   `scripts/phase6_gate_cycle.py` (trail committed); 28 tests; stress rows and mock rows refused.
 00000. **Phase 5 s5b: gate made meaningful, Phase 5 closed (2026-10-07, ADR-0045):** 20 scenarios re-framed as
    GUARD STRESS-TESTS (prompt no longer announces them), 4 truncated baselines + 20 stress re-run at
    `max_tokens=1500`, old rows relabelled `s5-superseded` (nothing deleted), $0.164186; report gains the
@@ -118,7 +122,7 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Open issues
 
-- **Charm rounding overshoots the daily cap (ADR-0045) -- decision owed:** all 12 FLAGs in the refreshed
+- **Charm rounding overshoots the daily cap (ADR-0045; DECIDED in ADR-0046: accepted, FLAG -> review):** all 12 FLAGs in the refreshed
   gate are cap refusals: 11 are exact -5% cuts that nearest-charm rounding overshot (879.00 -> 834.90,
   11.00 -> 9.99) and 1 is a +5% rise (p18, 5.20 -> 5.46) rounded UP to 5.99 by the direction rule. Below
   ~20 RON the 1-RON charm step exceeds the 5% cap. Fix = a within-cap rule handling both directions (guard
@@ -145,9 +149,17 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
   -- not stubbed or faked: MAP-restricted brands (policy §2, no MAP field on `Product`); new-product
   age < 14 days (§3, no `listed_at`); manual price lock (§3, no lock field); promotion
   duration/competitor-hold/match-score filters (§4-5, need the decision engine + SQL, sessions 3-4).
-- **Phase 6 note (session 1b review):** an `enforce()` APPROVE with `price == current_price` (the
-  no-change path) is a real price, but not necessarily a charm value -- tool calling must treat it
-  as a no-op, never a write to the mock-store `update_price` endpoint.
+- **After a real apply, `products.current_price` (Postgres) is stale (ADR-0047):** `apply_recommendation`
+  writes the store only. A store -> DB sync is needed before the next decision run (not built), and
+  `sync_catalogue.py` must NOT be re-run (it would revert the DB copy to the seed). The mock store itself
+  keeps prices and its `/audit-log` in process memory, so a restart resets both; rollback then refuses as
+  drift, correctly.
+- **Phase 6 gate approval was `--confirm`, not a keystroke:** the human-approval prompt is real
+  (`Proceed? [y/N]`) and `apply` has no way to run without an approver, but the gate cycle was run
+  non-interactively on Bogdan's written instruction. Run it yourself without `--confirm` if you want the
+  interactive trail.
+- **Charm FLAGs split 3 / 9 (ADR-0046):** 3 are sub-20-RON items, 9 are 134-879 RON items overshooting the
+  cap by 0.02-0.30 pp. A within-cap rounding rule (future work) would clear most of the 9.
 - **RAG model pinning (session 2 review, judgement call):** `pricepilot.embeddings.SentenceTransformer
   (MODEL_NAME)` has no `revision=` pin, and `policy_chunks` stores no model name/revision. A
   future HF revision bump or `sentence-transformers` major version change would silently rank
@@ -207,6 +219,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 5 follow-ups (none block Phase 6): decide the charm-within-cap guard change (ADR-0045); review the Claude-written match labels, esp. the low-confidence 18:animax_ro, and ideally label a fresh-catalogue sample blind (ADR-0040, `gate-s3b.md`).
+Nothing blocks Phase 7. Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

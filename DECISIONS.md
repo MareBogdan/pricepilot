@@ -298,44 +298,16 @@ psycopg-working environment, incl. the VPS).
 
 ## ADR-0039 — Served matcher: torch/safetensors on CPU (not ONNX), `product_matches` grain, block-and-score
 
-**Context.** Phase 5 s3b needs our 30 products matched to competitor listings. `models/ce-ft-best.zip`
-is HuggingFace format (safetensors + `tokenizer.json`), not ONNX. DB shape (verified 2026-10-04):
-`norm_listings.content_hash` is title-only and shared across shops (11,152 hashes in one shop, 18
-in two), so shop and price come from `raw_listings`; one shop can list several SKUs under one
-normalized title (6 of 11,074 current (shop, hash) pairs), with 1 differing in price.
-**Decision.** (1) Serve the fp32 torch weights on CPU: ONNX is a Phase-7 latency concern and the
-benchmark's own PyTorch and ONNX scores agree to 1e-5. Faithfulness guarantee: before any scoring,
-`check_ce_faithfulness.run` must reproduce the committed `preds-ce-ptfp32-test.json` (tolerance
-1e-3 and zero flips at 0.89, pre-registered in code before the first run) -- `match_catalogue.py`
-stops otherwise. **First attempt FAILED** (max |diff| 0.187, 1 flip): transformers 5.17's
-`AutoTokenizer` joins the pair with `</s></s>`, the model's `tokenizer.json` (used by the Kaggle
-runs) with a single `</s>`. Fixed by tokenising with `tokenizer.json` via `tokenizers`; result
-max |diff| 1.8e-6, 0 flips, sha256 of the weights matches `model-facts.json`. Scoring is directional
-`(our, competitor)`, no symmetrisation (Phase 3 never symmetrised). (2) `product_matches` grain =
-one row per (our product, shop), `UNIQUE(product_id, source)`, with the exact shop listing
-(`external_id`, `url`, `price_date`) the Decimal price came from; same-day multi-SKU tie ->
-in-stock, then cheapest, then lowest id; a price older than 7 days before that shop's newest scrape
-is not current; vet-diet exclusions never match. `score` stored rounded DOWN, `threshold` per row,
-CHECK `score >= threshold`. Rebuilt by delete + insert in one transaction (idempotent). (3)
-Candidates = `norm_listings` with our `brand_blocking_key`; blocks <= 300 scored in full (ADR-0030's
-K=100 was for the 10k-vs-10k re-match), blocks > 300 cut to top-100 by embedding cosine.
-**Provenance of the numbers above.** The block cut-off (> 300 -> top-100 cosine), torch instead
-of ONNX, and the 0.89 threshold all come from the s3b session brief and ADR-0030, fixed before the
-matcher ran; they deviate from ADR-0038's wording ("K=100, ONNX") deliberately and are not tuned to
-any result. Reviewer-driven hardening: the worksheet is keyed on `product_id:source` (the SERIAL
-`id` advances on every delete + insert re-run); the run summary now reports shops whose newest
-scrape is > 2 days old, chosen links whose shop SKU has a newer observation under another title,
-and block rows with no embedding (always cut by the cosine ORDER BY).
-**Result (not a gate verdict).** 28 links, 14 of 30 products with >= 1 link. The `--audit-truncation`
-diagnostic found **5 listings >= 0.89 beyond the top-100 cut** in the 13 truncated products (the
-cut loses real candidates; scoring whole blocks costs ~12 min, so a decision for the architect).
-**Consequence for the ADR-0038 gate:** its coverage criterion (>= 15 of 30 products with a
-CORRECT match) is arithmetically unreachable at 14 products with any link. Not edited here; the
-gate verdict still waits for Bogdan's blind labels, and changing the criterion needs a new ADR.
-**Alternatives rejected.** ONNX export (no benefit before Phase 7); `AutoTokenizer` (wrong
-separator under transformers 5.x); K=100 everywhere (needless at <= 300); symmetrising (not how it
-was benchmarked).
-**Date.** 2026-10-04
+**Context.** `models/ce-ft-best.zip` is HuggingFace format, not ONNX; `norm_listings.content_hash` is
+title-only and shared across shops, so shop and price come from `raw_listings`.
+**Decision.** Serve the fp32 torch weights on CPU (ONNX is a Phase-7 latency concern). A faithfulness
+gate must reproduce the committed PyTorch-fp32 predictions (tolerance 1e-3, zero flips at 0.89) before
+anything is scored; the first attempt failed (tokenizer `</s></s>` vs `</s>` under transformers 5.x)
+and was fixed by tokenising with `tokenizer.json` (max diff 1.8e-6). `product_matches` = one row per
+(our product, shop), `UNIQUE(product_id, source)`, `CHECK score >= threshold`; blocks <= 300 scored in
+full, larger blocks cut to the top-100 by cosine. **Result:** 28 links on 14 of 30 products; 5 listings
+>= 0.89 lost beyond the cut (accepted, ADR-0040). **Rejected:** ONNX export now, `AutoTokenizer`,
+symmetrising. **Full text:** `docs/archive/DECISIONS-ADR-0039-0042-full.md`. **Date.** 2026-10-04
 
 ## ADR-0040 -- Coverage is a reported metric, not a gate; the top-100 candidate cap is accepted
 
@@ -402,50 +374,17 @@ prompt is not a guardrail); matching on species (our products carry none).
 
 ## ADR-0042 -- Decision engine: the proposer seam, the trace table, and how session 5 reaches 50
 
-**Context.** Phase 5 s4 builds the per-product engine at $0. The gate (50 recommendations, zero
-margin violations) must come from the REAL LLM in s5, so the engine cannot be coupled to a mock,
-and the rule "the guard is the final authority" must hold on every code path.
-**Decision.** (1) `decision/engine.py`: gather (SQL: `products`, `product_matches`, synthetic
-mock-store `price_7d_ago`) -> `retrieve_policy` -> `build_prompt` -> an injected **proposer** ->
-strict `parse_reply` -> `guard.enforce` -> trace. The seam is `Proposer.__call__(ProposalRequest)
--> RawReply(text, model, cost, latency)`; `MockProposer` (deterministic, no network, never
-touches `llm_calls`, cost asserted 0) is s4's; `LlmProposer` (a wrapper over `client.complete`,
-model has no default) is built and fake-tested but NOT instantiated by any s4 script. Prompt
-building and parsing are shared, so s5 changes one object. (2) An unparseable reply FLAGs and
-the guard is not consulted -- no guessed price. (3) Every limit shown to the model is read from
-`config/pricing-policy.toml`; retrieved text is appended last, labelled reference-only, and a
-test proves a number planted in it never reaches the facts. (4) Elasticity is a value-less
-labelled placeholder (`value: null`): the mock store's planted constants are a generator input,
-and feeding them back is the Phase 4 circularity trap. (5) `recommendations` (migration 0013)
-stores snapshot, RAG sections, prompt, raw reply, parsed proposal, cost/latency, guard verdict;
-`is_mock` separates $0 mock rows from real ones; a CHECK ties `guard_final_price` to APPROVE.
-Mock rows (run_label `s4-mock`) are kept as wiring evidence and never count toward the gate.
-(6) Drift test: every % / stock minimum / rounding rule in the policy prose equals the TOML.
-**How s5 reaches 50 (proposal; default if Bogdan says "go").** The unit is one recommendation per
-(product, scenario). **30 baseline** rows -- every catalogue product on its real inputs (13
-matched, 17 with no competitor price, which exercises cost+policy-only) -- plus **20 labelled
-scenario rows** on matched products: `undercut_15` (every matched competitor price x 0.85) on all
-13, then `undercut_30` on the 7 lowest-id matched products. Scenarios are hypothetical
-counterfactuals, stored in `recommendations.scenario`, and exist to put price pressure on the
-floor; the README must say "30 on real inputs + 20 on labelled hypothetical scenarios". s5 adds
-the scenario builder (no migration: the column exists). Estimated cost ~$0.16 for 50 calls
-(ESTIMATE: ~1.1k input + ~100 output tokens at $2/$10 per Mtok), inside the ~$2 reserve; s5
-prints the estimate and asks `SPEND:` first. **Rejected:** per-(product, collection day) --
-competitor prices move rarely, so the rows would be near-duplicates and cache hits; one row per
-product only -- 30 < 50 and no stress on the guard.
-**Known, not fixed here.** `charm_round` rounds to the NEAREST charm value, so on cheap items it
-can flip a proposal's direction (5.20 -> proposed 5.36 -> approved 4.99, a -4% cut). No floor,
-eligibility or speed rule is broken, so the gate is unaffected, but the applied move contradicts
-the rationale; a guard change (ADR-0034) for the architect.
-**Review addendum (same day, `reviewer`).** Fixed before push: (a) a tiny proposal (< 0.50) made
-`charm_round` go negative and `enforce` raise, which would have dropped the trace of an already-paid
-reply -- `decide` now turns a guard `ValueError` into a FLAG row (no applied price); (b) the parser
-is CRLF-safe and requires the exact `PRICE` then `RATIONALE` shape (no preamble, no leading zeros);
-(c) scraped competitor titles are flattened to one quote-free line before entering the prompt; (d)
-the prompt says so when no 7-day reference exists. Recorded, not fixed: the synthetic
-`price_7d_ago` includes mock promo windows and skews the weekly-cap FLAG rate; cache-hit rows are
-`is_mock = false` at $0; the rationale is model text, escape it when rendered (Phase 7).
-**Date.** 2026-10-07
+**Context.** The gate (50 recommendations, zero margin violations) must come from the real LLM in s5,
+so the s4 engine could not be coupled to a mock.
+**Decision.** `decision/engine.py`: gather (SQL) -> RAG -> prompt -> an injected proposer -> strict
+`parse_reply` -> `guard.enforce` -> trace (`recommendations`, migration 0013, `is_mock` separates $0 mock
+rows). `MockProposer` (s4) and `LlmProposer` (wraps `client.complete`) share the prompt and parser;
+an unparseable reply FLAGs with no price; limits shown to the model come from the TOML, retrieved text is
+reference-only; elasticity is a value-less placeholder; a prose/TOML drift test guards the policy.
+**s5 scheme:** 30 baseline + 20 scenario rows (13 `undercut_15` + 7 `undercut_30`), later re-framed as
+guard stress-tests (ADR-0045). **Review fixes:** a guard `ValueError` becomes a FLAG row (no lost trace),
+exact-shape CRLF-safe parser, flattened competitor titles. **Rejected:** per-collection-day rows.
+**Full text:** `docs/archive/DECISIONS-ADR-0039-0042-full.md`. **Date.** 2026-10-07
 
 ## ADR-0043 -- The guard keeps the move's direction (charm rounding may not reverse it)
 
@@ -578,3 +517,61 @@ price below our own cost, and that the earlier 'every FLAG is a cut' wording was
 forcing a below-floor proposal by instructing the model to ignore the limits (tests the prompt, not
 the guard -- the mock-proposer sweep already does the adversarial version without spend).
 **Date.** 2026-10-07
+
+## ADR-0046 -- Charm rounding vs the daily cap: accepted as conservatism, not changed (Phase 6 brief)
+
+**Context.** ADR-0045 left a decision owed: nearest-charm rounding turned 12 of 22 cap-obeying
+proposals into FLAGs. Measured from the 12 FLAG rows (`recommendations`, `s5-real`): **3 are items under
+20 RON** (p18 5.20 -> 5.99, +15.2%; p21 11.00 -> 9.99, -9.2%, twice) where the 1-RON charm step alone
+exceeds the 5% cap; **9 are items of 134-879 RON** (p3, p4, p7, p14, some twice) where the nearest `.90`
+price lands 0.02-0.30 percentage points outside the cap.
+**Decision (Bogdan, Phase 6 brief).** The guard is NOT changed. A FLAG here is accepted as intended
+conservatism: a move the policy cap would not allow is sent to a human, and Phase 6 routes every FLAG
+to `flag_for_review` (log, apply nothing). An absolute-RON cap (or a within-cap rounding rule) is
+documented FUTURE work, not done.
+**Honest note.** The brief's rationale (a 1-RON step on a 5-RON item) covers 3 of the 12. The other 9
+are tiny overshoots on expensive items; accepting them costs a human review of a <=0.30 pp overshoot
+each. A within-cap rule (round toward current to the nearest charm value inside the cap, else FLAG)
+would turn most of those 9 into APPROVEs and is the natural first step of the future work. It
+cannot create a margin violation either way.
+**Alternatives rejected.** Changing the guard now (instruction; and the gate is already met).
+**Date.** 2026-10-08
+
+## ADR-0047 -- Phase 6 action layer: guard-selected tools, human approval, idempotent, reversible
+
+**Context.** Phase 6 turns a guard-decided recommendation into an action on the mock store with a
+durable log and rollback; gate = one complete cycle, visible in logs.
+**Decision.** (1) `actions/selector.py::select_action` maps the guard verdict to a tool, in code:
+APPROVE with a different price -> `update_price`; APPROVE at the current price -> `do_nothing` (the
+store's update endpoint is never called, not even a read); FLAG -> `flag_for_review`; REJECT ->
+`do_nothing`. The tools are not chosen by an LLM: that would put the decision back in a prompt, and
+the guard is the authority (CLAUDE.md section 6 rule 2). (2) `apply_recommendation`: refuses mock rows
+and `stress_*` rows (decided on synthetic competitor prices, ADR-0045); is idempotent (live-update check,
+store-already-at-target, and a DB partial unique index allowing ONE live `update_price` per
+recommendation); refuses a STALE recommendation (store price != the price the guard validated the move
+from); `approve` is a required argument with no default, a decline writes nothing. (3) Order: log row
+flushed first, then the store PATCH, then the row is tied to the store's `/audit-log` entry
+(`audit-log[i]`; "UNVERIFIED" if not matchable); a failing PATCH rolls the row back. (4)
+`rollback_action`: same approval; refuses (logged `do_nothing`) if the store no longer holds the price
+we set; sets `reverted_by`; after a rollback the recommendation may be applied again. (5)
+`action_log` (migration 0015) is durable in Postgres; CHECKs tie `new_price` to write actions.
+(6) CLI `scripts/apply_recommendation.py` (plan / apply / rollback / log) with a real y/N prompt;
+`--confirm` answers yes for a non-interactive run and is recorded in the actor.
+**Gate (MET, `docs/learned/results/phase6/gate-cycle.txt`, `scripts/phase6_gate_cycle.py`).** Real row
+#9 (product 2, 389.00 -> guard-approved 369.90): prompt -> apply -> store price, store `/audit-log` and
+`action_log` all verified -> second apply refused (`already_applied`, store unchanged) -> rollback
+(second prompt) -> price restored to 389.00 and logged. The approval in that run was `--confirm`,
+given on Bogdan's written instruction to execute the gate cycle; it is not an interactive keystroke.
+**Known limits.** The store holds prices and its audit log in process memory: a restart resets both
+(rollback then refuses as drift, correctly). `products.current_price` in Postgres is NOT updated by an
+apply and `sync_catalogue.py` would revert the store's seed copy over it, so after a real apply a
+store -> DB sync is needed before the next decision run (not built). A crash between the store write
+and the commit could leave a write without a row (the store is a fixture; accepted). Only 4 real
+baseline rows are applicable moves (p2, p6, p19, p20); 10 APPROVE-with-move rows exist, 6 are refused
+stress rows. **Tests:** 28 (selector cases, no-change makes zero store calls, idempotency, stale, decline,
+rollback incl. drift/once/re-apply, DB double-apply refusal, one round trip through the real mock-store
+app); five safety mutants (no-change as update, stale check, stress refusal, drift check, idempotency)
+each fail the suite. **Cost** $0 (`llm_calls` unchanged: 649 rows, $1.222904).
+**Alternatives rejected.** LLM-selected tool calls; auto-apply "narrow conditions" (not built:
+approval is always human for now); applying without the stale check.
+**Date.** 2026-10-08

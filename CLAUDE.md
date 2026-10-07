@@ -282,9 +282,7 @@ MLP or GRU — no transformer needed. Compare against a naive 7-day-average base
 CLOSED 2026-10-07, gate MET with caveats: 50 real recommendations, 0 margin violations (38 APPROVE / 12 FLAG; 10 APPROVEs move the price, 6 of them labelled guard stress-tests on synthetic competitor prices); the floor is shown entirely by the guard's tests and sweeps, not by the live rows. Spend $0.40 on the gate runs. Full text: `docs/archive/phases-5.md`; report: `docs/learned/results/phase5/fifty-recommendations.md`.
 
 ### Phase 6 — Tool calling
-Strict-schema tools: `update_price`, `flag_for_review`, `do_nothing`. Human approval by default; automatic mode only under narrow conditions. Full action log with rollback.
-
-**Gate:** one complete cycle end to end, visible in logs.
+CLOSED 2026-10-08, gate MET: one complete apply -> verify -> idempotent re-apply -> rollback -> verify cycle on a real guard-APPROVEd recommendation against the mock store, human approval required, logged in `action_log`. Deterministic guard-selected actions, not LLM-chosen. Cost $0. Full text: `docs/archive/phases-6.md`; trail: `docs/learned/results/phase6/gate-cycle.txt`.
 
 ### Phase 7 — Production
 Full dockerization. Deployment to the Hetzner VPS chosen at Phase 7 (ADR-0030) behind Caddy, on a real domain, walked through step by step with the user — this is new territory for him, so explain SSH hardening, firewall rules, DNS, volumes and database backups as you go, and write `docs/DEPLOYMENT.md` as you do it.
