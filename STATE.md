@@ -61,9 +61,11 @@ placeholder.
    `client.complete`, built + fake-tested, not instantiated), `scripts/run_decision.py` (mock only).
    Demo on the real DB: matched p20 12.13 -> APPROVE 11.99; below-floor proposal 8.30 -> FLAG (guard
    lifts to 9.99, 20% drop breaches the 5% cap); p12 (stock 1) discount -> REJECT; no-match p25 ->
-   APPROVE unchanged 56.00; garbled reply -> FLAG, no price. 38 new tests (engine, parsing, guard
+   APPROVE unchanged 56.00; garbled reply -> FLAG, no price. `reviewer` pass fixed same session: a tiny
+   proposal (<0.50) made `enforce` raise and would have lost a paid reply's trace -> now FLAG row;
+   parser is CRLF-safe and exact-shape; competitor titles flattened before the prompt. 44 new tests (engine, parsing, guard
    wiring incl. a catalogue x strategy sweep that never APPROVEs below a floor, persistence, the
-   prose/TOML drift test, mutation-checked); full suite 909 passed. `docs/learned/decision-engine.md`.
+   prose/TOML drift test, mutation-checked); full suite 919 passed. `docs/learned/decision-engine.md`.
 00. **Phase 5 s3b: serve-time matcher + `product_matches` (2026-10-04, ADR-0039):** migration 0012
    (`UNIQUE(product_id, source)`, `CHECK score >= threshold`); `matching/serve.py` +
    `scripts/match_catalogue.py` (faithfulness gate first, brand-block candidates, >0.89 kept, one
@@ -128,10 +130,16 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 - **Prose/TOML drift is now tested** (`test_policy_prose_drift.py`); day counts (14 / 2 / 7+ days)
   have no TOML key yet (guard scope gaps) and sit in an explicit allowlist. `retrieve_policy` still
   does not check `policy_chunks.source_sha256` against the live prose.
+- **`price_7d_ago` is synthetic and includes the mock store's promo windows (review, ADR-0042):** if
+  day -7 sat in a 78-90% promo, today's price is 11-28% above it and almost any move breaches the
+  15% weekly cap -> FLAG for reasons unrelated to the LLM. It is labelled per row; s5's report must
+  say so when it gives the APPROVE/FLAG mix. Also drifts from `products.current_price` after Phase 6.
+- **LLM cache hits become non-mock rows at $0 (review):** re-running an identical prompt in s5 yields
+  an `is_mock = false` row with cost 0; decide before the run whether those count toward the 50.
 - **Mock `recommendations` rows (run_label `s4-mock`, `is_mock = true`) stay in the table** as wiring
   evidence; s5's gate report must count `is_mock = false` rows only.
 - **`mypy` reports 1 pre-existing error** (`scripts/score_match_labels.py:33`, from the ADR-0041
-  commits, not s4); `ruff` clean, 909 tests green.
+  commits, not s4); `ruff` clean, 919 tests green.
 - **Guard scope gaps, all deferred because the mock store has no field for them yet (ADR-0034)**
   -- not stubbed or faked: MAP-restricted brands (policy §2, no MAP field on `Product`); new-product
   age < 14 days (§3, no `listed_at`); manual price lock (§3, no lock field); promotion

@@ -509,4 +509,12 @@ product only -- 30 < 50 and no stress on the guard.
 can flip a proposal's direction (5.20 -> proposed 5.36 -> approved 4.99, a -4% cut). No floor,
 eligibility or speed rule is broken, so the gate is unaffected, but the applied move contradicts
 the rationale; a guard change (ADR-0034) for the architect.
+**Review addendum (same day, `reviewer`).** Fixed before push: (a) a tiny proposal (< 0.50) made
+`charm_round` go negative and `enforce` raise, which would have dropped the trace of an already-paid
+reply -- `decide` now turns a guard `ValueError` into a FLAG row (no applied price); (b) the parser
+is CRLF-safe and requires the exact `PRICE` then `RATIONALE` shape (no preamble, no leading zeros);
+(c) scraped competitor titles are flattened to one quote-free line before entering the prompt; (d)
+the prompt says so when no 7-day reference exists. Recorded, not fixed: the synthetic
+`price_7d_ago` includes mock promo windows and skews the weekly-cap FLAG rate; cache-hit rows are
+`is_mock = false` at $0; the rationale is model text, escape it when rendered (Phase 7).
 **Date.** 2026-10-07

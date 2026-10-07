@@ -21,7 +21,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select
@@ -169,6 +169,13 @@ def gather_snapshot(
     )
 
 
+def clean_title(title: str, limit: int = 160) -> str:
+    """A scraped competitor title is untrusted text going into a prompt: collapse every run of
+    whitespace (so it cannot open a new line or section) and drop quotes (so it cannot close the
+    quoting) -- review finding 5, 2026-10-07."""
+    return " ".join(title.replace('"', "'").split())[:limit]
+
+
 def policy_query(category: str) -> str:
     return (
         f"{_CATEGORY_WORDS.get(category, category)}: minimum margin, discount eligibility, "
@@ -206,7 +213,10 @@ def build_prompt(
         f"Stock: {s.stock} units",
     ]
     if s.price_7d_ago is None:
-        lines.append("Our price 7 days ago: not available")
+        lines.append(
+            "Our price 7 days ago: not available (any change will be flagged for human review; "
+            "keeping the current price is the only answer the code can approve)"
+        )
     else:
         lines.append(
             f"Our price 7 days ago: {s.price_7d_ago} RON "
@@ -219,7 +229,7 @@ def build_prompt(
         stock = {True: "in stock", False: "OUT of stock", None: "stock unknown"}[c.in_stock]
         lines.append(
             f"- {c.shop}: {c.price} RON, observed {c.price_date.isoformat()}, {stock}, "
-            f'match score {c.score} -- "{c.title}"'
+            f'match score {c.score} -- "{clean_title(c.title)}"'
         )
     lines += [
         "",
@@ -272,30 +282,33 @@ class ParsedProposal:
     rationale: str
 
 
-_PRICE_LINE = re.compile(r"^[ \t]*PRICE[ \t]*:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
-_PRICE_VALUE = re.compile(r"^(\d{1,9}(?:\.\d{1,2})?)(?:[ \t]*RON)?$")
-_RATIONALE = re.compile(r"^[ \t]*RATIONALE[ \t]*:[ \t]*(.*)\Z", re.MULTILINE | re.DOTALL)
+_PRICE_LINE = re.compile(r"^[ \t]*PRICE[ \t]*:", re.MULTILINE)
+# The whole reply is `PRICE: <n>` then `RATIONALE: <text>` -- no preamble, no leading zeros.
+_REPLY = re.compile(
+    r"PRICE[ \t]*:[ \t]*((?:0|[1-9]\d{0,8})(?:\.\d{1,2})?)(?:[ \t]*RON)?[ \t]*\n+"
+    r"[ \t]*RATIONALE[ \t]*:[ \t]*(.+)",
+    re.DOTALL,
+)
 MAX_RATIONALE_CHARS = 2000
 
 
 def parse_reply(text: str) -> ParsedProposal:
-    """`PRICE: <n>` then `RATIONALE: <text>`. Strict: exactly one PRICE line, a plain positive
-    number with at most two decimals (a stray `NaN`, `1e9` or `-5` is refused), a non-empty
-    rationale. Anything else raises `ProposalParseError` -- never a guessed price."""
-    price_lines = _PRICE_LINE.findall(text)
-    if len(price_lines) != 1:
-        raise ProposalParseError(f"expected exactly one PRICE line, found {len(price_lines)}")
-    value = _PRICE_VALUE.match(price_lines[0])
-    if value is None:
-        raise ProposalParseError(f"PRICE is not a plain number: {price_lines[0]!r}")
-    try:
-        price = Decimal(value.group(1))
-    except InvalidOperation as exc:  # unreachable given the regex; fail closed anyway
-        raise ProposalParseError(f"PRICE is not a number: {price_lines[0]!r}") from exc
+    """`PRICE: <n>` then `RATIONALE: <text>`, and nothing before or between. Strict: exactly one
+    PRICE line, a plain positive number with at most two decimals (a stray `NaN`, `1e9`, `-5` or
+    `007` is refused), a non-empty rationale. CRLF is normalised first. Anything else raises
+    `ProposalParseError` -- never a guessed price. The rationale is model text: escape it when it
+    is rendered (Phase 7)."""
+    text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    found = len(_PRICE_LINE.findall(text))
+    if found != 1:
+        raise ProposalParseError(f"expected exactly one PRICE line, found {found}")
+    match = _REPLY.fullmatch(text)
+    if match is None:
+        raise ProposalParseError("reply is not exactly `PRICE: <n>` then `RATIONALE: <text>`")
+    price = Decimal(match.group(1))
+    rationale = match.group(2).strip()
     if price <= 0:
         raise ProposalParseError(f"PRICE must be positive, got {price}")
-    rationale_match = _RATIONALE.search(text)
-    rationale = rationale_match.group(1).strip() if rationale_match else ""
     if not rationale:
         raise ProposalParseError("missing or empty RATIONALE")
     return ParsedProposal(price=price, rationale=rationale[:MAX_RATIONALE_CHARS])
@@ -339,16 +352,27 @@ def decide(
         status, final_price, reason = GuardStatus.FLAG, None, f"unparseable proposer reply: {exc}"
     else:
         proposed_price, rationale = parsed.price, parsed.rationale
-        decision = enforce(
-            category=snapshot.category,
-            cost=snapshot.cost,
-            current_price=snapshot.current_price,
-            proposed_price=proposed_price,
-            stock=snapshot.stock,
-            price_7d_ago=snapshot.price_7d_ago,
-            thresholds=t,
-        )
-        status, final_price, reason = decision.status, decision.price, decision.reason
+        try:
+            decision = enforce(
+                category=snapshot.category,
+                cost=snapshot.cost,
+                current_price=snapshot.current_price,
+                proposed_price=proposed_price,
+                stock=snapshot.stock,
+                price_7d_ago=snapshot.price_7d_ago,
+                thresholds=t,
+            )
+        except ValueError as exc:
+            # The guard fails closed by raising on input it cannot judge (e.g. a proposal so small
+            # that charm rounding goes negative). The reply is already paid for, so the trace must
+            # survive: FLAG for a human, no applied price (review finding 1, 2026-10-07).
+            status, final_price, reason = (
+                GuardStatus.FLAG,
+                None,
+                f"guard refused the proposal: {exc}",
+            )
+        else:
+            status, final_price, reason = decision.status, decision.price, decision.reason
 
     return Recommendation(
         product_id=snapshot.product_id,

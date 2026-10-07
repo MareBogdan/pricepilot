@@ -125,7 +125,7 @@ class Recommendation(Base):
     cost: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     current_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     stock: Mapped[int] = mapped_column(Integer)
-    # [{"shop", "price", "score", "price_date", "title"}...]; empty list = no matched competitor.
+    # [{"shop", "price", "score", "price_date", "in_stock", "title"}...]; empty list = no matched competitor.
     competitor_prices: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     price_7d_ago: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     # The mock store's history is SYNTHETIC; this says so on every row.
