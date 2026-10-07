@@ -471,3 +471,42 @@ sample); rejecting one-sided flavour (contradicts Rule 5); editing the extractor
 (re-extraction of a frozen Phase 2/3 layer for a serving-time need); an LLM check (money, and a
 prompt is not a guardrail); matching on species (our products carry none).
 **Date.** 2026-10-07
+
+## ADR-0042 -- Decision engine: the proposer seam, the trace table, and how session 5 reaches 50
+
+**Context.** Phase 5 s4 builds the per-product engine at $0. The gate (50 recommendations, zero
+margin violations) must come from the REAL LLM in s5, so the engine cannot be coupled to a mock,
+and the rule "the guard is the final authority" must hold on every code path.
+**Decision.** (1) `decision/engine.py`: gather (SQL: `products`, `product_matches`, synthetic
+mock-store `price_7d_ago`) -> `retrieve_policy` -> `build_prompt` -> an injected **proposer** ->
+strict `parse_reply` -> `guard.enforce` -> trace. The seam is `Proposer.__call__(ProposalRequest)
+-> RawReply(text, model, cost, latency)`; `MockProposer` (deterministic, no network, never
+touches `llm_calls`, cost asserted 0) is s4's; `LlmProposer` (a wrapper over `client.complete`,
+model has no default) is built and fake-tested but NOT instantiated by any s4 script. Prompt
+building and parsing are shared, so s5 changes one object. (2) An unparseable reply FLAGs and
+the guard is not consulted -- no guessed price. (3) Every limit shown to the model is read from
+`config/pricing-policy.toml`; retrieved text is appended last, labelled reference-only, and a
+test proves a number planted in it never reaches the facts. (4) Elasticity is a value-less
+labelled placeholder (`value: null`): the mock store's planted constants are a generator input,
+and feeding them back is the Phase 4 circularity trap. (5) `recommendations` (migration 0013)
+stores snapshot, RAG sections, prompt, raw reply, parsed proposal, cost/latency, guard verdict;
+`is_mock` separates $0 mock rows from real ones; a CHECK ties `guard_final_price` to APPROVE.
+Mock rows (run_label `s4-mock`) are kept as wiring evidence and never count toward the gate.
+(6) Drift test: every % / stock minimum / rounding rule in the policy prose equals the TOML.
+**How s5 reaches 50 (proposal; default if Bogdan says "go").** The unit is one recommendation per
+(product, scenario). **30 baseline** rows -- every catalogue product on its real inputs (13
+matched, 17 with no competitor price, which exercises cost+policy-only) -- plus **20 labelled
+scenario rows** on matched products: `undercut_15` (every matched competitor price x 0.85) on all
+13, then `undercut_30` on the 7 lowest-id matched products. Scenarios are hypothetical
+counterfactuals, stored in `recommendations.scenario`, and exist to put price pressure on the
+floor; the README must say "30 on real inputs + 20 on labelled hypothetical scenarios". s5 adds
+the scenario builder (no migration: the column exists). Estimated cost ~$0.16 for 50 calls
+(ESTIMATE: ~1.1k input + ~100 output tokens at $2/$10 per Mtok), inside the ~$2 reserve; s5
+prints the estimate and asks `SPEND:` first. **Rejected:** per-(product, collection day) --
+competitor prices move rarely, so the rows would be near-duplicates and cache hits; one row per
+product only -- 30 < 50 and no stress on the guard.
+**Known, not fixed here.** `charm_round` rounds to the NEAREST charm value, so on cheap items it
+can flip a proposal's direction (5.20 -> proposed 5.36 -> approved 4.99, a -4% cut). No floor,
+eligibility or speed rule is broken, so the gate is unaffected, but the applied move contradicts
+the rationale; a guard change (ADR-0034) for the architect.
+**Date.** 2026-10-07

@@ -1,16 +1,15 @@
 # STATE
 
 Phase: 5 — Decision engine (RAG + recommendation). Phases 0-4 CLOSED / POSTPONED as below.
-Updated: 2026-10-04 (s3b)
+Updated: 2026-10-07 (s4)
 
-**Where we are:** Phase 5 sessions 1/1b/2/3/3b DONE. **s3b (2026-10-04, ADR-0039):** serve-time
-matcher built (torch fp32 CPU from `models/ce-ft-best`, NOT ONNX -- the zip is HF safetensors;
-ONNX is a Phase-7 concern). It reproduced the committed PyTorch-fp32 predictions (max |diff|
-1.8e-6, 0 flips) only after fixing a tokenizer mismatch (transformers 5.17 `</s></s>` vs
-`tokenizer.json` `</s>`). `product_matches` (migration 0012): **28 links, 14 of 30 products
-covered**. **ADR-0038 gate is PENDING Bogdan's blind labels of all 28 links** -- no precision
-computed. Its coverage criterion (>= 15 of 30) is unreachable at 14 products with any link: an
-architect decision. Phase 4 stays POSTPONE. Dataset FROZEN 2026-09-22, SHA-256 below.
+**Where we are:** Phase 5 sessions 1/1b/2/3/3b/s3b-close/**4** DONE. **s4 (2026-10-07, ADR-0042, $0):**
+the per-product decision engine is built and verified with a MOCKED proposer: SQL numbers +
+matched competitor prices + labelled elasticity placeholder + RAG policy text -> proposer -> strict
+parse -> `guard.enforce` -> full trace in `recommendations` (migration 0013, 7 `is_mock` rows from
+the demo run). `llm_calls` 575 -> 575, spend unchanged $0.818442. **Next: s5 = the 50 real
+recommendations (SPEND ~$0.16 ESTIMATE, inside the ~$2 reserve) -- needs Bogdan's `go` on the
+ADR-0042 scheme.** Phase 4 stays POSTPONE. Dataset FROZEN 2026-09-22, SHA-256 below.
 
 ## Gate progress
 
@@ -34,15 +33,17 @@ re-measure both times `NEEDS ARCHITECT: movement too rare` (15-16 days too short
 history rule). `docs/learned/phase4-data-sufficiency.md`, ADR-0031/ADR-0032.
 
 **Phase 5 — Decision engine: IN PROGRESS** (started 2026-09-27). Gate: 50 generated
-recommendations, zero margin violations. **Revised sub-sequence (2026-10-04, ADR-0038; replaces
-the old "session 3 = decision engine")**: (1) policy thresholds config + guard [DONE, ADR-0034];
-(2) policy RAG index + retrieval eval [DONE, ADR-0036]; (s3) sync our 30-product catalogue into
-`products` [DONE 2026-10-04, ADR-0038]; (s3b) serve-time cross-encoder matcher -> `product_matches`
-(our products vs `norm_listings`, >=0.89) [BUILT 2026-10-04, ADR-0039: 28 links, 14/30 products;
-gate PENDING blind labels, ADR-0038]; (s4) decision
-engine (SQL prices + matched competitor prices + labelled elasticity placeholder + RAG policy ->
-LLM[mocked] -> guard -> full trace), $0; (s5) the 50 recommendations on the real LLM (SPEND ~$2),
-zero-violation report. LLM transport done (`client.py`); §5.3 prompt caching is an optional gap.
+recommendations, zero margin violations. Sub-sequence (ADR-0038): (1) thresholds config + guard
+[DONE, ADR-0034]; (2) policy RAG index + retrieval eval [DONE, ADR-0036]; (s3) catalogue into
+`products` [DONE, ADR-0038]; (s3b) serve-time matcher -> `product_matches` [DONE, ADR-0039; gate
+re-scoped by ADR-0040, attribute guard ADR-0041: 25 links on 13 of 30 products now]; (s4) decision
+engine, mocked proposer, $0 [DONE 2026-10-07, ADR-0042]; (s5) the 50 recommendations on the real
+LLM (SPEND ~$0.16 ESTIMATE) + zero-violation report [NEXT]. **Matcher precision:** 0.786 (22/28)
+blind pre-guard, wrong-gramaj 0% (`docs/learned/results/phase5/gate-s3b.md`; labels are
+Claude-written, `claude_pending_bogdan_review`). The post-guard figure is NOT recorded there yet
+(PENDING); the s4 brief's "~0.88-0.92" is an ESTIMATE, not script-produced, and not independent of
+the 6 errors the guard was built from (ADR-0041). LLM transport done (`client.py`); §5.3 prompt
+caching is an optional gap.
 **Phase 4 price history:** 23 distinct collection days as of 2026-10-04 (petmax 23, animax 22,
 pentruanimale 22), per the architect audit. R1 (28 days) is reachable ~2026-10-10 but R2/R3 still
 fail on the pre-registered measurement -- Phase 4 stays POSTPONE, elasticity stays a labelled
@@ -54,6 +55,15 @@ placeholder.
 
 ## Last done
 
+000. **Phase 5 s4: decision engine, mocked proposer, $0 (2026-10-07, ADR-0042):** migration 0013
+   `recommendations`; `decision/engine.py` (gather -> RAG -> prompt -> proposer -> strict parse ->
+   `enforce` -> trace), `decision/proposer.py` (`MockProposer` s4; `LlmProposer` wraps
+   `client.complete`, built + fake-tested, not instantiated), `scripts/run_decision.py` (mock only).
+   Demo on the real DB: matched p20 12.13 -> APPROVE 11.99; below-floor proposal 8.30 -> FLAG (guard
+   lifts to 9.99, 20% drop breaches the 5% cap); p12 (stock 1) discount -> REJECT; no-match p25 ->
+   APPROVE unchanged 56.00; garbled reply -> FLAG, no price. 38 new tests (engine, parsing, guard
+   wiring incl. a catalogue x strategy sweep that never APPROVEs below a floor, persistence, the
+   prose/TOML drift test, mutation-checked); full suite 909 passed. `docs/learned/decision-engine.md`.
 00. **Phase 5 s3b: serve-time matcher + `product_matches` (2026-10-04, ADR-0039):** migration 0012
    (`UNIQUE(product_id, source)`, `CHECK score >= threshold`); `matching/serve.py` +
    `scripts/match_catalogue.py` (faithfulness gate first, brand-block candidates, >0.89 kept, one
@@ -111,6 +121,17 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Open issues
 
+- **`charm_round` can flip a proposal's direction on cheap items (s4 finding, ADR-0042):** nearest
+  charm value, so p18 5.20 -> proposed 5.36 (+3%) -> APPROVE 4.99 (-4%). No floor/eligibility/speed
+  rule breaks (gate unaffected) but the applied move contradicts the rationale. Not fixed (guard =
+  ADR-0034); decide: round in the direction of the proposal, or FLAG a direction flip.
+- **Prose/TOML drift is now tested** (`test_policy_prose_drift.py`); day counts (14 / 2 / 7+ days)
+  have no TOML key yet (guard scope gaps) and sit in an explicit allowlist. `retrieve_policy` still
+  does not check `policy_chunks.source_sha256` against the live prose.
+- **Mock `recommendations` rows (run_label `s4-mock`, `is_mock = true`) stay in the table** as wiring
+  evidence; s5's gate report must count `is_mock = false` rows only.
+- **`mypy` reports 1 pre-existing error** (`scripts/score_match_labels.py:33`, from the ADR-0041
+  commits, not s4); `ruff` clean, 909 tests green.
 - **Guard scope gaps, all deferred because the mock store has no field for them yet (ADR-0034)**
   -- not stubbed or faked: MAP-restricted brands (policy §2, no MAP field on `Product`); new-product
   age < 14 days (§3, no `listed_at`); manual price lock (§3, no lock field); promotion
@@ -123,13 +144,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
   future HF revision bump or `sentence-transformers` major version change would silently rank
   against a different vector space. Not fixed this session -- low likelihood before Phase 7,
   revisit if the VPS/Kaggle environment ever diverges from the dev box's installed version.
-- **Prose/TOML drift (session 2 review):** `retrieve_policy` never checks `policy_chunks.
-  source_sha256`/`doc_version` against the live `docs/policy/pricing-policy.md`, and nothing
-  checks the prose's stated numbers (e.g. "12%") against `config/pricing-policy.toml`'s actual
-  values. The guard, not the LLM, is still the final authority on price, so this cannot cause a
-  margin violation -- but a stale or drifted citation in an LLM's rationale is a real risk for
-  session 3 to design around (e.g. treat retrieved text as illustrative, never authoritative, in
-  the prompt).
 - **`test_policy_retrieval.py` has zero executing coverage in this environment (ADR-0037 review,
   finding accepted as-is):** tried reading `TEST_DATABASE_URL` from `.env` as a fallback (safe --
   it always names the local docker Postgres, still passes `assert_safe_for_tests`) so the tests
@@ -157,19 +171,13 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
   construction** -- documented, a v3 decision if Phase 4 reopens.
 - **`get_payload()`-routed callers have no end-to-end test against a real Postgres** (only pure
   logic + in-memory SQLite). Low priority.
-- **Matcher truncation loses real candidates (ADR-0039):** the audit found 5 listings >= 0.89
-  beyond the top-100 cosine cut across 13 products with blocks > 300. Scoring whole blocks costs
-  ~12 min of CPU. Decision for the architect before the labelled gate is scored.
-- **ADR-0038 coverage criterion unreachable:** needs >= 15 of 30 products with a correct match;
-  only 14 have any link. Do not edit ADR-0038 -- a new ADR if the criterion changes.
+- **Matcher top-100 cap accepted (ADR-0040):** 5 listings >= 0.89 beyond the cut across 13 products;
+  revisit on GitHub Actions after deployment if they matter.
 - **Matcher is CPU-slow locally (~10 pairs/s)**; fine for 30 products, Phase 7 ONNX covers serving.
 - **`psycopg` import is intermittently blocked (Application Control) -- recurred 2026-10-04.**
   Detect with `.venv\Scripts\python -c "import psycopg"`; fall back to
   `PRICEPILOT_DB_DRIVER=pg8000` for any DB command (ADR-0038). The pg8000 path is untested by the
   test suite (tests are offline) -- verified only by the live sync/migration runs.
-- **50 recommendations vs 30 products (s4/s5 must decide):** the gate needs 50 recommendations
-  but our catalogue has 30 products, and only matched products get competitor prices. s4 must
-  define how 50 arise (e.g. several price scenarios per product) before s5 spends money.
 - **Catalogue sync reviewer notes (ADR-0038):** `sync_catalogue.py` always writes the SEEDED
   price/stock, so re-running it after Phase 6 applies a price change would revert it -- guard or
   sync from the live store first. `pg8000` is a hard runtime dep (ships in the Docker image) --
@@ -190,6 +198,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 5: hand-label the 28 links blind (`docs/learned/results/phase5/match-verification-README.md`), then decide the coverage-criterion and truncation questions (ADR-0039). SPEND approval before the 50-recommendation run (est. ~$2, ADR-0030) -- at s5.
+Phase 5: say `go` on the ADR-0042 scheme (30 baseline + 20 labelled scenario rows) and approve the s5 SPEND (~$0.16 ESTIMATE, reserve ~$2). Review the Claude-written match labels (`claude_pending_bogdan_review`, ADR-0040).
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).
