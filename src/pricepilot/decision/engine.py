@@ -78,8 +78,12 @@ class CompetitorPrice:
     price_date: date
     in_stock: bool | None
     title: str
+    # Set ONLY by a hypothetical scenario (decision/scenarios.py): the real observed price that
+    # `price` was derived from. None on a real input.
+    observed_price: Decimal | None = None
 
     def to_json(self) -> dict[str, Any]:
+        extra = {} if self.observed_price is None else {"observed_price": str(self.observed_price)}
         return {
             "shop": self.shop,
             "price": str(self.price),
@@ -87,6 +91,7 @@ class CompetitorPrice:
             "price_date": self.price_date.isoformat(),
             "in_stock": self.in_stock,
             "title": self.title,
+            **extra,
         }
 
 
@@ -106,6 +111,9 @@ class ProductSnapshot:
     net_weight_g: int | None
     competitors: tuple[CompetitorPrice, ...]
     price_7d_ago: Decimal | None
+    # Set ONLY by a hypothetical scenario: shown to the model so a what-if is never mistaken for
+    # market data. None on a real input.
+    scenario_note: str | None = None
 
 
 PriceHistoryFn = Callable[[int, date], Decimal | None]
@@ -223,6 +231,8 @@ def build_prompt(
             "[SYNTHETIC mock-store history, not an observed price]"
         )
     lines += ["", "## FACTS: matched competitor prices (from the database)"]
+    if s.scenario_note:
+        lines.append(f"HYPOTHETICAL WHAT-IF, NOT MARKET DATA: {s.scenario_note}")
     if not s.competitors:
         lines.append("No matched competitor listing. Decide from our cost and the limits only.")
     for c in s.competitors:
