@@ -1,9 +1,15 @@
 # STATE
 
-Phase: 6 CLOSED 2026-10-07 -- next: Phase 7 (production). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
-Updated: 2026-10-07 (Phase 6)
+Phase: 7 IN PROGRESS -- 7a done 2026-10-07 (CI green, API + dashboard local); next 7b (deploy, needs host decision). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-07 (Phase 7a)
 
-**Where we are:** **Phase 6 CLOSED, gate MET (ADR-0046/0047).** The action layer turns a guard-decided
+**Where we are:** **Phase 7a DONE (ADR-0048/0049).** CI is green again (run 37639406362; root cause: a frozen-file
+hash taken on a CRLF checkout, ADR-0048). The read-only API (`/api/products`, `/api/products/{id}`,
+`/api/products/{id}/history`, `/api/status`) and the dashboard (`/`, `/products/{id}`, `/status`) run locally
+against Neon: `PRICEPILOT_DB_DRIVER=pg8000 uv run uvicorn pricepilot.api.main:app --reload`, open
+http://localhost:8000. Screenshots: `docs/learned/results/phase7a/`. Nothing is deployed. 7b (VPS, Caddy, domain,
+backups, demo GIF) waits for Bogdan's review of the dashboard and the hosting decision. $0 spent.
+Previous: **Phase 6 CLOSED, gate MET (ADR-0046/0047).** The action layer turns a guard-decided
 recommendation into a human-approved, logged, reversible store write. One complete cycle on real row #9
 (product 2, 389.00 -> 369.90): prompt -> apply -> verified in the store price, the store `/audit-log` and
 `action_log` -> second apply refused (no double write) -> rollback -> price restored and logged. Trail:
@@ -52,6 +58,10 @@ placeholder.
 `tests/test_labels_frozen.py`. No label may change without a reason recorded here first.
 
 ## Last done
+
+0000000. **Phase 7a: CI green + API + dashboard (2026-10-07, ADR-0048/0049):** frozen-queue hash tests now
+   LF-normalised; `src/pricepilot/api/` (queries, schemas, routes, Jinja2 templates, CSS); 14 API tests
+   (SQLite fixtures, offline-degrade path); jinja2 added to dependencies; ADR-0047 condensed to make room.
 
 000000. **Phase 6: action layer + one-cycle gate (2026-10-07, ADR-0046/0047):** migration 0015 `action_log`;
    `actions/{selector,store,apply,rollback}.py`; CLI `scripts/apply_recommendation.py`; gate script
@@ -121,6 +131,12 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 `docs/archive/STATE-history.md`.
 
 ## Open issues
+
+- **Phase 7a loose ends:** `scripts/ingest_labels.py` / `split_annotation_queue.py` still hash the raw queue
+  (false tamper alarm off Windows, ADR-0048). The dashboard's "in-scope listings" (11,097 distinct
+  source+listing id) is NOT reconciled with the Phase 1 gate figure 18,585 (different counting); the
+  dashboard labels its own definition. Chart.js loads from a CDN (needs internet in the browser). The Docker
+  CI job took ~10 min this run (image build installs torch); the `check` job takes ~1.5 min.
 
 - **Charm rounding overshoots the daily cap (ADR-0045; DECIDED in ADR-0046: accepted, FLAG -> review):** all 12 FLAGs in the refreshed
   gate are cap refusals: 11 are exact -5% cuts that nearest-charm rounding overshot (879.00 -> 834.90,
