@@ -168,6 +168,36 @@ def charm_round(
     return candidate.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def _charm_at(whole: int, t: PricingPolicyThresholds) -> Decimal:
+    """The charm value with integer part `whole`: `whole.99` below the threshold, `whole.90` from
+    it upward. Strictly increasing in `whole` (99.99 -> 100.90)."""
+    below = Decimal(str(t.rounding.below_cents))
+    at_or_above = Decimal(str(t.rounding.at_or_above_cents))
+    threshold = Decimal(str(t.rounding.charm_threshold))
+    return Decimal(whole) + (below if whole + below < threshold else at_or_above)
+
+
+def charm_ceil(value: Decimal, *, thresholds: PricingPolicyThresholds | None = None) -> Decimal:
+    """The smallest charm value `>= value`."""
+    t = thresholds or load_thresholds()
+    whole = max(0, int(value) - 1)
+    while _charm_at(whole, t) < value:
+        whole += 1
+    return _charm_at(whole, t)
+
+
+def charm_floor(
+    value: Decimal, *, thresholds: PricingPolicyThresholds | None = None
+) -> Decimal | None:
+    """The largest charm value `<= value`, or None if there is none (value below the cheapest
+    charm value, `0.99`)."""
+    t = thresholds or load_thresholds()
+    whole = int(value) + 1
+    while whole >= 0 and _charm_at(whole, t) > value:
+        whole -= 1
+    return _charm_at(whole, t) if whole >= 0 else None
+
+
 def enforce(
     *,
     category: str,
@@ -186,7 +216,7 @@ def enforce(
     178.90 discount). Checking the price actually applied is the only way to guarantee every rule
     holds for the price that comes out.
 
-    Order: no-change short-circuit -> charm round -> re-check floor -> eligibility -> speed limit,
+    Order: no-change short-circuit -> charm round -> keep the move's direction -> re-check floor -> eligibility -> speed limit,
     the last four all on the final price. A genuine no-change (`proposed_price == current_price`)
     is approved unrounded, never manufactured into a move (session 1b, 2026-09-28) -- unless it
     already sits below the floor, which FLAGs instead of silently keeping a sub-floor price. Since
@@ -217,6 +247,26 @@ def enforce(
     # 1. Charm round the proposal first. Floor-safe by construction (steps up if the charm value
     # would breach the floor); this also raises here for an unknown category (fail closed).
     final_price = charm_round(proposed_price, category, cost, thresholds=t)
+
+    # 1b. Direction (ADR-0043): "nearest charm value" can land on the wrong side of
+    # `current_price` (5.20 -> proposed 5.36 -> 4.99 turned a +3% rise into a -4% cut). The applied
+    # price must never contradict the intended direction, so re-anchor it on the correct side.
+    if proposed_price > current_price and final_price < current_price:
+        # Intended increase: the smallest charm value not below current (then floor-safe upward).
+        final_price = charm_ceil(current_price, thresholds=t)
+        for _ in range(_MAX_CHARM_STEPS):
+            if meets_floor(category, final_price, cost, thresholds=t):
+                break
+            final_price = charm_ceil(final_price + Decimal("0.01"), thresholds=t)
+    elif proposed_price < current_price and final_price > current_price:
+        # Intended decrease: the largest charm value not above current, if it clears the floor.
+        lower = charm_floor(current_price, thresholds=t)
+        if lower is None or not meets_floor(category, lower, cost, thresholds=t):
+            return GuardDecision.flag(
+                f"direction cannot be kept: the {category} floor needs a price above the "
+                f"current {current_price}, but a decrease was proposed ({proposed_price})"
+            )
+        final_price = lower
 
     # 2. Re-check the floor -- a backstop; charm_round should already guarantee it.
     if not meets_floor(category, final_price, cost, thresholds=t):

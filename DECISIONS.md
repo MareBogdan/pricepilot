@@ -518,3 +518,30 @@ the prompt says so when no 7-day reference exists. Recorded, not fixed: the synt
 `price_7d_ago` includes mock promo windows and skews the weekly-cap FLAG rate; cache-hit rows are
 `is_mock = false` at $0; the rationale is model text, escape it when rendered (Phase 7).
 **Date.** 2026-10-07
+
+## ADR-0043 -- The guard keeps the move's direction (charm rounding may not reverse it)
+
+**Context.** ADR-0042 found that `charm_round` rounds to the NEAREST charm value, so on cheap items
+the applied price can land on the wrong side of `current_price`: product 18, current 5.20, proposed
+5.36 (+3%), applied 4.99 (-4%). No margin rule broke, but the applied move contradicted the
+rationale -- and the same flaw existed at any price (179.00 + 179.05 -> 178.90).
+**Decision.** After the nearest charm value is chosen, `enforce` re-anchors it on the intended side
+of `current_price` (new `charm_ceil` / `charm_floor`, the regime boundary 99.99 -> 100.90 included).
+Intended INCREASE and result below current: use the smallest charm value >= current, stepped up
+floor-safe. Intended DECREASE and result above current: use the largest charm value <= current if it
+clears the floor, otherwise FLAG ("direction cannot be kept") -- never an upward APPROVE. A genuine
+no-change is untouched. Every later check (floor, eligibility, speed) runs on the re-anchored price,
+so e.g. the 5.20 case is now a speed-limit FLAG (5.99 is +15%), not a silent -4% cut.
+**Two existing tests changed, deliberately:** (1) the 2026-09-28 "rounding-induced discount on zero
+stock" regression (179.05 on stock 0 -> REJECT) is rewritten: the invariant it protected -- rounding
+cannot induce a discount -- now holds by construction (result APPROVE 179.90, a rise); (2) the
+"badly low proposal" test (cut of 95 -> floor-lifted 100.90) still FLAGs but now for "direction
+cannot be kept" instead of the speed limit. All other guard tests are unchanged and green. New: unit
+tests for the helpers, the product-18 case, up/down re-anchoring, the sub-floor-current case, and a
+grid sweep (2 categories x 10 prices x 24 proposals) asserting every APPROVE is on the intended side
+of current and clears its floor.
+**Alternatives rejected.** Rounding in the proposal's direction always (floor/ceil of the proposal):
+an increase could then be floor-ed below current just the same. Declining to round small items:
+policy section 6 rounds everything. Treating a direction flip as REJECT: policy section 4 sends
+ambiguous moves to a human, i.e. FLAG.
+**Date.** 2026-10-07

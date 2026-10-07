@@ -16,6 +16,8 @@ from pydantic import ValidationError
 from pricepilot.policy.guard import (
     GuardStatus,
     MissingReferencePrice,
+    charm_ceil,
+    charm_floor,
     charm_round,
     enforce,
     is_discountable,
@@ -329,7 +331,8 @@ def test_enforce_allows_a_discount_when_stock_meets_minimum() -> None:
 def test_enforce_self_corrects_a_badly_low_proposal_but_flags_the_resulting_jump() -> None:
     """A proposal far below the category floor is corrected upward by charm_round (never
     approved below the floor: dry_food 0.12, cost 88 -> breakeven 100.00, so 90.00 gets bumped to
-    100.90). The resulting jump from current_price then trips the speed limit -- FLAGged for
+    100.90). Since ADR-0043 a DECREASE proposal is never applied as a rise, so that is caught first
+    as "direction cannot be kept" (was: the speed limit on the resulting jump) -- still a FLAG for
     human review, never a silent REJECT-and-forget or a silent APPROVE."""
     decision = enforce(
         category="dry_food",
@@ -342,7 +345,7 @@ def test_enforce_self_corrects_a_badly_low_proposal_but_flags_the_resulting_jump
     )
     assert decision.status is GuardStatus.FLAG
     assert decision.price is None
-    assert "speed limit" in (decision.reason or "")
+    assert "direction cannot be kept" in (decision.reason or "")
 
 
 def test_enforce_flags_a_speed_limit_breach() -> None:
@@ -361,13 +364,13 @@ def test_enforce_flags_a_speed_limit_breach() -> None:
     assert "speed limit" in (decision.reason or "")
 
 
-def test_enforce_catches_a_rounding_induced_discount_on_zero_stock() -> None:
-    """Regression, review finding 1 (2026-09-28): current_price 179.00 is not itself a charm
-    value, so a genuine (small) INCREASE proposal, 179.05, rounds DOWN to 178.90 -- a real
-    discount relative to current_price. Checking eligibility against the unrounded proposal
-    (179.05 > current, "not a discount") used to let this through on a zero-stock product;
-    checking the final price catches it. (proposed != current here -- the exact-no-change case is
-    covered separately by the session 1b no-change short-circuit tests below.)"""
+def test_rounding_can_no_longer_induce_a_discount_on_a_zero_stock_product() -> None:
+    """Regression for review finding 1 (2026-09-28), REWRITTEN by ADR-0043. Before, current_price
+    179.00 (not a charm value) with a small INCREASE proposal 179.05 rounded to the nearest charm
+    value 178.90 -- a real discount -- and the zero-stock eligibility check had to catch it
+    (REJECT). The guard now anchors an intended increase on the smallest charm value not below
+    current (179.90, +0.5%), so rounding can never induce a discount at all: the invariant this test
+    protected (no discount on stock 0) holds by construction, and the result is an APPROVEd rise."""
     decision = enforce(
         category="dry_food",
         cost=Decimal("119.00"),
@@ -377,9 +380,9 @@ def test_enforce_catches_a_rounding_induced_discount_on_zero_stock() -> None:
         price_7d_ago=Decimal("179.00"),
         thresholds=T,
     )
-    assert decision.status is GuardStatus.REJECT
-    assert decision.price is None
-    assert "discount blocked" in (decision.reason or "")
+    assert decision.status is GuardStatus.APPROVE
+    assert decision.price == Decimal("179.90")
+    assert decision.price >= Decimal("179.00")  # never a discount
 
 
 def test_enforce_catches_a_rounding_induced_speed_breach() -> None:
@@ -569,3 +572,154 @@ def test_thresholds_are_frozen() -> None:
 
 def test_pricing_policy_thresholds_type_is_exported() -> None:
     assert isinstance(T, PricingPolicyThresholds)
+
+
+# ---------------------------------------------------------------------------------------
+# Direction preservation (ADR-0043): the applied price never contradicts the intended move
+# ---------------------------------------------------------------------------------------
+
+
+def test_charm_ceil_and_floor_at_the_regime_boundary() -> None:
+    assert charm_ceil(Decimal("99.99"), thresholds=T) == Decimal("99.99")
+    assert charm_ceil(Decimal("100.00"), thresholds=T) == Decimal("100.90")
+    assert charm_floor(Decimal("100.89"), thresholds=T) == Decimal("99.99")
+    assert charm_floor(Decimal("100.90"), thresholds=T) == Decimal("100.90")
+    assert charm_ceil(Decimal("5.20"), thresholds=T) == Decimal("5.99")
+    assert charm_floor(Decimal("5.20"), thresholds=T) == Decimal("4.99")
+    assert charm_ceil(Decimal("0.50"), thresholds=T) == Decimal("0.99")
+    assert charm_floor(Decimal("0.50"), thresholds=T) is None  # no charm value below 0.99
+
+
+def test_a_small_increase_on_a_five_ron_item_is_never_applied_as_a_cut() -> None:
+    """The product-18 case (ADR-0042 finding): current 5.20, proposed 5.36 (+3%). The nearest charm
+    value to 5.36 is 4.99 -- a 4% CUT. The guard now anchors on the smallest charm value not below
+    current, 5.99 (+15.2%), which breaches the 5% daily cap -> FLAG for a human, never an APPROVE
+    of a price below current."""
+    decision = enforce(
+        category="wet_food",
+        cost=Decimal("3.10"),
+        current_price=Decimal("5.20"),
+        proposed_price=Decimal("5.36"),
+        stock=59,
+        price_7d_ago=Decimal("5.16"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.FLAG and decision.price is None
+    assert "speed limit" in (decision.reason or "") and "5.99" in (decision.reason or "")
+
+
+def test_a_small_increase_that_rounds_down_is_lifted_to_the_charm_value_above_current() -> None:
+    """litter 56.00 -> proposed 56.30 (+0.5%). Nearest charm value 55.99 is a (tiny) cut; the
+    smallest charm value >= 56.00 is 56.99 (+1.8%, inside the 5% cap): APPROVE 56.99."""
+    decision = enforce(
+        category="litter",
+        cost=Decimal("34.00"),
+        current_price=Decimal("56.00"),
+        proposed_price=Decimal("56.30"),
+        stock=85,
+        price_7d_ago=Decimal("56.04"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.APPROVE
+    assert decision.price == Decimal("56.99")
+
+
+def test_a_small_decrease_that_rounds_up_is_lowered_to_the_charm_value_below_current() -> None:
+    """litter 55.90 -> proposed 55.60 (-0.5%). Nearest charm value 55.99 is a (tiny) RISE; the
+    largest charm value <= 55.90 is 54.99 (-1.6%; margin 38% vs the 15% floor): APPROVE 54.99."""
+    decision = enforce(
+        category="litter",
+        cost=Decimal("34.00"),
+        current_price=Decimal("55.90"),
+        proposed_price=Decimal("55.60"),
+        stock=85,
+        price_7d_ago=Decimal("55.90"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.APPROVE
+    assert decision.price == Decimal("54.99")
+
+
+def test_a_decrease_whose_only_floor_safe_charm_price_is_above_current_flags() -> None:
+    """dry_food cost 88.00 -> breakeven for the 12% floor is 100.00. current 100.50, proposed
+    100.20 (a cut). Nearest charm value 100.90 is a rise; the largest charm value <= 100.50 is
+    99.99, margin 11.99% < 12% -> no floor-safe cut exists. FLAG, never an upward APPROVE."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("88.00"),
+        current_price=Decimal("100.50"),
+        proposed_price=Decimal("100.20"),
+        stock=50,
+        price_7d_ago=Decimal("100.50"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.FLAG and decision.price is None
+    assert "direction cannot be kept" in (decision.reason or "")
+
+
+def test_an_increase_from_a_sub_floor_current_is_lifted_floor_safe() -> None:
+    """dry_food cost 88.00, current 99.50 (margin 11.6%, under the floor), proposed 99.70 (+0.2%).
+    Nearest charm value 99.99 is above current but still under the floor (11.99%); the floor-safe
+    step is 100.90. That is +1.4% on the day: APPROVE 100.90 -- never below the floor."""
+    decision = enforce(
+        category="dry_food",
+        cost=Decimal("88.00"),
+        current_price=Decimal("99.50"),
+        proposed_price=Decimal("99.70"),
+        stock=50,
+        price_7d_ago=Decimal("99.50"),
+        thresholds=T,
+    )
+    assert decision.status is GuardStatus.APPROVE
+    assert decision.price == Decimal("100.90")
+
+
+CURRENTS = (
+    "4.20",
+    "5.20",
+    "5.97",
+    "25.40",
+    "56.00",
+    "55.90",
+    "99.50",
+    "100.20",
+    "179.00",
+    "388.99",
+)
+
+
+def test_direction_and_floor_hold_on_a_grid_of_currents_and_proposals() -> None:
+    """Sweep both rounding regimes, the boundary at 100, and prices from ~4 to ~400 RON with
+    proposals either side of current: whenever the guard APPROVEs, the applied price is on the
+    intended side of current (or equal) and clears the category floor."""
+    approved = 0
+    for category, cost_ratio in (("treats", "0.55"), ("dry_food", "0.80")):
+        for current_s in CURRENTS:
+            current = Decimal(current_s)
+            cost = (current * Decimal(cost_ratio)).quantize(Decimal("0.01"))
+            for step in range(-12, 13):
+                proposed = (current * (Decimal(1) + Decimal(step) / Decimal(200))).quantize(
+                    Decimal("0.01")
+                )
+                if proposed == current or proposed <= 0:
+                    continue
+                d = enforce(
+                    category=category,
+                    cost=cost,
+                    current_price=current,
+                    proposed_price=proposed,
+                    stock=50,
+                    price_7d_ago=current,
+                    thresholds=T,
+                )
+                if d.status is not GuardStatus.APPROVE:
+                    assert d.price is None
+                    continue
+                approved += 1
+                assert d.price is not None
+                assert meets_floor(category, d.price, cost, thresholds=T)
+                if proposed > current:
+                    assert d.price >= current, (category, current, proposed, d.price)
+                else:
+                    assert d.price <= current, (category, current, proposed, d.price)
+    assert approved > 50  # the sweep is not vacuous
