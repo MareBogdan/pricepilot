@@ -1,4 +1,4 @@
-r"""Phase 5 gate report: 50 real recommendations, zero margin violations (ADR-0042).
+r"""Phase 5 gate report: 50 real recommendations, zero margin violations (ADR-0042/0044/0045).
 
     $env:PRICEPILOT_DB_DRIVER = "pg8000"      # if psycopg is blocked (ADR-0038)
     .venv\Scripts\python scripts/report_recommendations.py [--run-label s5-real] [--no-write]
@@ -6,7 +6,8 @@ r"""Phase 5 gate report: 50 real recommendations, zero margin violations (ADR-00
 Reads `recommendations` rows with `is_mock = false` for the run label, re-checks every APPROVE
 against `config/pricing-policy.toml` independently of the guard (`decision.report.evaluate`), prints
 the verdict and writes `docs/learned/results/phase5/fifty-recommendations.md`. Exit code 0 only if
-the gate passed; any margin violation or an incomplete set exits 1.
+the gate passed; any margin violation or an incomplete set exits 1. Superseded rows (relabelled
+`s5-superseded` by the s5b refresh) are not read: one row per (product, scenario).
 """
 
 from __future__ import annotations
@@ -29,12 +30,20 @@ for _stream in (sys.stdout, sys.stderr):
 from sqlalchemy import select  # noqa: E402
 
 from pricepilot.db import check_database, session_scope  # noqa: E402
-from pricepilot.decision.report import GateReport, evaluate  # noqa: E402
+from pricepilot.decision.report import (  # noqa: E402
+    GateReport,
+    MoveSummary,
+    evaluate,
+    summarise_moves,
+)
+from pricepilot.decision.scenarios import is_stress  # noqa: E402
 from pricepilot.models import Recommendation  # noqa: E402
 from pricepilot.policy.guard import margin  # noqa: E402
 from pricepilot.policy.thresholds import load_thresholds  # noqa: E402
 
 OUT = ROOT / "docs" / "learned" / "results" / "phase5" / "fifty-recommendations.md"
+STRESS_LABEL = "GUARD STRESS-TEST -- synthetic competitor prices, not a market recommendation"
+IGNORE_WORDS = re.compile(r"hypothetical|what-if|not market|not real|synthetic scenario", re.I)
 
 
 def pct(d: Decimal) -> str:
@@ -45,28 +54,27 @@ def counts(c: object) -> str:
     return ", ".join(f"{k} {v}" for k, v in sorted(c.items())) or "-"  # type: ignore[attr-defined]
 
 
-WHATIF_WORDS = re.compile(r"hypothetical|what-if|not market|not real|not what the shops", re.I)
+def move_row(name: str, m: MoveSummary) -> str:
+    return (
+        f"| {name} | {m.total} | {m.proposed_move} | {m.proposed_over_cap} | "
+        f"{m.proposed_below_floor} | {m.approve_moved} | {m.approve_unchanged} | {m.flag} | "
+        f"{m.reject} | **{m.applied_below_floor}** |"
+    )
 
 
 def render(rows: list[Recommendation], report: GateReport) -> str:
     t = load_thresholds()
     verdict = "PASSED" if report.passed else "FAILED"
-    scenario_rows = [r for r in rows if r.scenario]
-    scenario_total = len(scenario_rows)
-    scenario_moved = sum(
-        1 for r in scenario_rows if r.guard_final_price not in (None, r.current_price)
-    )
-    scenario_cited = sum(1 for r in scenario_rows if WHATIF_WORDS.search(r.llm_rationale or ""))
     baseline = [r for r in rows if not r.scenario]
+    stress = [r for r in rows if is_stress(r.scenario)]
+    other = [r for r in rows if r.scenario and not is_stress(r.scenario)]
     matched = [r for r in baseline if r.competitor_prices]
-    matched_moved = sum(1 for r in matched if r.guard_final_price not in (None, r.current_price))
-    matched_flag = sum(1 for r in matched if r.guard_status == "FLAG")
-    matched_same = sum(
-        1
-        for r in matched
-        if r.guard_final_price is not None and r.guard_final_price == r.current_price
-    )
-    unmatched = len(baseline) - len(matched)
+    unmatched = [r for r in baseline if not r.competitor_prices]
+    s_stress = summarise_moves(stress, thresholds=t)
+    s_matched = summarise_moves(matched, thresholds=t)
+    s_unmatched = summarise_moves(unmatched, thresholds=t)
+    s_all = summarise_moves(rows, thresholds=t)
+    stress_ignored = sum(1 for r in stress if IGNORE_WORDS.search(r.llm_rationale or ""))
     spend = sum((r.llm_cost_usd for r in rows), Decimal("0"))
     latencies = [r.llm_latency_ms for r in rows if r.llm_latency_ms is not None]
     models = sorted({r.llm_model for r in rows})
@@ -89,10 +97,13 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         "| Input | Status |",
         "|---|---|",
         "| Our cost, price, stock | the mock store's seeded catalogue (a fixture, not a live shop) |",
-        f"| Competitor prices, baseline rows | real scraped prices for the {len(matched)} matched products; "
-        f"the other {unmatched} had NO competitor data (decided from cost and policy alone) |",
-        "| Competitor prices, scenario rows | **HYPOTHETICAL**: observed price x 0.85 (`undercut_15`) "
-        "or x 0.70 (`undercut_30`), a what-if test of the guard; the prompt says so |",
+        f"| Competitor prices, baseline rows | real scraped prices for the {len(matched)} matched "
+        f"products; the other {len(unmatched)} had NO competitor data (decided from cost and policy "
+        "alone) |",
+        f"| Competitor prices, stress-test rows ({len(stress)}) | **{STRESS_LABEL}**: the observed "
+        "price x 0.85 (`stress_undercut_15`) or x 0.70 (`stress_undercut_30`). The prompt presents "
+        "them as the pricing input to respond to (the model is not told they are synthetic); the "
+        "trace keeps the real `observed_price` |",
         "| `price_7d_ago` | **SYNTHETIC** mock-store history, includes its promo windows |",
         "| Elasticity | a labelled placeholder with no value (Phase 4 POSTPONED) |",
         "| Proposed price and rationale | the real LLM (`" + ", ".join(models) + "`) |",
@@ -101,33 +112,43 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         "",
         f"Overall: {counts(report.status_counts)}.",
         "",
-        f"**Of the {report.status_counts.get('APPROVE', 0)} APPROVE rows, "
-        f"{report.approve_unchanged} keep the current price and only {report.approve_moved} move it.** "
-        "A no-change keeps today's margin, so the zero-violation count rests on the moved rows "
-        "(and on the guard's unit tests and sweeps) far more than on the 50.",
-        "",
-        "## How much of the run actually tested the floor",
-        "",
-        f"- **{unmatched} baseline rows had no competitor data**; nothing prompts a move there "
-        f"({sum(1 for r in baseline if not r.competitor_prices and r.guard_final_price == r.current_price)} "
-        "of them are no-change APPROVEs).",
-        f"- **The {scenario_total} scenario rows moved the price in {scenario_moved} cases, and "
-        f"{scenario_cited} of their {scenario_total} rationales cite the what-if label as the reason "
-        "for ignoring the competitor price.** The prompt announced the prices were hypothetical, so "
-        "the scenarios never pressed the floor: this is a property of the test design, not evidence "
-        "that the model is robust.",
-        f"- The {len(matched)} matched baseline rows are the real test: {matched_moved} moved the "
-        f"price, {matched_same} kept it, {matched_flag} were FLAGged.",
-        "",
         "| Scenario | Rows | APPROVE | REJECT | FLAG |",
         "|---|---|---|---|---|",
     ]
-    for name in ("baseline", "undercut_15", "undercut_30"):
-        c = report.by_scenario.get(name)
-        if c:
-            lines.append(
-                f"| {name} | {sum(c.values())} | {c['APPROVE']} | {c['REJECT']} | {c['FLAG']} |"
-            )
+    for name in sorted(report.by_scenario, key=lambda n: (n != "baseline", n)):
+        c = report.by_scenario[name]
+        lines.append(
+            f"| {name} | {sum(c.values())} | {c['APPROVE']} | {c['REJECT']} | {c['FLAG']} |"
+        )
+    lines += [
+        "",
+        "## What actually exercised the guard",
+        "",
+        "Counts of the MODEL's proposals before the guard touched them, and what the guard let "
+        "through. `proposed over cap` = the model asked for a move bigger than the daily cap; "
+        "`proposed below floor` = the model's own price would breach the margin floor if applied; "
+        "`applied below floor` = what the guard APPROVED under a floor (must be 0).",
+        "",
+        "| Group | Rows | Proposed a move | Proposed over cap | Proposed below floor | APPROVE moved "
+        "| APPROVE unchanged | FLAG | REJECT | Applied below floor |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+        move_row(f"stress-tests ({STRESS_LABEL.split(' --')[0]})", s_stress),
+        move_row("baseline, matched (real competitor prices)", s_matched),
+        move_row("baseline, no competitor data", s_unmatched),
+        move_row("ALL", s_all),
+        "",
+        f"- Stress-test rows whose rationale says the competitor price was hypothetical / ignored: "
+        f"**{stress_ignored} of {len(stress)}**"
+        + (" (the earlier framing's failure mode; it should now be ~0)." if stress else "."),
+        f"- Of the 50 rows, **{s_all.approve_moved} APPROVEs move the price** and "
+        f"{s_all.approve_unchanged} keep it. A no-change keeps today's margin, so the floor claim "
+        "rests on the moved rows, the proposals the guard stopped, and the guard's unit tests and "
+        "sweeps.",
+    ]
+    if other:
+        lines.append(
+            f"- {len(other)} row(s) carry an unrecognised scenario name: {sorted({str(r.scenario) for r in other})}"
+        )
     lines += ["", "## Why the non-APPROVE rows are not APPROVE", ""]
     if report.cause_counts:
         lines += ["| Cause | Rows |", "|---|---|"]
@@ -153,11 +174,8 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         f"{len(report.direction_violations)}",
         f"- Rows: {report.total}/{report.expected_total}, distinct {report.distinct}",
         f"- Replies cut off by max_tokens: **{len(report.truncated)}** "
-        f"({sum(1 for v in report.truncated if v.detail.startswith('APPROVE'))} of them APPROVE, "
-        f"product(s) {', '.join(str(v.product_id) for v in report.truncated) or '-'}). "
-        "A reply cut off at the token cap is a harness fault, not model judgement. The stop_reason "
-        "check that FLAGs such replies was added after the run (ADR-0044), so a truncated APPROVE "
-        "row would be a FLAG under today's engine. Not margin-related.",
+        f"(product(s) {', '.join(str(v.product_id) for v in report.truncated) or '-'}). A reply cut "
+        "off at the token cap is a harness fault; the engine FLAGs such a reply (ADR-0044).",
     ]
     for v in report.margin_violations + report.structure_violations + report.direction_violations:
         lines.append(
@@ -165,9 +183,10 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         )
     lines += [
         "",
-        "## Cost and latency (actual)",
+        "## Cost and latency (actual, rows in this report)",
         "",
-        f"- LLM spend for these rows: **${spend}** over {len(rows)} recommendation rows",
+        f"- LLM spend recorded on these {len(rows)} rows: **${spend}** (rows superseded by the s5b "
+        "refresh are excluded; see docs/COSTS.md for the full spend)",
         f"- Mean latency: {sum(latencies) / len(latencies):.0f} ms"
         if latencies
         else "- Latency: n/a",
@@ -185,8 +204,13 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         reason = (r.guard_reason or "").replace("|", "/")[:90]
         if not reason and r.llm_stop_reason == "max_tokens":
             reason = "reply cut at max_tokens (accepted at run time)"
+        name = (
+            "baseline"
+            if not r.scenario
+            else r.scenario + (" (STRESS)" if is_stress(r.scenario) else "")
+        )
         lines.append(
-            f"| {r.id} | {r.product_id} | {r.category} | {r.scenario or 'baseline'} | {r.cost} | "
+            f"| {r.id} | {r.product_id} | {r.category} | {name} | {r.cost} | "
             f"{r.current_price} | {r.llm_proposed_price if r.llm_proposed_price is not None else '-'}"
             f" | {applied if applied is not None else '-'} | {m} | {pct(floor)} | "
             f"{r.guard_status} | {reason} |"
@@ -195,13 +219,14 @@ def render(rows: list[Recommendation], report: GateReport) -> str:
         "",
         "## Caveats",
         "",
-        f"- {len(baseline)} rows are baseline ({len(matched)} with real competitor prices, {unmatched} "
-        f"without any) and {scenario_total} use hypothetical competitor prices. Do not read the "
+        f"- {len(baseline)} rows are baseline ({len(matched)} with real competitor prices, "
+        f"{len(unmatched)} without any) and {len(stress)} are {STRESS_LABEL}. Do not read the "
         "APPROVE/FLAG mix as a market result.",
-        "- Read the headline with the section above: this run is weak evidence for the floor. The "
-        "floor is demonstrated by the guard's tests and sweeps, not by these 50 rows.",
         "- The gate proves the guard holds on 50 LLM proposals, not that the proposed prices are "
         "good business decisions: elasticity is a placeholder and no sales feedback exists.",
+        "- The daily cap (5%) keeps a single step far from the floors in this catalogue (margins "
+        "28-56% against floors of 12-30%), so a live model that obeys the cap cannot reach a floor "
+        "in one move; the floor itself is demonstrated by the guard's unit tests and sweeps.",
         "- The applied price comes only from `guard.enforce`; the LLM price is a suggestion.",
         "",
     ]

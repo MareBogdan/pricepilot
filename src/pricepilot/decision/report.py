@@ -187,3 +187,48 @@ def evaluate(
                 )
             )
     return report
+
+
+@dataclass(frozen=True, slots=True)
+class MoveSummary:
+    """What a group of rows shows about the guard. `proposed_*` count the MODEL's proposals before
+    the guard touched them; `applied_below_floor` counts what the guard let through."""
+
+    total: int
+    proposed_move: int  # proposed price differs from the current price
+    proposed_below_floor: int  # proposal's margin under the category floor (unguarded breach)
+    proposed_over_cap: int  # proposal moves more than the daily cap
+    approve_moved: int
+    approve_unchanged: int
+    flag: int
+    reject: int
+    applied_below_floor: int  # an APPROVE under the floor: must be 0
+
+
+def summarise_moves(
+    rows: Sequence[Recommendation], *, thresholds: PricingPolicyThresholds | None = None
+) -> MoveSummary:
+    t = thresholds or load_thresholds()
+    daily = Decimal(str(t.speed_of_change.max_daily_fraction))
+    move = below = over = a_moved = a_same = flag = reject = applied_below = 0
+    for r in rows:
+        floor = Decimal(str(t.margin_floor[r.category]))  # type: ignore[index]
+        p = r.llm_proposed_price
+        if p is not None and p != r.current_price:
+            move += 1
+            if p > 0 and margin(p, r.cost) < floor:
+                below += 1
+            if abs(p - r.current_price) / r.current_price > daily:
+                over += 1
+        if r.guard_status == GuardStatus.APPROVE and r.guard_final_price is not None:
+            if r.guard_final_price == r.current_price:
+                a_same += 1
+            else:
+                a_moved += 1
+            if margin(r.guard_final_price, r.cost) < floor:
+                applied_below += 1
+        elif r.guard_status == GuardStatus.FLAG:
+            flag += 1
+        elif r.guard_status == GuardStatus.REJECT:
+            reject += 1
+    return MoveSummary(len(rows), move, below, over, a_moved, a_same, flag, reject, applied_below)

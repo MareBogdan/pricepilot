@@ -19,11 +19,13 @@ from pricepilot.decision.report import (
     GateReport,
     classify_cause,
     evaluate,
+    summarise_moves,
 )
 from pricepilot.decision.scenarios import (
     EXPECTED_TOTAL,
     apply_scenario,
     build_plan,
+    is_stress,
 )
 from pricepilot.models import Recommendation
 from pricepilot.policy.thresholds import load_thresholds
@@ -43,11 +45,23 @@ def test_plan_is_30_baseline_plus_13_plus_7_scenarios_all_distinct() -> None:
     plan = build_plan(ALL_IDS, MATCHED)
     assert len(plan) == EXPECTED_TOTAL == 50
     assert len(set(plan)) == 50
-    assert Counter(i.scenario for i in plan) == {None: 30, "undercut_15": 13, "undercut_30": 7}
+    assert Counter(i.scenario for i in plan) == {
+        None: 30,
+        "stress_undercut_15": 13,
+        "stress_undercut_30": 7,
+    }
     assert {i.product_id for i in plan if i.scenario is None} == set(ALL_IDS)
-    assert {i.product_id for i in plan if i.scenario == "undercut_15"} == set(MATCHED)
-    # undercut_30 goes to the 7 LOWEST-id matched products
-    assert [i.product_id for i in plan if i.scenario == "undercut_30"] == [2, 3, 4, 5, 6, 7, 8]
+    assert {i.product_id for i in plan if i.scenario == "stress_undercut_15"} == set(MATCHED)
+    # stress_undercut_30 goes to the 7 LOWEST-id matched products
+    assert [i.product_id for i in plan if i.scenario == "stress_undercut_30"] == [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+    ]
 
 
 def test_plan_is_independent_of_input_order_and_duplicates() -> None:
@@ -86,35 +100,38 @@ def test_baseline_is_returned_unchanged() -> None:
 
 
 def test_undercut_scales_competitor_prices_and_keeps_our_own_numbers() -> None:
-    s = apply_scenario(snap(RIVALS), "undercut_15")
+    s = apply_scenario(snap(RIVALS), "stress_undercut_15")
     # 12.99 x 0.85 = 11.0415 -> 11.04 ; 10.99 x 0.85 = 9.3415 -> 9.34 (HALF_UP)
     assert [c.price for c in s.competitors] == [Decimal("11.04"), Decimal("9.34")]
     assert [c.observed_price for c in s.competitors] == [Decimal("12.99"), Decimal("10.99")]
     assert (s.cost, s.current_price, s.stock, s.price_7d_ago) == (
         Decimal("7.90"), Decimal("12.50"), 39, Decimal("12.53"),
     )  # fmt: skip
-    assert [c.price for c in apply_scenario(snap(RIVALS), "undercut_30").competitors] == [
+    assert [c.price for c in apply_scenario(snap(RIVALS), "stress_undercut_30").competitors] == [
         Decimal("9.09"),  # 12.99 x 0.70 = 9.093
         Decimal("7.69"),  # 10.99 x 0.70 = 7.693
     ]
 
 
-def test_a_scenario_is_labelled_in_the_prompt_and_in_the_trace_json() -> None:
-    s = apply_scenario(snap(RIVALS), "undercut_30")
+def test_a_stress_test_is_presented_as_pricing_input_and_labelled_in_the_trace() -> None:
+    """ADR-0045: the earlier prompt announced 'hypothetical what-if' and the model ignored the
+    prices (20 of 20 rationales). The prompt now carries the scaled prices as ordinary input; the
+    label lives in the row (`scenario` starts with `stress_`) and the JSON keeps the real price."""
+    s = apply_scenario(snap(RIVALS), "stress_undercut_30")
     prompt = build_prompt(s, [], T)
-    assert "HYPOTHETICAL WHAT-IF, NOT MARKET DATA" in prompt and "undercut_30" in prompt
+    assert "- animax_ro: 9.09 RON" in prompt  # 12.99 x 0.70, shown as the competitor's price
+    for word in ("HYPOTHETICAL", "what-if", "stress", "scenario", "synthetic competitor"):
+        assert word.lower() not in prompt.lower().replace("synthetic mock-store history", "")
     assert s.competitors[0].to_json()["observed_price"] == "12.99"
-    # a real input carries neither marker
-    real = build_prompt(snap(RIVALS), [], T)
-    assert "HYPOTHETICAL" not in real
-    assert "observed_price" not in snap(RIVALS).competitors[0].to_json()
+    assert is_stress("stress_undercut_15") and not is_stress(None) and not is_stress("baseline")
+    assert "observed_price" not in snap(RIVALS).competitors[0].to_json()  # a real input has none
 
 
 def test_scenarios_reject_unknown_names_and_products_without_matches() -> None:
     with pytest.raises(ValueError, match="unknown scenario"):
         apply_scenario(snap(RIVALS), "undercut_99")
     with pytest.raises(ValueError, match="needs matched competitor prices"):
-        apply_scenario(snap(()), "undercut_15")
+        apply_scenario(snap(()), "stress_undercut_15")
 
 
 # ---------------------------------------------------------------------------------------
@@ -220,9 +237,9 @@ def test_a_direction_contradiction_is_reported_separately() -> None:
 
 def test_by_scenario_breakdown() -> None:
     rows = full_set()
-    rows[0] = row(1, "FLAG", None, scenario="undercut_15", reason="speed limit breached: x")
+    rows[0] = row(1, "FLAG", None, scenario="stress_undercut_15", reason="speed limit breached: x")
     report = evaluate(rows, thresholds=T)
-    assert report.by_scenario["undercut_15"] == {"FLAG": 1}
+    assert report.by_scenario["stress_undercut_15"] == {"FLAG": 1}
     assert report.by_scenario["baseline"] == {"APPROVE": 49}
 
 
@@ -291,3 +308,37 @@ def test_approve_rows_are_split_into_moved_and_unchanged() -> None:
     rows += [row(49, "APPROVE", "11.99"), row(50, "APPROVE", "12.99", proposed="12.80")]
     report = evaluate(rows, thresholds=T)
     assert (report.approve_unchanged, report.approve_moved) == (48, 2)
+
+
+# ---------------------------------------------------------------------------------------
+# What the guard actually saw: MoveSummary (the s5b evidence)
+# ---------------------------------------------------------------------------------------
+
+
+def test_move_summary_counts_proposals_before_the_guard_and_applied_after() -> None:
+    rows = [
+        # asked a big cut that breaches the wet_food floor and the cap; guard FLAGged it
+        row(1, "FLAG", None, proposed="8.30", reason="speed limit breached: x"),
+        # asked a -5% cut inside the cap and above the floor; guard approved a charm price
+        row(2, "APPROVE", "11.99", proposed="11.90"),
+        # asked for no change
+        row(3, "APPROVE", "12.50", proposed="12.50"),
+        # asked a cut on low stock; guard rejected
+        row(4, "REJECT", None, proposed="12.00", reason="discount blocked: x"),
+        # unparseable: no proposal at all
+        row(5, "FLAG", None, proposed=None, reason="unparseable proposer reply: x"),
+    ]
+    m = summarise_moves(rows, thresholds=T)
+    assert m.total == 5
+    assert m.proposed_move == 3  # rows 1, 2, 4 (row 3 unchanged, row 5 none)
+    # 8.30: margin (8.30-7.90)/8.30 = 4.8% < 18% ; 11.90: 33.6% ; 12.00: 34.2% -> only row 1
+    assert m.proposed_below_floor == 1
+    # daily cap 5% of 12.50 = 0.625: 8.30 is -33.6% (over); 11.90 is -4.8%; 12.00 is -4.0%
+    assert m.proposed_over_cap == 1
+    assert (m.approve_moved, m.approve_unchanged, m.flag, m.reject) == (1, 1, 2, 1)
+    assert m.applied_below_floor == 0
+
+
+def test_move_summary_counts_an_applied_price_under_the_floor() -> None:
+    bad = row(1, "APPROVE", "9.00", proposed="9.00")  # wet_food margin 12.2% < 18%
+    assert summarise_moves([bad], thresholds=T).applied_below_floor == 1
