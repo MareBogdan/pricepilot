@@ -47,6 +47,11 @@ def counts(c: object) -> str:
 def render(rows: list[Recommendation], report: GateReport, model_calls: int) -> str:
     t = load_thresholds()
     verdict = "PASSED" if report.passed else "FAILED"
+    scenario_rows = [r for r in rows if r.scenario]
+    scenario_total = len(scenario_rows)
+    scenario_moved = sum(
+        1 for r in scenario_rows if r.guard_final_price not in (None, r.current_price)
+    )
     spend = sum((r.llm_cost_usd for r in rows), Decimal("0"))
     latencies = [r.llm_latency_ms for r in rows if r.llm_latency_ms is not None]
     models = sorted({r.llm_model for r in rows})
@@ -80,6 +85,12 @@ def render(rows: list[Recommendation], report: GateReport, model_calls: int) -> 
         "",
         f"Overall: {counts(report.status_counts)}.",
         "",
+        f"**Of the {report.status_counts.get('APPROVE', 0)} APPROVE rows, "
+        f"{report.approve_unchanged} keep the current price and only {report.approve_moved} move it.** "
+        "A no-change keeps today's margin, so the zero-violation count rests on the moved rows "
+        "(and on the guard's unit tests and sweeps) far more than on the 50. Scenario rows that "
+        f"moved the price: {scenario_moved} of {scenario_total}.",
+        "",
         "| Scenario | Rows | APPROVE | REJECT | FLAG |",
         "|---|---|---|---|---|",
     ]
@@ -98,8 +109,8 @@ def render(rows: list[Recommendation], report: GateReport, model_calls: int) -> 
             "",
             f"{synthetic} of {sum(report.cause_counts.values())} non-APPROVE rows exist only "
             "because of the synthetic 7-day reference (replaying the guard with the reference set "
-            "to the current price would have approved them); the rest are the LLM's own move or "
-            "reply. A FLAG is a correct refusal, not a violation.",
+            "to the current price would have approved them); the others are labelled by cause "
+            "above. A FLAG is a correct refusal, not a violation.",
         ]
     else:
         lines.append("None: every row was APPROVE.")
@@ -113,6 +124,13 @@ def render(rows: list[Recommendation], report: GateReport, model_calls: int) -> 
         f"- Direction contradictions (ADR-0043: applied price on the wrong side of current): "
         f"{len(report.direction_violations)}",
         f"- Rows: {report.total}/{report.expected_total}, distinct {report.distinct}",
+        f"- Replies cut off by max_tokens: **{len(report.truncated)}** "
+        f"({sum(1 for v in report.truncated if v.detail.startswith('APPROVE'))} of them APPROVE). "
+        "Sonnet 5 thinks by default and the run used max_tokens=400. Three empty replies became "
+        "FLAGs; ONE partial reply (an unchanged price with a rationale cut mid-sentence) was "
+        "accepted by the parser at run time and APPROVEd. The stop_reason check that now FLAGs "
+        "such replies was added afterwards (ADR-0044), so these 50 rows were NOT re-run. "
+        "A harness fault, not model judgement; not margin-related.",
     ]
     for v in report.margin_violations + report.structure_violations + report.direction_violations:
         lines.append(
@@ -150,6 +168,8 @@ def render(rows: list[Recommendation], report: GateReport, model_calls: int) -> 
         "",
         "- 30 rows use real inputs; 20 use hypothetical competitor prices. Do not read the "
         "APPROVE/FLAG mix as a market result.",
+        "- Read the headline with the moved/unchanged split above: this run is weak evidence for the "
+        "floor, because the LLM mostly proposed no change.",
         "- The gate proves the guard holds on 50 LLM proposals, not that the proposed prices are "
         "good business decisions: elasticity is a placeholder and no sales feedback exists.",
         "- The applied price comes only from `guard.enforce`; the LLM price is a suggestion.",
