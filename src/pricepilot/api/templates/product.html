@@ -3,6 +3,7 @@
 {% block content %}
 {% set p = d.product %}
 {% set r = d.recommendation %}
+{% set thr = d.matches[0].threshold if d.matches else none %}
 <p class="crumb"><a href="/">&larr; All products</a></p>
 <h1>{{ p.title }}</h1>
 <p class="sub-h">{{ p.brand }} &middot; {{ p.category|replace("_", " ") }} &middot; SKU {{ p.sku }}</p>
@@ -17,11 +18,14 @@
 
 <section class="card" id="matching">
   <h2>1 &middot; Matching <span class="tag tag-real">real data</span></h2>
-  <p class="lede">A fine-tuned cross-encoder decides which competitor listing is the same product as ours,
-  even though every shop titles it differently. One match per shop, highest score wins.</p>
+  <p><span class="model-chip">Matched by a fine-tuned cross-encoder{% if thr is not none %} &middot; score &ge; {{ thr|fixed(2) }}{% endif %}</span></p>
+  <p class="lede">Every shop titles the same product differently. The model reads our title and each
+  competitor's title together and scores how likely they are the same item; only scores above the
+  threshold count. One match per shop, highest score wins.</p>
 
   {% if d.matches %}
   {% set pos = d.position %}
+  <div class="chart-box"><canvas id="compare-chart" role="img" aria-label="Our price compared with each matched competitor price"></canvas></div>
   <div class="position">
     <div><span class="kpi-label">Cheapest competitor</span><strong>{{ pos.min|money }}</strong>
       <span class="delta">we are {{ pos.vs_min_pct|signed_pct }}</span></div>
@@ -32,16 +36,16 @@
   </div>
   <div class="table-scroll">
   <table class="data">
-    <thead><tr><th>Shop</th><th>Their listing</th><th class="num">Price</th><th class="num">Match score</th><th>Observed</th><th>Stock</th></tr></thead>
+    <thead><tr><th>Shop</th><th>Their listing</th><th class="num">Price</th><th>Match score</th><th>Observed</th><th>Stock</th></tr></thead>
     <tbody>
     {% for m in d.matches %}
       <tr>
-        <td>{{ m.shop|shop }}</td>
+        <td class="nowrap"><span class="dot" data-shop="{{ m.shop }}"></span>{{ m.shop|shop }}</td>
         <td>{% if m.url %}<a href="{{ m.url }}" rel="noopener noreferrer" target="_blank">{{ m.competitor_title }}</a>{% else %}{{ m.competitor_title }}{% endif %}</td>
         <td class="num">{{ m.price|money }}</td>
-        <td class="num">{{ m.score|fixed(3) }}<div class="sub">threshold {{ m.threshold|fixed(2) }}</div></td>
-        <td>{{ m.price_date|day }}</td>
-        <td>{% if m.in_stock is none %}<span class="muted">unknown</span>{% elif m.in_stock %}in stock{% else %}out of stock{% endif %}</td>
+        <td><span class="score" style="--v: {{ (m.score * 100)|fixed(1) }}%" title="Cross-encoder score {{ m.score|fixed(3) }}; counted as a match at or above {{ m.threshold|fixed(2) }}">{{ m.score|fixed(3) }}</span></td>
+        <td class="nowrap">{{ m.price_date|day }}</td>
+        <td class="nowrap">{% if m.in_stock is none %}<span class="muted">unknown</span>{% elif m.in_stock %}in stock{% else %}out of stock{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -82,7 +86,7 @@
   <p>{{ r.guard_reason }}</p>
   {% endif %}
 
-  <h3>Policy passages the LLM was shown</h3>
+  <h3>Policy passages the LLM was shown <span class="tag tag-real">retrieved by embeddings</span></h3>
   {% if r.rag_sections %}
   <div class="passages">
   {% for s in r.rag_sections %}
@@ -101,8 +105,11 @@
   <p class="empty">No policy passages were retrieved for this recommendation.</p>
   {% endif %}
 
-  <h3>Demand response <span class="tag tag-placeholder">placeholder</span></h3>
-  <p>{{ r.elasticity_placeholder.get("label", "No elasticity has been estimated.") }}</p>
+  <h3>Demand response <span class="tag tag-placeholder">simulated placeholder</span></h3>
+  <div class="placeholder-box">
+    <strong>No elasticity has been estimated.</strong>
+    {{ r.elasticity_placeholder.get("label", "") }}
+  </div>
 
   <p class="note">Recommendation #{{ r.id }} &middot; model {{ r.llm_model }} &middot; run {{ r.run_label }} &middot;
   {{ r.created_at|day }} &middot; LLM cost ${{ r.llm_cost_usd|fixed(4) }}
@@ -136,77 +143,35 @@
 
 <section class="card" id="history">
   <h2>3 &middot; Price history</h2>
-  <p class="lede">Solid lines are competitor prices as scraped (real). The dashed line is our price from the
-  mock store, which is generated (simulated).</p>
+  <p class="lede"><span class="dot" data-shop="animax_ro"></span><span class="dot" data-shop="pentruanimale_ro"></span><span class="dot" data-shop="petmax_ro"></span>
+  Solid lines are competitor prices as scraped (<strong>real</strong>).
+  <span class="dot ours"></span>The dashed line is our price from the mock store, which is
+  <strong>generated</strong> (simulated).</p>
   <div class="chart-controls">
-    <button type="button" id="range-btn" class="btn" hidden>Show full 180 days</button>
+    <button type="button" id="range-btn" class="btn" hidden>Show full simulated history</button>
   </div>
   <div class="chart-box"><canvas id="history-chart" role="img"
        aria-label="Price history: competitor prices (real) and our price (simulated)"></canvas></div>
   <p class="note" id="chart-msg"></p>
 </section>
+
+<script type="application/json" id="compare-data">{{ bars|tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (function () {
-  var productId = {{ d.product.id }};
   var msg = document.getElementById("chart-msg");
-  var btn = document.getElementById("range-btn");
-  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-  function ts(day) { return Date.parse(day + "T00:00:00Z"); }
-  function fmt(ms) { return new Date(ms).toISOString().slice(0, 10); }
-  if (typeof Chart === "undefined") { msg.textContent = "The chart library could not be loaded."; return; }
-
-  fetch("/api/products/" + productId + "/history").then(function (r) {
+  if (!window.PP || !PP.ready()) {
+    msg.textContent = "The chart library could not be loaded.";
+    return;
+  }
+  PP.priceBars("compare-chart", JSON.parse(document.getElementById("compare-data").textContent));
+  fetch("/api/products/{{ d.product.id }}/history").then(function (r) {
     if (!r.ok) { throw new Error("history unavailable"); }
     return r.json();
   }).then(function (h) {
-    var palette = [css("--c1"), css("--c2"), css("--c3")];
-    var datasets = h.competitors_real.map(function (s, i) {
-      return {
-        label: s.shop.replace(/_ro$/, ".ro") + " (real)",
-        data: s.points.map(function (p) { return { x: ts(p[0]), y: Number(p[1]) }; }),
-        borderColor: palette[i % palette.length], backgroundColor: palette[i % palette.length],
-        borderWidth: 2, pointRadius: 2, tension: 0, stepped: "before"
-      };
-    });
-    datasets.push({
-      label: "Our price (simulated)",
-      data: h.our_price_synthetic.map(function (p) { return { x: ts(p.day), y: Number(p.price) }; }),
-      borderColor: css("--muted"), backgroundColor: css("--muted"),
-      borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: 0
-    });
-    var firstReal = Infinity;
-    h.competitors_real.forEach(function (s) { s.points.forEach(function (p) { firstReal = Math.min(firstReal, ts(p[0])); }); });
-    var lastX = Math.max.apply(null, datasets.map(function (d) { return d.data.length ? d.data[d.data.length - 1].x : 0; }));
-    var windowMin = isFinite(firstReal) ? firstReal - 3 * 86400000 : null;
-    var chart = new Chart(document.getElementById("history-chart"), {
-      type: "line", data: { datasets: datasets },
-      options: {
-        responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", axis: "x", intersect: false },
-        scales: {
-          x: { type: "linear", min: windowMin, max: lastX, ticks: { color: css("--muted"), maxTicksLimit: 8, callback: function (v) { return fmt(v); } }, grid: { color: css("--line") } },
-          y: { title: { display: true, text: "RON", color: css("--muted") }, ticks: { color: css("--muted") }, grid: { color: css("--line") } }
-        },
-        plugins: {
-          legend: { labels: { color: css("--text"), usePointStyle: true, boxWidth: 8 } },
-          tooltip: { callbacks: { title: function (items) { return fmt(items[0].parsed.x); } } }
-        }
-      }
-    });
-    if (windowMin !== null) {
-      var full = false;
-      btn.hidden = false;
-      btn.addEventListener("click", function () {
-        full = !full;
-        chart.options.scales.x.min = full ? undefined : windowMin;
-        chart.update();
-        btn.textContent = full ? "Show collected period only" : "Show full 180 days";
-      });
-    }
-    if (!h.competitors_real.length) { msg.textContent = "No matched competitor, so only our simulated price is shown."; }
+    PP.history("history-chart", h, msg, document.getElementById("range-btn"));
   }).catch(function () { msg.textContent = "The price history is not available right now."; });
 })();
 </script>

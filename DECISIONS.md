@@ -584,3 +584,17 @@ library (Chart.js from jsDelivr); dark mode via CSS variables; no write actions 
 **Alternatives rejected.** A Next.js frontend (more moving parts, not the point of the project); reading
 the mock store over HTTP (the in-process accessor the decision engine uses needs no second server).
 **Date.** 2026-10-07
+
+## ADR-0050 -- The Phase 1 gate's "18,585 listings" was price ROWS, not distinct listings
+
+**Context.** The 7a dashboard showed 11,097 distinct listings; the Phase 1 gate (CLAUDE.md, ADR-0025) says
+18,585. Re-derived from `raw_listings`: through the first two collection days (2026-09-12/13) there are
+18,703 rows stored, **18,585 rows in scope**, and 10,525 distinct (source, listing id). Today: 266,200 in-scope
+rows and 11,097 distinct listings.
+**Decision.** The gate figure is a count of price rows (listing x day) after two days, not a count of distinct
+listings. No reported figure changes and the gate (>= 3,000) holds under either unit (10,525 distinct). The
+status page now shows both units for both windows, from SQL, with one paragraph saying so; the dashboard's
+own "listings" label says "distinct (source + id)". The `18,585` quote is a constant in `facts.py`, tested
+against CLAUDE.md.
+**Alternatives rejected.** Editing the Phase 1 text (history stays as written); showing only one unit.
+**Date.** 2026-10-07

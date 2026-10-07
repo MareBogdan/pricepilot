@@ -28,6 +28,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 | 2026-10-07 | 5 | Session 5b: re-run 4 truncated baselines + 20 guard stress-tests on `claude-sonnet-5` (`--refresh --max-tokens 1500`, ADR-0045); 24 `llm_calls` rows | $0.11 (ceiling $0.42) | **$0.164186** | $1.222904 | above the estimate again (est. used the s5 mean output of 204 tokens; replies with thinking ran longer); under the ceiling. Superseded s5 rows keep their spend ($0.240276 above) |
 | 2026-10-07 | 6 | Phase 6: action layer (`actions/`), migration 0015 `action_log`, one-cycle gate against the local mock store (ADR-0046/0047). No LLM calls (`llm_calls` unchanged at 649 rows / $1.222904), no GPU, no paid hosting | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 | 2026-10-07 | 7 | Phase 7a: CI fix (ADR-0048), read-only API + dashboard running locally against Neon (ADR-0049). No LLM calls (`llm_calls` unchanged), no GPU, no paid hosting (deploy is 7b) | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
+| 2026-10-07 | 7 | Phase 7a.2: one-command dev launch (`make.ps1 dev`), dashboard visual pass (hero tiles, charts), listings-number reconciliation (ADR-0050). No LLM calls (`llm_calls` unchanged), no GPU, no paid hosting | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
 

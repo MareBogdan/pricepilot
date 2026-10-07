@@ -147,6 +147,8 @@ Then `make status` for live project state, `make check` for lint + types + tests
 
 On Windows, `make` is not installed — use `.\make.ps1 <target>`, which mirrors every target.
 
+Dashboard (reads the live database): `.\make.ps1 dev` (or `make dev`), then open http://localhost:8000.
+
 ## Repo map
 
 | Path | What |

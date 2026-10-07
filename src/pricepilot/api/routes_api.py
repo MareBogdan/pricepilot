@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from pricepilot.api import queries
 from pricepilot.api.deps import get_optional_session, get_session
-from pricepilot.api.schemas import PriceHistory, ProductDetail, ProductRow, Status
+from pricepilot.api.schemas import Overview, PriceHistory, ProductDetail, ProductRow, Status
 
 log = logging.getLogger(__name__)
 
@@ -52,3 +52,15 @@ def status(session: OptionalSessionDep) -> Status:
         except SQLAlchemyError:
             log.warning("status: database query failed, serving static facts", exc_info=True)
     return queries.static_status()
+
+
+@router.get("/overview", response_model=Overview)
+def overview(session: OptionalSessionDep) -> Overview:
+    """The hero numbers and the catalogue-level chart data. Model results come from the committed
+    result files, everything else from SQL; degrades to the committed results alone."""
+    if session is not None:
+        try:
+            return queries.overview(session)
+        except SQLAlchemyError:
+            log.warning("overview: database query failed, serving static facts", exc_info=True)
+    return queries.static_overview()

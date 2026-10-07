@@ -15,9 +15,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from pricepilot.api import queries
+from pricepilot.api import facts, queries
 from pricepilot.api.deps import get_optional_session
-from pricepilot.api.schemas import Status
+from pricepilot.api.schemas import Overview, ProductDetail, Status
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +55,8 @@ templates.env.filters.update(
     money=_money, pct=_pct, signed_pct=_signed_pct, day=_day, shop=_shop, fixed=_fixed
 )
 
+templates.env.globals["gate_figure"] = facts.PHASE1_GATE_ROWS
+
 router = APIRouter(include_in_schema=False)
 OptionalSessionDep = Annotated[Session | None, Depends(get_optional_session)]
 
@@ -67,16 +69,68 @@ def _unavailable(request: Request) -> HTMLResponse:
     return _render(request, "unavailable.html", status_code=503, page="")
 
 
+GROUP_LABELS = {
+    "baseline": "Real inputs",
+    "stress_undercut_15": "Competitors cut 15% (stress)",
+    "stress_undercut_30": "Competitors cut 30% (stress)",
+}
+
+
+def overview_chart_data(o: Overview) -> dict[str, Any]:
+    """Chart payloads. Numbers stay strings (Decimal) until the browser plots them."""
+    return {
+        "verdict": [
+            {
+                "label": f"{GROUP_LABELS.get(r.group, r.group.replace('_', ' '))} ({r.approve + r.flag + r.reject})",
+                "approve": r.approve,
+                "flag": r.flag,
+                "reject": r.reject,
+            }
+            for r in o.verdict_mix
+        ],
+        "margins": [
+            {
+                "label": f"{c.category.replace('_', ' ')} ({c.products})",
+                "avg": str(c.avg_margin_pct),
+                "floor": str(c.floor_pct),
+            }
+            for c in o.category_margins
+        ],
+    }
+
+
+def comparison_bars(d: ProductDetail) -> list[dict[str, str]]:
+    """Our price, each matched competitor price, and the guard-approved price (if any)."""
+    bars = [{"label": "Our price", "price": str(d.product.current_price), "kind": "ours"}]
+    bars += [
+        {"label": _shop(m.shop), "price": str(m.price), "kind": "shop", "shop": m.shop}
+        for m in d.matches
+    ]
+    rec = d.recommendation
+    if rec and rec.guard_status == "APPROVE" and rec.guard_final_price is not None:
+        bars.append({"label": "Recommended", "price": str(rec.guard_final_price), "kind": "rec"})
+    return bars
+
+
 @router.get("/", response_class=HTMLResponse)
 def products_page(request: Request, session: OptionalSessionDep) -> HTMLResponse:
     if session is None:
         return _unavailable(request)
     try:
         rows = queries.list_products(session)
+        o = queries.overview(session)
     except SQLAlchemyError:
         log.warning("products page: query failed", exc_info=True)
         return _unavailable(request)
-    return _render(request, "products.html", page="products", products=rows)
+    return _render(
+        request,
+        "products.html",
+        page="products",
+        products=rows,
+        o=o,
+        chart_data=overview_chart_data(o),
+        stress_n=sum(r.approve + r.flag + r.reject for r in o.verdict_mix if r.group != "baseline"),
+    )
 
 
 @router.get("/products/{product_id}", response_class=HTMLResponse)
@@ -90,7 +144,7 @@ def product_page(request: Request, product_id: int, session: OptionalSessionDep)
     except SQLAlchemyError:
         log.warning("product page: query failed", exc_info=True)
         return _unavailable(request)
-    return _render(request, "product.html", page="products", d=detail)
+    return _render(request, "product.html", page="products", d=detail, bars=comparison_bars(detail))
 
 
 @router.get("/status", response_class=HTMLResponse)

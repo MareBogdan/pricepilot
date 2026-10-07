@@ -5,7 +5,7 @@
 # file is the source of truth. See DECISIONS.md ADR-0003.
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test status cost scrape overlap up down logs migrate revision api mock-store health check clean annotate
+.PHONY: help install lint format typecheck test status cost scrape overlap up down logs migrate revision api dev mock-store health check clean annotate
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "};{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -60,6 +60,9 @@ revision: ## Autogenerate a migration: make revision m="add foo"
 
 api: ## Run the API locally (no Docker)
 	uv run uvicorn pricepilot.api.main:app --reload --port 8000
+
+dev: ## Run the dashboard against the live DB on :8000
+	PRICEPILOT_DB_DRIVER=pg8000 uv run python -m uvicorn pricepilot.api.main:app --reload --port 8000
 
 mock-store: ## Run the mock store locally (no Docker)
 	uv run uvicorn services.mock_store.app:app --reload --port 8001

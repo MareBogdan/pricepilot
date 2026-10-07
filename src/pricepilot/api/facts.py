@@ -15,6 +15,10 @@ PRECISION_CAVEAT = (
     "links were labelled after their scores were seen, and all labels are Claude-written pending "
     "review. The 0.90 matcher gate is not claimed as cleanly met."
 )
+# CLAUDE.md section 7, Phase 1: "18,585/18,703" in-scope / stored PRICE ROWS after the first two
+# collection days (ADR-0025). Quoted on the status page next to the SQL recount.
+PHASE1_GATE_ROWS = "18,585"
+
 PRECISION_SOURCE_DOC = "docs/learned/results/phase5/gate-s3b.md"
 PRECISION_SOURCE_FIGURES = ("0.786 (22/28)", "0.92 (23/25)", "22/25 = 0.88")
 

@@ -1,9 +1,16 @@
 # STATE
 
-Phase: 7 IN PROGRESS -- 7a done 2026-10-07 (CI green, API + dashboard local); next 7b (deploy, needs host decision). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
-Updated: 2026-10-07 (Phase 7a)
+Phase: 7 IN PROGRESS -- 7a + 7a.2 done 2026-10-07 (CI green, dashboard polished, `.\make.ps1 dev`); next 7b (deploy, needs host decision). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-07 (Phase 7a.2)
 
-**Where we are:** **Phase 7a DONE (ADR-0048/0049).** CI is green again (run 37639406362; root cause: a frozen-file
+**Where we are:** **Phase 7a.2 DONE (ADR-0050).** Start the dashboard with `.\make.ps1 dev` (or `.\start.ps1`; sets
+`PRICEPILOT_DB_DRIVER=pg8000`, runs `.venv\Scripts\python -m uvicorn`, never the blocked `uvicorn.exe`), open
+http://localhost:8000. Home page = four hero tiles (matching F1 0.87 vs 0.50 zero-shot; RAG hit@1 0.85; 50
+recommendations / 0 violations re-checked from SQL; 26 days / 266,200 price rows) + guard-verdict and
+margin-headroom charts; product page = price-comparison bars + score pills + decision card + history chart.
+Model numbers are read from the committed result files, the rest from SQL. The listings figure is reconciled:
+the Phase 1 "18,585" was price ROWS after two days (10,525 distinct listings then; 11,097 distinct today).
+Previous: **Phase 7a DONE (ADR-0048/0049).** CI is green again (run 37639406362; root cause: a frozen-file
 hash taken on a CRLF checkout, ADR-0048). The read-only API (`/api/products`, `/api/products/{id}`,
 `/api/products/{id}/history`, `/api/status`) and the dashboard (`/`, `/products/{id}`, `/status`) run locally
 against Neon: `PRICEPILOT_DB_DRIVER=pg8000 uv run uvicorn pricepilot.api.main:app --reload`, open
@@ -58,6 +65,10 @@ placeholder.
 `tests/test_labels_frozen.py`. No label may change without a reason recorded here first.
 
 ## Last done
+
+00000000. **Phase 7a.2: dashboard polish (2026-10-07, ADR-0050):** `make.ps1 dev` + `start.ps1` + `make dev`;
+   hero tiles, verdict and margin charts, price-comparison bars, shop-colour/status-colour palette validated
+   with the dataviz script; `/api/overview`; listings reconciliation on the status page; 22 API tests.
 
 0000000. **Phase 7a: CI green + API + dashboard (2026-10-07, ADR-0048/0049):** frozen-queue hash tests now
    LF-normalised; `src/pricepilot/api/` (queries, schemas, routes, Jinja2 templates, CSS); 15 API tests
@@ -132,10 +143,8 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Open issues
 
-- **Phase 7a loose ends:** `scripts/ingest_labels.py` / `split_annotation_queue.py` still hash the raw queue
-  (false tamper alarm off Windows, ADR-0048). The dashboard's "in-scope listings" (11,097 distinct
-  source+listing id) is NOT reconciled with the Phase 1 gate figure 18,585 (different counting); the
-  dashboard labels its own definition. Chart.js loads from a CDN (needs internet in the browser). The Docker
+- **Phase 7a loose ends (the listings-number item is RESOLVED, ADR-0050):** `scripts/ingest_labels.py` / `split_annotation_queue.py` still hash the raw queue
+  (false tamper alarm off Windows, ADR-0048). Chart.js loads from a CDN (needs internet in the browser). The Docker
   CI job took ~10 min this run (image build installs torch); the `check` job takes ~1.5 min.
 
 - **Charm rounding overshoots the daily cap (ADR-0045; DECIDED in ADR-0046: accepted, FLAG -> review):** all 12 FLAGs in the refreshed

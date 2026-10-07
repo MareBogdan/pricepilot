@@ -44,6 +44,14 @@ switch ($Target) {
     'logs'       { Invoke-Step @('docker', 'compose', 'logs', '-f') }
     'migrate'    { Invoke-Step @('uv', 'run', 'alembic', 'upgrade', 'head') }
     'revision'   { Invoke-Step (@('uv', 'run', 'alembic', 'revision', '--autogenerate', '-m') + $Rest) }
+    # The dashboard against the live Neon DB. `python -m uvicorn`, never the uvicorn.exe console
+    # script (blocked by Application Control); pg8000 because psycopg's libpq DLL is blocked too
+    # (ADR-0038). Run from the repo root so the `services` package is importable. Open :8000.
+    'dev'        {
+        $env:PRICEPILOT_DB_DRIVER = 'pg8000'
+        Write-Host 'Dashboard: http://localhost:8000  (Ctrl+C to stop)' -ForegroundColor Cyan
+        Invoke-Step @('.venv\Scripts\python', '-m', 'uvicorn', 'pricepilot.api.main:app', '--reload', '--port', '8000')
+    }
     'api'        { Invoke-Step @('uv', 'run', 'uvicorn', 'pricepilot.api.main:app', '--reload', '--port', '8000') }
     'mock-store' { Invoke-Step @('uv', 'run', 'uvicorn', 'services.mock_store.app:app', '--reload', '--port', '8001') }
     'health' {
@@ -76,6 +84,7 @@ switch ($Target) {
             'overlap     Cross-shop overlap count - the Phase 1 gate metric'
             'up/down     docker compose up -d --build / down'
             'migrate     alembic upgrade head'
+            'dev         Run the dashboard on :8000 against the live Neon DB (http://localhost:8000)'
             'api         Run the API locally on :8000'
             'mock-store  Run the mock store locally on :8001'
             'health      Curl both health endpoints'

@@ -36,8 +36,30 @@ hidden. The documented facts below do not depend on it.</div>
     </tbody>
   </table>
   </div>
-  <p class="note">A listing is one product page at one shop; a price observation is that listing's price on one
-  collection day. Regulated products that are out of scope are excluded from both.</p>
+  <p class="note">A listing is one product page at one shop; a price observation (price row) is that listing's
+  price on one collection day. Regulated products that are out of scope are excluded from both.</p>
+
+  {% set lc = s.listing_counts %}
+  {% if lc %}
+  <h3>Why the Phase 1 gate said {{ gate_figure }} and this page says {{ "{:,}".format(lc.now_distinct_listings) }}</h3>
+  <p>They count different things. The Phase 1 gate figure (&ldquo;{{ gate_figure }} in-scope listings&rdquo;) counted
+  <strong>price rows</strong>, on the first {{ lc.window_days }} collection days only. This page shows
+  <strong>distinct listings</strong> across every day. The same measure as the gate, today, is
+  {{ "{:,}".format(lc.now_rows_in_scope) }}.</p>
+  <div class="table-scroll recon">
+  <table class="data">
+    <thead><tr><th>Window and unit</th><th class="num">Count</th></tr></thead>
+    <tbody>
+      <tr><td>Gate window (first {{ lc.window_days }} days, to {{ lc.window_through|day }}): price rows stored</td><td class="num">{{ "{:,}".format(lc.window_rows_stored) }}</td></tr>
+      <tr><td>Gate window: price rows in scope <span class="muted">(the gate's &ldquo;{{ gate_figure }}&rdquo;)</span></td><td class="num">{{ "{:,}".format(lc.window_rows_in_scope) }}</td></tr>
+      <tr><td>Gate window: distinct listings in scope</td><td class="num">{{ "{:,}".format(lc.window_distinct_listings) }}</td></tr>
+      <tr><td>Today, all {{ s.collection_days }} days: price rows in scope</td><td class="num">{{ "{:,}".format(lc.now_rows_in_scope) }}</td></tr>
+      <tr><td>Today, all {{ s.collection_days }} days: distinct listings in scope</td><td class="num">{{ "{:,}".format(lc.now_distinct_listings) }}</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">The gate threshold (at least 3,000 in-scope listings) holds under either unit.</p>
+  {% endif %}
   {% else %}
   <p class="empty">Live counts unavailable.</p>
   {% endif %}

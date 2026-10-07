@@ -5,6 +5,7 @@ code under test. No HTML snapshot tests.
 
 from __future__ import annotations
 
+import json
 import warnings
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
@@ -22,6 +23,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from pricepilot.api import deps, facts
+from pricepilot.api import results as api_results
 from pricepilot.api.main import app
 from pricepilot.api.routes_api import router as api_router
 from pricepilot.api.routes_pages import router as pages_router
@@ -382,3 +384,100 @@ def test_zero_competitor_price_and_unknown_mock_store_id_do_not_crash(
     assert client.get("/products/1").status_code == 200
     history = client.get("/api/products/99999/history")
     assert history.status_code == 200 and history.json()["our_price_synthetic"] == []
+
+
+# --- 7a.2: overview aggregates, listings reconciliation, committed results --------------------
+
+
+def _json(name: str) -> dict[str, Any]:
+    return json.loads((ROOT / "docs" / "learned" / "results" / name).read_text(encoding="utf-8"))
+
+
+def test_overview_counts_are_sql_counts(client: TestClient) -> None:
+    o = client.get("/api/overview").json()
+    assert o["database"] is True
+    assert (o["products"], o["products_matched"], o["match_links"], o["match_shops"]) == (
+        2,
+        1,
+        2,
+        2,
+    )
+    # in-scope rows only: a1 on two days + b1 on one; the excluded row is not counted
+    assert (o["collection_days"], o["price_rows"], o["sources"]) == (2, 3, 2)
+    # non-superseded real rows: "old", "new" (APPROVE) and the competitor_crash stress row (FLAG)
+    assert o["audit"] == {
+        "recommendations": 3,
+        "approve": 2,
+        "flag": 1,
+        "reject": 0,
+        "margin_violations": 0,
+    }
+    assert o["verdict_mix"] == [
+        {"group": "baseline", "approve": 2, "flag": 0, "reject": 0},
+        {"group": "competitor_crash", "approve": 0, "flag": 1, "reject": 0},
+    ]
+    margins = {c["category"]: c for c in o["category_margins"]}
+    # (150 - 100) / 150 = 33.3%; (20 - 10) / 20 = 50.0%; floors from config/pricing-policy.toml
+    assert (margins["dry_food"]["avg_margin_pct"], margins["dry_food"]["floor_pct"]) == (
+        "33.3",
+        "12.0",
+    )
+    assert (margins["treats"]["avg_margin_pct"], margins["treats"]["floor_pct"]) == ("50.0", "25.0")
+
+
+def test_audit_counts_an_approved_price_below_the_floor(
+    client: TestClient, session: Session
+) -> None:
+    bad = session.query(Recommendation).filter_by(run_label="new").one()
+    bad.guard_final_price = Decimal("105.00")  # (105 - 100) / 105 = 4.8% < the 12% dry-food floor
+    session.commit()
+    assert client.get("/api/overview").json()["audit"]["margin_violations"] == 1
+
+
+def test_listing_counts_separate_the_gate_window_from_today(
+    client: TestClient, session: Session
+) -> None:
+    session.add(_raw("shop_a_ro", "a1", date(2026, 10, 7), "139.00"))
+    session.add(_raw("shop_c_ro", "c1", date(2026, 10, 7), "50.00"))  # a new listing on day 3
+    session.commit()
+    lc = client.get("/api/status").json()["listing_counts"]
+    # the window is the first two collection days; the third day is "today" only
+    assert (lc["window_days"], lc["window_through"]) == (2, "2026-10-06")
+    assert (lc["window_rows_stored"], lc["window_rows_in_scope"]) == (4, 3)
+    assert lc["window_distinct_listings"] == 2  # a1 (two days) and b1
+    assert (lc["now_rows_in_scope"], lc["now_distinct_listings"]) == (5, 3)
+
+
+def test_hero_results_come_from_the_committed_result_files(client: TestClient) -> None:
+    o = client.get("/api/overview").json()
+    fine = _json("mmarco-mMiniLMv2-finetuned-ep6-metrics.json")
+    zero = _json("mmarco-mMiniLMv2-zeroshot-metrics.json")
+    assert o["matcher_result"]["f1"] == fine["f1"]["value"]
+    assert o["matcher_result"]["baseline_f1"] == zero["f1"]["value"]
+    assert o["matcher_result"]["n_test_pairs"] == fine["n_scored"]
+    rag = _json("phase5-policy-retrieval-eval.json")
+    assert (o["rag_result"]["hit_at_1"], o["rag_result"]["hit_at_3"], o["rag_result"]["mrr"]) == (
+        rag["hit_at_1"],
+        rag["hit_at_3"],
+        rag["mrr"],
+    )
+
+
+def test_missing_result_files_show_nothing_instead_of_a_made_up_number(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(api_results, "RESULTS_DIR", tmp_path)
+    assert api_results.matcher_result() is None
+    assert api_results.rag_result() is None
+
+
+def test_phase1_gate_figure_quoted_on_the_status_page_is_the_documented_one() -> None:
+    assert facts.PHASE1_GATE_ROWS in (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+
+
+def test_offline_overview_degrades_to_the_committed_results(database_down: TestClient) -> None:
+    resp = database_down.get("/api/overview")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["database"] is False and body["audit"] is None and body["verdict_mix"] == []
+    assert body["matcher_result"] is not None  # committed files do not need the database

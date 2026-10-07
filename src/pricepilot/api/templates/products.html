@@ -1,12 +1,97 @@
 {% extends "base.html" %}
-{% block title %}Products - PricePilot{% endblock %}
+{% block title %}PricePilot - competitive pricing intelligence{% endblock %}
 {% block content %}
-<h1>Products</h1>
-<p class="lede">
-  Our {{ products|length }} catalogue products, each matched against competitor shops and priced by an
-  LLM recommendation that a code-level margin guard has the final say on.
+<p class="eyebrow">Competitive pricing intelligence</p>
+<h1>Track competitors. Match their listings. Price with a hard margin floor.</h1>
+<p class="intro">
+  PricePilot scrapes three Romanian pet shops every day, uses a fine-tuned model to work out which
+  competitor listing is the same product as ours, retrieves our pricing policy, and has an LLM propose a
+  price that plain code then checks against the margin floor.
 </p>
 
+{% set mr = o.matcher_result %}
+{% set rr = o.rag_result %}
+<section class="hero" aria-label="Headline results">
+  <article class="hero-card">
+    <span class="hero-eyebrow">1 &middot; Fine-tuning and matching</span>
+    <h2 class="hero-title">Fine-tuned cross-encoder</h2>
+    <div class="hero-main" title="F1 on {{ mr.n_test_pairs if mr else 'n/a' }} held-out test pairs, split by product so no product appears in both train and test.">
+      <span class="hero-num">{{ "%.2f"|format(mr.f1) if mr else "n/a" }}</span><span class="hero-unit">F1</span>
+    </div>
+    <p class="hero-sub">{% if mr and mr.baseline_f1 is not none %}vs {{ "%.2f"|format(mr.baseline_f1) }} for the same model before fine-tuning{% endif %}</p>
+    <ul class="hero-stats">
+      <li><b>{{ o.products_matched if o.products_matched is not none else "n/a" }} of {{ o.products if o.products is not none else "n/a" }}</b> products matched across <b>{{ o.match_shops if o.match_shops is not none else "n/a" }}</b> shops ({{ o.match_links if o.match_links is not none else "n/a" }} links)</li>
+      <li>Link precision after the guard: <b>{{ o.precision_post_guard }}</b></li>
+    </ul>
+    <p class="hero-foot" title="{{ o.precision_caveat }}">F1 on held-out test pairs at threshold {{ "%.2f"|format(mr.threshold) if mr else "n/a" }}. Link precision is a small sample, not independent, and its labels are pending review. <a href="/status">Details</a></p>
+  </article>
+
+  <article class="hero-card">
+    <span class="hero-eyebrow">2 &middot; RAG over business data</span>
+    <h2 class="hero-title">Pricing-policy retrieval</h2>
+    <div class="hero-main" title="Share of {{ rr.n_questions if rr else 'n/a' }} policy questions where the right section was ranked first.">
+      <span class="hero-num">{{ "%.2f"|format(rr.hit_at_1) if rr else "n/a" }}</span><span class="hero-unit">hit@1</span>
+    </div>
+    <p class="hero-sub">{% if rr %}{{ rr.n_questions }} questions over {{ rr.n_sections }} policy sections{% endif %}</p>
+    <ul class="hero-stats">
+      <li>hit@3 <b>{{ "%.2f"|format(rr.hit_at_3) if rr else "n/a" }}</b></li>
+      <li>MRR <b>{{ "%.2f"|format(rr.mrr) if rr else "n/a" }}</b></li>
+    </ul>
+    <p class="hero-foot">Small hand-written question set. Retrieval supplies policy text only: every price, cost and margin comes from SQL, never from similarity search.</p>
+  </article>
+
+  <article class="hero-card">
+    <span class="hero-eyebrow">3 &middot; Decision engine</span>
+    <h2 class="hero-title">LLM proposal, code-enforced floor</h2>
+    <div class="hero-main" title="Every real, non-superseded recommendation, re-checked here from SQL against the policy margin floor.">
+      <span class="hero-num">{{ o.audit.recommendations if o.audit else "n/a" }}</span><span class="hero-unit">recommendations</span>
+    </div>
+    <p class="hero-sub">{% if o.audit %}<span class="zero-ok">{{ o.audit.margin_violations }} margin violations</span>, re-checked from SQL{% endif %}</p>
+    <ul class="hero-stats">
+      {% if o.audit %}<li><b>{{ o.audit.approve }}</b> approved &middot; <b>{{ o.audit.flag }}</b> flagged for review &middot; <b>{{ o.audit.reject }}</b> rejected</li>{% endif %}
+    </ul>
+    <p class="hero-foot">{{ stress_n }} of the {{ o.audit.recommendations if o.audit else '' }} use deliberately perturbed competitor prices to stress the guard. The floor is proven by the guard's tests, not by these rows alone.</p>
+  </article>
+
+  <article class="hero-card">
+    <span class="hero-eyebrow">4 &middot; Data pipeline</span>
+    <h2 class="hero-title">Daily competitor collection</h2>
+    <div class="hero-main">
+      <span class="hero-num">{{ o.collection_days if o.collection_days is not none else "n/a" }}</span><span class="hero-unit">collection days</span>
+    </div>
+    <p class="hero-sub">{% if o.price_rows is not none %}{{ "{:,}".format(o.price_rows) }} price rows from {{ o.sources }} live shops{% endif %}</p>
+    <ul class="hero-stats">
+      <li>Competitor prices and promotions: <b>real</b></li>
+      <li>Our catalogue and sales volumes: <b>simulated</b></li>
+    </ul>
+    <p class="hero-foot">A price row is one listing's price on one day. <a href="/status">What is real and what is not</a></p>
+  </article>
+</section>
+
+{% if o.verdict_mix or o.category_margins %}
+<section class="chart-grid" aria-label="Catalogue overview">
+  <div class="chart-card">
+    <h2>What the margin guard decided</h2>
+    <p class="note">Verdict on each of the {{ o.audit.recommendations if o.audit else "" }} recommendations, grouped by the prices the model was given.</p>
+    <div class="chart-box"><canvas id="verdict-chart" role="img" aria-label="Stacked bars of APPROVE, FLAG and REJECT counts per input group"></canvas></div>
+    <details class="table-view"><summary>Table view</summary>
+      <table><thead><tr><th>Inputs</th><th class="num">Approve</th><th class="num">Flag</th><th class="num">Reject</th></tr></thead><tbody>
+      {% for r in o.verdict_mix %}<tr><td>{{ r.group|replace("_", " ") }}</td><td class="num">{{ r.approve }}</td><td class="num">{{ r.flag }}</td><td class="num">{{ r.reject }}</td></tr>{% endfor %}
+      </tbody></table></details>
+  </div>
+  <div class="chart-card">
+    <h2>Margin headroom by category</h2>
+    <p class="note">Average catalogue margin against the policy floor the guard enforces.</p>
+    <div class="chart-box"><canvas id="margin-chart" role="img" aria-label="Average margin and policy margin floor for each product category"></canvas></div>
+    <details class="table-view"><summary>Table view</summary>
+      <table><thead><tr><th>Category</th><th class="num">Products</th><th class="num">Avg margin</th><th class="num">Lowest</th><th class="num">Floor</th></tr></thead><tbody>
+      {% for c in o.category_margins %}<tr><td>{{ c.category|replace("_", " ") }}</td><td class="num">{{ c.products }}</td><td class="num">{{ c.avg_margin_pct|pct }}</td><td class="num">{{ c.min_margin_pct|pct }}</td><td class="num">{{ c.floor_pct|pct }}</td></tr>{% endfor %}
+      </tbody></table></details>
+  </div>
+</section>
+{% endif %}
+
+<h2 class="section-title">Products</h2>
 <div class="table-scroll">
 <table class="data">
   <thead>
@@ -50,4 +135,17 @@
 <p class="note">Prices in RON. Margin is (price &minus; cost) / price. The recommendation column is the
 guard's verdict on the newest real recommendation (APPROVE = a price the guard accepts, FLAG = routed to
 human review).</p>
+
+<script type="application/json" id="overview-data">{{ chart_data|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById("overview-data").textContent);
+  if (!window.PP) { return; }
+  PP.verdictMix("verdict-chart", data.verdict);
+  PP.marginBars("margin-chart", data.margins);
+})();
+</script>
 {% endblock %}

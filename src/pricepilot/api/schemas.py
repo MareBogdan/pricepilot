@@ -153,9 +153,70 @@ class Status(BaseModel):
     last_day: date | None
     in_scope_listings: int | None  # distinct listings
     price_observations: int | None
+    listing_counts: ListingCounts | None
     sources: list[SourceStatus]
     products: int | None
     recommendations_real: dict[str, int]
     matcher: MatcherFacts
     phases: list[PhaseState]
     real_vs_simulated: list[dict[str, str]]
+
+
+class ListingCounts(BaseModel):
+    """Reconciles the Phase 1 gate figure with today's counts. Same SQL, different windows and
+    different units: a gate "listing" was a price ROW (listing x day), not a distinct listing."""
+
+    window_days: int  # collection days in the gate window
+    window_through: date | None  # last day of the window
+    window_rows_stored: int
+    window_rows_in_scope: int
+    window_distinct_listings: int
+    now_rows_in_scope: int
+    now_distinct_listings: int
+
+
+class DecisionAudit(BaseModel):
+    """Independent re-check of every real, non-superseded recommendation from SQL + config."""
+
+    recommendations: int
+    approve: int
+    flag: int
+    reject: int
+    margin_violations: int  # APPROVE rows whose final price is below the category margin floor
+
+
+class VerdictMixRow(BaseModel):
+    group: str  # "baseline" (real inputs) or a named stress scenario
+    approve: int
+    flag: int
+    reject: int
+
+
+class CategoryMargin(BaseModel):
+    category: str
+    products: int
+    avg_margin_pct: Decimal
+    min_margin_pct: Decimal
+    floor_pct: Decimal
+
+
+class Overview(BaseModel):
+    database: bool
+    matcher_result: dict[str, Any] | None  # committed result files, see results.py
+    rag_result: dict[str, Any] | None
+    products: int | None
+    products_matched: int | None
+    match_links: int | None
+    match_shops: int | None
+    matcher_threshold: Decimal | None
+    precision_post_guard: str
+    precision_caveat: str
+    collection_days: int | None
+    price_rows: int | None
+    sources: int | None
+    audit: DecisionAudit | None
+    verdict_mix: list[VerdictMixRow]
+    category_margins: list[CategoryMargin]
+
+
+Status.model_rebuild()

@@ -12,12 +12,16 @@ from urllib.parse import urlsplit
 from sqlalchemy import column, func, select, table
 from sqlalchemy.orm import Session
 
-from pricepilot.api import facts
+from pricepilot.api import facts, results
 from pricepilot.api.schemas import (
+    CategoryMargin,
     CompetitorSeries,
+    DecisionAudit,
+    ListingCounts,
     MatcherFacts,
     MatchRow,
     OurPricePoint,
+    Overview,
     PhaseState,
     PolicyPassage,
     PriceHistory,
@@ -28,11 +32,12 @@ from pricepilot.api.schemas import (
     SourceStatus,
     Status,
     StressTest,
+    VerdictMixRow,
 )
 from pricepilot.decision.scenarios import SUPERSEDED_RUN_LABEL
 from pricepilot.models import Product as ProductModel
 from pricepilot.models import ProductMatch, RawListing, Recommendation, ScrapeRun
-from pricepilot.policy.guard import margin
+from pricepilot.policy.guard import margin, meets_floor
 from pricepilot.policy.thresholds import load_thresholds
 
 _ONE_DP = Decimal("0.1")
@@ -299,6 +304,7 @@ def _static_status(database: bool) -> Status:
         last_day=None,
         in_scope_listings=None,
         price_observations=None,
+        listing_counts=None,
         sources=[],
         products=None,
         recommendations_real={},
@@ -373,6 +379,7 @@ def pipeline_status(session: Session) -> Status:
     status.last_day = last
     status.in_scope_listings = distinct_listings
     status.price_observations = observations
+    status.listing_counts = _listing_counts(session, observations, distinct_listings)
     status.sources = sources
     status.products = session.execute(select(func.count()).select_from(ProductModel)).scalar_one()
     status.recommendations_real = dict(sorted(recs.items()))
@@ -380,3 +387,164 @@ def pipeline_status(session: Session) -> Status:
     status.matcher.links = n_links
     status.matcher.products_with_link = n_products
     return status
+
+
+# Phase 1 closed on the first two collection days' data (ADR-0025: 18,703 stored -> 18,585 in scope).
+GATE_WINDOW_DAYS = 2
+
+
+def _listing_counts(session: Session, now_rows: int, now_distinct: int) -> ListingCounts:
+    days = session.scalars(
+        select(RawListing.collected_date)
+        .distinct()
+        .order_by(RawListing.collected_date)
+        .limit(GATE_WINDOW_DAYS)
+    ).all()
+    through = days[-1] if days else None
+    in_window = RawListing.collected_date <= through if through else RawListing.id < 0
+    in_scope = RawListing.excluded_reason.is_(None)
+    stored = session.execute(
+        select(func.count()).select_from(RawListing).where(in_window)
+    ).scalar_one()
+    rows = session.execute(
+        select(func.count()).select_from(RawListing).where(in_window, in_scope)
+    ).scalar_one()
+    distinct = session.execute(
+        select(func.count()).select_from(
+            select(RawListing.source, RawListing.external_id)
+            .where(in_window, in_scope)
+            .distinct()
+            .subquery()
+        )
+    ).scalar_one()
+    return ListingCounts(
+        window_days=len(days),
+        window_through=through,
+        window_rows_stored=stored,
+        window_rows_in_scope=rows,
+        window_distinct_listings=distinct,
+        now_rows_in_scope=now_rows,
+        now_distinct_listings=now_distinct,
+    )
+
+
+def _decision_audit(session: Session) -> DecisionAudit:
+    """Every real, non-superseded recommendation, re-checked here against the policy floor from the
+    stored cost / final price / category -- independent of the guard's own verdict."""
+    rows = session.scalars(
+        select(Recommendation).where(
+            Recommendation.is_mock.is_(False), Recommendation.run_label != SUPERSEDED_RUN_LABEL
+        )
+    ).all()
+    counts: dict[str, int] = defaultdict(int)
+    violations = 0
+    for r in rows:
+        counts[r.guard_status] += 1
+        if r.guard_status == "APPROVE" and r.guard_final_price is not None:
+            try:
+                ok = meets_floor(r.category, r.guard_final_price, r.cost)
+            except ValueError:
+                ok = False  # corrupt input counts against us, not for us
+            violations += 0 if ok else 1
+    return DecisionAudit(
+        recommendations=len(rows),
+        approve=counts["APPROVE"],
+        flag=counts["FLAG"],
+        reject=counts["REJECT"],
+        margin_violations=violations,
+    )
+
+
+def _verdict_mix(session: Session) -> list[VerdictMixRow]:
+    rows = session.execute(
+        select(Recommendation.scenario, Recommendation.guard_status, func.count())
+        .where(Recommendation.is_mock.is_(False), Recommendation.run_label != SUPERSEDED_RUN_LABEL)
+        .group_by(Recommendation.scenario, Recommendation.guard_status)
+    ).all()
+    mix: dict[str, dict[str, int]] = {}
+    for scenario, status, n in rows:
+        mix.setdefault(scenario or "baseline", {})[status] = n
+    order = sorted(mix, key=lambda g: (g != "baseline", g))  # real inputs first
+    return [
+        VerdictMixRow(
+            group=g,
+            approve=mix[g].get("APPROVE", 0),
+            flag=mix[g].get("FLAG", 0),
+            reject=mix[g].get("REJECT", 0),
+        )
+        for g in order
+    ]
+
+
+def _category_margins(session: Session) -> list[CategoryMargin]:
+    by_cat: dict[str, list[Decimal]] = defaultdict(list)
+    for p in session.scalars(select(ProductModel)):
+        m = _margin_pct(p.current_price, p.purchase_cost)
+        if m is not None:
+            by_cat[p.category].append(m)
+    return [
+        CategoryMargin(
+            category=cat,
+            products=len(ms),
+            avg_margin_pct=(sum(ms, Decimal(0)) / len(ms)).quantize(
+                _ONE_DP, rounding=ROUND_HALF_UP
+            ),
+            min_margin_pct=min(ms),
+            floor_pct=_pct(_floor_fraction(cat)),
+        )
+        for cat, ms in sorted(by_cat.items())
+    ]
+
+
+def _overview_base(database: bool) -> Overview:
+    matcher = results.matcher_result()
+    rag = results.rag_result()
+    return Overview(
+        database=database,
+        matcher_result=matcher.model_dump() if matcher else None,
+        rag_result=rag.model_dump() if rag else None,
+        products=None,
+        products_matched=None,
+        match_links=None,
+        match_shops=None,
+        matcher_threshold=None,
+        precision_post_guard=facts.PRECISION_POST_GUARD,
+        precision_caveat=facts.PRECISION_CAVEAT,
+        collection_days=None,
+        price_rows=None,
+        sources=None,
+        audit=None,
+        verdict_mix=[],
+        category_margins=[],
+    )
+
+
+def static_overview() -> Overview:
+    """The committed-results half of the overview (no database needed)."""
+    return _overview_base(False)
+
+
+def overview(session: Session) -> Overview:
+    o = _overview_base(True)
+    o.products = session.execute(select(func.count()).select_from(ProductModel)).scalar_one()
+    links, matched, shops = session.execute(
+        select(
+            func.count(),
+            func.count(func.distinct(ProductMatch.product_id)),
+            func.count(func.distinct(ProductMatch.source)),
+        )
+    ).one()
+    o.match_links, o.products_matched, o.match_shops = links, matched, shops
+    o.matcher_threshold = session.execute(select(func.max(ProductMatch.threshold))).scalar_one()
+    days, rows, sources = session.execute(
+        select(
+            func.count(func.distinct(RawListing.collected_date)),
+            func.count(),
+            func.count(func.distinct(RawListing.source)),
+        ).where(RawListing.excluded_reason.is_(None))
+    ).one()
+    o.collection_days, o.price_rows, o.sources = days, rows, sources
+    o.audit = _decision_audit(session)
+    o.verdict_mix = _verdict_mix(session)
+    o.category_margins = _category_margins(session)
+    return o
