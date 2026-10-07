@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Products - PricePilot{% endblock %}
+{% block content %}
+<h1>Products</h1>
+<p class="lede">
+  Our {{ products|length }} catalogue products, each matched against competitor shops and priced by an
+  LLM recommendation that a code-level margin guard has the final say on.
+</p>
+
+<div class="table-scroll">
+<table class="data">
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Category</th>
+      <th class="num">Cost</th>
+      <th class="num">Price</th>
+      <th class="num">Margin</th>
+      <th class="num">Stock</th>
+      <th class="num">Matches</th>
+      <th>Recommendation</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for p in products %}
+    <tr>
+      <td>
+        <a class="row-link" href="/products/{{ p.id }}">{{ p.title }}</a>
+        <div class="sub">{{ p.brand }} &middot; {{ p.sku }}</div>
+      </td>
+      <td>{{ p.category|replace("_", " ") }}</td>
+      <td class="num">{{ p.cost|money }}</td>
+      <td class="num">{{ p.current_price|money }}</td>
+      <td class="num">
+        {{ p.margin_pct|pct }}
+        <div class="sub">floor {{ p.margin_floor_pct|pct }}</div>
+      </td>
+      <td class="num">{{ p.stock }}</td>
+      <td class="num">{% if p.matches %}{{ p.matches }}{% else %}<span class="muted">none</span>{% endif %}</td>
+      <td>
+        {% if p.guard_status %}
+          <span class="badge badge-{{ p.guard_status|lower }}">{{ p.guard_status }}</span>
+        {% else %}<span class="muted">none yet</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="note">Prices in RON. Margin is (price &minus; cost) / price. The recommendation column is the
+guard's verdict on the newest real recommendation (APPROVE = a price the guard accepts, FLAG = routed to
+human review).</p>
+{% endblock %}

@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}{{ d.product.title }} - PricePilot{% endblock %}
+{% block content %}
+{% set p = d.product %}
+{% set r = d.recommendation %}
+<p class="crumb"><a href="/">&larr; All products</a></p>
+<h1>{{ p.title }}</h1>
+<p class="sub-h">{{ p.brand }} &middot; {{ p.category|replace("_", " ") }} &middot; SKU {{ p.sku }}</p>
+
+<section class="kpis" aria-label="Our product">
+  <div class="kpi"><div class="kpi-label">Our price</div><div class="kpi-value">{{ p.current_price|money }}</div><div class="kpi-sub">RON</div></div>
+  <div class="kpi"><div class="kpi-label">Cost</div><div class="kpi-value">{{ p.cost|money }}</div><div class="kpi-sub">RON</div></div>
+  <div class="kpi"><div class="kpi-label">Margin</div><div class="kpi-value">{{ p.margin_pct|pct }}</div><div class="kpi-sub">floor {{ p.margin_floor_pct|pct }}</div></div>
+  <div class="kpi"><div class="kpi-label">Lowest allowed price</div><div class="kpi-value">{{ d.floor_price|money }}</div><div class="kpi-sub">clears the margin floor</div></div>
+  <div class="kpi"><div class="kpi-label">Stock</div><div class="kpi-value">{{ p.stock }}</div><div class="kpi-sub">units</div></div>
+</section>
+
+<section class="card" id="matching">
+  <h2>1 &middot; Matching <span class="tag tag-real">real data</span></h2>
+  <p class="lede">A fine-tuned cross-encoder decides which competitor listing is the same product as ours,
+  even though every shop titles it differently. One match per shop, highest score wins.</p>
+
+  {% if d.matches %}
+  {% set pos = d.position %}
+  <div class="position">
+    <div><span class="kpi-label">Cheapest competitor</span><strong>{{ pos.min|money }}</strong>
+      <span class="delta">we are {{ pos.vs_min_pct|signed_pct }}</span></div>
+    <div><span class="kpi-label">Median competitor</span><strong>{{ pos.median|money }}</strong>
+      <span class="delta">we are {{ pos.vs_median_pct|signed_pct }}</span></div>
+    <div><span class="kpi-label">Most expensive</span><strong>{{ pos.max|money }}</strong>
+      <span class="delta">{{ pos.competitors }} matched shop{{ "s" if pos.competitors != 1 }}</span></div>
+  </div>
+  <div class="table-scroll">
+  <table class="data">
+    <thead><tr><th>Shop</th><th>Their listing</th><th class="num">Price</th><th class="num">Match score</th><th>Observed</th><th>Stock</th></tr></thead>
+    <tbody>
+    {% for m in d.matches %}
+      <tr>
+        <td>{{ m.shop|shop }}</td>
+        <td><a href="{{ m.url }}" rel="noopener noreferrer" target="_blank">{{ m.competitor_title }}</a></td>
+        <td class="num">{{ m.price|money }}</td>
+        <td class="num">{{ "%.3f"|format(m.score) }}<div class="sub">threshold {{ "%.2f"|format(m.threshold) }}</div></td>
+        <td>{{ m.price_date|day }}</td>
+        <td>{% if m.in_stock is none %}<span class="muted">unknown</span>{% elif m.in_stock %}in stock{% else %}out of stock{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty">No competitor listing cleared the matching threshold for this product, so there is no
+  market price to compare against.</p>
+  {% endif %}
+</section>
+
+<section class="card" id="decision">
+  <h2>2 &middot; Decision <span class="tag tag-real">real LLM output</span></h2>
+  {% if r %}
+  <p class="lede">An LLM proposes a price from the numbers above plus retrieved pricing-policy text. Then
+  plain code, not the prompt, enforces the margin floor and the speed-of-change limits.</p>
+
+  <div class="verdict verdict-{{ r.guard_status|lower }}">
+    <div class="verdict-step"><span class="kpi-label">Current</span><strong>{{ r.current_price|money }}</strong></div>
+    <div class="verdict-arrow" aria-hidden="true">&rarr;</div>
+    <div class="verdict-step"><span class="kpi-label">LLM proposes</span><strong>{{ r.proposed_price|money }}</strong>
+      {% if r.proposed_margin_pct is not none %}<span class="sub">margin {{ r.proposed_margin_pct|pct }}</span>{% endif %}</div>
+    <div class="verdict-arrow" aria-hidden="true">&rarr;</div>
+    <div class="verdict-step"><span class="kpi-label">Guard</span>
+      <span class="badge badge-{{ r.guard_status|lower }}">{{ r.guard_status }}</span></div>
+    <div class="verdict-arrow" aria-hidden="true">&rarr;</div>
+    <div class="verdict-step"><span class="kpi-label">Final price</span>
+      <strong>{{ r.guard_final_price|money if r.guard_final_price is not none else "none (human review)" }}</strong>
+      {% if r.final_margin_pct is not none %}<span class="sub">margin {{ r.final_margin_pct|pct }} &ge; floor {{ r.margin_floor_pct|pct }}</span>{% endif %}</div>
+  </div>
+
+  {% if r.rationale %}
+  <h3>Rationale</h3>
+  <blockquote class="rationale">{{ r.rationale }}</blockquote>
+  {% endif %}
+  {% if r.guard_reason %}
+  <h3>Why the guard did not approve</h3>
+  <p>{{ r.guard_reason }}</p>
+  {% endif %}
+
+  <h3>Policy passages the LLM was shown</h3>
+  {% if r.rag_sections %}
+  <div class="passages">
+  {% for s in r.rag_sections %}
+    <details>
+      <summary>
+        <span>&sect;{{ s.section_ref }} {{ s.heading or "" }}</span>
+        <span class="sim">similarity {{ "%.2f"|format(s.similarity) }}</span>
+      </summary>
+      <p>{{ s.text or "Passage text is not available." }}</p>
+    </details>
+  {% endfor %}
+  </div>
+  <p class="note">Retrieval supplies policy prose only. Costs, prices and margins are read from SQL and a
+  config file, never retrieved by similarity.</p>
+  {% else %}
+  <p class="empty">No policy passages were retrieved for this recommendation.</p>
+  {% endif %}
+
+  <h3>Demand response <span class="tag tag-placeholder">placeholder</span></h3>
+  <p>{{ r.elasticity_placeholder.get("label", "No elasticity has been estimated.") }}</p>
+
+  <p class="note">Recommendation #{{ r.id }} &middot; model {{ r.llm_model }} &middot; run {{ r.run_label }} &middot;
+  {{ r.created_at|day }} &middot; LLM cost ${{ "%.4f"|format(r.llm_cost_usd) }}
+  {% if r.llm_latency_ms is not none %}&middot; {{ r.llm_latency_ms }} ms{% endif %}</p>
+  {% else %}
+  <p class="empty">No recommendation has been generated for this product yet.</p>
+  {% endif %}
+
+  {% if d.stress_tests %}
+  <h3>Guard stress-tests <span class="tag tag-sim">simulated inputs</span></h3>
+  <p class="note">The same product re-run with competitor prices perturbed on purpose, to show the guard
+  holding the margin floor when the LLM is tempted to go below it.</p>
+  <div class="table-scroll">
+  <table class="data">
+    <thead><tr><th>Scenario</th><th class="num">LLM proposed</th><th>Guard</th><th class="num">Final</th><th>Reason</th></tr></thead>
+    <tbody>
+    {% for t in d.stress_tests %}
+      <tr>
+        <td>{{ t.scenario|replace("_", " ") }}</td>
+        <td class="num">{{ t.proposed_price|money }}</td>
+        <td><span class="badge badge-{{ t.guard_status|lower }}">{{ t.guard_status }}</span></td>
+        <td class="num">{{ t.guard_final_price|money }}</td>
+        <td>{{ t.guard_reason or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card" id="history">
+  <h2>3 &middot; Price history</h2>
+  <p class="lede">Solid lines are competitor prices as scraped (real). The dashed line is our price from the
+  mock store, which is generated (simulated).</p>
+  <div class="chart-controls">
+    <button type="button" id="range-btn" class="btn" hidden>Show full 180 days</button>
+  </div>
+  <div class="chart-box"><canvas id="history-chart" role="img"
+       aria-label="Price history: competitor prices (real) and our price (simulated)"></canvas></div>
+  <p class="note" id="chart-msg"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  var productId = {{ d.product.id }};
+  var msg = document.getElementById("chart-msg");
+  var btn = document.getElementById("range-btn");
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function ts(day) { return Date.parse(day + "T00:00:00Z"); }
+  function fmt(ms) { return new Date(ms).toISOString().slice(0, 10); }
+  if (typeof Chart === "undefined") { msg.textContent = "The chart library could not be loaded."; return; }
+
+  fetch("/api/products/" + productId + "/history").then(function (r) {
+    if (!r.ok) { throw new Error("history unavailable"); }
+    return r.json();
+  }).then(function (h) {
+    var palette = [css("--c1"), css("--c2"), css("--c3")];
+    var datasets = h.competitors_real.map(function (s, i) {
+      return {
+        label: s.shop.replace(/_ro$/, ".ro") + " (real)",
+        data: s.points.map(function (p) { return { x: ts(p[0]), y: Number(p[1]) }; }),
+        borderColor: palette[i % palette.length], backgroundColor: palette[i % palette.length],
+        borderWidth: 2, pointRadius: 2, tension: 0, stepped: "before"
+      };
+    });
+    datasets.push({
+      label: "Our price (simulated)",
+      data: h.our_price_synthetic.map(function (p) { return { x: ts(p.day), y: Number(p.price) }; }),
+      borderColor: css("--muted"), backgroundColor: css("--muted"),
+      borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: 0
+    });
+    var firstReal = Infinity;
+    h.competitors_real.forEach(function (s) { s.points.forEach(function (p) { firstReal = Math.min(firstReal, ts(p[0])); }); });
+    var lastX = Math.max.apply(null, datasets.map(function (d) { return d.data.length ? d.data[d.data.length - 1].x : 0; }));
+    var windowMin = isFinite(firstReal) ? firstReal - 3 * 86400000 : null;
+    var chart = new Chart(document.getElementById("history-chart"), {
+      type: "line", data: { datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", axis: "x", intersect: false },
+        scales: {
+          x: { type: "linear", min: windowMin, max: lastX, ticks: { color: css("--muted"), maxTicksLimit: 8, callback: function (v) { return fmt(v); } }, grid: { color: css("--line") } },
+          y: { title: { display: true, text: "RON", color: css("--muted") }, ticks: { color: css("--muted") }, grid: { color: css("--line") } }
+        },
+        plugins: {
+          legend: { labels: { color: css("--text"), usePointStyle: true, boxWidth: 8 } },
+          tooltip: { callbacks: { title: function (items) { return fmt(items[0].parsed.x); } } }
+        }
+      }
+    });
+    if (windowMin !== null) {
+      var full = false;
+      btn.hidden = false;
+      btn.addEventListener("click", function () {
+        full = !full;
+        chart.options.scales.x.min = full ? undefined : windowMin;
+        chart.update();
+        btn.textContent = full ? "Show collected period only" : "Show full 180 days";
+      });
+    }
+    if (!h.competitors_real.length) { msg.textContent = "No matched competitor, so only our simulated price is shown."; }
+  }).catch(function () { msg.textContent = "The price history is not available right now."; });
+})();
+</script>
+{% endblock %}

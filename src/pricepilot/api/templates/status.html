@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Pipeline status - PricePilot{% endblock %}
+{% block content %}
+<h1>Pipeline status</h1>
+<p class="lede">What the system has collected, how well it matches, and which parts are real or simulated.
+The honesty is the point: a pricing system is only as credible as its inputs.</p>
+
+{% if not s.database %}
+<div class="banner banner-warn" role="status">The database is unreachable right now, so live counts are
+hidden. The documented facts below do not depend on it.</div>
+{% endif %}
+
+<section class="card">
+  <h2>Data collected <span class="tag tag-real">real data</span></h2>
+  {% if s.database %}
+  <section class="kpis">
+    <div class="kpi"><div class="kpi-label">Collection days</div><div class="kpi-value">{{ s.collection_days }}</div><div class="kpi-sub">{{ s.first_day|day }} to {{ s.last_day|day }}</div></div>
+    <div class="kpi"><div class="kpi-label">In-scope listings</div><div class="kpi-value">{{ "{:,}".format(s.in_scope_listings) }}</div><div class="kpi-sub">distinct listings (source + id)</div></div>
+    <div class="kpi"><div class="kpi-label">Price observations</div><div class="kpi-value">{{ "{:,}".format(s.price_observations) }}</div><div class="kpi-sub">listing x day</div></div>
+    <div class="kpi"><div class="kpi-label">Our products</div><div class="kpi-value">{{ s.products }}</div><div class="kpi-sub">in the mock catalogue</div></div>
+    <div class="kpi"><div class="kpi-label">Matches found</div><div class="kpi-value">{{ s.matcher.links }}</div><div class="kpi-sub">across {{ s.matcher.products_with_link }} products</div></div>
+  </section>
+  <div class="table-scroll">
+  <table class="data">
+    <thead><tr><th>Source</th><th class="num">Listings</th><th class="num">Price observations</th><th class="num">Collection days</th><th>Last run</th></tr></thead>
+    <tbody>
+    {% for src in s.sources %}
+      <tr>
+        <td>{{ src.source|shop }}</td>
+        <td class="num">{{ "{:,}".format(src.in_scope_listings) }}</td>
+        <td class="num">{{ "{:,}".format(src.price_observations) }}</td>
+        <td class="num">{{ src.collection_days }}</td>
+        <td>{% if src.last_run_at %}{{ src.last_run_at|day }} <span class="badge badge-{{ 'approve' if src.last_run_status == 'ok' else 'flag' }}">{{ src.last_run_status }}</span>{% else %}<span class="muted">none</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="note">A listing is one product page at one shop; a price observation is that listing's price on one
+  collection day. Regulated products that are out of scope are excluded from both.</p>
+  {% else %}
+  <p class="empty">Live counts unavailable.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Matching</h2>
+  <p>{{ s.matcher.model }}.{% if s.matcher.threshold is not none %} Decision threshold {{ "%.2f"|format(s.matcher.threshold) }}.{% endif %}</p>
+  <dl class="facts">
+    <dt>Precision before the guard</dt><dd>{{ s.matcher.precision_pre_guard }}</dd>
+    <dt>Precision after the guard</dt><dd>{{ s.matcher.precision_post_guard }}</dd>
+  </dl>
+  <div class="banner banner-warn">{{ s.matcher.precision_caveat }}</div>
+</section>
+
+<section class="card">
+  <h2>Recommendations</h2>
+  {% if s.database %}
+  <p>Newest real recommendation per product:
+  {% for k, v in s.recommendations_real.items() %}<span class="badge badge-{{ k|lower }}">{{ k }}</span> {{ v }}{% if not loop.last %} &nbsp; {% endif %}{% endfor %}.
+  The margin floor is enforced by code after the LLM answers, so no APPROVED price can breach it.</p>
+  {% else %}<p class="empty">Live counts unavailable.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Real versus simulated</h2>
+  <div class="table-scroll">
+  <table class="data">
+    <thead><tr><th>Item</th><th>Kind</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for row in s.real_vs_simulated %}
+      <tr>
+        <td>{{ row.item }}</td>
+        <td><span class="tag tag-{{ 'real' if row.kind == 'real' else ('placeholder' if row.kind == 'placeholder' else 'sim') }}">{{ row.kind }}</span></td>
+        <td>{{ row.detail }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Project phases</h2>
+  <ul class="phases">
+  {% for ph in s.phases %}
+    <li><strong>{{ ph.phase }}</strong><span>{{ ph.state }}</span></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}
