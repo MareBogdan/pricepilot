@@ -30,6 +30,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, validates
 
@@ -162,6 +163,58 @@ class Recommendation(Base):
             name="ck_recommendations_final_price_iff_approve",
         ),
     )
+
+
+class ActionLog(Base):
+    """Phase 6 -- one row per action taken on a recommendation (ADR-0047, migration 0015).
+
+    `update_price` writes a guard-APPROVEd price to the store; `rollback` reverts one;
+    `flag_for_review` / `do_nothing` record that nothing was written (and why). `reverted_by` points
+    at the `rollback` row that undid an `update_price`. A partial unique index allows only ONE live
+    `update_price` per recommendation: the database refuses a double apply.
+    """
+
+    __tablename__ = "action_log"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('update_price', 'flag_for_review', 'do_nothing', 'rollback')",
+            name="ck_action_log_action",
+        ),
+        CheckConstraint(
+            "(action IN ('update_price', 'rollback')) = (new_price IS NOT NULL)",
+            name="ck_action_log_new_price_iff_write",
+        ),
+        CheckConstraint(
+            "reverted_by IS NULL OR action = 'update_price'",
+            name="ck_action_log_reverted_is_update",
+        ),
+        Index(
+            "uq_action_log_one_live_update",
+            "recommendation_id",
+            unique=True,
+            postgresql_where=text("action = 'update_price' AND reverted_by IS NULL"),
+            sqlite_where=text("action = 'update_price' AND reverted_by IS NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    recommendation_id: Mapped[int] = mapped_column(
+        ForeignKey("recommendations.id", ondelete="RESTRICT"), index=True
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    action: Mapped[str] = mapped_column(String(24))
+    previous_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    new_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    reason: Mapped[str] = mapped_column(Text)
+    actor: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Position of the matching entry in the store's in-memory /audit-log (it has no ids and resets
+    # when the store process restarts), e.g. "audit-log[3]"; "UNVERIFIED" if the write could not be
+    # matched afterwards. NULL for actions that wrote nothing.
+    mock_store_audit_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reverted_by: Mapped[int | None] = mapped_column(ForeignKey("action_log.id"), nullable=True)
 
 
 class ScrapeRun(Base):
