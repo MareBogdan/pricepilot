@@ -60,7 +60,7 @@ placeholder.
 ## Last done
 
 0000000. **Phase 7a: CI green + API + dashboard (2026-10-07, ADR-0048/0049):** frozen-queue hash tests now
-   LF-normalised; `src/pricepilot/api/` (queries, schemas, routes, Jinja2 templates, CSS); 14 API tests
+   LF-normalised; `src/pricepilot/api/` (queries, schemas, routes, Jinja2 templates, CSS); 15 API tests
    (SQLite fixtures, offline-degrade path); jinja2 added to dependencies; ADR-0047 condensed to make room.
 
 000000. **Phase 6: action layer + one-cycle gate (2026-10-07, ADR-0046/0047):** migration 0015 `action_log`;

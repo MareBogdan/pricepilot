@@ -22,7 +22,7 @@ class ProductRow(BaseModel):
     category: str
     cost: Decimal
     current_price: Decimal
-    margin_pct: Decimal  # (price - cost) / price * 100, one decimal
+    margin_pct: Decimal | None  # (price - cost) / price * 100; None if price/cost is corrupt
     margin_floor_pct: Decimal  # the policy floor for the category, from config
     stock: int
     matches: int
@@ -37,7 +37,7 @@ class MatchRow(BaseModel):
     threshold: Decimal
     price_date: date
     in_stock: bool | None
-    url: str
+    url: str | None  # None unless http(s): scraped URLs are untrusted
 
 
 class PricePosition(BaseModel):

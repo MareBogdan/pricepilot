@@ -46,7 +46,14 @@ def _shop(value: str) -> str:
     return value.removesuffix("_ro") + ".ro" if value.endswith("_ro") else value
 
 
-templates.env.filters.update(money=_money, pct=_pct, signed_pct=_signed_pct, day=_day, shop=_shop)
+def _fixed(value: Decimal | None, places: int) -> str:
+    """Fixed decimals, formatted on the Decimal itself (never through float)."""
+    return "n/a" if value is None else f"{value:.{places}f}"
+
+
+templates.env.filters.update(
+    money=_money, pct=_pct, signed_pct=_signed_pct, day=_day, shop=_shop, fixed=_fixed
+)
 
 router = APIRouter(include_in_schema=False)
 OptionalSessionDep = Annotated[Session | None, Depends(get_optional_session)]

@@ -45,7 +45,7 @@ hidden. The documented facts below do not depend on it.</div>
 
 <section class="card">
   <h2>Matching</h2>
-  <p>{{ s.matcher.model }}.{% if s.matcher.threshold is not none %} Decision threshold {{ "%.2f"|format(s.matcher.threshold) }}.{% endif %}</p>
+  <p>{{ s.matcher.model }}.{% if s.matcher.threshold is not none %} Decision threshold {{ s.matcher.threshold|fixed(2) }}.{% endif %}</p>
   <dl class="facts">
     <dt>Precision before the guard</dt><dd>{{ s.matcher.precision_pre_guard }}</dd>
     <dt>Precision after the guard</dt><dd>{{ s.matcher.precision_post_guard }}</dd>

@@ -25,6 +25,7 @@ from pricepilot.api import deps, facts
 from pricepilot.api.main import app
 from pricepilot.api.routes_api import router as api_router
 from pricepilot.api.routes_pages import router as pages_router
+from pricepilot.decision.scenarios import SUPERSEDED_RUN_LABEL
 from pricepilot.models import (
     Product,
     ProductMatch,
@@ -150,6 +151,8 @@ def _seed(s: Session) -> None:
         )
     )
     s.add(rec(run_label="new"))  # newest real, unperturbed: this one must be shown
+    # A superseded row written AFTER the newest one must still never be shown.
+    s.add(rec(run_label=SUPERSEDED_RUN_LABEL, llm_rationale="SUPERSEDED ROW"))
     s.add(rec(run_label="mock", is_mock=True, llm_rationale="MOCK ROW"))
     s.add(
         rec(
@@ -225,7 +228,8 @@ def test_detail_shows_newest_real_recommendation_and_stress_tests_separately(
 ) -> None:
     d = client.get("/api/products/1").json()
     r = d["recommendation"]
-    assert r["run_label"] == "new"  # not the older row, not the mock row, not the scenario row
+    # not the older row, the superseded row, the mock row or the scenario row
+    assert r["run_label"] == "new"
     assert r["scenario"] is None
     assert (r["proposed_price"], r["guard_status"], r["guard_final_price"]) == (
         "145.00",
@@ -332,3 +336,49 @@ def test_offline_pages_say_so_instead_of_crashing(database_down: TestClient) -> 
     assert database_down.get("/").status_code == 503
     assert database_down.get("/products/1").status_code == 503
     assert database_down.get("/status").status_code == 200  # static facts still render
+
+
+def test_scraped_urls_are_links_only_when_http(client: TestClient, session: Session) -> None:
+    bad = session.query(ProductMatch).filter_by(source="shop_b_ro").one()
+    bad.url = "javascript:alert(document.cookie)"
+    session.commit()
+    by_shop = {m["shop"]: m["url"] for m in client.get("/api/products/1").json()["matches"]}
+    assert by_shop["shop_a_ro"] == "https://example.invalid/a1"
+    assert by_shop["shop_b_ro"] is None
+    page = client.get("/products/1").text
+    assert "javascript:" not in page
+
+
+def test_corrupt_cost_shows_no_margin_instead_of_a_fake_one(
+    client: TestClient, session: Session
+) -> None:
+    session.get(Product, 2).purchase_cost = Decimal("0.00")  # type: ignore[union-attr]
+    session.commit()
+    row = client.get("/api/products").json()[1]
+    assert row["margin_pct"] is None
+
+
+def test_zero_competitor_price_and_unknown_mock_store_id_do_not_crash(
+    client: TestClient, session: Session
+) -> None:
+    session.query(ProductMatch).filter_by(source="shop_a_ro").one().competitor_price = Decimal(
+        "0.00"
+    )
+    session.add(
+        Product(
+            id=99999,
+            sku="NOT-IN-MOCK",
+            title="x",
+            brand="x",
+            category="treats",
+            purchase_cost=Decimal("1.00"),
+            current_price=Decimal("2.00"),
+            stock=1,
+        )
+    )
+    session.commit()
+    pos = client.get("/api/products/1").json()["position"]
+    assert pos["min"] == "0.00" and pos["vs_min_pct"] is None
+    assert client.get("/products/1").status_code == 200
+    history = client.get("/api/products/99999/history")
+    assert history.status_code == 200 and history.json()["our_price_synthetic"] == []

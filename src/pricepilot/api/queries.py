@@ -7,6 +7,7 @@ from collections import defaultdict
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 from statistics import median
 from typing import Any
+from urllib.parse import urlsplit
 
 from sqlalchemy import column, func, select, table
 from sqlalchemy.orm import Session
@@ -28,6 +29,7 @@ from pricepilot.api.schemas import (
     Status,
     StressTest,
 )
+from pricepilot.decision.scenarios import SUPERSEDED_RUN_LABEL
 from pricepilot.models import Product as ProductModel
 from pricepilot.models import ProductMatch, RawListing, Recommendation, ScrapeRun
 from pricepilot.policy.guard import margin
@@ -65,7 +67,11 @@ def _latest_real_recommendations(session: Session) -> dict[int, Recommendation]:
     """Newest real (is_mock = FALSE), unperturbed (scenario IS NULL) recommendation per product."""
     rows = session.scalars(
         select(Recommendation)
-        .where(Recommendation.is_mock.is_(False), Recommendation.scenario.is_(None))
+        .where(
+            Recommendation.is_mock.is_(False),
+            Recommendation.scenario.is_(None),
+            Recommendation.run_label != SUPERSEDED_RUN_LABEL,
+        )
         .order_by(Recommendation.id)
     ).all()
     return {r.product_id: r for r in rows}  # ascending id: the last write per product wins
@@ -81,7 +87,7 @@ def _product_row(p: ProductModel, matches: int, rec: Recommendation | None) -> P
         category=p.category,
         cost=p.purchase_cost,
         current_price=p.current_price,
-        margin_pct=margin_pct if margin_pct is not None else Decimal("0.0"),
+        margin_pct=margin_pct,
         margin_floor_pct=_pct(_floor_fraction(p.category)),
         stock=p.stock,
         matches=matches,
@@ -113,9 +119,15 @@ def _position(our_price: Decimal, matches: list[MatchRow]) -> PricePosition:
             vs_min_pct=None,
             vs_median_pct=None,
         )
-    lo, mid, hi = min(prices), Decimal(median(prices)).quantize(_CENT), max(prices)
+    lo, mid, hi = (
+        min(prices),
+        Decimal(median(prices)).quantize(_CENT, rounding=ROUND_HALF_UP),
+        max(prices),
+    )
 
-    def vs(ref: Decimal) -> Decimal:
+    def vs(ref: Decimal) -> Decimal | None:
+        if ref <= 0:  # a zero scraped price has no meaningful percentage
+            return None
         return ((our_price - ref) / ref * 100).quantize(_ONE_DP, rounding=ROUND_HALF_UP)
 
     return PricePosition(
@@ -186,6 +198,12 @@ def _recommendation_out(session: Session, r: Recommendation) -> RecommendationOu
     )
 
 
+def _safe_url(url: str) -> str | None:
+    """Only http(s) links are rendered as links: the URL comes from a scraped page, and a
+    `javascript:` href would run script on the dashboard's origin."""
+    return url if urlsplit(url.strip()).scheme.lower() in ("http", "https") else None
+
+
 def _matches(session: Session, product_id: int) -> list[MatchRow]:
     rows = session.scalars(
         select(ProductMatch)
@@ -201,7 +219,7 @@ def _matches(session: Session, product_id: int) -> list[MatchRow]:
             threshold=m.threshold,
             price_date=m.price_date,
             in_stock=m.in_stock,
-            url=m.url,
+            url=_safe_url(m.url),
         )
         for m in rows
     ]
@@ -251,10 +269,11 @@ def price_history(session: Session, product_id: int) -> PriceHistory:
     # the decision engine uses). Lazy so importing the API does not build 30 x 180 points.
     from services.mock_store.app import get_history_points
 
-    ours = [
-        OurPricePoint(day=h.day, price=h.price, units_sold=h.units_sold)
-        for h in get_history_points(product_id)
-    ]
+    try:
+        points = get_history_points(product_id)
+    except KeyError:  # a product the mock store does not know: no synthetic series
+        points = []
+    ours = [OurPricePoint(day=h.day, price=h.price, units_sold=h.units_sold) for h in points]
     series = []
     for m in session.scalars(select(ProductMatch).where(ProductMatch.product_id == product_id)):
         pts = session.execute(
