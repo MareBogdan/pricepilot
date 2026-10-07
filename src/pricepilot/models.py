@@ -98,6 +98,69 @@ class ProductMatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Recommendation(Base):
+    """Phase 5 session 4 -- the full trace of ONE price recommendation (ADR-0042, migration 0013).
+
+    CLAUDE.md section 6 rule 6: every LLM decision is traced -- the input snapshot (numbers from
+    SQL / `config/pricing-policy.toml`), the retrieved policy sections, the prompt, the raw reply,
+    latency, cost, and what the deterministic guard did with the proposal. `is_mock` is TRUE for
+    rows written by the mock proposer: they cost $0, never touched `llm_calls`, and must never be
+    counted toward the Phase 5 gate. Money is `Numeric(12, 2)`; JSON money is stored as strings.
+    """
+
+    __tablename__ = "recommendations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    run_label: Mapped[str] = mapped_column(String(64), index=True)
+    is_mock: Mapped[bool] = mapped_column(Boolean)
+    # NULL = the product's real, unperturbed inputs. s5 may set a named scenario (ADR-0042).
+    scenario: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # --- input snapshot: what the proposer and the guard were given ---
+    category: Mapped[str] = mapped_column(String(64))
+    cost: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    current_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    stock: Mapped[int] = mapped_column(Integer)
+    # [{"shop", "price", "score", "price_date", "title"}...]; empty list = no matched competitor.
+    competitor_prices: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    price_7d_ago: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # The mock store's history is SYNTHETIC; this says so on every row.
+    price_7d_ago_source: Mapped[str] = mapped_column(String(64))
+    # A labelled PLACEHOLDER (Phase 4 POSTPONE) -- never a measured or recovered elasticity.
+    elasticity_placeholder: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+    # --- retrieval + prompt + reply ---
+    rag_sections: Mapped[list[dict[str, Any]]] = mapped_column(JSON)  # section_ref + similarity
+    prompt_text: Mapped[str] = mapped_column(Text)
+    llm_model: Mapped[str] = mapped_column(String(64))  # "mock" for the mock proposer
+    llm_raw_reply: Mapped[str] = mapped_column(Text)
+    # NULL when the reply could not be parsed (the guard is then not consulted: FLAG).
+    llm_proposed_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    llm_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    llm_cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("0"))
+    llm_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # --- the guard's verdict: the final authority on the applied price ---
+    guard_status: Mapped[str] = mapped_column(String(16))  # APPROVE | REJECT | FLAG
+    guard_final_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    guard_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "guard_status IN ('APPROVE', 'REJECT', 'FLAG')", name="ck_recommendations_guard_status"
+        ),
+        # An applied price exists exactly when the guard APPROVEd.
+        CheckConstraint(
+            "(guard_status = 'APPROVE') = (guard_final_price IS NOT NULL)",
+            name="ck_recommendations_final_price_iff_approve",
+        ),
+    )
+
+
 class ScrapeRun(Base):
     """One execution of one source adapter. CLAUDE.md §5.6: every run is logged,
     and a >40% drop in items vs the previous run raises an alert instead of ingesting."""

@@ -215,6 +215,17 @@ _PRODUCTS: dict[int, Product] = {p.id: p for p in _build_catalogue()}
 _HISTORY: dict[int, list[HistoryPoint]] = {p.id: _build_history(p) for p in _PRODUCTS.values()}
 _AUDIT_LOG: list[PriceUpdateResult] = []
 
+
+def get_history_points(product_id: int) -> list[HistoryPoint]:
+    """The SYNTHETIC price/sales series `GET /products/{id}/history` serves, in-process (no server
+    needed), oldest first. Read-only copy; raises KeyError for an unknown product.
+
+    Public accessor for pipeline code (`pricepilot.decision.engine`) so nothing outside this module
+    reaches into `_HISTORY`. Every price here is generated, not observed.
+    """
+    return list(_HISTORY[product_id])
+
+
 # --------------------------------------------------------------------------------------
 # API
 # --------------------------------------------------------------------------------------
