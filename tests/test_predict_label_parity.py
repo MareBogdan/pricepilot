@@ -24,7 +24,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 QUEUE_JSON = ROOT / "docs" / "learned" / "phase3-annotation-queue.json"
 
-FROZEN_QUEUE_SHA256 = "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011"
+# LF-normalised (see tests/test_annotation_split.py): the repo stores LF, Windows checkouts CRLF.
+FROZEN_QUEUE_SHA256 = "7da125e1856bc65514234d516e17d0a12363ee6ada9b324b3f00ca8bfa146d2a"
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -76,7 +77,7 @@ def _to_listing(d: dict[str, Any]) -> Any:
 
 def test_predict_label_parity_over_the_real_frozen_queue() -> None:
     raw = QUEUE_JSON.read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == FROZEN_QUEUE_SHA256, (
+    assert hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest() == FROZEN_QUEUE_SHA256, (
         "frozen queue does not match FROZEN_QUEUE_SHA256 -- something edited the 'frozen' file"
     )
     pairs = json.loads(raw.decode("utf-8"))["pairs"]

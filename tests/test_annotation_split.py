@@ -20,7 +20,12 @@ REPEAT_FIRST_OCCURRENCE_JSON = ROOT / "docs" / "learned" / "phase3-repeat-first-
 # Recorded the moment the queue was frozen (ADR-0028 addendum #9). If this ever fails, the
 # "frozen" file has been edited -- CLAUDE.md §7's own discipline (never re-score a frozen gate
 # figure against edited data) applies here just as much as it did to the Phase 2 gate sample.
-FROZEN_QUEUE_SHA256 = "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011"
+# LF-normalised hash (same convention as scripts/check_label_rule_consistency.py and
+# tests/test_labels_frozen.py): .gitattributes stores the file as LF, so a raw-byte hash taken on a
+# Windows CRLF checkout (the original 696e9833...) can never match on Linux CI. Same content.
+FROZEN_QUEUE_SHA256 = "7da125e1856bc65514234d516e17d0a12363ee6ada9b324b3f00ca8bfa146d2a"
+# What the derived split/lookup files recorded when they were generated on the CRLF checkout.
+FROZEN_QUEUE_SHA256_RAW_CRLF = "696e983392628b868c4becd92db400735a52498a4994b5b7c8651b160a087011"
 
 TIER_GAP_LIMIT_PP = 4.5
 TEST_MIN_PER_TIER = 14
@@ -55,7 +60,7 @@ def _load_repeat_first_occurrence() -> dict:
 
 
 def test_frozen_queue_hash_unchanged() -> None:
-    actual = hashlib.sha256(QUEUE_JSON.read_bytes()).hexdigest()
+    actual = hashlib.sha256(QUEUE_JSON.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     assert actual == FROZEN_QUEUE_SHA256, (
         "the FROZEN annotation queue file has changed since it was frozen (ADR-0028 addendum "
         "#9) -- any change needs a stated reason in STATE.md first, and this constant must be "
@@ -268,7 +273,8 @@ def test_repeat_first_occurrence_hashes_match_current_files() -> None:
     """The lookup file records the queue/split SHA-256 it was built against -- if either file
     changes without regenerating the lookup, this catches the drift."""
     lookup_file = _load_repeat_first_occurrence()
-    assert lookup_file["queue_sha256"] == FROZEN_QUEUE_SHA256
+    # The lookup file was generated (and is itself frozen) with the raw CRLF-checkout hash.
+    assert lookup_file["queue_sha256"] == FROZEN_QUEUE_SHA256_RAW_CRLF
     actual_split_sha256 = hashlib.sha256(SPLIT_JSON.read_bytes()).hexdigest()
     assert lookup_file["split_sha256"] == actual_split_sha256, (
         "phase3-repeat-first-occurrence.json was built against a different "
