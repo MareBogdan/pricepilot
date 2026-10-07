@@ -24,6 +24,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 | 2026-10-04 | 5 | Session 3: catalogue sync into `products` (migration 0011, `sync_catalogue.py`, ADR-0038). DB writes to the existing free-tier Neon only; no LLM calls, no GPU, no paid hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
 | 2026-10-04 | 5 | Session 3b: serve-time matcher on local CPU (torch fp32), migration 0012 `product_matches`, ~7,500 CE pairs scored (ADR-0039). No LLM calls, no GPU rental, no paid hosting | $0.00 | **$0.00** | $0.818442 | n/a — no paid API/GPU/hosting action taken |
 | 2026-10-07 | 5 | Session 4: decision engine with a MOCKED LLM, migration 0013 `recommendations`, 7 mock trace rows (ADR-0042). `llm_calls` 575 -> 575 rows, spend unchanged. No LLM calls, no GPU rental, no paid hosting | $0.00 | **$0.00** | $0.818442 | n/a -- no paid API/GPU/hosting action taken |
+| 2026-10-07 | 5 | Session 5: the 50 recommendations on `claude-sonnet-5` via `LlmProposer` (30 baseline + 20 hypothetical scenarios, ADR-0042/0044), `max_tokens=400`, 50 `llm_calls` rows | $0.17 (ceiling $0.32) | **$0.240276** | $1.058718 | actual above the estimate: the model emits a thinking block, so output tokens exceeded the ~100 assumed; under the ceiling |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
 
