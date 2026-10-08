@@ -581,3 +581,17 @@ size-checked), force-pushed by Bogdan. (4) The Space gets a read-only Neon role 
 reason); a second `Dockerfile.space` (HF only builds the root `Dockerfile`, two files would drift); keeping the ML
 stack in the image (1+ GB, slow cold start, unused). **Cost.** $0.
 **Date.** 2026-10-08
+
+## ADR-0052 -- Retarget the live deploy from Hugging Face Spaces to Render (free)
+
+**Context.** Hugging Face made Docker-SDK Spaces paid (2026-10, as reported by the architect/Bogdan; not independently checked). The dashboard is FastAPI + Jinja +
+Chart.js, not Gradio, so a Space would need a rewrite or money. ADR-0051's lean image is host-neutral.
+**Decision.** Deploy the same lean image to a Render free web service. `Dockerfile` `CMD` is shell form and
+listens on `${PORT:-7860}` (Render injects `PORT`); `render.yaml` declares one free Docker web service, health
+check `/health`, `autoDeploy: false` (manual deploys only, CLAUDE.md rule 6), and `DATABASE_URL` with `sync: false` (the Neon read-only URL is entered in the
+Render dashboard, never in git). `docs/DEPLOYMENT.md` Part A is now Render (Koyeb as the no-card backup); Part B
+(VPS) unchanged. `make_space_bundle.ps1` and the README HF front-matter stay as marked legacy. Free-tier cost:
+spins down after ~15 min idle, ~1 min cold start (stated in the README).
+**Alternatives rejected.** Rewriting as Gradio/static (throwaway work); paying for an HF Space; the VPS now
+(money, ops time, ADR-0030 shortfall). **Cost.** $0. Supersedes the HF part of ADR-0051 only.
+**Date.** 2026-10-08

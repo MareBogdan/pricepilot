@@ -1,0 +1,14 @@
+# Render Blueprint (ADR-0052): one free web service built from the lean serving Dockerfile.
+# Nothing secret lives here: DATABASE_URL is set in the Render dashboard (sync: false).
+services:
+  - type: web
+    name: pricepilot
+    runtime: docker          # older docs call this `env: docker`
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: false        # CLAUDE.md rule 6: never auto-deploy; redeploy is a manual click
+    envVars:
+      - key: DATABASE_URL    # the Neon READ-ONLY role URL (pricepilot_readonly), entered as a secret
+        sync: false

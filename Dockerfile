@@ -1,5 +1,5 @@
-# Lean SERVING image (ADR-0051): the read-only dashboard + API only. It is also what Hugging Face
-# Spaces builds (sdk: docker). It deliberately has no torch / transformers / onnxruntime /
+# Lean SERVING image (ADR-0051): the read-only dashboard + API only. It is what Render builds
+# (ADR-0052; Hugging Face Docker Spaces went paid). It deliberately has no torch / transformers / onnxruntime /
 # sentence-transformers and no model file: the dashboard reads Neon + committed result files and
 # never runs the matcher, embeddings or RAG at request time. The mock store (compose) reuses it.
 FROM python:3.12-slim
@@ -32,7 +32,7 @@ COPY docs/learned/results/mmarco-mMiniLMv2-finetuned-ep6-metrics.json \
      docs/learned/results/phase5-policy-retrieval-eval.json \
      docs/learned/results/
 
-# Non-root. uid 1000 is what Hugging Face Spaces runs containers as.
+# Non-root (uid 1000, also what Hugging Face Spaces would use).
 RUN useradd --create-home --uid 1000 app && chown -R app:app /app
 USER app
 
@@ -40,4 +40,6 @@ USER app
 RUN python -c "import pricepilot.api.main, services.mock_store.app"
 
 EXPOSE 7860 8000 8001
-CMD ["python", "-m", "uvicorn", "pricepilot.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Render injects PORT and expects the app on 0.0.0.0:$PORT; locally it falls back to 7860.
+# Shell form so ${PORT:-7860} is expanded; `exec` keeps uvicorn as PID 1 so it gets SIGTERM.
+CMD ["sh", "-c", "exec python -m uvicorn pricepilot.api.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

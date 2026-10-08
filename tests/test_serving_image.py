@@ -60,7 +60,20 @@ def test_dockerfile_ships_what_the_dashboard_reads_and_not_the_model() -> None:
     assert "COPY config/" in dockerfile
     assert "0.0.0.0" in dockerfile
     assert "7860" in dockerfile
+    assert "${PORT:-7860}" in dockerfile  # Render injects PORT
     assert not [ln for ln in dockerfile.splitlines() if ln.startswith("COPY") and "models" in ln]
     ignore = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert "models" in ignore
     assert "data" in ignore
+
+
+def test_render_blueprint_is_free_docker_and_keeps_the_secret_out() -> None:
+    text = (ROOT / "render.yaml").read_text(encoding="utf-8")
+    assert "plan: free" in text
+    assert "runtime: docker" in text
+    assert "healthCheckPath: /health" in text
+    assert "dockerfilePath: ./Dockerfile" in text
+    # DATABASE_URL is declared but never given a value: it is entered in the Render dashboard.
+    assert re.search(r"key: DATABASE_URL[^\n]*\n\s+sync: false", text)
+    assert "autoDeploy: false" in text  # CLAUDE.md rule 6
+    assert "postgres" not in text.lower()

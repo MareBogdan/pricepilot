@@ -1,7 +1,9 @@
 # STATE
 
-Phase: 7 IN PROGRESS -- 7b PREPARED 2026-10-08 (lean serving image, Space bundle, DEPLOYMENT.md, README results); the live Hugging Face deploy is Bogdan's manual step. Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
-Updated: 2026-10-08 (Phase 7b prep)
+Phase: 7 IN PROGRESS -- 7b.2 PREPARED 2026-10-08: deploy retargeted HF Spaces (Docker now paid) -> Render free (ADR-0052); the live Render deploy is Bogdan's manual step. Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-08 (Phase 7b.2)
+
+**Phase 7b.2 (ADR-0052):** Hugging Face made Docker Spaces paid, so the same lean image now targets Render free: `CMD` honours `${PORT:-7860}` (verified in Docker with PORT=10000: `/health`, `/`, `/status`, `/products/1` all 200 against Neon, no "n/a"), `render.yaml` (free, Docker, `/health`, `DATABASE_URL` sync:false), DEPLOYMENT.md Part A rewritten, README demo note updated, `make_space_bundle.ps1` marked legacy. Nothing deployed, $0. Below: the 7b prep state it builds on.
 
 **Where we are:** **Phase 7b PREP DONE (ADR-0051), nothing deployed.** Root `Dockerfile` = lean serving image (324 MB, no
 ML stack, no model; core deps only, ML moved to the `pipeline` extra which `dev` includes). Verified in Docker against
@@ -73,6 +75,7 @@ placeholder.
 
 ## Last done
 
+00000000. **Phase 7b.2 (2026-10-08, ADR-0052):** HF Spaces -> Render free: `$PORT` CMD, `render.yaml`, DEPLOYMENT Part A, README note, test for the blueprint + `${PORT:-7860}` (28 passed in a Linux container; same CLAUDE.md-in-container failure as before). Python still blocked locally, full suite NOT run.
 00000000. **Phase 7b prep (2026-10-08, ADR-0051):** lean serving Dockerfile + `.dockerignore` + `pipeline` extra; `decision/run_labels.py` so the API never imports the engine; `scripts/make_space_bundle.ps1`; `docs/DEPLOYMENT.md` (HF live, VPS reference); README results + Space metadata; `tests/test_serving_image.py` (3). ADR-0044 condensed to make room. Python was Application-Control-blocked in this session, so the full suite was NOT run (see Open issues).
 00000000. **Phase 7a.2: dashboard polish (2026-10-07, ADR-0050):** `make.ps1 dev` + `start.ps1` + `make dev`;
    hero tiles, verdict and margin charts, price-comparison bars, shop-colour/status-colour palette validated
@@ -253,6 +256,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 7b live deploy: the Hugging Face steps in `docs/DEPLOYMENT.md` Part A (account, write token, Neon read-only role, Space, `DATABASE_URL` secret, push the bundle). Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
+Phase 7b.2 live deploy: the Render steps in `docs/DEPLOYMENT.md` Part A (Neon read-only role already exists; Render account via GitHub, Blueprint from `render.yaml`, paste the read-only `DATABASE_URL` as a secret, send the onrender.com URL). Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

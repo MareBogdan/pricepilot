@@ -30,6 +30,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 | 2026-10-07 | 7 | Phase 7a: CI fix (ADR-0048), read-only API + dashboard running locally against Neon (ADR-0049). No LLM calls (`llm_calls` unchanged), no GPU, no paid hosting (deploy is 7b) | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 | 2026-10-07 | 7 | Phase 7a.2: one-command dev launch (`make.ps1 dev`), dashboard visual pass (hero tiles, charts), listings-number reconciliation (ADR-0050). No LLM calls (`llm_calls` unchanged), no GPU, no paid hosting | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 | 2026-10-08 | 7 | Phase 7b prep: lean serving image, Space bundle script, `docs/DEPLOYMENT.md` (HF Spaces live steps + VPS reference), README results (ADR-0051). Hosting = Hugging Face Spaces free tier; the VPS is documented, not bought. No LLM calls (`llm_calls` unchanged), no GPU | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
+| 2026-10-08 | 7 | Phase 7b.2: deploy retargeted from Hugging Face Spaces (Docker SDK now paid) to Render free tier (ADR-0052): `$PORT` CMD, `render.yaml`, DEPLOYMENT.md Part A. Nothing deployed. No LLM calls, no GPU | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
 

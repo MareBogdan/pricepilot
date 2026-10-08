@@ -1,8 +1,10 @@
 # Deployment
 
-Two parts. **Part A is the live deploy** (Hugging Face Spaces, free). **Part B is a reference
-walk-through for a Hetzner VPS: it is NOT deployed and nothing in it has been executed.** Read
-ADR-0051 for why.
+Two parts. **Part A is the live deploy** (Render, free tier). **Part B is a reference walk-through
+for a Hetzner VPS: it is NOT deployed and nothing in it has been executed.** Read ADR-0051 and
+ADR-0052 for why. Short version: **Hugging Face Docker Spaces became paid in 2026-10, so the live
+host is Render's free tier**; the dashboard is FastAPI + Jinja, not Gradio, so it was retargeted
+rather than rewritten.
 
 What gets deployed in both cases is the same thing: the **lean serving image** built from the root
 `Dockerfile`. It runs the read-only dashboard + JSON API (`pricepilot.api.main:app`) and nothing
@@ -17,103 +19,94 @@ with an unreachable database `/health` answers `degraded` and pages answer 503 (
 
 ---
 
-## Part A -- Hugging Face Spaces (live deploy)
+## Part A -- Render, free tier (live deploy)
 
-### What a Space is
+### What Render does
 
-A Space is a git repository on huggingface.co. When you push to it, Hugging Face builds the
-`Dockerfile` in it and runs the container. With `sdk: docker` in the README header (already there),
-HF routes the public URL to the port named in `app_port` (7860, which our `CMD` listens on). Free
-tier: CPU basic, public URL, **it goes to sleep after a period of inactivity (about 48 h on the free
-tier) and wakes on the next visit**; the wake-up takes roughly a minute while the container starts.
+Render connects to the GitHub repo, reads `render.yaml` (a "Blueprint": one free web service built
+from the root `Dockerfile`), builds the image on its servers and runs it. It injects a `PORT`
+environment variable (10000 by default) and routes the public HTTPS URL to that port; the
+`Dockerfile` `CMD` listens on `${PORT:-7860}`, so the same image runs locally and on Render.
+`/health` is the health check. The build uses the git clone, and `models/` and `data/` are
+git-ignored (never committed), so the 397 MB model cannot reach the build; the `Dockerfile` also
+copies only `src/`, `services/`, `config/` and three result JSONs.
 
-### How the 397 MB model stays out (the mechanism, tested)
-
-Two layers, both in the repo:
-
-1. `models/` and `data/` are in `.gitignore`, so the model was never committed. Nothing in the
-   normal git history contains it.
-2. You do **not** push the whole repo anyway. `scripts/make_space_bundle.ps1` copies only what the
-   image needs (Dockerfile, `.dockerignore`, `README.md`, `pyproject.toml`, `src/`, `services/`,
-   `config/`, three result JSONs) into a fresh folder with a fresh one-commit git repo, and **fails
-   if any file is over 5 MB** or is a `.zip` / `.onnx` / weights file. Result: 73 files, 0.47 MB, no
-   project history, no `docs/archive`, no labels. The Space is built from that folder (tested: the
-   bundle builds and serves against Neon with no "n/a").
+Verified locally: with `PORT=10000` the container answered `/health`, `/`, `/status` and
+`/products/1` with HTTP 200 against Neon, no "n/a" tiles; without `PORT` it listens on 7860.
 
 ### Steps (you do these; none of them is done yet)
 
-1. **Account.** Create a free account on huggingface.co (or log in).
-2. **Write token.** Settings -> Access Tokens -> New token, type **Write**, name it `pricepilot-deploy`.
-   Copy it once; it is your git password for step 7. Never commit it.
-3. **Read-only database role (strongly recommended).** The Space is public and the app only reads.
-   Do not give it your Neon owner password. In the Neon SQL editor run (pick your own password):
+1. **Read-only database role.** (Already created: `pricepilot_readonly`.) The Render service is
+   public and the app only reads, so it must never get the Neon owner URL. If you need to redo it,
+   in the Neon SQL editor:
    ```sql
    CREATE ROLE pricepilot_readonly LOGIN PASSWORD '<generate-a-long-one>';
    GRANT USAGE ON SCHEMA public TO pricepilot_readonly;
    GRANT SELECT ON ALL TABLES IN SCHEMA public TO pricepilot_readonly;
-   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO pricepilot_readonly;  -- tables added by later migrations
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO pricepilot_readonly;
    ```
-   Your `DATABASE_URL` for the Space is the same URL as in `.env` with that role and password
-   (keep `?sslmode=require`; the psycopg driver on Linux accepts the Neon parameters as they are).
-   If you skip this step you can use the existing URL, but then a bug or a leaked secret can write.
-4. **Create the Space.** huggingface.co -> New -> Space. Name `pricepilot`, SDK **Docker** (blank
-   template), hardware **CPU basic (free)**, visibility **Public**. Do not add files in the web form.
-5. **Set the secret.** Space -> Settings -> *Variables and secrets* -> **New secret**: name
-   `DATABASE_URL`, value = the URL from step 3. (Secret, not Variable: variables are public.)
-   Secrets are passed to the running container as environment variables, which is where
-   `pricepilot.config` reads `DATABASE_URL` from.
-6. **Build the bundle.** From the repo root in PowerShell:
-   ```powershell
-   .\scripts\make_space_bundle.ps1
-   ```
-   It prints `Bundle ready: ...\pricepilot-space (0.47 MB, 73 files)`.
-7. **Push it.** (Replace `<user>`.) When git asks for a password, paste the write token.
-   ```powershell
-   cd $env:TEMP\pricepilot-space
-   git remote add space https://huggingface.co/spaces/<user>/pricepilot
-   git push space main --force
-   ```
-   `--force` is correct here: the bundle is a fresh one-commit repo and the Space starts with a
-   placeholder commit. It overwrites only the Space, not GitHub.
-8. **Watch the build.** Space page -> *Logs* (build, then container). First build takes a few minutes.
-   Status turns **Running**.
-9. **Public URL.** The Space page itself is `https://huggingface.co/spaces/<user>/pricepilot`; the
-   app alone, which is what you link and embed, is `https://<user>-pricepilot.hf.space`. Open it,
-   check the home page, a product page and `/status`, then paste the URL into the README placeholder
-   ("Live demo") and tell Claude so the demo GIF can be recorded from it.
+   The `DATABASE_URL` for Render is the `.env` URL with that role and password
+   (`postgresql+psycopg://pricepilot_readonly:<password>@<host>/<db>?sslmode=require`; the psycopg
+   driver on Linux takes the Neon parameters as they are, no pg8000 here).
+2. **Account.** render.com -> Get Started -> sign in with GitHub (simplest, it also links the repo).
+   As far as I know the free web service does not need a card; if Render asks for one and you do not
+   want to give it, use **Koyeb** (free Docker web service) as the backup: same Dockerfile, set the
+   `PORT` and `DATABASE_URL` variables there. Check the card question on the sign-up screen.
+3. **Create the service.** Dashboard -> **New +** -> **Blueprint** -> pick the
+   `MareBogdan/pricepilot` repo (if it is private, grant Render access to it when GitHub asks;
+   "Only select repositories" -> `pricepilot` is enough). Render finds `render.yaml` and shows one
+   service, `pricepilot`, plan **Free**.
+   If Blueprints are not available on your plan: **New +** -> **Web Service** -> same repo ->
+   Language/Runtime **Docker** -> Branch `main` -> Instance type **Free** -> Health Check Path `/health`.
+4. **Set the secret.** When the Blueprint form asks for `DATABASE_URL` (it is declared with
+   `sync: false`, so the value is never in git), paste the read-only URL from step 1. For the manual
+   route: Environment -> Add Environment Variable -> `DATABASE_URL`. Do not paste the owner URL.
+5. **Deploy.** Click **Apply** / **Create Web Service**. Watch *Logs*: build (a few minutes), then
+   `Uvicorn running on http://0.0.0.0:10000`, then the service shows **Live**.
+6. **Public URL.** `https://<name>.onrender.com` (shown at the top of the service page; the name is
+   `pricepilot` unless taken). Open it and check the home page, a product page and `/status`, then
+   send the URL so it goes into the README ("Live demo") and the demo GIF can be recorded from it.
 
 ### Redeploy
 
-Change code in the main repo, commit as usual, then repeat steps 6-7 (`make_space_bundle.ps1`, then
-`git push space main --force` from the bundle folder). The Space rebuilds on every push. Changing
-the secret (Settings) restarts the container without a rebuild.
+`render.yaml` sets `autoDeploy: false` on purpose (CLAUDE.md rule 6: deployment is always a manual
+step), so pushing to `main` does NOT change the live site. To deploy a new commit: service page ->
+**Manual Deploy** -> *Deploy latest commit*. To
+change the secret: Environment -> edit `DATABASE_URL` -> Save (the service restarts).
 
 ### Cold start and sleeping
 
-- Sleeping Space: first visit shows HF's "starting" page for about a minute. Say so in the README
-  (it does).
+- A free Render web service **spins down after about 15 minutes without traffic** and starts again
+  on the next request; that first request takes roughly a minute while the container boots. The
+  README says so. Free instances also have no persistent disk, which is fine: the app is stateless.
 - Neon also scales to zero when idle; the first query after that retries (`connect_with_wakeup_retry`
-  in `db.py`), so the first page after a long gap can take several extra seconds.
-- Free Spaces have no persistent disk and need none: the app is stateless.
+  in `db.py`), so the first page after a long gap can take several extra seconds on top.
+- Render's free instance hours are limited per month; one idle-sleeping demo stays well inside them
+  (verify the current numbers on the pricing page; they change).
 
 ### Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
-| Build fails at `uv pip install` | `pyproject.toml` in the bundle is stale; rebuild the bundle |
-| Page shows 503 / `/health` says `degraded` | `DATABASE_URL` secret missing, wrong, or the role lacks SELECT |
-| Tiles say "n/a" | a result JSON missing from the bundle; `tests/test_serving_image.py` guards the list |
-| `git push` asks for a password again | wrong token type (needs **Write**) or wrong username |
+| Build fails at `uv pip install` or the import check | `pyproject.toml` core dependencies and the code disagree; the import check in the `Dockerfile` is meant to fail here |
+| Deploy "timed out waiting for port" | the app is not listening on `$PORT`; the `CMD` must be the shell form in the `Dockerfile` |
+| Page shows 503 / `/health` says `degraded` | `DATABASE_URL` missing, wrong, or the role lacks SELECT |
+| Tiles say "n/a" | a result JSON is missing from the image; `tests/test_serving_image.py` guards the list |
+
+### Legacy: Hugging Face Space
+
+`scripts/make_space_bundle.ps1` and the README front-matter (`sdk: docker`, `app_port: 7860`) are
+kept but unused: they built a Docker Space, which HF made paid. They are harmless on GitHub and Render.
 
 ---
 
 ## Part B -- Hetzner VPS (reference / future, NOT currently deployed)
 
 > Nothing below has been run. It is the ops walk-through CLAUDE.md asked for, kept so the VPS option
-> is a one-evening job if the Space is ever outgrown (always-on, custom domain, running the matcher
+> is a one-evening job if the Render free tier is ever outgrown (always-on, custom domain, running the matcher
 > as a daily batch next to the app). Cost: CX23-class, about $23 for three months (ESTIMATE,
-> ADR-0030, `docs/phase3-serving-prices.md`); check the live price before buying. Only the free
-> Space is live, so `docs/COSTS.md` records $0 for hosting.
+> ADR-0030, `docs/phase3-serving-prices.md`); check the live price before buying. Only the
+> Render free tier is live, so `docs/COSTS.md` records $0 for hosting.
 
 The shape: one small Linux server; **Caddy** (reverse proxy that fetches and renews HTTPS
 certificates by itself) in front of the **API container**; the database stays on **Neon**
@@ -180,7 +173,7 @@ the server IPv4 (and an AAAA record -> the IPv6 if you want it). Wait until
 
 ```bash
 git clone https://github.com/<github-user>/pricepilot.git && cd pricepilot
-nano .env        # DATABASE_URL=<the read-only Neon URL, see Part A step 3>; nothing else is needed to serve
+nano .env        # DATABASE_URL=<the read-only Neon URL, see Part A step 1>; nothing else is needed to serve
 ```
 `docker-compose.prod.yml` (to be created when this is executed; it is not in the repo today):
 ```yaml
@@ -238,6 +231,6 @@ domain. `restart: unless-stopped` brings both back after a reboot (Docker itself
 
 ### 9. If the VPS is ever executed
 
-Record the actual price in `docs/COSTS.md` in the same commit, update ADR-0051/ADR-0030, and run the
+Record the actual price in `docs/COSTS.md` in the same commit, update ADR-0052/ADR-0030, and run the
 matcher as the incremental batch described in CLAUDE.md section 6 (that is the point at which the
 ML dependencies come back, in a separate image, not in this serving one).

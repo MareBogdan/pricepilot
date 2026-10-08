@@ -1,5 +1,8 @@
 <#
 .SYNOPSIS
+  LEGACY / HF-ONLY (ADR-0052): Hugging Face Docker Spaces went paid, so the live deploy is Render
+  (render.yaml). Kept for reference, not deleted.
+
   Builds the slim folder that gets pushed to a Hugging Face Docker Space.
 
 .DESCRIPTION
