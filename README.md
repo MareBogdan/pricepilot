@@ -35,24 +35,37 @@ Render free tier). It sleeps after ~15 minutes idle, so the first visit after a 
 
 ## Headline results
 
-| What | Baseline | Result | Metric | Source |
+| What | Before / baseline | Result | Metric and data | Source |
 |---|---|---|---|---|
-| Product matching | zero-shot cross-encoder, F1 **0.50** | fine-tuned cross-encoder, F1 **0.87** (a tie with the fine-tuned 0.5B LoRA LLM, 0.88) | F1 on 284 test pairs, split by product | `docs/learned/results/mmarco-mMiniLMv2-*-metrics.json` |
-| Matching, after the post-match guard | pre-guard precision 0.786 (22/28, blind) | precision 0.92 (23/25), **not independent** of the errors the guard was built from; 0.88 if one low-confidence label is wrong; labels are Claude-written pending review | precision on a hand-checked sample | `docs/learned/results/phase5/gate-s3b.md` |
-| Policy retrieval (RAG) | -- | hit@1 0.85, hit@3 0.95, MRR 0.9125 | 20 questions over 7 policy sections | `docs/learned/results/phase5-policy-retrieval-eval.json` |
-| Recommendations | -- | 50 recommendations, **0 margin violations** (38 APPROVE / 12 FLAG; 10 APPROVEs move the price, 6 of them on synthetic stress-test competitor prices) | violations of the margin floor, re-checked from SQL | `docs/learned/results/phase5/fifty-recommendations.md` |
-| Collection | -- | 27 collection days, 276,814 price rows, 11,104 distinct in-scope listings, 3 shops (as of 2026-10-08) | counts queried from the database | dashboard `/status` or `.\make.ps1 status` |
+| Product matching | zero-shot cross-encoder: F1 **0.503** (P 0.343, R 0.938) | fine-tuned cross-encoder: F1 **0.874** (P 0.892, R 0.856) | F1 on the held-out TEST set: 284 scored pairs (287 hand-labelled, 3 skipped), split by product so no listing sits on both sides of the split | `docs/learned/results/mmarco-mMiniLMv2-zeroshot-metrics.json`, `mmarco-mMiniLMv2-finetuned-ep6-metrics.json` |
+| Shipped serving path vs hosted LLM | hosted zero-shot `claude-sonnet-5`: F1 **0.904**, p95 **2,361 ms**, $1.45 per 1,000 comparisons (first run: F1 0.908, p95 1,883 ms) | **served:** the fine-tuned cross-encoder, ONNX fp32, on CPU: F1 **0.874**, p95 **93 ms**, $0.000227 per 1,000 comparisons | p95 latency per comparison on the same 284 TEST pairs. The hosted model is about 3 F1 points *more* accurate (zero-shot, so not a like-for-like comparison) but about 25x slower at p95 and about 6,400x more expensive; the CE's cost is an estimate of marginal VPS time. CE latency was measured on a 2-thread Kaggle CPU (AMD EPYC), not on the Render instance | `docs/learned/phase3-serving-benchmark.md`, `docs/learned/results/hosted-claude-sonnet-5-zeroshot*-metrics.json` |
+| Policy retrieval (RAG) | -- | hit@1 **0.85**, hit@3 **0.95**, MRR **0.9125** | 20 pre-registered questions over 7 policy sections. The question set was committed before the results; one exploratory run preceded that commit and is disclosed in ADR-0036 | `docs/learned/results/phase5-policy-retrieval-eval.json` |
+| Decision engine | -- | **50** recommendations: **38 approved, 12 flagged, 0 rejected**, **0 margin violations** | margin violations re-checked from SQL. 20 of the 50 use synthetic stress-test competitor prices; 10 approvals change the price. The live `/status` page shows the latest recommendation per product (30), not all 50 rows | `docs/learned/results/phase5/fifty-recommendations.md` |
+| Matching inside the pipeline | pre-guard precision 0.786 (22/28, blind) | precision 0.92 (23/25), **not independent** of the errors the guard was built from; 0.88 if one low-confidence label is wrong; labels are Claude-written pending review | precision on a hand-checked sample | `docs/learned/results/phase5/gate-s3b.md` |
+| Data pipeline | -- | **3** retailers, **27** collection days (2026-09-12 to 2026-10-08), **276,814** in-scope price rows (118 more are quarantined), 11,104 distinct listings | counts queried from the database (as of 2026-10-08) | live dashboard `/status`, or `.\make.ps1 status` |
 
-**Real vs simulated.** Real: competitor prices and promotions (scraped daily from three Romanian
-pet shops), the product matches, and the LLM-written recommendations. Simulated: our own catalogue,
-costs and price history (a mock store stands in for our shop), sales volumes, and the stress-test
-rows that perturb competitor prices on purpose to exercise the margin floor. Not estimated: price
-elasticity -- the demand model (Phase 4) is postponed, so every recommendation carries a labelled
-placeholder instead of a number. The floor itself is a Python `if` after the LLM answers; it is
-demonstrated by the guard's tests and sweeps, not by the live rows (no model proposal went below it).
+Every matching, retrieval and recommendation figure above comes from a script in this repo and a
+committed result file; the data-pipeline counts are queried live from the database.
 
-The detailed per-component results (serving cost and latency, retrieval recall, significance tests)
-are in the table further down.
+## What is real and what is simulated
+
+| | Real | Simulated |
+|---|---|---|
+| Competitor data | Listings (title, price, compare-at price, stock, URL) scraped daily from three Romanian pet shops since 2026-09-12 | -- |
+| Our shop | -- | A 30-product catalogue with costs, stock and prices served by `services/mock_store`. Its 180 days of price and sales history are generated. Applying a price writes to the mock store only; there is no real store integration |
+| Matching | 997 hand-labelled decisions by one annotator; model scores on the real listings | -- |
+| Recommendations | Real `claude-sonnet-5` calls with stored traces; the margin floor is a Python check that runs after the model answers | The 7-day reference price comes from the mock store's generated history. 20 of the 50 recommendations feed the model synthetic competitor prices (the observed price x 0.85 or x 0.70) on purpose, to exercise the guard; they are labelled as such |
+| Pricing policy | -- | Written for this project, not taken from a real business. It is the text the RAG step retrieves |
+| Demand / elasticity | -- | **No demand model ships.** Every recommendation carries a labelled placeholder with no value (`ELASTICITY_PLACEHOLDER`, `src/pricepilot/decision/engine.py`) |
+
+**Why there is no demand model.** Phase 4 was postponed rather than shipped on thin data. Its
+go/no-go rule (`docs/phase4-data-sufficiency-rule.md`) was committed before any number existed. The
+measurement on 2026-09-26, with 14 to 15 collection days per shop, failed all three rules: no shop
+had the 28 days required, and only 1 strict evaluable price-move event existed against 200 required
+(`docs/learned/phase4-data-sufficiency.md`). The collected history was too short to train
+or grade a model on real price movements, so none was trained. The committed measurement is from
+that date; it has not been re-run on the longer history.
+
 
 ---
 
@@ -158,6 +171,40 @@ K=20/K=100 VPS wall-clock: `docs/learned/phase3-serving-benchmark.md`.
 *Reproduce: `uv run python scripts/compare_models.py` (full comparison, McNemar, per-tier);
 `uv run python scripts/build_serving_table.py` (serving table). No number appears here without a
 script behind it.*
+
+## Data collection and compliance
+
+This is a non-commercial portfolio and learning project. What the collection code does, as
+implemented in `src/pricepilot/scrapers/base.py` and the three source adapters:
+
+- **Sources.** Three public shop sites: petmax.ro and pentruanimale.ro (public category/listing
+  pages) and animax.ro (the public Shopify `products.json` listing feed). Nothing behind a login,
+  no accounts, no cart or checkout pages. A fourth shop was excluded because its `robots.txt`
+  disallows automated access (`docs/SOURCES.md`). Collection runs once a day from GitHub Actions.
+- **robots.txt is fetched and obeyed at request time.** Before every request the client fetches the
+  site's `robots.txt` (once per site per run, using the same client and User-Agent as the crawl),
+  and a disallowed URL raises an error instead of being fetched. An unreachable `robots.txt`, or a
+  401/403 on it, means "do not fetch"; a 404 means "no rules". A server error (5xx) on it is treated
+  as no rules, which is Python's standard-library behaviour. Covered by `tests/test_scraper_base.py`.
+- **Rate limiting.** A random 2 to 4 second pause between consecutive requests (defaults
+  `SCRAPER_MIN_DELAY_SECONDS=2.0`, `SCRAPER_MAX_DELAY_SECONDS=4.0`), one request at a time per site.
+- **`Crawl-delay` is not honoured yet.** The helper that reads it exists but is not wired into the
+  request loop. None of the three sites declared a `Crawl-delay` for generic crawlers when checked
+  (2026-09-13, `docs/SOURCES.md`), so the fixed 2 to 4 second pause applies.
+- **User-Agent.** The crawler identifies itself as a bot, `PricePilotBot/0.1 (+mailto:<contact>;
+  portfolio research project)`, and never impersonates a browser: no browser User-Agent string
+  exists anywhere in the code. The contact address is read from the `SCRAPER_USER_AGENT`
+  environment variable and is never committed. The crawler refuses to start if the value is empty,
+  has no contact address, or is still the `.env.example` placeholder.
+- **What is stored.** Per listing: title, price, compare-at price, currency, stock flag, URL, date.
+  No personal data. Veterinary medicines, antiparasitics and prescription diets are filtered out.
+- **Use of the data.** Collected for personal and educational use only. It is not resold, licensed
+  or offered for download. The public demo does display, for each product matched to a competitor
+  (currently 25 links across 13 products), the competitor's listing title, current price, daily
+  price history and a link to the shop's own page. There is no endpoint that lists or exports
+  competitor listings in bulk. HTML test fixtures are trimmed samples kept only for offline tests.
+- **Not done.** The repo records no review of any shop's terms of service; `robots.txt` is the only
+  machine-readable rule checked. A shop that asks to be removed will be dropped (`docs/LEGAL.md`).
 
 ## What this system does NOT do
 

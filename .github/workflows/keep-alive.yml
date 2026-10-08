@@ -1,0 +1,38 @@
+name: Keep demos warm
+
+# Render's free tier spins the service down after ~15 minutes idle and a cold start takes ~50 s.
+# A request every 10 minutes keeps https://pricepilot-s1jj.onrender.com awake. The Vercel demo is
+# pinged on the same schedule.
+#
+# NOTE: GitHub automatically DISABLES scheduled workflows in a repository after 60 days without
+# any commit. If the demo starts sleeping again, open the Actions tab and re-enable this workflow
+# (or push any commit). `workflow_dispatch` below lets you run it by hand before an interview.
+#
+# NOTE: GitHub may delay scheduled runs by several minutes under load, so "every 10 minutes" is a
+# best effort, not a guarantee.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Ping PricePilot (Render)
+        run: |
+          curl -sS -o /dev/null --fail --max-time 90 --retry 2 --retry-delay 5 \
+            -w "pricepilot-render: HTTP %{http_code} in %{time_total}s\n" \
+            https://pricepilot-s1jj.onrender.com/
+
+      # `if: always()` so a failed Render ping does not skip the second site.
+      - name: Ping DevPath (Vercel)
+        if: always()
+        run: |
+          curl -sS -o /dev/null --fail --max-time 60 --retry 2 --retry-delay 5 \
+            -w "devpath-vercel: HTTP %{http_code} in %{time_total}s\n" \
+            https://devpath-ro.vercel.app/

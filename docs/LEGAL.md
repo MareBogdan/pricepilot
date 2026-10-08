@@ -28,7 +28,12 @@ theirs to be removed gets it removed.
 ## What this project is
 
 A non-commercial portfolio project. It does not resell collected data, does not run at a volume
-that burdens any shop, and does not reproduce shop content publicly — the deployed dashboard shows
-our own catalogue and aggregate competitor price levels, not copies of competitor listings.
+that burdens any shop. The deployed dashboard shows our own (mock) catalogue and, for each product
+matched to a competitor, that competitor's listing title, current price, daily price history and a
+link to the shop's page. It has no endpoint that lists or exports competitor listings in bulk.
+
+Known gap: a declared `Crawl-delay` in `robots.txt` is not yet honoured by the request loop
+(`PoliteClient.declared_crawl_delay` exists but is not called). No source declared one for
+generic crawlers when last checked (2026-09-13); the fixed 2-4 s pause applies.
 
 If any of the above stops being true, revisit this document before the code.
