@@ -23,10 +23,9 @@ from dataclasses import dataclass, replace
 from decimal import ROUND_HALF_UP, Decimal
 
 from pricepilot.decision.engine import ProductSnapshot
+from pricepilot.decision.run_labels import SUPERSEDED_RUN_LABEL as SUPERSEDED_RUN_LABEL
 
 STRESS_PREFIX = "stress_"
-# Rows replaced by a later run are relabelled (never deleted); they must never be acted on.
-SUPERSEDED_RUN_LABEL = "s5-superseded"
 SCENARIO_FACTORS: dict[str, Decimal] = {
     "stress_undercut_15": Decimal("0.85"),
     "stress_undercut_30": Decimal("0.70"),

@@ -11,3 +11,4 @@ append-only history; **the live files win when they disagree.**
 - `STATE-history.md` — STATE.md's `## History` section, plus every Open-issue item that is now RESOLVED (CLOSED, or overtaken by a later fact).
 - `agents/scraper-engineer.md` — the `scraper-engineer` sub-agent definition, retired after Phase 1 (all three source adapters built).
 - `claude-md-condensed-sections.md` — full original wording of the "Scrapers" and "Spend schedule" sections, condensed (not archived as history) in the live CLAUDE.md.
+- `DECISIONS-ADR-0044-full.md` — full ADR-0044 (Phase 5 gate run, truncation fault), condensed in DECISIONS.md.

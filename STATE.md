@@ -1,9 +1,16 @@
 # STATE
 
-Phase: 7 IN PROGRESS -- 7a + 7a.2 done 2026-10-07 (CI green, dashboard polished, `.\make.ps1 dev`); next 7b (deploy, needs host decision). Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
-Updated: 2026-10-07 (Phase 7a.2)
+Phase: 7 IN PROGRESS -- 7b PREPARED 2026-10-08 (lean serving image, Space bundle, DEPLOYMENT.md, README results); the live Hugging Face deploy is Bogdan's manual step. Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-08 (Phase 7b prep)
 
-**Where we are:** **Phase 7a.2 DONE (ADR-0050).** Start the dashboard with `.\make.ps1 dev` (or `.\start.ps1`; sets
+**Where we are:** **Phase 7b PREP DONE (ADR-0051), nothing deployed.** Root `Dockerfile` = lean serving image (324 MB, no
+ML stack, no model; core deps only, ML moved to the `pipeline` extra which `dev` includes). Verified in Docker against
+Neon: `/health`, `/`, `/status`, `/products/1`, `/api/status`, static all 200, no "n/a" tile; DB unreachable -> `/health`
+`degraded`, pages 503. `scripts/make_space_bundle.ps1` builds the 73-file / 0.47 MB Space repo (also built and served).
+`docs/DEPLOYMENT.md`: Part A = HF Spaces steps, Part B = VPS reference (not executed). README has the Space metadata,
+headline results table and live-URL / GIF placeholders. Next: Bogdan does the HF steps (Part A), then the URL goes into
+the README and the demo GIF is recorded. $0 spent.
+Previous: **Phase 7a.2 DONE (ADR-0050).** Start the dashboard with `.\make.ps1 dev` (or `.\start.ps1`; sets
 `PRICEPILOT_DB_DRIVER=pg8000`, runs `.venv\Scripts\python -m uvicorn`, never the blocked `uvicorn.exe`), open
 http://localhost:8000. Home page = four hero tiles (matching F1 0.87 vs 0.50 zero-shot; RAG hit@1 0.85; 50
 recommendations / 0 violations re-checked from SQL; 26 days / 266,200 price rows) + guard-verdict and
@@ -66,6 +73,7 @@ placeholder.
 
 ## Last done
 
+00000000. **Phase 7b prep (2026-10-08, ADR-0051):** lean serving Dockerfile + `.dockerignore` + `pipeline` extra; `decision/run_labels.py` so the API never imports the engine; `scripts/make_space_bundle.ps1`; `docs/DEPLOYMENT.md` (HF live, VPS reference); README results + Space metadata; `tests/test_serving_image.py` (3). ADR-0044 condensed to make room. Python was Application-Control-blocked in this session, so the full suite was NOT run (see Open issues).
 00000000. **Phase 7a.2: dashboard polish (2026-10-07, ADR-0050):** `make.ps1 dev` + `start.ps1` + `make dev`;
    hero tiles, verdict and margin charts, price-comparison bars, shop-colour/status-colour palette validated
    with the dataviz script; `/api/overview`; listings reconciliation on the status page; 24 dashboard-API tests; reviewer findings fixed (a duplicate CSS token had turned FLAG badges and the caveat banner near-unreadable in light mode; the zero-shot baseline now also shows the all-'match' F1 0.51; Chart.js pinned with SRI). Light mode and a true 390px phone width were NOT screenshot-verified (headless Chrome here forces dark and a 500px minimum).
@@ -143,6 +151,7 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Open issues
 
+- **7b verification gap (2026-10-08):** the full pytest suite, mypy and ruff-on-everything were not run -- Python is Application-Control-blocked in the Claude Code session. Ran instead in a Linux container: `test_serving_image.py`, `test_api.py`, `test_api_dashboard.py` (27 passed; the 1 failure there reads CLAUDE.md, not copied into the container) and ruff check on src/services plus ruff format on src and the new test. Run `.\make.ps1 check` before trusting CI.
 - **Phase 7a loose ends (the listings-number item is RESOLVED, ADR-0050):** `scripts/ingest_labels.py` / `split_annotation_queue.py` still hash the raw queue
   (false tamper alarm off Windows, ADR-0048). Chart.js loads from a CDN (needs internet in the browser). The Docker
   CI job took ~10 min this run (image build installs torch); the `check` job takes ~1.5 min.
@@ -244,6 +253,6 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Nothing blocks Phase 7. Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
+Phase 7b live deploy: the Hugging Face steps in `docs/DEPLOYMENT.md` Part A (account, write token, Neon read-only role, Space, `DATABASE_URL` secret, push the bundle). Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).

@@ -4,16 +4,24 @@ version = "0.1.0"
 description = "Competitive pricing intelligence: scrape competitor prices, match listings to our catalogue, recommend prices with a hard margin floor."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
+# Core = what the read-only dashboard/API needs at request time (the lean serving image, ADR-0051).
+# No torch / transformers / onnxruntime / sentence-transformers / anthropic here.
 dependencies = [
     "fastapi>=0.115",
     "jinja2>=3.1",
-    "uvicorn[standard]>=0.32",
+    "uvicorn>=0.32",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "sqlalchemy>=2.0.36",
-    "alembic>=1.14",
     "psycopg[binary]>=3.2",
     "pgvector>=0.3.6",
+]
+
+[project.optional-dependencies]
+# Everything the pipeline needs on top of the core: scrapers, migrations, embeddings/RAG, LLM client.
+pipeline = [
+    "uvicorn[standard]>=0.32",
+    "alembic>=1.14",
     "httpx>=0.28",
     "selectolax>=0.3.21",
     "structlog>=24.4",
@@ -22,9 +30,8 @@ dependencies = [
     "anthropic>=1.8.0",
     "pg8000>=1.31.5",
 ]
-
-[project.optional-dependencies]
 dev = [
+    "pricepilot[pipeline]",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "ruff>=0.8",

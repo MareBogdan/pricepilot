@@ -29,6 +29,7 @@ This file also records spend that never touches an LLM — GPU hours and hosting
 | 2026-10-07 | 6 | Phase 6: action layer (`actions/`), migration 0015 `action_log`, one-cycle gate against the local mock store (ADR-0046/0047). No LLM calls (`llm_calls` unchanged at 649 rows / $1.222904), no GPU, no paid hosting | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 | 2026-10-07 | 7 | Phase 7a: CI fix (ADR-0048), read-only API + dashboard running locally against Neon (ADR-0049). No LLM calls (`llm_calls` unchanged), no GPU, no paid hosting (deploy is 7b) | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 | 2026-10-07 | 7 | Phase 7a.2: one-command dev launch (`make.ps1 dev`), dashboard visual pass (hero tiles, charts), listings-number reconciliation (ADR-0050). No LLM calls (`llm_calls` unchanged), no GPU, no paid hosting | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
+| 2026-10-08 | 7 | Phase 7b prep: lean serving image, Space bundle script, `docs/DEPLOYMENT.md` (HF Spaces live steps + VPS reference), README results (ADR-0051). Hosting = Hugging Face Spaces free tier; the VPS is documented, not bought. No LLM calls (`llm_calls` unchanged), no GPU | $0.00 | **$0.00** | $1.222904 | n/a -- no paid API/GPU/hosting action taken |
 
 ## Planned spend — reserved in priority order (CLAUDE.md §5, DECISIONS.md ADR-0011)
 

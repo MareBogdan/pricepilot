@@ -1010,60 +1010,74 @@ name = "pricepilot"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "alembic" },
-    { name = "anthropic" },
     { name = "fastapi" },
-    { name = "httpx" },
     { name = "jinja2" },
-    { name = "pg8000" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "python-dotenv" },
-    { name = "selectolax" },
-    { name = "sentence-transformers" },
     { name = "sqlalchemy" },
-    { name = "structlog" },
-    { name = "uvicorn", extra = ["standard"] },
+    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
 dev = [
+    { name = "alembic" },
+    { name = "anthropic" },
+    { name = "httpx" },
     { name = "mypy" },
+    { name = "pg8000" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "python-dotenv" },
     { name = "ruff" },
+    { name = "selectolax" },
+    { name = "sentence-transformers" },
+    { name = "structlog" },
     { name = "types-python-dateutil" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+pipeline = [
+    { name = "alembic" },
+    { name = "anthropic" },
+    { name = "httpx" },
+    { name = "pg8000" },
+    { name = "python-dotenv" },
+    { name = "selectolax" },
+    { name = "sentence-transformers" },
+    { name = "structlog" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.14" },
-    { name = "anthropic", specifier = ">=1.8.0" },
+    { name = "alembic", marker = "extra == 'pipeline'", specifier = ">=1.14" },
+    { name = "anthropic", marker = "extra == 'pipeline'", specifier = ">=1.8.0" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "httpx", specifier = ">=0.28" },
+    { name = "httpx", marker = "extra == 'pipeline'", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
-    { name = "pg8000", specifier = ">=1.31.5" },
+    { name = "pg8000", marker = "extra == 'pipeline'", specifier = ">=1.31.5" },
     { name = "pgvector", specifier = ">=0.3.6" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "pricepilot", extras = ["pipeline"], marker = "extra == 'dev'" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
-    { name = "python-dotenv", specifier = ">=1.0" },
+    { name = "python-dotenv", marker = "extra == 'pipeline'", specifier = ">=1.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
-    { name = "selectolax", specifier = ">=0.3.21" },
-    { name = "sentence-transformers", specifier = ">=6.0.1" },
+    { name = "selectolax", marker = "extra == 'pipeline'", specifier = ">=0.3.21" },
+    { name = "sentence-transformers", marker = "extra == 'pipeline'", specifier = ">=6.0.1" },
     { name = "sqlalchemy", specifier = ">=2.0.36" },
-    { name = "structlog", specifier = ">=24.4" },
+    { name = "structlog", marker = "extra == 'pipeline'", specifier = ">=24.4" },
     { name = "types-python-dateutil", marker = "extra == 'dev'" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+    { name = "uvicorn", specifier = ">=0.32" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'pipeline'", specifier = ">=0.32" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["pipeline", "dev"]
 
 [[package]]
 name = "psycopg"

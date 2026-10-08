@@ -1,13 +1,42 @@
+# Keep the build context small and the model out: the serving image needs only src/, services/,
+# config/ and three result JSONs (see Dockerfile).
 .git
+.github
 .venv
+venv
 __pycache__
+*.pyc
 .mypy_cache
 .ruff_cache
 .pytest_cache
 node_modules
-data
-docs
-tests
-*.md
 .env
-!README.md
+.env.*
+!.env.example
+
+# 397 MB model + data are never part of the serving image.
+models
+data
+logs
+notebooks
+tests
+tools
+scripts
+alembic
+"Claude outputs"
+
+# docs/: only the three result JSONs the dashboard reads are copied.
+docs/*
+!docs/learned
+docs/learned/*
+!docs/learned/results
+docs/learned/results/*
+!docs/learned/results/mmarco-mMiniLMv2-finetuned-ep6-metrics.json
+!docs/learned/results/mmarco-mMiniLMv2-zeroshot-metrics.json
+!docs/learned/results/phase5-policy-retrieval-eval.json
+
+*.zip
+*.onnx
+*.safetensors
+*.pt
+*.gguf

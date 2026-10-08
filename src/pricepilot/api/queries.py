@@ -34,7 +34,7 @@ from pricepilot.api.schemas import (
     StressTest,
     VerdictMixRow,
 )
-from pricepilot.decision.scenarios import SUPERSEDED_RUN_LABEL
+from pricepilot.decision.run_labels import SUPERSEDED_RUN_LABEL
 from pricepilot.models import Product as ProductModel
 from pricepilot.models import ProductMatch, RawListing, Recommendation, ScrapeRun
 from pricepilot.policy.guard import margin, meets_floor

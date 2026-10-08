@@ -1,5 +1,8 @@
-# Single image for both the API and the mock store; the compose `command` picks which runs.
-FROM python:3.12-slim AS base
+# Lean SERVING image (ADR-0051): the read-only dashboard + API only. It is also what Hugging Face
+# Spaces builds (sdk: docker). It deliberately has no torch / transformers / onnxruntime /
+# sentence-transformers and no model file: the dashboard reads Neon + committed result files and
+# never runs the matcher, embeddings or RAG at request time. The mock store (compose) reuses it.
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -11,19 +14,30 @@ WORKDIR /app
 # uv resolves and installs far faster than pip, and is what we use locally too.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Dependency layer first so source edits do not invalidate the install.
-COPY pyproject.toml README.md ./
-COPY src/pricepilot/__init__.py src/pricepilot/__init__.py
-RUN uv pip install --system --no-cache .
+# Dependency layer first so source edits do not invalidate the install. `-r pyproject.toml`
+# installs [project.dependencies] only (the lean core), not the `pipeline` / `dev` extras, and
+# not the package itself: the code runs from PYTHONPATH, so config/ and docs/ paths (resolved
+# relative to the source tree) stay valid.
+COPY pyproject.toml ./
+RUN uv pip install --system --no-cache -r pyproject.toml
 
 COPY src/ src/
 COPY services/ services/
-COPY alembic/ alembic/
-COPY alembic.ini ./
+# config/ = pricing-policy.toml (margin floor, read by the dashboard); the three JSONs are the only
+# result files the dashboard reads (src/pricepilot/api/results.py) -- without them the headline
+# tiles would show "n/a".
+COPY config/ config/
+COPY docs/learned/results/mmarco-mMiniLMv2-finetuned-ep6-metrics.json \
+     docs/learned/results/mmarco-mMiniLMv2-zeroshot-metrics.json \
+     docs/learned/results/phase5-policy-retrieval-eval.json \
+     docs/learned/results/
 
-# Non-root, because this image also runs on the VPS in Phase 7.
-RUN useradd --create-home --uid 10001 app && chown -R app:app /app
+# Non-root. uid 1000 is what Hugging Face Spaces runs containers as.
+RUN useradd --create-home --uid 1000 app && chown -R app:app /app
 USER app
 
-EXPOSE 8000 8001
-CMD ["uvicorn", "pricepilot.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Fail the BUILD (not the Space at runtime) if the app needs anything outside the core dependencies.
+RUN python -c "import pricepilot.api.main, services.mock_store.app"
+
+EXPOSE 7860 8000 8001
+CMD ["python", "-m", "uvicorn", "pricepilot.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
