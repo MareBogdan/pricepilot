@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PricePilot{% endblock %}</title>
   <meta name="color-scheme" content="light dark">
+  {# Link-preview metadata. Absolute URLs on purpose: LinkedIn/Slack/WhatsApp crawlers need them, and
+      og:url is the site root on every page so a shared deep link still previews as the project. #}
+  <meta name="description" content="Daily competitor price collection, a fine-tuned model that matches listings (F1 0.87), and a margin floor enforced in code, not in a prompt.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pricepilot-s1jj.onrender.com/">
+  <meta property="og:title" content="PricePilot — competitive pricing intelligence">
+  <meta property="og:description" content="Daily competitor price collection, a fine-tuned model that matches listings (F1 0.87), and a margin floor enforced in code, not in a prompt.">
+  <meta property="og:image" content="https://pricepilot-s1jj.onrender.com/static/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>

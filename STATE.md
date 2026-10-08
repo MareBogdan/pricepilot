@@ -55,6 +55,7 @@ placeholder.
 
 ## Last done
 
+00000000. **Link-preview metadata (2026-10-08):** `base.html` now carries `description`, Open Graph and `twitter:card` tags on every page (incl. 404/503); 1200x630 `og.png` served from `/static/og.png` (cropped from the committed phase7a hero screenshot, so its "26 collection days" counter is a snapshot). 3 tests. Needs the manual Render redeploy to go live. $0.
 00000000. **Post-close hardening (2026-10-08):** public dashboard + JSON API show shops as Shop A/B/C with no shop links (`api/anonymise.py`, leak test; LEGAL/README updated); `Crawl-delay` now honoured in `PoliteClient._sleep` (3 tests; SOURCES/LEGAL/README corrected); stale branch `worktree-s3b-close-guard` + worktree deleted locally. Pushed, but Render has `autoDeploy: false`: the LIVE site still serves the old build until redeployed by hand. $0.
 00000000. **Phase 7 close (2026-10-08):** live URL in README + cold-start note, collection numbers refreshed from the live `/api/status`, Phase 7 closed in STATE, ADR-0045 condensed (full text `docs/archive/DECISIONS-ADR-0045-full.md`), CI confirmed green on d9b3fd4 (run 37767688842, check + docker). $0.
 00000000. **Phase 7b.2 (2026-10-08, ADR-0052):** HF Spaces -> Render free: `$PORT` CMD, `render.yaml`, DEPLOYMENT Part A, README note, test for the blueprint + `${PORT:-7860}` (28 passed in a Linux container; same CLAUDE.md-in-container failure as before). Python still blocked locally, full suite NOT run.
@@ -239,7 +240,7 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-- Redeploy on Render (manual deploy, `autoDeploy: false`) so the live dashboard serves Shop A/B/C; then re-record `docs/assets/demo.gif` if its product-page frames show shop names or links. Also decide whether to delete `origin/worktree-s3b-close-guard`.
+- Redeploy on Render (manual deploy, `autoDeploy: false`) so the live dashboard serves Shop A/B/C and the OG/Twitter link-preview tags; then re-record `docs/assets/demo.gif` if its product-page frames show shop names or links. Also decide whether to delete `origin/worktree-s3b-close-guard`.
 Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Hosting shortfall (ADR-0030): moot while Render free ($0); revisit only if the VPS is ever bought.

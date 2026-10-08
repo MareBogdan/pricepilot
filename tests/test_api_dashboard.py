@@ -6,6 +6,8 @@ code under test. No HTML snapshot tests.
 from __future__ import annotations
 
 import json
+import re
+import struct
 import warnings
 from collections.abc import Iterator
 from datetime import UTC, date, datetime
@@ -533,3 +535,40 @@ def test_overview_skips_a_category_missing_from_the_policy_config(
     session.commit()
     cats = {c["category"] for c in client.get("/api/overview").json()["category_margins"]}
     assert "not_a_category" not in cats and "dry_food" in cats
+
+
+SITE = "https://pricepilot-s1jj.onrender.com"
+PREVIEW_TAGS = (
+    '<meta property="og:type" content="website">',
+    f'<meta property="og:url" content="{SITE}/">',
+    '<meta property="og:title" content="PricePilot — competitive pricing intelligence">',
+    f'<meta property="og:image" content="{SITE}/static/og.png">',
+    '<meta property="og:image:width" content="1200">',
+    '<meta property="og:image:height" content="630">',
+    '<meta name="twitter:card" content="summary_large_image">',
+)
+
+
+@pytest.mark.parametrize("path", ["/", "/products/1", "/products/999", "/status"])
+def test_every_page_carries_link_preview_metadata(client: TestClient, path: str) -> None:
+    html = client.get(path).text  # 200 pages and the 404 page all extend base.html
+    for tag in PREVIEW_TAGS:
+        assert tag in html, f"{path} is missing {tag}"
+    descriptions = re.findall(
+        r'<meta (?:name="description"|property="og:description") content="([^"]+)"', html
+    )
+    assert len(descriptions) == 2 and descriptions[0] == descriptions[1]
+    assert len(descriptions[0]) < 160
+
+
+def test_unavailable_page_carries_link_preview_metadata(database_down: TestClient) -> None:
+    html = database_down.get("/").text
+    assert all(tag in html for tag in PREVIEW_TAGS)
+
+
+def test_og_image_is_a_served_1200x630_png(client: TestClient) -> None:
+    r = client.get("/static/og.png")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    assert r.content[:8] == b"\x89PNG\r\n\x1a\n"
+    width, height = struct.unpack(">II", r.content[16:24])  # IHDR: width, height
+    assert (width, height) == (1200, 630)
