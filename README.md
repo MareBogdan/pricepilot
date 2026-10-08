@@ -203,7 +203,8 @@ implemented in `src/pricepilot/scrapers/base.py` and the three source adapters:
 - **Use of the data.** Collected for personal and educational use only. It is not resold, licensed
   or offered for download. The public demo does display, for each product matched to a competitor
   (currently 25 links across 13 products), the competitor's listing title, current price, daily
-  price history and a link to the shop's own page. There is no endpoint that lists or exports
+  price history, with the shop shown only as "Shop A", "Shop B" or "Shop C" and no link to its
+  pages (the real names stay in this repo and its docs). There is no endpoint that lists or exports
   competitor listings in bulk. HTML test fixtures are trimmed samples kept only for offline tests.
 - **Not done.** The repo records no review of any shop's terms of service; `robots.txt` is the only
   machine-readable rule checked. A shop that asks to be removed will be dropped (`docs/LEGAL.md`).

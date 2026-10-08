@@ -259,9 +259,9 @@ details.table-view th.num, details.table-view td.num { text-align: right; }
   background: linear-gradient(90deg, var(--accent-soft) var(--v, 0%), transparent var(--v, 0%)); border: 1px solid var(--accent);
 }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; background: var(--muted); vertical-align: baseline; }
-.dot[data-shop="animax_ro"] { background: var(--s1); }
-.dot[data-shop="pentruanimale_ro"] { background: var(--s2); }
-.dot[data-shop="petmax_ro"] { background: var(--s3); }
+.dot[data-shop="shop_a"] { background: var(--s1); }
+.dot[data-shop="shop_b"] { background: var(--s2); }
+.dot[data-shop="shop_c"] { background: var(--s3); }
 .dot.ours { background: var(--ink); }
 .model-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 3px 12px; font-size: 0.78rem; font-weight: 600; }
 

@@ -37,7 +37,6 @@ class MatchRow(BaseModel):
     threshold: Decimal
     price_date: date
     in_stock: bool | None
-    url: str | None  # None unless http(s): scraped URLs are untrusted
 
 
 class PricePosition(BaseModel):

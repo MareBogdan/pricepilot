@@ -24,6 +24,7 @@ from sqlalchemy.pool import StaticPool
 
 from pricepilot.api import deps, facts
 from pricepilot.api import results as api_results
+from pricepilot.api.anonymise import public_shop
 from pricepilot.api.main import app
 from pricepilot.api.routes_api import router as api_router
 from pricepilot.api.routes_pages import router as pages_router
@@ -209,7 +210,10 @@ def test_products_list_numbers_come_from_the_rows(client: TestClient) -> None:
 
 def test_product_detail_matches_and_price_position(client: TestClient) -> None:
     d = client.get("/api/products/1").json()
-    assert [m["shop"] for m in d["matches"]] == ["shop_a_ro", "shop_b_ro"]  # cheapest first
+    assert [m["shop"] for m in d["matches"]] == [
+        public_shop("shop_a_ro"),
+        public_shop("shop_b_ro"),
+    ]  # cheapest first
     pos = d["position"]
     assert (pos["min"], pos["median"], pos["max"]) == ("140.00", "150.00", "160.00")
     assert pos["vs_min_pct"] == "7.1"  # (150 - 140) / 140
@@ -264,8 +268,8 @@ def test_history_labels_synthetic_and_real_series(client: TestClient) -> None:
     assert h["our_price_note"].startswith("SYNTHETIC")
     assert h["competitors_note"].startswith("REAL")
     by_shop = {s["shop"]: s["points"] for s in h["competitors_real"]}
-    assert by_shop["shop_a_ro"] == [["2026-10-05", "141.00"], ["2026-10-06", "140.00"]]
-    assert by_shop["shop_b_ro"] == [["2026-10-06", "160.00"]]
+    assert by_shop[public_shop("shop_a_ro")] == [["2026-10-05", "141.00"], ["2026-10-06", "140.00"]]
+    assert by_shop[public_shop("shop_b_ro")] == [["2026-10-06", "160.00"]]
 
 
 def test_status_counts_are_sql_counts(client: TestClient) -> None:
@@ -276,8 +280,8 @@ def test_status_counts_are_sql_counts(client: TestClient) -> None:
     assert s["price_observations"] == 3  # 4 rows minus the excluded one
     assert s["in_scope_listings"] == 2  # a1 and b1; a1's two days are one listing
     assert {x["source"]: x["in_scope_listings"] for x in s["sources"]} == {
-        "shop_a_ro": 1,
-        "shop_b_ro": 1,
+        public_shop("shop_a_ro"): 1,
+        public_shop("shop_b_ro"): 1,
     }
     assert s["products"] == 2
     assert s["recommendations_real"] == {"APPROVE": 1}
@@ -340,15 +344,32 @@ def test_offline_pages_say_so_instead_of_crashing(database_down: TestClient) -> 
     assert database_down.get("/status").status_code == 200  # static facts still render
 
 
-def test_scraped_urls_are_links_only_when_http(client: TestClient, session: Session) -> None:
-    bad = session.query(ProductMatch).filter_by(source="shop_b_ro").one()
-    bad.url = "javascript:alert(document.cookie)"
+def test_public_surface_never_shows_real_shop_names_or_shop_links(
+    client: TestClient, session: Session
+) -> None:
+    """LEGAL.md: shops appear as Shop A/B/C and nothing links to their pages. Re-point the seeded
+    rows at the three real source names, then scan every page and JSON endpoint."""
+    for old, new in (("shop_a_ro", "animax_ro"), ("shop_b_ro", "petmax_ro")):
+        for model in (ProductMatch, RawListing, ScrapeRun):
+            session.query(model).filter_by(source=old).update({"source": new})
     session.commit()
-    by_shop = {m["shop"]: m["url"] for m in client.get("/api/products/1").json()["matches"]}
-    assert by_shop["shop_a_ro"] == "https://example.invalid/a1"
-    assert by_shop["shop_b_ro"] is None
-    page = client.get("/products/1").text
-    assert "javascript:" not in page
+    paths = ["/", "/status", "/products/1", "/api/products/1", "/api/products/1/history"]
+    paths += ["/api/status", "/api/overview", "/api/products"]
+    bodies = {p: client.get(p) for p in paths}
+    for path, resp in bodies.items():
+        assert resp.status_code == 200, path
+        text_ = resp.text.lower()
+        for forbidden in (
+            "animax",
+            "petmax",
+            "pentruanimale",
+            "example.invalid",
+            'target="_blank"',
+        ):
+            assert forbidden not in text_, (path, forbidden)
+    assert "Shop A" in bodies["/products/1"].text and "Shop C" in bodies["/products/1"].text
+    match = client.get("/api/products/1").json()["matches"][0]
+    assert "url" not in match and match["shop"] == "shop_a"
 
 
 def test_corrupt_cost_shows_no_margin_instead_of_a_fake_one(

@@ -7,12 +7,12 @@ from collections import defaultdict
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 from statistics import median
 from typing import Any
-from urllib.parse import urlsplit
 
 from sqlalchemy import column, func, select, table
 from sqlalchemy.orm import Session
 
 from pricepilot.api import facts, results
+from pricepilot.api.anonymise import public_shop
 from pricepilot.api.schemas import (
     CategoryMargin,
     CompetitorSeries,
@@ -203,12 +203,6 @@ def _recommendation_out(session: Session, r: Recommendation) -> RecommendationOu
     )
 
 
-def _safe_url(url: str) -> str | None:
-    """Only http(s) links are rendered as links: the URL comes from a scraped page, and a
-    `javascript:` href would run script on the dashboard's origin."""
-    return url if urlsplit(url.strip()).scheme.lower() in ("http", "https") else None
-
-
 def _matches(session: Session, product_id: int) -> list[MatchRow]:
     rows = session.scalars(
         select(ProductMatch)
@@ -217,14 +211,13 @@ def _matches(session: Session, product_id: int) -> list[MatchRow]:
     ).all()
     return [
         MatchRow(
-            shop=m.source,
+            shop=public_shop(m.source),
             competitor_title=m.competitor_title,
             price=m.competitor_price,
             score=m.score,
             threshold=m.threshold,
             price_date=m.price_date,
             in_stock=m.in_stock,
-            url=_safe_url(m.url),
         )
         for m in rows
     ]
@@ -286,7 +279,9 @@ def price_history(session: Session, product_id: int) -> PriceHistory:
             .where(RawListing.source == m.source, RawListing.external_id == m.external_id)
             .order_by(RawListing.collected_date)
         ).all()
-        series.append(CompetitorSeries(shop=m.source, points=[(d, pr) for d, pr in pts]))
+        series.append(
+            CompetitorSeries(shop=public_shop(m.source), points=[(d, pr) for d, pr in pts])
+        )
     return PriceHistory(
         product_id=product_id,
         our_price_synthetic=ours,
@@ -357,7 +352,7 @@ def pipeline_status(session: Session) -> Status:
         last_runs[run.source] = run
     sources = [
         SourceStatus(
-            source=src,
+            source=public_shop(src),
             in_scope_listings=n,
             price_observations=obs,
             collection_days=d,

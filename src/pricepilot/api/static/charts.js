@@ -5,14 +5,14 @@
 (function () {
   "use strict";
   var PP = (window.PP = {});
-  var SHOP_VAR = { animax_ro: "--s1", pentruanimale_ro: "--s2", petmax_ro: "--s3" };
+  var SHOP_VAR = { shop_a: "--s1", shop_b: "--s2", shop_c: "--s3" };
 
   function css(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
   PP.css = css;
   PP.shopColor = function (shop) { return css(SHOP_VAR[shop] || "--muted"); };
-  PP.shopName = function (shop) { return shop.replace(/_ro$/, ".ro"); };
+  PP.shopName = function (shop) { return "Shop " + shop.replace(/^shop_/, "").toUpperCase(); };
   PP.ready = function () { return typeof Chart !== "undefined"; };
 
   function setDefaults() {

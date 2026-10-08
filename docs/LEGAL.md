@@ -29,8 +29,14 @@ theirs to be removed gets it removed.
 
 A non-commercial portfolio project. It does not resell collected data, does not run at a volume
 that burdens any shop. The deployed dashboard shows our own (mock) catalogue and, for each product
-matched to a competitor, that competitor's listing title, current price, daily price history and a
-link to the shop's page. It has no endpoint that lists or exports competitor listings in bulk.
+matched to a competitor, that competitor's listing title, current price and daily price history.
+Since 2026-10-08 the shop is shown only as an alias (**Shop A / Shop B / Shop C**) on every page and
+in every JSON endpoint, and the dashboard carries **no link** to any shop's pages: the real names and
+the stored product URLs never leave the database (`src/pricepilot/api/anonymise.py`, enforced by
+`tests/test_api_dashboard.py`). The real names remain in the code, the docs and the README, which
+describe the project. Residual limits: a competitor's listing *title* is shown as scraped and could
+itself contain a shop's name; the committed demo GIF (`docs/assets/demo.gif`) was recorded before this change and may show shop names on its product-page frames.
+It has no endpoint that lists or exports competitor listings in bulk.
 
 A declared `Crawl-delay` in `robots.txt` is honoured by the request loop: the pause floor is raised
 to the delay declared for our agent (or `*`) and never lowered below the configured 2 s. No source

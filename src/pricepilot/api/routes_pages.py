@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from pricepilot.api import facts, queries
+from pricepilot.api.anonymise import shop_label
 from pricepilot.api.deps import get_optional_session
 from pricepilot.api.schemas import Overview, ProductDetail, Status
 
@@ -42,8 +43,8 @@ def _day(value: date | datetime | None) -> str:
 
 
 def _shop(value: str) -> str:
-    """`petmax_ro` -> `petmax.ro`."""
-    return value.removesuffix("_ro") + ".ro" if value.endswith("_ro") else value
+    """`shop_c` -> `Shop C` (the public alias; real names never reach a page)."""
+    return shop_label(value)
 
 
 def _fixed(value: Decimal | None, places: int) -> str:

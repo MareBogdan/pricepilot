@@ -41,7 +41,7 @@
     {% for m in d.matches %}
       <tr>
         <td class="nowrap"><span class="dot" data-shop="{{ m.shop }}"></span>{{ m.shop|shop }}</td>
-        <td>{% if m.url %}<a href="{{ m.url }}" rel="noopener noreferrer" target="_blank">{{ m.competitor_title }}</a>{% else %}{{ m.competitor_title }}{% endif %}</td>
+        <td>{{ m.competitor_title }}</td>
         <td class="num">{{ m.price|money }}</td>
         <td><span class="score" style="--v: {{ (m.score * 100)|fixed(1) }}%" title="Cross-encoder score {{ m.score|fixed(3) }}; counted as a match at or above {{ m.threshold|fixed(2) }}">{{ m.score|fixed(3) }}</span></td>
         <td class="nowrap">{{ m.price_date|day }}</td>
@@ -143,7 +143,7 @@
 
 <section class="card" id="history">
   <h2>3 &middot; Price history</h2>
-  <p class="lede"><span class="dot" data-shop="animax_ro"></span><span class="dot" data-shop="pentruanimale_ro"></span><span class="dot" data-shop="petmax_ro"></span>
+  <p class="lede"><span class="dot" data-shop="shop_a"></span><span class="dot" data-shop="shop_b"></span><span class="dot" data-shop="shop_c"></span>
   Solid lines are competitor prices as scraped (<strong>real</strong>).
   <span class="dot ours"></span>The dashed line is our price from the mock store, which is
   <strong>generated</strong> (simulated).</p>
