@@ -32,8 +32,8 @@ that burdens any shop. The deployed dashboard shows our own (mock) catalogue and
 matched to a competitor, that competitor's listing title, current price, daily price history and a
 link to the shop's page. It has no endpoint that lists or exports competitor listings in bulk.
 
-Known gap: a declared `Crawl-delay` in `robots.txt` is not yet honoured by the request loop
-(`PoliteClient.declared_crawl_delay` exists but is not called). No source declared one for
-generic crawlers when last checked (2026-09-13); the fixed 2-4 s pause applies.
+A declared `Crawl-delay` in `robots.txt` is honoured by the request loop: the pause floor is raised
+to the delay declared for our agent (or `*`) and never lowered below the configured 2 s. No source
+declares one for generic crawlers (last checked 2026-09-13), so the 2-4 s pause applies in practice.
 
 If any of the above stops being true, revisit this document before the code.

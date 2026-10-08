@@ -249,17 +249,21 @@ class PoliteClient:
 
     # -- fetching -----------------------------------------------------------
 
-    def _sleep(self) -> None:
+    def _sleep(self, url: str) -> None:
         if self._last_request is None:
             return
-        wait = random.uniform(self._min, self._max) - (time.monotonic() - self._last_request)
+        # The origin's declared Crawl-delay raises the floor for this request only; it can never
+        # lower the configured one. The upper bound moves with it so the jitter window stays valid.
+        low = max(self._min, self.declared_crawl_delay(url) or 0.0)
+        high = max(self._max, low)
+        wait = random.uniform(low, high) - (time.monotonic() - self._last_request)
         if wait > 0:
             time.sleep(wait)
 
     def get(self, url: str) -> str:
         if not self.may_fetch(url):
             raise RobotsDisallowed(f"robots.txt disallows {url} for {self.user_agent!r}")
-        self._sleep()
+        self._sleep(url)
         response = self._client.get(url)
         self._last_request = time.monotonic()
         response.raise_for_status()

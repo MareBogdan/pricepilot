@@ -115,3 +115,57 @@ def test_network_failure_fetching_robots_txt_refuses_rather_than_assumes_allowed
 
     with pytest.raises(RobotsDisallowed):
         client.may_fetch("https://example.test/anything")
+
+
+# -- Crawl-delay ------------------------------------------------------------
+
+
+def _slept_before_second_request(
+    monkeypatch: pytest.MonkeyPatch, robots: str, *, min_delay: str = "2", max_delay: str = "4"
+) -> list[float]:
+    """Run two `get()`s against a mock origin and return every `time.sleep` duration requested
+    (the real sleep is stubbed out, so the test is instant)."""
+    monkeypatch.setenv("SCRAPER_MIN_DELAY_SECONDS", min_delay)
+    monkeypatch.setenv("SCRAPER_MAX_DELAY_SECONDS", max_delay)
+    get_settings.cache_clear()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text=robots)
+        return httpx.Response(200, text="<html></html>")
+
+    sleeps: list[float] = []
+    monkeypatch.setattr("pricepilot.scrapers.base.time.sleep", sleeps.append)
+    # Freeze the clock so "time since the last request" is 0 and the full delay is requested.
+    monkeypatch.setattr("pricepilot.scrapers.base.time.monotonic", lambda: 1000.0)
+    client = _client(handler)
+    client.get("https://example.test/a")
+    client.get("https://example.test/b")
+    return sleeps
+
+
+def test_declared_crawl_delay_raises_the_pause_between_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sleeps = _slept_before_second_request(monkeypatch, "User-agent: *\nCrawl-delay: 10\n")
+    assert len(sleeps) == 1
+    assert sleeps[0] >= 10.0  # configured 2-4 s alone would have been below this
+
+
+def test_crawl_delay_is_matched_to_our_own_agent_not_other_bots(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """petmax.ro declares 5-20 s for named bots and nothing for `*`. A delay that belongs to
+    another bot must not slow us down, and one addressed to us must apply."""
+    others = "User-agent: bingbot\nCrawl-delay: 20\n\nUser-agent: *\nDisallow: /private\n"
+    sleeps = _slept_before_second_request(monkeypatch, others)
+    assert 2.0 <= sleeps[0] <= 4.0
+
+    ours = "User-agent: TestBot\nCrawl-delay: 15\n"
+    sleeps = _slept_before_second_request(monkeypatch, ours)
+    assert sleeps[0] >= 15.0
+
+
+def test_crawl_delay_never_lowers_the_configured_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps = _slept_before_second_request(monkeypatch, "User-agent: *\nCrawl-delay: 1\n")
+    assert 2.0 <= sleeps[0] <= 4.0

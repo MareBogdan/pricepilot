@@ -50,8 +50,11 @@ Verbatim copy at `tests/fixtures/petmax_ro/robots.txt`.
   `Pinterest`, `DataForSeoBot`, `Bytespider`), 10 s (`AhrefsBot`, `Amazonbot`, `Applebot`,
   `FacebookBot`, `dotbot`, `meta-externalagent`) or 20 s (`MJ12bot`).
 - `PricePilotBot` matches `*`, so nothing is imposed on us. **We use 2–4 s anyway** (CLAUDE.md
-  §5.4), and the adapter honours a declared `Crawl-delay` automatically if one ever appears — the
-  effective delay is `max(configured floor, declared delay)`.
+  §5.4). If a `Crawl-delay` ever appears for `*` (or for our own agent name), `PoliteClient` raises
+  the pause floor to it per request: effective delay is `max(configured floor, declared delay)`
+  (`tests/test_scraper_base.py`). Before 2026-10-08 this was documented but **not actually wired
+  in** — `declared_crawl_delay` existed and nothing called it; the claim was true only because no
+  source declared a delay.
 - `PetalBot` and `BlexBot` are `Disallow: /` — not us.
 - Relevant disallows we must not touch: **`/ajax/loadProducts*`** (the AJAX pagination endpoint)
   and **`/*?c=*`**. The adapter paginates with `?p=N` only and calls no AJAX endpoint.

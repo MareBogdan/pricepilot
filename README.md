@@ -188,9 +188,11 @@ implemented in `src/pricepilot/scrapers/base.py` and the three source adapters:
   as no rules, which is Python's standard-library behaviour. Covered by `tests/test_scraper_base.py`.
 - **Rate limiting.** A random 2 to 4 second pause between consecutive requests (defaults
   `SCRAPER_MIN_DELAY_SECONDS=2.0`, `SCRAPER_MAX_DELAY_SECONDS=4.0`), one request at a time per site.
-- **`Crawl-delay` is not honoured yet.** The helper that reads it exists but is not wired into the
-  request loop. None of the three sites declared a `Crawl-delay` for generic crawlers when checked
-  (2026-09-13, `docs/SOURCES.md`), so the fixed 2 to 4 second pause applies.
+- **`Crawl-delay` is honoured.** Before each request after the first, the pause floor is raised to
+  the delay the site's `robots.txt` declares for our agent (or for `*`); it is never lowered below
+  the configured floor. None of the three sites declares one for generic crawlers (checked
+  2026-09-12/13, `docs/SOURCES.md`), so in practice the 2 to 4 second pause applies. Covered by
+  `tests/test_scraper_base.py`.
 - **User-Agent.** The crawler identifies itself as a bot, `PricePilotBot/0.1 (+mailto:<contact>;
   portfolio research project)`, and never impersonates a browser: no browser User-Agent string
   exists anywhere in the code. The contact address is read from the `SCRAPER_USER_AGENT`
