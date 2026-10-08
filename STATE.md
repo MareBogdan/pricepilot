@@ -1,13 +1,13 @@
 # STATE
 
-Phase: 7 CLOSED 2026-10-08 (public URL + README results; demo GIF owed). Phases 0-3, 5, 6, 7 CLOSED; Phase 4 POSTPONED.
+Phase: 7 CLOSED 2026-10-08 (public URL + README results + demo GIF). Phases 0-3, 5, 6, 7 CLOSED; Phase 4 POSTPONED.
 Updated: 2026-10-08 (Phase 7 close)
 
-**Where we are:** **Phase 7 CLOSED 2026-10-08 (ADR-0051/0052), one item owed: the demo GIF.** The dashboard is LIVE at
+**Where we are:** **Phase 7 CLOSED 2026-10-08 (ADR-0051/0052), gate fully met (demo GIF added `docs/assets/demo.gif`, 2026-10-08).** The dashboard is LIVE at
 **https://pricepilot-s1jj.onrender.com** (Render free tier, lean Docker image, reading Neon with the read-only role;
 `/health`, `/`, `/status` returned 200 with no "n/a" on 2026-10-08; 27 collection days, 276,814 price rows, 11,104
 listings read from its `/api/status`). The README has the URL, the free-tier cold-start note (~15 min idle sleep, ~30-60 s
-wake), the headline results table and a GIF placeholder (`docs/assets/demo.gif`). Host history: Hugging Face Docker Spaces
+wake), the headline results table and the embedded demo GIF (`docs/assets/demo.gif`, 0.6 MB). Host history: Hugging Face Docker Spaces
 went paid 2026-10, so Render; the Hetzner VPS walk-through stays in `docs/DEPLOYMENT.md` Part B, not executed. CI green on
 `d9b3fd4` (check + docker): https://github.com/MareBogdan/pricepilot/actions/runs/37767688842. $0 spent in Phase 7.
 Earlier "Where we are" blocks (7a, 7a.2, 7b prep, Phase 6): `docs/archive/STATE-history.md`.
@@ -43,7 +43,7 @@ low-confidence label (18:animax_ro) puts it at 0.88 if wrong. Matcher gate (>=0.
 visible in logs) MET: `docs/learned/results/phase6/gate-cycle.txt`. Full detail: `docs/archive/phases-6.md`,
 ADR-0047.
 **Phase 7 — Production: CLOSED** (2026-10-08, ADR-0049..0052). Gate: public URL MET (https://pricepilot-s1jj.onrender.com, Render free);
-README results table MET; short demo GIF **NOT YET** (placeholder `docs/assets/demo.gif`) -- closed on Bogdan's instruction with the GIF owed.
+README results table MET; short demo GIF MET (`docs/assets/demo.gif`, embedded in the README, added 2026-10-08).
 **Phase 4 price history:** 23 distinct collection days as of 2026-10-04 (petmax 23, animax 22,
 pentruanimale 22), per the architect audit. R1 (28 days) is reachable ~2026-10-10 but R2/R3 still
 fail on the pre-registered measurement -- Phase 4 stays POSTPONE, elasticity stays a labelled
@@ -239,6 +239,5 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 ## Blocked on Bogdan
 
 Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
-Phase 7 demo GIF: record a short GIF of https://pricepilot-s1jj.onrender.com (wake it first) and commit it as `docs/assets/demo.gif`; then embed it in the README.
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
 Hosting shortfall (ADR-0030): moot while Render free ($0); revisit only if the VPS is ever bought.
