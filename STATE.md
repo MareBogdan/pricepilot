@@ -1,38 +1,16 @@
 # STATE
 
-Phase: 7 IN PROGRESS -- 7b.2 PREPARED 2026-10-08: deploy retargeted HF Spaces (Docker now paid) -> Render free (ADR-0052); the live Render deploy is Bogdan's manual step. Phases 0-3, 5, 6 CLOSED; Phase 4 POSTPONED.
-Updated: 2026-10-08 (Phase 7b.2)
+Phase: 7 CLOSED 2026-10-08 (public URL + README results; demo GIF owed). Phases 0-3, 5, 6, 7 CLOSED; Phase 4 POSTPONED.
+Updated: 2026-10-08 (Phase 7 close)
 
-**Phase 7b.2 (ADR-0052):** Hugging Face made Docker Spaces paid, so the same lean image now targets Render free: `CMD` honours `${PORT:-7860}` (verified in Docker with PORT=10000: `/health`, `/`, `/status`, `/products/1` all 200 against Neon, no "n/a"), `render.yaml` (free, Docker, `/health`, `DATABASE_URL` sync:false), DEPLOYMENT.md Part A rewritten, README demo note updated, `make_space_bundle.ps1` marked legacy. Nothing deployed, $0. Below: the 7b prep state it builds on.
-
-**Where we are:** **Phase 7b PREP DONE (ADR-0051), nothing deployed.** Root `Dockerfile` = lean serving image (324 MB, no
-ML stack, no model; core deps only, ML moved to the `pipeline` extra which `dev` includes). Verified in Docker against
-Neon: `/health`, `/`, `/status`, `/products/1`, `/api/status`, static all 200, no "n/a" tile; DB unreachable -> `/health`
-`degraded`, pages 503. `scripts/make_space_bundle.ps1` builds the 73-file / 0.47 MB Space repo (also built and served).
-`docs/DEPLOYMENT.md`: Part A = HF Spaces steps, Part B = VPS reference (not executed). README has the Space metadata,
-headline results table and live-URL / GIF placeholders. Next: Bogdan does the HF steps (Part A), then the URL goes into
-the README and the demo GIF is recorded. $0 spent.
-Previous: **Phase 7a.2 DONE (ADR-0050).** Start the dashboard with `.\make.ps1 dev` (or `.\start.ps1`; sets
-`PRICEPILOT_DB_DRIVER=pg8000`, runs `.venv\Scripts\python -m uvicorn`, never the blocked `uvicorn.exe`), open
-http://localhost:8000. Home page = four hero tiles (matching F1 0.87 vs 0.50 zero-shot; RAG hit@1 0.85; 50
-recommendations / 0 violations re-checked from SQL; 26 days / 266,200 price rows) + guard-verdict and
-margin-headroom charts; product page = price-comparison bars + score pills + decision card + history chart.
-Model numbers are read from the committed result files, the rest from SQL. The listings figure is reconciled:
-the Phase 1 "18,585" was price ROWS after two days (10,525 distinct listings then; 11,097 distinct today).
-Previous: **Phase 7a DONE (ADR-0048/0049).** CI is green again (run 37639406362; root cause: a frozen-file
-hash taken on a CRLF checkout, ADR-0048). The read-only API (`/api/products`, `/api/products/{id}`,
-`/api/products/{id}/history`, `/api/status`) and the dashboard (`/`, `/products/{id}`, `/status`) run locally
-against Neon: `PRICEPILOT_DB_DRIVER=pg8000 uv run uvicorn pricepilot.api.main:app --reload`, open
-http://localhost:8000. Screenshots: `docs/learned/results/phase7a/`. Nothing is deployed. 7b (VPS, Caddy, domain,
-backups, demo GIF) waits for Bogdan's review of the dashboard and the hosting decision. $0 spent.
-Previous: **Phase 6 CLOSED, gate MET (ADR-0046/0047).** The action layer turns a guard-decided
-recommendation into a human-approved, logged, reversible store write. One complete cycle on real row #9
-(product 2, 389.00 -> 369.90): prompt -> apply -> verified in the store price, the store `/audit-log` and
-`action_log` -> second apply refused (no double write) -> rollback -> price restored and logged. Trail:
-`docs/learned/results/phase6/gate-cycle.txt` (the approval was `--confirm` on Bogdan's written
-instruction, not a keystroke). 991 passed / 5 skipped, 31 new tests, 8 of 8 safety mutants killed
-(`scripts/mutation_check_actions.py`). Cost $0 (`llm_calls` unchanged). Phase 5's charm-within-cap question is DECIDED (ADR-0046): guard unchanged, FLAGs routed to
-review; honest note: only 3 of the 12 FLAGs are the sub-20-RON case. Phase 4 stays POSTPONE.
+**Where we are:** **Phase 7 CLOSED 2026-10-08 (ADR-0051/0052), one item owed: the demo GIF.** The dashboard is LIVE at
+**https://pricepilot-s1jj.onrender.com** (Render free tier, lean Docker image, reading Neon with the read-only role;
+`/health`, `/`, `/status` returned 200 with no "n/a" on 2026-10-08; 27 collection days, 276,814 price rows, 11,104
+listings read from its `/api/status`). The README has the URL, the free-tier cold-start note (~15 min idle sleep, ~30-60 s
+wake), the headline results table and a GIF placeholder (`docs/assets/demo.gif`). Host history: Hugging Face Docker Spaces
+went paid 2026-10, so Render; the Hetzner VPS walk-through stays in `docs/DEPLOYMENT.md` Part B, not executed. CI green on
+`d9b3fd4` (check + docker): https://github.com/MareBogdan/pricepilot/actions/runs/37767688842. $0 spent in Phase 7.
+Earlier "Where we are" blocks (7a, 7a.2, 7b prep, Phase 6): `docs/archive/STATE-history.md`.
 
 ## Gate progress
 
@@ -64,6 +42,8 @@ low-confidence label (18:animax_ro) puts it at 0.88 if wrong. Matcher gate (>=0.
 **Phase 6 — Tool calling / action layer: CLOSED** (2026-10-07). Gate (one complete cycle end to end,
 visible in logs) MET: `docs/learned/results/phase6/gate-cycle.txt`. Full detail: `docs/archive/phases-6.md`,
 ADR-0047.
+**Phase 7 — Production: CLOSED** (2026-10-08, ADR-0049..0052). Gate: public URL MET (https://pricepilot-s1jj.onrender.com, Render free);
+README results table MET; short demo GIF **NOT YET** (placeholder `docs/assets/demo.gif`) -- closed on Bogdan's instruction with the GIF owed.
 **Phase 4 price history:** 23 distinct collection days as of 2026-10-04 (petmax 23, animax 22,
 pentruanimale 22), per the architect audit. R1 (28 days) is reachable ~2026-10-10 but R2/R3 still
 fail on the pre-registered measurement -- Phase 4 stays POSTPONE, elasticity stays a labelled
@@ -75,6 +55,7 @@ placeholder.
 
 ## Last done
 
+00000000. **Phase 7 close (2026-10-08):** live URL in README + cold-start note, collection numbers refreshed from the live `/api/status`, Phase 7 closed in STATE, ADR-0045 condensed (full text `docs/archive/DECISIONS-ADR-0045-full.md`), CI confirmed green on d9b3fd4 (run 37767688842, check + docker). $0.
 00000000. **Phase 7b.2 (2026-10-08, ADR-0052):** HF Spaces -> Render free: `$PORT` CMD, `render.yaml`, DEPLOYMENT Part A, README note, test for the blueprint + `${PORT:-7860}` (28 passed in a Linux container; same CLAUDE.md-in-container failure as before). Python still blocked locally, full suite NOT run.
 00000000. **Phase 7b prep (2026-10-08, ADR-0051):** lean serving Dockerfile + `.dockerignore` + `pipeline` extra; `decision/run_labels.py` so the API never imports the engine; `scripts/make_space_bundle.ps1`; `docs/DEPLOYMENT.md` (HF live, VPS reference); README results + Space metadata; `tests/test_serving_image.py` (3). ADR-0044 condensed to make room. Python was Application-Control-blocked in this session, so the full suite was NOT run (see Open issues).
 00000000. **Phase 7a.2: dashboard polish (2026-10-07, ADR-0050):** `make.ps1 dev` + `start.ps1` + `make dev`;
@@ -154,10 +135,11 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Open issues
 
-- **7b verification gap (2026-10-08):** the full pytest suite, mypy and ruff-on-everything were not run -- Python is Application-Control-blocked in the Claude Code session. Ran instead in a Linux container: `test_serving_image.py`, `test_api.py`, `test_api_dashboard.py` (27 passed; the 1 failure there reads CLAUDE.md, not copied into the container) and ruff check on src/services plus ruff format on src and the new test. Run `.\make.ps1 check` before trusting CI.
+- **Pending Bogdan's review (loose ends):** the Claude-written match labels (`claude_pending_bogdan_review`, `gate-s3b.md`) including the 2 non-blind post-guard links and the low-confidence 18:animax_ro (0.92 -> 0.88 if wrong); `ingest_labels.py` / `split_annotation_queue.py` still hash the raw queue file (false tamper alarm off Windows, ADR-0048).
+- **RESOLVED 2026-10-08:** the 7b verification gap (Python blocked locally) -- CI ran lint, mypy and the full suite green on `d9b3fd4`. Local `.make.ps1 check` still not run from the Claude session (Application Control).
 - **Phase 7a loose ends (the listings-number item is RESOLVED, ADR-0050):** `scripts/ingest_labels.py` / `split_annotation_queue.py` still hash the raw queue
   (false tamper alarm off Windows, ADR-0048). Chart.js loads from a CDN (needs internet in the browser). The Docker
-  CI job took ~10 min this run (image build installs torch); the `check` job takes ~1.5 min.
+  CI job now takes ~13 s (lean image, ADR-0051); the `check` job ~1.5 min.
 
 - **Charm rounding overshoots the daily cap (ADR-0045; DECIDED in ADR-0046: accepted, FLAG -> review):** all 12 FLAGs in the refreshed
   gate are cap refusals: 11 are exact -5% cuts that nearest-charm rounding overshot (879.00 -> 834.90,
@@ -256,6 +238,7 @@ Older items (stale note corrected, storage fix, Phase 4 rule v2, Phase 3 closed)
 
 ## Blocked on Bogdan
 
-Phase 7b.2 live deploy: the Render steps in `docs/DEPLOYMENT.md` Part A (Neon read-only role already exists; Render account via GitHub, Blueprint from `render.yaml`, paste the read-only `DATABASE_URL` as a secret, send the onrender.com URL). Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
+Optional: review the Claude-written match labels (`gate-s3b.md`, ADR-0040) and the low-confidence 18:animax_ro; run `scripts/phase6_gate_cycle.py` without `--confirm` for the interactive trail; decide when to build the store -> DB price sync (ADR-0047).
+Phase 7 demo GIF: record a short GIF of https://pricepilot-s1jj.onrender.com (wake it first) and commit it as `docs/assets/demo.gif`; then embed it in the README.
 Phase 4/storage: the one-off payload backfill decision (21.4 MB potential, ADR-0032) -- not urgent.
-Phase 7: hosting shortfall ~$4-6 (ADR-0030) -- decide then (host 2 months, or raise "available" by ~$5).
+Hosting shortfall (ADR-0030): moot while Render free ($0); revisit only if the VPS is ever bought.

@@ -1281,3 +1281,37 @@ every number recomputed and reproduced, gate MET as a **TIE on F1** (LoRA 0.8796
 0.8737, McNemar p=1.0000). Served model: cross-encoder ONNX fp32 on CPU, incremental batch, K=100.
 Dataset FROZEN 2026-09-22, SHA-256 below. **Next: the Phase 4 measurement session (no model):**
 is there enough real price history, and how many new `content_hash` values arrive per day?
+
+
+## Archived "Where we are" blocks (moved 2026-10-08 at Phase 7 close)
+
+**Phase 7b.2 (ADR-0052):** Hugging Face made Docker Spaces paid, so the same lean image now targets Render free: `CMD` honours `${PORT:-7860}` (verified in Docker with PORT=10000: `/health`, `/`, `/status`, `/products/1` all 200 against Neon, no "n/a"), `render.yaml` (free, Docker, `/health`, `DATABASE_URL` sync:false), DEPLOYMENT.md Part A rewritten, README demo note updated, `make_space_bundle.ps1` marked legacy. Nothing deployed, $0. Below: the 7b prep state it builds on.
+
+**Where we are:** **Phase 7b PREP DONE (ADR-0051), nothing deployed.** Root `Dockerfile` = lean serving image (324 MB, no
+ML stack, no model; core deps only, ML moved to the `pipeline` extra which `dev` includes). Verified in Docker against
+Neon: `/health`, `/`, `/status`, `/products/1`, `/api/status`, static all 200, no "n/a" tile; DB unreachable -> `/health`
+`degraded`, pages 503. `scripts/make_space_bundle.ps1` builds the 73-file / 0.47 MB Space repo (also built and served).
+`docs/DEPLOYMENT.md`: Part A = HF Spaces steps, Part B = VPS reference (not executed). README has the Space metadata,
+headline results table and live-URL / GIF placeholders. Next: Bogdan does the HF steps (Part A), then the URL goes into
+the README and the demo GIF is recorded. $0 spent.
+Previous: **Phase 7a.2 DONE (ADR-0050).** Start the dashboard with `.\make.ps1 dev` (or `.\start.ps1`; sets
+`PRICEPILOT_DB_DRIVER=pg8000`, runs `.venv\Scripts\python -m uvicorn`, never the blocked `uvicorn.exe`), open
+http://localhost:8000. Home page = four hero tiles (matching F1 0.87 vs 0.50 zero-shot; RAG hit@1 0.85; 50
+recommendations / 0 violations re-checked from SQL; 26 days / 266,200 price rows) + guard-verdict and
+margin-headroom charts; product page = price-comparison bars + score pills + decision card + history chart.
+Model numbers are read from the committed result files, the rest from SQL. The listings figure is reconciled:
+the Phase 1 "18,585" was price ROWS after two days (10,525 distinct listings then; 11,097 distinct today).
+Previous: **Phase 7a DONE (ADR-0048/0049).** CI is green again (run 37639406362; root cause: a frozen-file
+hash taken on a CRLF checkout, ADR-0048). The read-only API (`/api/products`, `/api/products/{id}`,
+`/api/products/{id}/history`, `/api/status`) and the dashboard (`/`, `/products/{id}`, `/status`) run locally
+against Neon: `PRICEPILOT_DB_DRIVER=pg8000 uv run uvicorn pricepilot.api.main:app --reload`, open
+http://localhost:8000. Screenshots: `docs/learned/results/phase7a/`. Nothing is deployed. 7b (VPS, Caddy, domain,
+backups, demo GIF) waits for Bogdan's review of the dashboard and the hosting decision. $0 spent.
+Previous: **Phase 6 CLOSED, gate MET (ADR-0046/0047).** The action layer turns a guard-decided
+recommendation into a human-approved, logged, reversible store write. One complete cycle on real row #9
+(product 2, 389.00 -> 369.90): prompt -> apply -> verified in the store price, the store `/audit-log` and
+`action_log` -> second apply refused (no double write) -> rollback -> price restored and logged. Trail:
+`docs/learned/results/phase6/gate-cycle.txt` (the approval was `--confirm` on Bogdan's written
+instruction, not a keystroke). 991 passed / 5 skipped, 31 new tests, 8 of 8 safety mutants killed
+(`scripts/mutation_check_actions.py`). Cost $0 (`llm_calls` unchanged). Phase 5's charm-within-cap question is DECIDED (ADR-0046): guard unchanged, FLAGs routed to
+review; honest note: only 3 of the 12 FLAGs are the sub-20-RON case. Phase 4 stays POSTPONE.
