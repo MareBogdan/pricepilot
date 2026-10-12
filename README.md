@@ -1,6 +1,5 @@
 ---
 title: PricePilot
-emoji: 🐾
 colorFrom: blue
 colorTo: indigo
 sdk: docker
@@ -78,7 +77,7 @@ flowchart TD
     subgraph Pipeline
         C["1 · Collection<br/><i>scrapers → raw_listings</i>"]
         N["2 · Normalization<br/><i>attributes, units, dedup</i>"]
-        M["3 · Matching ⭐<br/><i>embeddings → fine-tuned cross-encoder</i>"]
+        M["3 · Matching <br/><i>embeddings → fine-tuned cross-encoder</i>"]
         D["4 · Demand<br/><i>PyTorch elasticity</i>"]
         R["5 · Decision<br/><i>RAG over policy + LLM</i>"]
         A["6 · Action<br/><i>tool calling, human approval</i>"]
